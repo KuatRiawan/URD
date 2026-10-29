@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+echo "==> [PT Upaya Riksa Daya] Memulai persiapan lingkungan pengembangan..."
+
+if [ ! -f "$ROOT_DIR/.env" ]; then
+  cp "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
+  echo "==> Berkas .env dibuat dari .env.example"
+fi
+
+echo "==> Menginstal dependensi backend..."
+npm --prefix "$ROOT_DIR/backend" install
+
+echo "==> Menginstal dependensi frontend..."
+npm --prefix "$ROOT_DIR/frontend" install
+
+echo "==> Menjalankan migrasi database PostgreSQL..."
+npm --prefix "$ROOT_DIR/backend" run migrate
+
+echo "==> Mengisi data awal (seed) operasional PT Upaya Riksa Daya..."
+npm --prefix "$ROOT_DIR/backend" run seed
+
+echo "==> Selesai! Jalankan 'npm run dev:backend' dan 'npm run dev:frontend' untuk memulai."
+

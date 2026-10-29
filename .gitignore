@@ -1,0 +1,70 @@
+# =============================================================================
+# PT UPAYA RIKSA DAYA - GITIGNORE CONFIGURATION
+# =============================================================================
+
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp/
+.pnp.js
+
+# Build Outputs
+dist/
+*/dist/
+build/
+.vite/
+.cache/
+
+# Environment Variables & Credentials (Security First)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+
+# Local Database & Storage
+.local/
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs & Debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test & Coverage Outputs
+coverage/
+*/coverage/
+.nyc_output/
+
+# OS Specific & Temporary Files
+.DS_Store
+**/.DS_Store
+._*
+Thumbs.db
+
+# IDE & Editor Specific
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local / Draft Uploads & Ad-hoc Test PDF Exports
+IMG_*.jpg
+IMG_*.jpeg
+IMG_*.png
+BAP-URD-*.pdf
+Draf-*.pdf

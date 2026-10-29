@@ -1,0 +1,22 @@
+{
+  "name": "pt-upaya-riksa-daya",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplikasi web internal operasional Riksa Uji K3 PT Upaya Riksa Daya",
+  "scripts": {
+    "setup": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "migrate": "npm --prefix backend run migrate",
+    "seed": "npm --prefix backend run seed",
+    "db:reset": "./scripts/db-reset",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "lint:backend": "npm --prefix backend run lint",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:backend": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend test"
+  }
+}
+
