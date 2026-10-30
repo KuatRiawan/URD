@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
+    "db:start": "pg_ctl -D ../.local/pgdata -o '-p 5433 -k /tmp' -l ../.local/pg.log start",
+    "db:stop": "pg_ctl -D ../.local/pgdata stop",
+    "db:status": "pg_ctl -D ../.local/pgdata status",
     "migrate": "node src/database/migrate.js",
     "seed": "node seeds/seed.js",
     "lint": "eslint src seeds",
