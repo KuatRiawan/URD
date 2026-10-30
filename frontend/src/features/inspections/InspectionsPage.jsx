@@ -649,6 +649,16 @@ export function InspectionsPage() {
       await openInspectionDetail(activeDetail.inspection.id);
       await loadData();
     } catch (err) {
+      if (err.response?.status === 409 || err.response?.data?.error?.code === 'INSPECTION_LOCKED') {
+        clearLocalDraft(activeDetail.inspection.id);
+        setReviewModalOpen(false);
+        setFeedback(
+          'Formulir riksa uji ini telah terkirim dan terkunci. Dokumen BAP dan LHPP siap diunduh.'
+        );
+        await openInspectionDetail(activeDetail.inspection.id);
+        await loadData();
+        return;
+      }
       setError(
         err.response?.data?.error?.message ||
           err.response?.data?.message ||
@@ -1012,6 +1022,52 @@ export function InspectionsPage() {
                 {queuedPhotoCount} foto menunggu dikirim ke server
                 {online ? ' (sedang dikirim).' : '.'}
               </Notice>
+            )}
+
+            {activeDetail.inspection.status === 'TERKIRIM' && (
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-emerald-900 dark:text-emerald-200">
+                <div className="flex items-center gap-3">
+                  <CheckCircle size={24} weight="fill" className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div>
+                    <p className="font-bold text-sm">Riksa Uji Selesai &amp; Dokumen Diterbitkan</p>
+                    <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
+                      Formulir inspeksi telah diverifikasi dan terkunci secara resmi. Dokumen BAP ({activeDetail.inspection.bap_no || 'Telah Terbit'}) dan LHPP ({activeDetail.inspection.lhpp_no || 'Telah Terbit'}) siap diunduh.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {activeDetail.inspection.bap_id && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDownloadPdf(
+                          `/bap/${activeDetail.inspection.bap_id}/pdf`,
+                          `${(activeDetail.inspection.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] shadow-xs"
+                    >
+                      <DownloadSimple size={14} weight="bold" />
+                      <span>Unduh BAP</span>
+                    </button>
+                  )}
+                  {activeDetail.inspection.lhpp_id && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDownloadPdf(
+                          `/lhpp/${activeDetail.inspection.lhpp_id}/pdf`,
+                          `${(activeDetail.inspection.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-900 shadow-xs"
+                    >
+                      <DownloadSimple size={14} weight="bold" />
+                      <span>Unduh LHPP</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Ringkasan PO, Jadwal, Pelaksanaan & Tombol Unduh BAP/LHPP */}
@@ -1810,44 +1866,60 @@ export function InspectionsPage() {
               </div>
 
               {/* Tombol Aksi */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => setReviewModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50"
-                >
-                  Periksa Kembali
-                </button>
-                <button
-                  type="button"
-                  disabled={!canSubmit}
-                  onClick={handleSubmitFinalInspection}
-                  title={
-                    missingItems > 0
-                      ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
-                      : !inspectorSig
-                      ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
-                      : 'Kirim dan terbitkan dokumen'
-                  }
-                  className="px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting ? (
-                    <CircleNotch size={15} weight="bold" className="animate-spin" />
-                  ) : (
-                    <PaperPlaneTilt size={15} weight="bold" />
-                  )}
-                  <span>
-                    {submitting
-                      ? 'Memproses Penerbitan...'
-                      : missingItems > 0
-                      ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
-                      : !inspectorSig
-                      ? 'Tanda Tangan Diperlukan'
-                      : 'Konfirmasi & Kirim Riksa Uji'}
-                  </span>
-                </button>
-              </div>
+              {activeDetail.inspection.status === 'TERKIRIM' ? (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle size={16} weight="fill" />
+                    <span>Formulir riksa uji telah selesai dikirim dan dikunci secara resmi.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReviewModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717]"
+                  >
+                    Tutup Ringkasan
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setReviewModalOpen(false)}
+                    className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50"
+                  >
+                    Periksa Kembali
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canSubmit}
+                    onClick={handleSubmitFinalInspection}
+                    title={
+                      missingItems > 0
+                        ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
+                        : !inspectorSig
+                        ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
+                        : 'Kirim dan terbitkan dokumen'
+                    }
+                    className="px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? (
+                      <CircleNotch size={15} weight="bold" className="animate-spin" />
+                    ) : (
+                      <PaperPlaneTilt size={15} weight="bold" />
+                    )}
+                    <span>
+                      {submitting
+                        ? 'Memproses Penerbitan...'
+                        : missingItems > 0
+                        ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
+                        : !inspectorSig
+                        ? 'Tanda Tangan Diperlukan'
+                        : 'Konfirmasi & Kirim Riksa Uji'}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}

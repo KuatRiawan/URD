@@ -1081,13 +1081,20 @@ router.post(
         if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order tidak ditemukan.');
 
         const { rows: schedRows } = await db.query('SELECT * FROM schedules WHERE order_id = $1', [id]);
-        const schedule = schedRows[0];
+        let schedule = schedRows[0];
         if (!schedule) {
-          throw new AppError(
-            400,
-            'SCHEDULE_REQUIRED',
-            'Tentukan jadwal pemeriksaan terlebih dahulu sebelum menugaskan Ahli K3.'
+          const baseDate = order.requested_date || order.po_date || new Date().toISOString().slice(0, 10);
+          const baseDateStr = new Date(baseDate).toISOString().slice(0, 10);
+          const startIso = new Date(`${baseDateStr}T08:00:00.000Z`).toISOString();
+          const endIso = new Date(`${baseDateStr}T16:00:00.000Z`).toISOString();
+          const { rows: newSched } = await db.query(
+            `INSERT INTO schedules (order_id, start_at, end_at, notes, created_by)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (order_id) DO UPDATE SET updated_at = now()
+             RETURNING *`,
+            [id, startIso, endIso, order.notes || 'Jadwal pemeriksaan operasional', req.user.id]
           );
+          schedule = newSched[0];
         }
 
         const catParams = [id];
