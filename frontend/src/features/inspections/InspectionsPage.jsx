@@ -14,6 +14,7 @@ import {
   FloppyDisk,
   PaperPlaneTilt,
   Plus,
+  Printer,
   SealCheck,
   Signature,
   Trash,
@@ -598,6 +599,44 @@ export function InspectionsPage() {
     }
   };
 
+  const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+  const [previewPdfTitle, setPreviewPdfTitle] = useState('');
+  const [previewPdfFilename, setPreviewPdfFilename] = useState('');
+
+  const handlePreviewPdf = async (endpoint, title, filename) => {
+    try {
+      const res = await api.get(endpoint, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      setPreviewPdfUrl(url);
+      setPreviewPdfTitle(title);
+      setPreviewPdfFilename(filename || 'dokumen.pdf');
+      setPdfPreviewModalOpen(true);
+    } catch (err) {
+      setError(
+        err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          'Gagal memuat pratinjau dokumen PDF.'
+      );
+    }
+  };
+
+  const closePdfPreview = () => {
+    if (previewPdfUrl) {
+      window.URL.revokeObjectURL(previewPdfUrl);
+    }
+    setPreviewPdfUrl(null);
+    setPdfPreviewModalOpen(false);
+  };
+
+  const handlePrintPdf = () => {
+    const iframe = document.getElementById('inspection-pdf-preview-iframe');
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }
+  };
+
   const handleDownloadPdf = async (endpoint, filename) => {
     try {
       const res = await api.get(endpoint, { responseType: 'blob' });
@@ -790,50 +829,27 @@ export function InspectionsPage() {
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="inline-flex flex-wrap justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openInspectionDetail(item.id)}
-                              className="min-h-9 inline-flex items-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            >
-                              <ClipboardText size={15} />
-                              <span>
-                                {item.status === 'DRAF' && isInspector
-                                  ? 'Kerjakan / Isi Form'
-                                  : 'Lihat Detail'}
-                              </span>
-                            </button>
-                            {item.bap_id && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDownloadPdf(
-                                    `/bap/${item.bap_id}/pdf`,
-                                    `${(item.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                                  )
-                                }
-                                className="min-h-9 inline-flex items-center gap-1 rounded bg-[#C81E1E] px-2.5 py-1.5 text-xs font-bold text-white hover:bg-[#991B1B]"
-                              >
-                                <DownloadSimple size={14} weight="bold" />
-                                <span>Unduh BAP</span>
-                              </button>
+                          <button
+                            type="button"
+                            onClick={() => openInspectionDetail(item.id)}
+                            className={`min-h-9 inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+                              item.status === 'DRAF' && isInspector
+                                ? 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
+                                : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            {item.status === 'DRAF' && isInspector ? (
+                              <>
+                                <ClipboardText size={15} weight="bold" />
+                                <span>Kerjakan / Isi Form</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye size={15} weight="bold" />
+                                <span>Review Hasil &amp; Dokumen</span>
+                              </>
                             )}
-                            {item.lhpp_id && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDownloadPdf(
-                                    `/lhpp/${item.lhpp_id}/pdf`,
-                                    `${(item.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                                  )
-                                }
-                                className="min-h-9 inline-flex items-center gap-1 rounded bg-slate-800 dark:bg-slate-700 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
-                              >
-                                <DownloadSimple size={14} weight="bold" />
-                                <span>Unduh LHPP</span>
-                              </button>
-                            )}
-                          </div>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1100,38 +1116,40 @@ export function InspectionsPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        handleDownloadPdf(
+                        handlePreviewPdf(
                           `/bap/${activeDetail.inspection.bap_id}/pdf`,
+                          `Pratinjau Berita Acara Pemeriksaan (BAP) - ${activeDetail.inspection.bap_no || 'BAP'}`,
                           `${(activeDetail.inspection.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
                         )
                       }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] shadow-xs cursor-pointer"
                     >
-                      <DownloadSimple size={14} weight="bold" />
-                      <span>Unduh BAP</span>
+                      <Eye size={14} weight="bold" />
+                      <span>Review BAP (PDF)</span>
                     </button>
                   )}
                   {activeDetail.inspection.lhpp_id && (
                     <button
                       type="button"
                       onClick={() =>
-                        handleDownloadPdf(
+                        handlePreviewPdf(
                           `/lhpp/${activeDetail.inspection.lhpp_id}/pdf`,
+                          `Pratinjau Laporan Hasil Pemeriksaan (LHPP) - ${activeDetail.inspection.lhpp_no || 'LHPP'}`,
                           `${(activeDetail.inspection.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
                         )
                       }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-900 shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-900 shadow-xs cursor-pointer"
                     >
-                      <DownloadSimple size={14} weight="bold" />
-                      <span>Unduh LHPP</span>
+                      <Eye size={14} weight="bold" />
+                      <span>Review LHPP (PDF)</span>
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Ringkasan PO, Jadwal, Pelaksanaan & Tombol Unduh BAP/LHPP */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+            {/* Ringkasan PO, Jadwal & Lokasi Pelaksanaan */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 text-xs">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono font-bold text-[#C81E1E] dark:text-red-400">
@@ -1172,39 +1190,6 @@ export function InspectionsPage() {
                     {activeDetail.inspection.schedule_notes ||
                       activeDetail.inspection.order_notes}
                   </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {activeDetail.inspection.bap_id && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownloadPdf(
-                        `/bap/${activeDetail.inspection.bap_id}/pdf`,
-                        `${(activeDetail.inspection.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                      )
-                    }
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#991B1B]"
-                  >
-                    <DownloadSimple size={16} weight="bold" />
-                    <span>Unduh BAP (PDF)</span>
-                  </button>
-                )}
-                {activeDetail.inspection.lhpp_id && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownloadPdf(
-                        `/lhpp/${activeDetail.inspection.lhpp_id}/pdf`,
-                        `${(activeDetail.inspection.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                      )
-                    }
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-slate-800 dark:bg-slate-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
-                  >
-                    <DownloadSimple size={16} weight="bold" />
-                    <span>Unduh LHPP (PDF)</span>
-                  </button>
                 )}
               </div>
             </div>
@@ -2365,6 +2350,57 @@ export function InspectionsPage() {
             </div>
           );
         })()}
+      </Modal>
+
+      {/* Modal Pratinjau Dokumen BAP & LHPP Sebelum Cetak / Unduh */}
+      <Modal
+        open={pdfPreviewModalOpen}
+        onClose={closePdfPreview}
+        title={previewPdfTitle}
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+              <span className="font-semibold text-slate-800 dark:text-slate-200">Pratinjau Resmi:</span>
+              <span>Periksa kesesuaian data dokumen sebelum mencetak atau mengunduh.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrintPdf}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+              >
+                <Printer size={15} weight="bold" />
+                <span>Cetak / Print</span>
+              </button>
+              <a
+                href={previewPdfUrl || '#'}
+                download={previewPdfFilename}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              >
+                <DownloadSimple size={15} weight="bold" />
+                <span>Unduh Dokumen PDF</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="w-full h-[72vh] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 shadow-inner flex items-center justify-center">
+            {previewPdfUrl ? (
+              <iframe
+                id="inspection-pdf-preview-iframe"
+                src={previewPdfUrl}
+                title={previewPdfTitle}
+                className="w-full h-full border-0 bg-white"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                <CircleNotch size={28} className="animate-spin text-[#C81E1E]" />
+                <span className="text-xs">Memuat pratinjau dokumen...</span>
+              </div>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   );

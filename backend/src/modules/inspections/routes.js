@@ -809,6 +809,28 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
   try {
     const { id } = req.params;
     const result = await withTransaction(async (db) => {
+      // Periksa apakah formulir inspeksi sudah pernah dikirim sebelumnya (idempotent handling)
+      const { rows: existingRows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
+      if (!existingRows[0]) {
+        throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
+      }
+      if (existingRows[0].status === 'TERKIRIM') {
+        const { rows: lhppRows } = await db.query(
+          'SELECT * FROM lhpp_documents WHERE inspection_id = $1',
+          [id]
+        );
+        const { rows: bapRows } = await db.query(
+          'SELECT * FROM bap_documents WHERE inspection_id = $1',
+          [id]
+        );
+        return {
+          inspection: existingRows[0],
+          lhpp: lhppRows[0] || null,
+          bap: bapRows[0] || null,
+          alreadySubmitted: true
+        };
+      }
+
       const insp = await assertEditableInspection(db, id, req.user);
 
       // Simpan kesimpulan dan catatan jika disertakan langsung pada payload kirim
