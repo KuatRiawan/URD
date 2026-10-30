@@ -1,83 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarPlus,
-  CheckCircle,
-  ClipboardText,
-  DownloadSimple,
-  Eye,
-  FileCsv,
-  FilePdf,
-  MagnifyingGlass,
-  Plus,
-  Trash,
-  UserCheck,
-  Warning,
-  XCircle
-} from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
+import { FileCsv, Plus } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
-import { Badge } from '../../components/ui/Badge.jsx';
-import { Modal } from '../../components/ui/Modal.jsx';
 import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
-import {
-  formatDate,
-  formatDateTime,
-  ORDER_STATUS_LABELS,
-  SERVICE_TYPE_LABELS
-} from '../../lib/utils/format.js';
-
-const STATUS_TONE = {
-  ORDER_BARU: 'info',
-  TERJADWAL: 'info',
-  DITUGASKAN: 'warning',
-  SEDANG_DIPERIKSA: 'warning',
-  MENUNGGU_LAPORAN: 'warning',
-  MENUNGGU_REVIEW: 'warning',
-  SELESAI: 'success',
-  DIBATALKAN: 'danger'
-};
-
-const UNIT_STATUS_LABELS = {
-  BELUM_DIJADWALKAN: 'Belum Dijadwalkan',
-  TERJADWAL: 'Sudah Dijadwalkan',
-  DITUGASKAN: 'Ditugaskan ke Inspector',
-  SEDANG_DIPERIKSA: 'Sedang Diperiksa',
-  FORM_TERKIRIM: 'Form Terkirim',
-  BAP_DRAF: 'Draf BAP',
-  BAP_FINAL: 'BAP Final',
-  LHPP_DRAF: 'Draf LHPP',
-  MENUNGGU_REVIEW: 'Menunggu Review LHPP',
-  PERLU_REVISI: 'Perlu Revisi',
-  DISETUJUI: 'Review Disetujui',
-  LHPP_TERBIT: 'LHPP Terbit',
-  SELESAI: 'Selesai',
-  DIBATALKAN: 'Dibatalkan'
-};
-
-const ALLOWED_NEXT_STATUS = {
-  ORDER_BARU: ['TERJADWAL', 'DIBATALKAN'],
-  TERJADWAL: ['DITUGASKAN', 'DIBATALKAN'],
-  DITUGASKAN: ['SEDANG_DIPERIKSA', 'TERJADWAL', 'DIBATALKAN'],
-  SEDANG_DIPERIKSA: ['MENUNGGU_LAPORAN', 'DIBATALKAN'],
-  MENUNGGU_LAPORAN: ['MENUNGGU_REVIEW', 'SEDANG_DIPERIKSA'],
-  MENUNGGU_REVIEW: ['SELESAI', 'MENUNGGU_LAPORAN'],
-  SELESAI: [],
-  DIBATALKAN: []
-};
-
-const PO_WIZARD_STEPS = [
-  'Info PO & Layanan',
-  'Data Klien & PIC',
-  'Unit Alat K3',
-  'Jadwal & Ahli K3',
-  'Review & Simpan'
-];
+import { ORDER_STATUS_LABELS } from '../../lib/utils/format.js';
+import { ALLOWED_NEXT_STATUS } from './orderConstants.js';
+import { OrderFilterBar } from './components/OrderFilterBar.jsx';
+import { OrderTable } from './components/OrderTable.jsx';
+import { CreatePoWizardModal } from './components/CreatePoWizardModal.jsx';
+import { OrderDetailModal } from './components/OrderDetailModal.jsx';
+import { CsvImportModal } from './components/CsvImportModal.jsx';
 
 export function OrdersPage() {
   const confirm = useConfirm();
@@ -96,6 +32,7 @@ export function OrdersPage() {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
+  // State Modal Buat PO Wizard
   const [createOpen, setCreateOpen] = useState(false);
   const [poWizardStep, setPoWizardStep] = useState(1);
   const [clientMode, setClientMode] = useState('EXISTING');
@@ -133,6 +70,7 @@ export function OrdersPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // State Modal Detail & Pengelolaan PO
   const [detailData, setDetailData] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
@@ -145,12 +83,12 @@ export function OrdersPage() {
   const [statusNote, setStatusNote] = useState('');
   const [rejectReason, setRejectReason] = useState('');
 
-  // Fitur 5: Impor CSV Unit
+  // State Modal Impor CSV Unit
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [csvTargetOrderId, setCsvTargetOrderId] = useState(null);
 
-  // Fitur 6: Peringatan Bentrok Jadwal
+  // State Peringatan Konflik Jadwal
   const [scheduleConflicts, setScheduleConflicts] = useState([]);
 
   const loadOrders = useCallback(async () => {
@@ -490,12 +428,10 @@ export function OrdersPage() {
     setError('');
     try {
       if (csvTargetOrderId) {
-        // Impor ke PO yang sudah ada
         const res = await api.post(`/orders/${csvTargetOrderId}/import-units-csv`, { csvText });
         setFeedback(`Berhasil mengimpor ${res.data.count || res.data.importedCount} unit ke PO.`);
         await openOrderDetail(csvTargetOrderId);
       } else {
-        // Impor ke Form Buat PO Baru
         const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         if (lines.length < 2) {
           setError('Data CSV harus memiliki header dan minimal 1 baris unit.');
@@ -738,21 +674,31 @@ export function OrdersPage() {
     <div className="space-y-6">
       <PageHeader
         title="PO & Order Pemeriksaan Riksa Uji K3"
-        subtitle="Kelola Purchase Order (PO) multi-unit dari klien, penjadwalan lapangan, penugasan Ahli K3, dan pemantauan progres BAP serta LHPP setiap unit."
+        subtitle="Pengelolaan Purchase Order resmi, pendaftaran alat K3 multi-unit, alokasi Ahli K3, dan pemantauan progres berkas LHPP"
         actions={
           canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                setError('');
-                setPoWizardStep(1);
-                setCreateOpen(true);
-              }}
-              className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616]"
-            >
-              <Plus size={16} weight="bold" />
-              <span>Buat PO / Order Baru</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenCsvImport(null)}
+                className="min-h-11 inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                <FileCsv size={16} weight="bold" />
+                <span>Impor Unit CSV</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setCreateOpen(true);
+                  setPoWizardStep(1);
+                }}
+                className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+              >
+                <Plus size={16} weight="bold" />
+                <span>Buat PO / Order Baru</span>
+              </button>
+            </div>
           )
         }
       />
@@ -765,34 +711,12 @@ export function OrdersPage() {
 
       {error && <ErrorBanner message={error} onRetry={loadOrders} />}
 
-      <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="relative flex-1">
-          <MagnifyingGlass
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Cari nomor PO, nomor order, atau nama klien..."
-            className="w-full min-h-11 pl-10 pr-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-[#475569] dark:focus:border-slate-500 focus:outline-none"
-          />
-        </div>
-        <select
-          aria-label="Filter Status Order"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="min-h-11 px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-        >
-          <option value="">Semua Status PO</option>
-          {Object.entries(ORDER_STATUS_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <OrderFilterBar
+        q={q}
+        setQ={setQ}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+      />
 
       {loading ? (
         <LoadingState label="Memuat daftar PO & order pemeriksaan..." />
@@ -802,1215 +726,85 @@ export function OrdersPage() {
           description="Purchase Order (PO) pemeriksaan riksa uji K3 yang terdaftar akan tampil di halaman ini."
         />
       ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  <th className="py-3 px-4">Nomor PO &amp; Order</th>
-                  <th className="py-3 px-4">Perusahaan Klien</th>
-                  <th className="py-3 px-4">Jenis Layanan</th>
-                  <th className="py-3 px-4">Progres Unit Alat</th>
-                  <th className="py-3 px-4">Ahli K3 Ditugaskan</th>
-                  <th className="py-3 px-4">Status PO</th>
-                  <th className="py-3 px-4 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                {orders.map((order) => {
-                  const prog = order.unitProgress || {};
-                  return (
-                    <tr key={order.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="py-3.5 px-4 font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
-                        <div className="text-[#C81E1E] dark:text-red-400">{order.po_number || order.order_no}</div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">Order: {order.order_no}</div>
-                        <div className="text-[11px] font-sans font-normal text-slate-500 dark:text-slate-400">
-                          Tgl PO: {formatDate(order.po_date || order.requested_date)}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-slate-100">
-                        {order.client_name}
-                      </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-700 dark:text-slate-300">
-                        <div>{SERVICE_TYPE_LABELS[order.service_type] || order.service_type}</div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">Sumber: {order.source}</div>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-700 dark:text-slate-300">
-                        <div className="font-bold text-slate-900 dark:text-white">
-                          {prog.completed || 0} / {prog.totalUnits || order.object_count || 0} Unit Selesai
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {order.start_at ? formatDateTime(order.start_at) : 'Belum dijadwalkan'}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs">
-                        {(order.assignments || []).length === 0 ? (
-                          <span className="text-slate-400 dark:text-slate-500">Belum ditugaskan</span>
-                        ) : (
-                          <div className="space-y-1">
-                            {(order.assignments || []).map((asg) => (
-                              <div key={asg.id} className="flex items-center gap-1.5">
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{asg.fullName}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                  {asg.status}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <Badge tone={STATUS_TONE[order.status] || 'neutral'}>
-                          {ORDER_STATUS_LABELS[order.status] || order.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openOrderDetail(order.id)}
-                            className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          >
-                            <Eye size={15} />
-                            <span>Kelola PO</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadAssignmentPdf(order.id, order.order_no)}
-                            title="Unduh Surat Tugas PDF"
-                            className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-700 dark:border-slate-600 bg-slate-800 dark:bg-slate-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
-                          >
-                            <DownloadSimple size={15} />
-                            <span>Surat Tugas</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <OrderTable
+          orders={orders}
+          openOrderDetail={openOrderDetail}
+          handleDownloadAssignmentPdf={handleDownloadAssignmentPdf}
+        />
       )}
 
       {/* Modal Buat PO & Order Multi-Unit (Guided 5-Step Wizard) */}
-      <Modal
+      <CreatePoWizardModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Buat Purchase Order (PO) & Daftarkan Unit Alat K3"
-        size="xl"
-      >
-        <div className="space-y-5 text-slate-800 dark:text-slate-200">
-          {/* Stepper Progress Bar */}
-          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-bold text-slate-900 dark:text-white">
-                Langkah {poWizardStep} dari 5: {PO_WIZARD_STEPS[poWizardStep - 1]}
-              </span>
-              <span className="font-semibold text-[#C81E1E]">
-                {Math.round((poWizardStep / 5) * 100)}% Selesai
-              </span>
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-[#C81E1E] h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(poWizardStep / 5) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
-
-          {/* LANGKAH 1: IDENTITAS PO & LAYANAN */}
-          {poWizardStep === 1 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    Nomor PO Pelanggan (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    value={createForm.poNumber}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, poNumber: e.target.value }))}
-                    placeholder="Contoh: PO-URD-2026-001"
-                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono text-slate-900 dark:text-slate-100"
-                  />
-                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    Bila dikosongkan, nomor order internal akan digunakan sebagai referensi.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    Tanggal PO *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={createForm.poDate}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, poDate: e.target.value }))}
-                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    Jenis Layanan Riksa Uji *
-                  </label>
-                  <select
-                    value={createForm.serviceType}
-                    onChange={(e) =>
-                      setCreateForm((prev) => ({ ...prev, serviceType: e.target.value }))
-                    }
-                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                  >
-                    {Object.entries(SERVICE_TYPE_LABELS).map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    Sumber Permohonan *
-                  </label>
-                  <select
-                    value={createForm.source}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, source: e.target.value }))}
-                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                  >
-                    <option value="DOKUMEN_PO">Dokumen PO Resmi</option>
-                    <option value="EMAIL">Email Resmi</option>
-                    <option value="WHATSAPP">WhatsApp</option>
-                    <option value="TELEPON">Telepon Kantor</option>
-                    <option value="LANGSUNG">Kunjungan Langsung</option>
-                    <option value="LAINNYA">Lainnya</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* LANGKAH 2: DATA KLIEN & KONTAK PIC */}
-          {poWizardStep === 2 && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Perusahaan Klien *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setClientMode((prev) => (prev === 'EXISTING' ? 'NEW' : 'EXISTING'));
-                        setError('');
-                      }}
-                      className="text-xs font-bold text-[#C81E1E] dark:text-red-400 hover:underline cursor-pointer"
-                    >
-                      {clientMode === 'EXISTING'
-                        ? '+ Input Klien Baru Sekaligus'
-                        : 'Pilih dari Klien Terdaftar'}
-                    </button>
-                  </div>
-                  {clientMode === 'EXISTING' ? (
-                    <select
-                      value={createForm.clientId}
-                      onChange={(e) => handleClientChange(e.target.value)}
-                      className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                    >
-                      <option value="">Pilih Klien Terdaftar...</option>
-                      {clients.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={createForm.newClientName}
-                      onChange={(e) =>
-                        setCreateForm((prev) => ({ ...prev, newClientName: e.target.value }))
-                      }
-                      placeholder="Ketik Nama Perusahaan Klien Baru *"
-                      className="w-full min-h-11 rounded-md border border-[#C81E1E] bg-red-50/20 dark:bg-red-950/20 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100"
-                    />
-                  )}
-                </div>
-
-                {clientMode === 'NEW' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Bidang Industri Klien Baru
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.newClientIndustry}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, newClientIndustry: e.target.value }))
-                        }
-                        placeholder="Contoh: Manufaktur, Konstruksi, Logistik..."
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Alamat Kantor / Perusahaan Klien
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.newClientAddress}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, newClientAddress: e.target.value }))
-                        }
-                        placeholder="Alamat lengkap perusahaan..."
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Lokasi Pabrik / Site Pelaksanaan Pemeriksaan
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Nama Lokasi / Site
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.locationName}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, locationName: e.target.value }))
-                        }
-                        placeholder="Mis: Plant Cikarang / Workshop A"
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Alamat Lokasi Pemeriksaan
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.locationAddress}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, locationAddress: e.target.value }))
-                        }
-                        placeholder="Jl. Industri Raya No..."
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Kota / Kabupaten Lokasi
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.locationCity}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, locationCity: e.target.value }))
-                        }
-                        placeholder="Mis: Bekasi / Karawang"
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Kontak PIC K3 / HSE Klien
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Nama Kontak PIC
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.contactName}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, contactName: e.target.value }))
-                        }
-                        placeholder="Mis: Bpk. Hendra"
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        No. WhatsApp / Telepon PIC
-                      </label>
-                      <input
-                        type="text"
-                        value={createForm.contactPhone}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, contactPhone: e.target.value }))
-                        }
-                        placeholder="Mis: 081234567890"
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-mono text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Email PIC Klien
-                      </label>
-                      <input
-                        type="email"
-                        value={createForm.contactEmail}
-                        onChange={(e) =>
-                          setCreateForm((prev) => ({ ...prev, contactEmail: e.target.value }))
-                        }
-                        placeholder="Mis: hse@klien.co.id"
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* LANGKAH 3: UNIT ALAT K3 */}
-          {poWizardStep === 3 && (
-            <div className="space-y-4">
-              {/* Opsi 1: Pilih dari unit terdaftar */}
-              {clientMode === 'EXISTING' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    A. Pilih dari Unit Alat Klien yang Sudah Terdaftar ({createForm.objectIds.length} dipilih)
-                  </label>
-                  {!createForm.clientId ? (
-                    <p className="text-xs text-slate-500 border border-dashed border-slate-300 rounded-md p-3">
-                      Pilih perusahaan klien terlebih dahulu pada Langkah 2 untuk menampilkan unit terdaftar.
-                    </p>
-                  ) : clientObjects.length === 0 ? (
-                    <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-md p-3">
-                      Klien ini belum memiliki unit terdaftar sebelumnya. Silakan tambahkan unit baru di bawah.
-                    </p>
-                  ) : (
-                    <div className="max-h-40 overflow-y-auto border border-slate-300 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-800">
-                      {clientObjects.map((obj) => (
-                        <label
-                          key={obj.id}
-                          className="flex items-center gap-3 px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={createForm.objectIds.includes(obj.id)}
-                            onChange={() => toggleObjectSelection(obj.id)}
-                            className="h-4 w-4 rounded border-slate-300 text-[#C81E1E]"
-                          />
-                          <div className="flex-1">
-                            <span className="font-bold text-slate-900 dark:text-white">{obj.name}</span>
-                            <span className="ml-2 text-slate-500 font-mono">({obj.serial_number})</span>
-                            <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
-                              {obj.category_code}
-                            </span>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Opsi 2: Tambah unit baru langsung */}
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-xs font-bold text-slate-900 dark:text-white">
-                    B. Tambah Unit Alat Baru Langsung ke PO
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenCsvImport(null)}
-                      className="min-h-8 inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-2.5 py-1 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
-                    >
-                      <FileCsv size={15} weight="bold" />
-                      <span>Impor CSV Unit</span>
-                    </button>
-                    <span className="text-xs font-bold text-[#C81E1E]">
-                      {createForm.units.length} unit baru ditambahkan
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
-                  <select
-                    value={newUnitRow.categoryId}
-                    onChange={(e) => setNewUnitRow({ ...newUnitRow, categoryId: Number(e.target.value) })}
-                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.code} - {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    value={newUnitRow.name}
-                    onChange={(e) => setNewUnitRow({ ...newUnitRow, name: e.target.value })}
-                    placeholder="Nama Alat (mis. Overhead Crane)"
-                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <input
-                    type="text"
-                    value={newUnitRow.serialNumber}
-                    onChange={(e) => setNewUnitRow({ ...newUnitRow, serialNumber: e.target.value })}
-                    placeholder="Nomor Seri (opsional)"
-                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                  <input
-                    type="text"
-                    value={newUnitRow.capacity}
-                    onChange={(e) => setNewUnitRow({ ...newUnitRow, capacity: e.target.value })}
-                    placeholder="Kapasitas (mis. 10 Ton)"
-                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <input
-                    type="text"
-                    value={newUnitRow.installLocation}
-                    onChange={(e) => setNewUnitRow({ ...newUnitRow, installLocation: e.target.value })}
-                    placeholder="Lokasi Area Pabrik"
-                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <div className="flex gap-1.5">
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={newUnitRow.quantity}
-                      onChange={(e) => setNewUnitRow({ ...newUnitRow, quantity: Number(e.target.value) })}
-                      title="Jumlah Unit"
-                      className="w-16 px-2 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-bold"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddInlineUnit}
-                      className="flex-1 px-3 py-2 text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded cursor-pointer"
-                    >
-                      + Unit
-                    </button>
-                  </div>
-                </div>
-
-                {createForm.units.length > 0 && (
-                  <div className="space-y-1.5 pt-2">
-                    {createForm.units.map((u, idx) => (
-                      <div
-                        key={`${u.serialNumber}-${idx}`}
-                        className="flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200"
-                      >
-                        <div>
-                          <span className="font-bold text-slate-900 dark:text-white">{u.name}</span> · SN:{' '}
-                          <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-                            {u.serialNumber}
-                          </span>{' '}
-                          · Kapasitas: {u.capacity || '-'} · Lokasi: {u.installLocation || '-'} ·{' '}
-                          <strong className="text-[#C81E1E]">{u.quantity} Unit</strong>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeInlineUnit(idx)}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 cursor-pointer"
-                        >
-                          <Trash size={15} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* LANGKAH 4: JADWAL & AHLI K3 */}
-          {poWizardStep === 4 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Target Tanggal Pemeriksaan Lapangan
-                </label>
-                <input
-                  type="date"
-                  value={createForm.requestedDate}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, requestedDate: e.target.value }))
-                  }
-                  className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Tugaskan Inspector / Tim Ahli K3 (Dapat Ditugaskan Nanti)
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {inspectors.map((insp) => {
-                    const checked = createForm.inspectorIds.includes(insp.id);
-                    const validCodes = (insp.competencies || [])
-                      .filter((c) => c.isValid)
-                      .map((c) => c.categoryCode)
-                      .join(', ');
-                    return (
-                      <label
-                        key={insp.id}
-                        className={`flex items-start gap-2 p-2.5 rounded border text-xs cursor-pointer ${
-                          checked
-                            ? 'border-[#C81E1E] bg-red-50/40 dark:bg-red-950/40'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            setCreateForm((prev) => ({
-                              ...prev,
-                              inspectorIds: checked
-                                ? prev.inspectorIds.filter((id) => id !== insp.id)
-                                : [...prev.inspectorIds, insp.id]
-                            }))
-                          }
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#C81E1E]"
-                        />
-                        <div>
-                          <div className="font-bold text-slate-900 dark:text-white">{insp.fullName}</div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                            SKP: {validCodes || 'Aktif'}
-                          </div>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Catatan Khusus PO / Instruksi Pelaksanaan Riksa Uji
-                </label>
-                <textarea
-                  rows={3}
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Instruksi khusus terkait APD, jam operasional pabrik, akses crane, dsb..."
-                  className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* LANGKAH 5: REVIEW & SIMPAN */}
-          {poWizardStep === 5 && (
-            <div className="space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  Ringkasan Data Purchase Order (PO)
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Identitas PO</div>
-                    <div className="font-mono font-bold text-slate-900 dark:text-white">
-                      {createForm.poNumber || 'Nomor PO Otomatis'}
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-300">
-                      Tanggal PO: {createForm.poDate || '-'}
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-300">
-                      Layanan: {SERVICE_TYPE_LABELS[createForm.serviceType] || createForm.serviceType}
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Perusahaan Klien & Lokasi</div>
-                    <div className="font-bold text-slate-900 dark:text-white">
-                      {clientMode === 'NEW'
-                        ? `${createForm.newClientName} (Klien Baru)`
-                        : clients.find((c) => c.id === createForm.clientId)?.name || '-'}
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-300">
-                      Lokasi: {createForm.locationName || createForm.locationAddress || '-'}
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-300">
-                      PIC: {createForm.contactName || '-'} ({createForm.contactPhone || '-'})
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
-                  <div className="text-slate-400 text-[11px] mb-1.5 font-semibold uppercase">
-                    Daftar Unit Alat K3 yang Didaftarkan ({createForm.objectIds.length + createForm.units.length} Unit)
-                  </div>
-                  <div className="space-y-1">
-                    {createForm.objectIds.length > 0 && (
-                      <div className="text-slate-700 dark:text-slate-300">
-                        • {createForm.objectIds.length} Unit dipilih dari unit terdaftar klien
-                      </div>
-                    )}
-                    {createForm.units.map((u, i) => (
-                      <div key={i} className="text-slate-700 dark:text-slate-300">
-                        • <strong>{u.name}</strong> (SN: {u.serialNumber}) · Kapasitas: {u.capacity || '-'} · Jumlah: {u.quantity} unit
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Tim Ahli K3</div>
-                    <div className="text-slate-700 dark:text-slate-300">
-                      {createForm.inspectorIds.length > 0
-                        ? createForm.inspectorIds
-                            .map((id) => inspectors.find((i) => i.id === id)?.fullName)
-                            .filter(Boolean)
-                            .join(', ')
-                        : 'Belum ditentukan (dapat dijadwalkan kemudian)'}
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Target Pelaksanaan</div>
-                    <div className="text-slate-700 dark:text-slate-300">
-                      {createForm.requestedDate ? formatDate(createForm.requestedDate) : 'Sesuai kesepakatan'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tombol Navigasi Wizard */}
-          <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-            {poWizardStep > 1 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setError('');
-                  setPoWizardStep((prev) => prev - 1);
-                }}
-                className="min-h-11 inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
-              >
-                <ArrowLeft size={16} weight="bold" />
-                <span>Kembali ke Langkah {poWizardStep - 1}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setCreateOpen(false)}
-                className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
-              >
-                Batal
-              </button>
-            )}
-
-            {poWizardStep < 5 ? (
-              <button
-                type="button"
-                onClick={handleWizardNext}
-                className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
-              >
-                <span>Lanjut: {PO_WIZARD_STEPS[poWizardStep]}</span>
-                <ArrowRight size={16} weight="bold" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleCreateOrder}
-                className="min-h-11 inline-flex items-center gap-2 rounded-md bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
-              >
-                <CheckCircle size={17} weight="bold" />
-                <span>{submitting ? 'Menyimpan PO...' : 'Konfirmasi & Simpan Purchase Order'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </Modal>
+        poWizardStep={poWizardStep}
+        setPoWizardStep={setPoWizardStep}
+        createForm={createForm}
+        setCreateForm={setCreateForm}
+        clientMode={clientMode}
+        setClientMode={setClientMode}
+        clients={clients}
+        clientObjects={clientObjects}
+        categories={categories}
+        inspectors={inspectors}
+        newUnitRow={newUnitRow}
+        setNewUnitRow={setNewUnitRow}
+        handleClientChange={handleClientChange}
+        toggleObjectSelection={toggleObjectSelection}
+        handleAddInlineUnit={handleAddInlineUnit}
+        removeInlineUnit={removeInlineUnit}
+        handleOpenCsvImport={handleOpenCsvImport}
+        handleWizardNext={handleWizardNext}
+        handleCreateOrder={handleCreateOrder}
+        submitting={submitting}
+        error={error}
+        setError={setError}
+      />
 
       {/* Modal Detail & Pengelolaan PO */}
-      <Modal
+      <OrderDetailModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        title={
-          activeOrder
-            ? `Detail PO ${activeOrder.po_number || activeOrder.order_no} (${activeOrder.client_name})`
-            : 'Detail PO'
-        }
-        size="xl"
-      >
-        {activeOrder && (
-          <div className="space-y-6 text-sm">
-            {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
-            {/* Header Status & Tombol Dokumen PO */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-md border border-slate-200 dark:border-slate-700">
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Nomor Order: <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{activeOrder.order_no}</span> ·
-                  Tanggal PO: {formatDate(activeOrder.po_date || activeOrder.requested_date)}
-                </p>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge tone={STATUS_TONE[activeOrder.status] || 'neutral'}>
-                    {ORDER_STATUS_LABELS[activeOrder.status] || activeOrder.status}
-                  </Badge>
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {SERVICE_TYPE_LABELS[activeOrder.service_type]}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {canManage && activeOrder.status !== 'SELESAI' && activeOrder.status !== 'DIBATALKAN' && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenCsvImport(activeOrder.id)}
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-slate-200 dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700"
-                  >
-                    <FileCsv size={16} weight="bold" />
-                    <span>Tambah Unit via CSV</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDownloadBatchBapPdf(
-                      activeOrder.id,
-                      activeOrder.po_number || activeOrder.order_no
-                    )
-                  }
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-3 py-2 text-xs font-bold text-white hover:bg-red-800"
-                >
-                  <FilePdf size={16} weight="bold" />
-                  <span>Cetak Gabungan BAP 1 PO</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadAssignmentPdf(activeOrder.id, activeOrder.order_no)}
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-slate-800 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
-                >
-                  <DownloadSimple size={16} />
-                  <span>Unduh Surat Tugas (PDF)</span>
-                </button>
-              </div>
-            </div>
+        activeOrder={activeOrder}
+        detailData={detailData}
+        unitProgress={unitProgress}
+        nextStatuses={nextStatuses}
+        canManage={canManage}
+        user={user}
+        inspectors={inspectors}
+        scheduleConflicts={scheduleConflicts}
+        scheduleForm={scheduleForm}
+        setScheduleForm={setScheduleForm}
+        selectedInspectorIds={selectedInspectorIds}
+        setSelectedInspectorIds={setSelectedInspectorIds}
+        statusNote={statusNote}
+        setStatusNote={setStatusNote}
+        rejectReason={rejectReason}
+        setRejectReason={setRejectReason}
+        submitting={submitting}
+        error={error}
+        setError={setError}
+        handleOpenCsvImport={handleOpenCsvImport}
+        handleDownloadBatchBapPdf={handleDownloadBatchBapPdf}
+        handleDownloadAssignmentPdf={handleDownloadAssignmentPdf}
+        handleDownloadUnitPdf={handleDownloadUnitPdf}
+        handleSaveSchedule={handleSaveSchedule}
+        handleAssignInspectors={handleAssignInspectors}
+        handleRespondAssignment={handleRespondAssignment}
+        handleStatusChange={handleStatusChange}
+        checkConflicts={checkConflicts}
+      />
 
-            {/* Bagian 4.4: Ringkasan Progres Unit dalam PO dari Database Nyata */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
-                Ringkasan Progres Unit Alat dalam PO Ini
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
-                <div className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total Unit</div>
-                  <div className="text-lg font-extrabold text-slate-900 dark:text-white">
-                    {unitProgress.totalUnits}
-                  </div>
-                </div>
-                <div className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Belum Dijadwalkan</div>
-                  <div className="text-lg font-extrabold text-slate-700 dark:text-slate-300">
-                    {unitProgress.unscheduled}
-                  </div>
-                </div>
-                <div className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Sudah Dijadwalkan</div>
-                  <div className="text-lg font-extrabold text-blue-700 dark:text-blue-400">
-                    {unitProgress.scheduled}
-                  </div>
-                </div>
-                <div className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Sedang Diperiksa</div>
-                  <div className="text-lg font-extrabold text-amber-700 dark:text-amber-400">
-                    {unitProgress.inspecting}
-                  </div>
-                </div>
-                <div className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Menunggu BAP/LHPP</div>
-                  <div className="text-lg font-extrabold text-purple-700 dark:text-purple-400">
-                    {unitProgress.waitingDocs}
-                  </div>
-                </div>
-                <div className="p-3 rounded-md border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/30">
-                  <div className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">Selesai</div>
-                  <div className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300">
-                    {unitProgress.completed}
-                  </div>
-                </div>
-              </div>
-              {!unitProgress.canCompletePo && activeOrder.status !== 'SELESAI' && (
-                <p className="mt-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded px-3 py-1.5 font-medium">
-                  PO ini belum dapat ditandai SELESAI sebelum seluruh unit aktif di bawah menyelesaikan tahapan BAP dan penerbitan LHPP.
-                </p>
-              )}
-            </div>
-
-            {/* Daftar Unit Alat dalam PO beserta Status Masing-Masing Unit */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1.5">
-                <ClipboardText size={16} />
-                <span>Daftar Unit Alat pada PO ({(detailData.objects || []).length} Unit)</span>
-              </h4>
-              <div className="border border-slate-200 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-                {(detailData.objects || []).map((obj) => (
-                  <div
-                    key={obj.id}
-                    className="px-3.5 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-2 text-xs"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white text-sm">{obj.name}</span>
-                        <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-bold text-slate-700 dark:text-slate-300">
-                          {obj.category_code}
-                        </span>
-                        <Badge
-                          tone={
-                            ['LHPP_TERBIT', 'SELESAI'].includes(obj.unit_status)
-                              ? 'success'
-                              : obj.unit_status === 'PERLU_REVISI'
-                              ? 'danger'
-                              : 'warning'
-                          }
-                        >
-                          {UNIT_STATUS_LABELS[obj.unit_status] || obj.unit_status}
-                        </Badge>
-                      </div>
-                      <div className="text-slate-500 dark:text-slate-400">
-                        SN: <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{obj.serial_number}</span> ·
-                        Kapasitas: {obj.capacity || '-'} · Lokasi: {obj.install_location || '-'}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {obj.bap_id && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDetailOpen(false);
-                              navigate('/app/bap');
-                            }}
-                            className="px-2.5 py-1 rounded bg-red-50 dark:bg-red-950/40 text-[#C81E1E] dark:text-red-400 font-mono font-bold hover:bg-red-100 dark:hover:bg-red-900/50"
-                          >
-                            BAP: {obj.bap_no} ({obj.bap_status})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDownloadUnitPdf(
-                                `/bap/${obj.bap_id}/pdf`,
-                                `${(obj.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#C81E1E] text-white font-bold hover:bg-[#991B1B]"
-                          >
-                            <DownloadSimple size={13} weight="bold" />
-                            <span>Unduh BAP</span>
-                          </button>
-                        </>
-                      )}
-                      {obj.lhpp_id && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDetailOpen(false);
-                              navigate('/app/lhpp');
-                            }}
-                            className="px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 font-mono font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                          >
-                            LHPP: {obj.lhpp_no || obj.lhpp_status}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDownloadUnitPdf(
-                                `/lhpp/${obj.lhpp_id}/pdf`,
-                                `${(obj.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 dark:bg-slate-700 text-white font-bold hover:bg-slate-900 dark:hover:bg-slate-600"
-                          >
-                            <DownloadSimple size={13} weight="bold" />
-                            <span>Unduh LHPP</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Penjadwalan & Penugasan untuk Admin */}
-            {canManage && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <form
-                  onSubmit={handleSaveSchedule}
-                  className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md p-4 space-y-3"
-                >
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                    <CalendarPlus size={16} />
-                    <span>Atur Jadwal Pemeriksaan</span>
-                  </h4>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1 text-slate-800 dark:text-slate-200">Waktu Mulai *</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={scheduleForm.startAt}
-                      onChange={(e) =>
-                        setScheduleForm((prev) => ({ ...prev, startAt: e.target.value }))
-                      }
-                      className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1 text-slate-800 dark:text-slate-200">Waktu Selesai *</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={scheduleForm.endAt}
-                      onChange={(e) =>
-                        setScheduleForm((prev) => ({ ...prev, endAt: e.target.value }))
-                      }
-                      className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                  {detailData.schedule && (
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 text-slate-800 dark:text-slate-200">
-                        Alasan Penjadwalan Ulang (Wajib bila mengubah jadwal)
-                      </label>
-                      <input
-                        type="text"
-                        value={scheduleForm.reason}
-                        onChange={(e) =>
-                          setScheduleForm((prev) => ({ ...prev, reason: e.target.value }))
-                        }
-                        placeholder="Alasan perubahan jadwal..."
-                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-semibold mb-1 text-slate-800 dark:text-slate-200">Catatan Lokasi/Akses</label>
-                    <input
-                      type="text"
-                      value={scheduleForm.notes}
-                      onChange={(e) =>
-                        setScheduleForm((prev) => ({ ...prev, notes: e.target.value }))
-                      }
-                      placeholder="Instruksi APD atau gerbang pabrik..."
-                      className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full min-h-10 rounded bg-slate-900 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-neutral-800 dark:hover:bg-slate-600"
-                  >
-                    Simpan Jadwal Inspeksi
-                  </button>
-                </form>
-
-                <form
-                  onSubmit={handleAssignInspectors}
-                  className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md p-4 space-y-3"
-                >
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                    <UserCheck size={16} />
-                    <span>Tugaskan Ahli K3 Sesuai Bidang</span>
-                  </h4>
-
-                  {scheduleConflicts.length > 0 && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-md text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                      <div className="font-bold flex items-center gap-1 text-amber-800 dark:text-amber-300">
-                        <Warning size={15} weight="bold" />
-                        <span>Peringatan Potensi Konflik Jadwal:</span>
-                      </div>
-                      {scheduleConflicts.map((c, i) => (
-                        <p key={i}>
-                          {c.inspector_name} telah terjadwal pada order <strong>{c.order_no}</strong> ({c.client_name}) rentang {formatDateTime(c.start_at)} - {formatDateTime(c.end_at)}.
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
-                    {inspectors.map((insp) => {
-                      const checked = selectedInspectorIds.includes(insp.id);
-                      const validCodes = (insp.competencies || [])
-                        .filter((c) => c.isValid)
-                        .map((c) => c.categoryCode)
-                        .join(', ');
-                      return (
-                        <label
-                          key={insp.id}
-                          className="flex items-start gap-2.5 p-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => {
-                              const next = checked
-                                ? selectedInspectorIds.filter((id) => id !== insp.id)
-                                : [...selectedInspectorIds, insp.id];
-                              setSelectedInspectorIds(next);
-                              if (scheduleForm.startAt && scheduleForm.endAt) {
-                                checkConflicts(next, scheduleForm.startAt, scheduleForm.endAt, detailData.order.id);
-                              }
-                            }}
-                            className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#C81E1E]"
-                          />
-                          <div>
-                            <div className="font-bold text-slate-900 dark:text-white">{insp.fullName}</div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              SKP Aktif: {validCodes || 'Belum ada kompetensi aktif'}
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={submitting || selectedInspectorIds.length === 0}
-                    className="w-full min-h-10 rounded bg-[#C81E1E] px-3 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50"
-                  >
-                    Simpan Penugasan Ahli K3
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* Konfirmasi Penugasan oleh Ahli K3 */}
-            {user?.role === 'AHLI_K3' && (detailData.assignments || []).length > 0 && (
-              <div className="border border-slate-200 dark:border-slate-700 rounded-md p-4 space-y-3 bg-slate-50 dark:bg-slate-800/40">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  Konfirmasi Penugasan Anda
-                </h4>
-                {(detailData.assignments || [])
-                  .filter((asg) => asg.inspector_id === user.id)
-                  .map((asg) => (
-                    <div key={asg.id} className="space-y-2">
-                      <p className="text-xs text-slate-800 dark:text-slate-200">
-                        Status Konfirmasi Saat Ini:{' '}
-                        <strong className="font-bold">{asg.status}</strong>
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleRespondAssignment(asg.id, 'DITERIMA')}
-                          className="min-h-10 inline-flex items-center gap-1.5 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white"
-                        >
-                          <CheckCircle size={15} />
-                          <span>Terima Penugasan</span>
-                        </button>
-                        <input
-                          type="text"
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="Isi alasan jika menolak..."
-                          className="min-h-10 rounded border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRespondAssignment(asg.id, 'DITOLAK')}
-                          className="min-h-10 inline-flex items-center gap-1.5 rounded bg-red-700 px-3 py-1.5 text-xs font-bold text-white"
-                        >
-                          <XCircle size={15} />
-                          <span>Tolak Penugasan</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-
-            {/* Transisi Status Order */}
-            {nextStatuses.length > 0 && (
-              <div className="border border-slate-200 dark:border-slate-700 rounded-md p-4 space-y-3 bg-slate-50 dark:bg-slate-800/40">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  Perbarui Status Tahapan PO
-                </h4>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={statusNote}
-                    onChange={(e) => setStatusNote(e.target.value)}
-                    placeholder="Catatan perubahan status (opsional)..."
-                    className="flex-1 min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {nextStatuses.map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => handleStatusChange(st)}
-                        className={`min-h-10 rounded px-3 py-1.5 text-xs font-bold text-white ${
-                          st === 'DIBATALKAN'
-                            ? 'bg-red-700 hover:bg-red-800'
-                            : 'bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600'
-                        }`}
-                      >
-                        Ubah ke: {ORDER_STATUS_LABELS[st] || st}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Modal Impor CSV Unit (Fitur 5) */}
-      <Modal
+      {/* Modal Impor CSV Unit */}
+      <CsvImportModal
         open={csvModalOpen}
         onClose={() => setCsvModalOpen(false)}
-        title={csvTargetOrderId ? 'Impor Tambahan Unit via CSV ke PO' : 'Impor CSV Unit ke Form PO'}
-        size="lg"
-      >
-        <form onSubmit={handleImportCsv} className="space-y-4 text-slate-800 dark:text-slate-200">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Format CSV: <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">KODE_KATEGORI,NAMA_UNIT,MEREK,MODEL,NOMOR_SERI,TAHUN,KAPASITAS,LOKASI_PASANG,CATATAN</code>
-          </p>
-          <textarea
-            rows={8}
-            required
-            value={csvText}
-            onChange={(e) => setCsvText(e.target.value)}
-            className="w-full font-mono text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 leading-relaxed text-slate-900 dark:text-slate-100"
-          />
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={() => setCsvModalOpen(false)}
-              className="min-h-10 rounded border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="min-h-10 rounded bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-red-800 disabled:opacity-50"
-            >
-              {submitting ? 'Memproses...' : 'Impor Data CSV'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+        csvTargetOrderId={csvTargetOrderId}
+        csvText={csvText}
+        setCsvText={setCsvText}
+        handleImportCsv={handleImportCsv}
+        submitting={submitting}
+      />
     </div>
   );
 }
