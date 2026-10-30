@@ -46,7 +46,7 @@ router.post('/tokens', authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'), 
 });
 
 // 2. Daftar token portal untuk klien tertentu (Authenticated)
-router.get('/tokens/client/:clientId', authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'), async (req, res, next) => {
+router.get('/tokens/client/:clientId', authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN'), async (req, res, next) => {
   try {
     const { clientId } = req.params;
     const { rows } = await query(

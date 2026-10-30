@@ -71,6 +71,9 @@ export function LhppPage() {
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+  const [previewPdfTitle, setPreviewPdfTitle] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -184,7 +187,7 @@ export function LhppPage() {
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${lhppNo}.pdf`);
+      link.setAttribute('download', `${lhppNo || 'LHPP'}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -192,6 +195,26 @@ export function LhppPage() {
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal mengunduh dokumen PDF LHPP.');
     }
+  };
+
+  const handlePreviewPdf = async (id, lhppNo) => {
+    try {
+      const res = await api.get(`/lhpp/${id}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      setPreviewPdfUrl(url);
+      setPreviewPdfTitle(`Pratinjau Dokumen LHPP: ${lhppNo || id}`);
+      setPdfPreviewModalOpen(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal memuat pratinjau dokumen PDF LHPP.');
+    }
+  };
+
+  const closePdfPreview = () => {
+    if (previewPdfUrl) {
+      window.URL.revokeObjectURL(previewPdfUrl);
+    }
+    setPreviewPdfUrl(null);
+    setPdfPreviewModalOpen(false);
   };
 
   const handleRecordDelivery = async (e) => {
@@ -267,7 +290,7 @@ export function LhppPage() {
     <div className="space-y-6">
       <PageHeader
         title="Laporan Hasil Pemeriksaan dan Pengujian (LHPP)"
-        subtitle="Susun narasi teknis LHPP, proses verifikasi berjenjang oleh Pimpinan, unduh PDF resmi ber-QR verifikasi, dan catat distribusi dokumen."
+        subtitle="Penyusunan narasi teknis LHPP, finalisasi pengesahan Ahli K3, pratinjau dan unduh PDF resmi ber-QR verifikasi, serta pencatatan distribusi dokumen."
         actions={
           <select
             aria-label="Filter Status LHPP"
@@ -361,6 +384,14 @@ export function LhppPage() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => handlePreviewPdf(item.id, item.lhpp_no)}
+                          className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                          <Eye size={15} />
+                          <span>Pratinjau</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleDownloadPdf(item.id, item.lhpp_no)}
                           className="min-h-9 inline-flex items-center gap-1 rounded bg-slate-800 dark:bg-slate-700 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
                         >
@@ -424,6 +455,14 @@ export function LhppPage() {
                     <span>Finalisasi LHPP & Terbitkan BAP Unit</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => handlePreviewPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  <Eye size={16} />
+                  <span>Pratinjau PDF</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => handleDownloadPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
@@ -750,6 +789,47 @@ export function LhppPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal Pratinjau PDF Aktual */}
+      <Modal
+        open={pdfPreviewModalOpen}
+        onClose={closePdfPreview}
+        title={previewPdfTitle}
+        size="xl"
+      >
+        <div className="space-y-4">
+          {previewPdfUrl ? (
+            <div className="w-full h-[75vh] rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
+              <iframe
+                src={previewPdfUrl}
+                title="Pratinjau Dokumen LHPP"
+                className="w-full h-full border-0"
+              />
+            </div>
+          ) : (
+            <div className="py-12 text-center text-slate-500">Memuat berkas PDF...</div>
+          )}
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={closePdfPreview}
+              className="px-4 py-2 text-xs font-semibold rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Tutup
+            </button>
+            {previewPdfUrl && (
+              <a
+                href={previewPdfUrl}
+                download={`${previewPdfTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-md bg-[#C81E1E] text-white hover:bg-[#a61717]"
+              >
+                <DownloadSimple size={15} weight="bold" />
+                <span>Unduh Berkas PDF</span>
+              </a>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   );

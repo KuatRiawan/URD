@@ -9,7 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 // Cek potensi konflik jadwal untuk Ahli K3 sebelum penugasan/penjadwalan disubmit
-router.get('/conflicts', authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3'), async (req, res, next) => {
+router.get('/conflicts', authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN'), async (req, res, next) => {
   try {
     const schema = Joi.object({
       inspectorId: Joi.string().uuid().required(),

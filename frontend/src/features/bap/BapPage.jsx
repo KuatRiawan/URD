@@ -75,6 +75,9 @@ export function BapPage() {
   const [reopenReason, setReopenReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+  const [previewPdfTitle, setPreviewPdfTitle] = useState('');
 
   const fetchBapList = useCallback(async () => {
     setLoading(true);
@@ -288,6 +291,29 @@ export function BapPage() {
     }
   };
 
+  const handlePreviewPdf = async (bapId, bapNo) => {
+    try {
+      const res = await api.get(`/bap/${bapId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      setPreviewPdfUrl(url);
+      setPreviewPdfTitle(`Pratinjau Berita Acara (BAP): ${bapNo || bapId}`);
+      setPdfPreviewModalOpen(true);
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.error?.message || 'Gagal memuat pratinjau PDF BAP.'
+      });
+    }
+  };
+
+  const closePdfPreview = () => {
+    if (previewPdfUrl) {
+      window.URL.revokeObjectURL(previewPdfUrl);
+    }
+    setPreviewPdfUrl(null);
+    setPdfPreviewModalOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -415,6 +441,14 @@ export function BapPage() {
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePreviewPdf(b.id, b.bap_no)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                      >
+                        <Eye size={15} />
+                        Pratinjau
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDownloadPdf(b.id, b.bap_no)}
@@ -752,10 +786,18 @@ export function BapPage() {
                     Tindakan Dokumen BAP &amp; Tautan LHPP
                   </h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Setelah ditandatangani oleh Inspector dan Perwakilan Klien, finalisasi BAP untuk mengunci dokumen dan melanjutkan penyusunan LHPP teknis.
+                    Setelah ditandatangani oleh Inspector dan Perwakilan Klien, finalisasi BAP untuk mengunci dokumen serah terima dan menyelesaikan unit riksa uji.
                   </p>
 
                   <div className="flex flex-wrap gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewPdf(selectedBap.id, selectedBap.bap_no)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"
+                    >
+                      <Eye size={16} />
+                      Pratinjau PDF
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleDownloadPdf(selectedBap.id, selectedBap.bap_no)}
@@ -837,6 +879,47 @@ export function BapPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal Pratinjau PDF Aktual BAP */}
+      <Modal
+        open={pdfPreviewModalOpen}
+        onClose={closePdfPreview}
+        title={previewPdfTitle}
+        size="xl"
+      >
+        <div className="space-y-4">
+          {previewPdfUrl ? (
+            <div className="w-full h-[75vh] rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
+              <iframe
+                src={previewPdfUrl}
+                title="Pratinjau Dokumen BAP"
+                className="w-full h-full border-0"
+              />
+            </div>
+          ) : (
+            <div className="py-12 text-center text-slate-500">Memuat berkas PDF...</div>
+          )}
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={closePdfPreview}
+              className="px-4 py-2 text-xs font-semibold rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Tutup
+            </button>
+            {previewPdfUrl && (
+              <a
+                href={previewPdfUrl}
+                download={`${previewPdfTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-md bg-[#C81E1E] text-white hover:bg-[#a61717]"
+              >
+                <FilePdf size={15} weight="bold" />
+                <span>Unduh Berkas PDF</span>
+              </a>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   );

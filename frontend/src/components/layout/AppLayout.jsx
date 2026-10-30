@@ -77,28 +77,28 @@ const NAV_ITEMS = [
     group: 'Operasional',
     label: 'Jadwal & Penugasan',
     icon: CalendarCheck,
-    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/inspections',
     group: 'Operasional',
     label: 'Form Pengujian Lapangan',
     icon: FileText,
-    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3']
+    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/lhpp',
     group: 'Dokumen & Sertifikasi',
     label: 'Dokumen LHPP',
     icon: Scroll,
-    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/bap',
     group: 'Dokumen & Sertifikasi',
     label: 'Berita Acara (BAP)',
     icon: ClipboardText,
-    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/distributions',
