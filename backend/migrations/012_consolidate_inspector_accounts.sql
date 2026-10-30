@@ -49,3 +49,4 @@ BEGIN
     UPDATE clients SET created_by = v_new_kantor WHERE created_by = v_old_kantor;
   END IF;
 END $$;
+

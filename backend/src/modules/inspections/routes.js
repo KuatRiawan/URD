@@ -1002,7 +1002,7 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
              client_signer_name = COALESCE(EXCLUDED.client_signer_name, bap_documents.client_signer_name),
              client_signature_file_id = COALESCE(EXCLUDED.client_signature_file_id, bap_documents.client_signature_file_id),
              client_signed_at = COALESCE(EXCLUDED.client_signed_at, bap_documents.client_signed_at),
-             finalized_by = req.user.id,
+             finalized_by = EXCLUDED.finalized_by,
              finalized_at = now(),
              updated_at = now()
            RETURNING *`,
