@@ -126,6 +126,21 @@ async function fetchFullLhppContext(db, id) {
   };
 }
 
+export async function canAccessLhpp(db, lhpp, user) {
+  if (!user) return false;
+  if (['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN'].includes(user.role)) return true;
+  if (!['AHLI_K3', 'INSPECTOR'].includes(user.role)) return false;
+  if (lhpp.inspector_id === user.id) return true;
+  const runner = typeof db === 'function' ? db : (db?.query ? db.query.bind(db) : query);
+  const { rows } = await runner(
+    `SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')
+     UNION
+     SELECT 1 FROM users u1, users u2 WHERE u1.id = $2 AND u2.id = $3 AND (u1.full_name = u2.full_name OR u1.phone = u2.phone OR split_part(u1.email, '@', 1) = split_part(u2.email, '@', 1))`,
+    [lhpp.order_id, user.id, lhpp.inspector_id]
+  );
+  return Boolean(rows[0]);
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
@@ -183,7 +198,8 @@ router.get('/:id', async (req, res, next) => {
   try {
     const data = await fetchFullLhppContext({ query }, req.params.id);
     if (!data) throw new AppError(404, 'LHPP_NOT_FOUND', 'Dokumen LHPP tidak ditemukan.');
-    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && data.inspector_id !== req.user.id) {
+    const hasAccess = await canAccessLhpp({ query }, data, req.user);
+    if (!hasAccess) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat melihat LHPP milik sendiri.');
     }
     return res.json({ lhpp: data });
@@ -195,7 +211,7 @@ router.get('/:id', async (req, res, next) => {
 // Ahli K3 menyusun / memperbarui draf LHPP
 router.put(
   '/:id/draft',
-  authorize('AHLI_K3'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   validate(updateDraftSchema),
   async (req, res, next) => {
     try {
@@ -205,8 +221,9 @@ router.put(
       const updated = await withTransaction(async (db) => {
         const cur = await fetchFullLhppContext(db, id);
         if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-        if (cur.inspector_id !== req.user.id) {
-          throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 penyusun yang dapat mengubah draf ini.');
+        const hasAccess = await canAccessLhpp(db, cur, req.user);
+        if (!hasAccess) {
+          throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 / Inspector penyusun yang dapat mengubah draf ini.');
         }
         if (!['DRAF', 'SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(cur.status)) {
           throw new AppError(
@@ -273,7 +290,8 @@ router.post(
       if (!req.file) throw new AppError(400, 'NO_FILE', 'Foto dokumentasi hasil riksa uji wajib dipilih.');
       const cur = await fetchFullLhppContext(query, id);
       if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
+      const hasAccess = await canAccessLhpp(query, cur, req.user);
+      if (!hasAccess) {
         throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengelola foto LHPP milik sendiri.');
       }
       if (cur.status === 'TERBIT') {
@@ -304,7 +322,8 @@ router.delete(
       const { id, photoId } = req.params;
       const cur = await fetchFullLhppContext(query, id);
       if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
+      const hasAccess = await canAccessLhpp(query, cur, req.user);
+      if (!hasAccess) {
         throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengelola foto LHPP milik sendiri.');
       }
       if (cur.status === 'TERBIT') {
@@ -330,14 +349,15 @@ router.delete(
 );
 
 // Ahli K3 mengajukan draf ke Review Teknis
-router.post('/:id/submit-review', authorize('AHLI_K3'), async (req, res, next) => {
+router.post('/:id/submit-review', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const submitted = await withTransaction(async (db) => {
       const cur = await fetchFullLhppContext(db, id);
       if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-      if (cur.inspector_id !== req.user.id) {
-        throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 penyusun yang dapat mengajukan LHPP ini.');
+      const hasAccess = await canAccessLhpp(db, cur, req.user);
+      if (!hasAccess) {
+        throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 / Inspector penyusun yang dapat mengajukan LHPP ini.');
       }
       if (!['DRAF', 'SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(cur.status)) {
         throw new AppError(400, 'INVALID_STATE', 'LHPP sudah berada dalam antrean review atau telah terbit.');
@@ -843,7 +863,8 @@ router.get('/:id/pdf', async (req, res, next) => {
   try {
     const cur = await fetchFullLhppContext({ query }, req.params.id);
     if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
+    const hasAccess = await canAccessLhpp({ query }, cur, req.user);
+    if (!hasAccess) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengunduh LHPP milik sendiri.');
     }
 

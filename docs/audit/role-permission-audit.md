@@ -77,3 +77,4 @@ Dokumen ini memetakan implementasi kontrol akses berbasis peran (Role-Based Acce
 3. **Integritas Audit Log**:
    - Seluruh mutasi operasional (login, pembuatan PO, penugasan, pelaksanaan riksa uji, penghapusan foto draf, tanda tangan, finalisasi BAP dan LHPP) otomatis dicatat ke tabel `audit_logs`.
    - Trigger database PostgreSQL `trg_audit_logs_immutable` memblokir operasi UPDATE dan DELETE pada tabel `audit_logs`.
+

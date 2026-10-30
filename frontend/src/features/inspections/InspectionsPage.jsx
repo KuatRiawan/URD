@@ -4,6 +4,7 @@ import {
   Camera,
   Check,
   CheckCircle,
+  CircleNotch,
   ClipboardText,
   DownloadSimple,
   Eye,
@@ -618,11 +619,29 @@ export function InspectionsPage() {
     setSubmitting(true);
     setError('');
     try {
-      await handleSaveDraft();
+      const payloadResults = (activeDetail.items || []).map((item) => {
+        const row = draftResults[item.id] || {};
+        return {
+          itemId: item.id,
+          choiceValue: item.input_type === 'CHOICE' ? row.choiceValue || 'SESUAI' : null,
+          numberValue:
+            item.input_type === 'NUMBER' && row.numberValue !== '' && row.numberValue !== null && row.numberValue !== undefined
+              ? Number(row.numberValue)
+              : null,
+          textValue: item.input_type === 'TEXT' ? row.textValue || 'Baik' : null,
+          note: row.note || ''
+        };
+      });
+
       const res = await api.post(`/inspections/${activeDetail.inspection.id}/submit`, {
+        conclusion: draftConclusion,
+        conclusionNotes: draftConclusionNotes,
+        results: payloadResults,
         scopeItems: draftScopes,
         autoFinalizeBap: true
       });
+
+      clearLocalDraft(activeDetail.inspection.id);
       setReviewModalOpen(false);
       setFeedback(
         `Riksa uji selesai! Dokumen BAP (${res.data?.bap?.bap_no || 'Baru'}) dan LHPP telah diterbitkan dan siap diunduh.`
@@ -1433,7 +1452,7 @@ export function InspectionsPage() {
             </div>
 
             {/* Tanda Tangan Berita Acara (Kanvas Interaktif) */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3">
+            <div id="ttd-digital-section" className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                 <Signature size={16} />
                 <span>
@@ -1581,6 +1600,15 @@ export function InspectionsPage() {
             return true;
           }).length;
           const missingItems = totalItems - evaluatedItems;
+          const missingList = (activeDetail.items || []).filter((item) => {
+            const res = draftResults[item.id];
+            if (!res) return true;
+            if (item.input_type === 'CHOICE') return !res.choiceValue;
+            if (item.input_type === 'NUMBER')
+              return res.numberValue === '' || res.numberValue === null || res.numberValue === undefined;
+            if (item.input_type === 'TEXT') return !res.textValue;
+            return false;
+          });
           const nonConformingItems = (activeDetail.items || []).filter(
             (item) => draftResults[item.id]?.choiceValue === 'TIDAK_SESUAI'
           );
@@ -1593,8 +1621,33 @@ export function InspectionsPage() {
             ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role)
           );
 
+          const canSubmit = missingItems === 0 && Boolean(inspectorSig) && !submitting;
+
+          const handleAutoFillAllStandard = () => {
+            const updated = { ...draftResults };
+            for (const it of activeDetail.items || []) {
+              const cur = updated[it.id] || {};
+              updated[it.id] = {
+                itemId: it.id,
+                choiceValue: it.input_type === 'CHOICE' ? (cur.choiceValue || 'SESUAI') : null,
+                numberValue:
+                  it.input_type === 'NUMBER'
+                    ? (cur.numberValue !== '' && cur.numberValue !== null && cur.numberValue !== undefined
+                        ? cur.numberValue
+                        : String(it.min_value ?? 0))
+                    : '',
+                textValue: it.input_type === 'TEXT' ? (cur.textValue || 'Sesuai Spesifikasi Teknis') : '',
+                note: cur.note || ''
+              };
+            }
+            setDraftResults(updated);
+            setFeedback('Seluruh parameter checklist berhasil diisi otomatis sesuai standar teknis.');
+          };
+
           return (
             <div className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
+              {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
+
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400 text-sm">
@@ -1629,14 +1682,35 @@ export function InspectionsPage() {
                   />
                 </div>
                 {missingItems > 0 && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                    Peringatan: Masih ada {missingItems} butir checklist yang belum diisi.
-                  </p>
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                        Perhatian: Masih ada {missingItems} butir checklist yang belum terisi.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAutoFillAllStandard}
+                        className="px-2.5 py-1 rounded bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 transition-colors"
+                      >
+                        Tandai Semua Sesuai Standar
+                      </button>
+                    </div>
+                    <div className="text-[11px] text-amber-900 dark:text-amber-200">
+                      Butir belum lengkap:
+                      <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                        {missingList.map((m) => (
+                          <li key={m.id}>
+                            <span className="font-semibold">[{m.section}]</span> {m.label} ({m.input_type})
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 )}
                 {nonConformingItems.length > 0 && (
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-rose-700 dark:text-rose-400 font-medium">
                     Terdapat {nonConformingItems.length} butir dengan hasil TIDAK SESUAI:
-                    <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                    <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
                       {nonConformingItems.map((ni) => (
                         <li key={ni.id}>[{ni.section}] {ni.label}</li>
                       ))}
@@ -1698,6 +1772,25 @@ export function InspectionsPage() {
                       )}
                     </div>
                   </div>
+                  {!inspectorSig && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
+                        TTD Ahli K3 wajib diisi sebelum mengirim.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewModalOpen(false);
+                          setTimeout(() => {
+                            document.getElementById('ttd-digital-section')?.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }}
+                        className="px-2 py-1 rounded bg-slate-800 dark:bg-slate-700 text-white font-bold text-[11px] shrink-0 hover:bg-slate-900"
+                      >
+                        Bubuhkan TTD
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1728,12 +1821,31 @@ export function InspectionsPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={submitting}
+                  disabled={!canSubmit}
                   onClick={handleSubmitFinalInspection}
-                  className="px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+                  title={
+                    missingItems > 0
+                      ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
+                      : !inspectorSig
+                      ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
+                      : 'Kirim dan terbitkan dokumen'
+                  }
+                  className="px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <PaperPlaneTilt size={15} weight="bold" />
-                  <span>{submitting ? 'Memproses Penerbitan...' : 'Konfirmasi & Kirim Riksa Uji'}</span>
+                  {submitting ? (
+                    <CircleNotch size={15} weight="bold" className="animate-spin" />
+                  ) : (
+                    <PaperPlaneTilt size={15} weight="bold" />
+                  )}
+                  <span>
+                    {submitting
+                      ? 'Memproses Penerbitan...'
+                      : missingItems > 0
+                      ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
+                      : !inspectorSig
+                      ? 'Tanda Tangan Diperlukan'
+                      : 'Konfirmasi & Kirim Riksa Uji'}
+                  </span>
                 </button>
               </div>
             </div>

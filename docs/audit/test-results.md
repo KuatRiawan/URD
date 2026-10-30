@@ -61,3 +61,4 @@ Dokumen ini memuat hasil eksekusi pengujian otomatis pada frontend dan backend s
 - **Aturan R-02 (Anti Em-Dash):** Tidak ditemukan satu pun karakter em dash (`\u2014` atau `—`) pada seluruh teks antarmuka pengguna maupun komentar kode.
 - **Konsistensi Ikonografi:** Menggunakan library tunggal `@phosphor-icons/react` pada seluruh komponen aplikasi.
 - **Ketiadaan Tombol Mati:** Seluruh tombol dan link terhubung dengan handler data nyata serta menampilkan loading feedback saat proses asinkron berlangsung.
+

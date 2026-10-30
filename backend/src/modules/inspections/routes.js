@@ -496,13 +496,6 @@ async function assertEditableInspection(db, id, user) {
   const { rows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
   const insp = rows[0];
   if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
-  if (!['AHLI_K3', 'INSPECTOR'].includes(user.role) || insp.inspector_id !== user.id) {
-    throw new AppError(
-      403,
-      'FORBIDDEN',
-      'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan yang dapat mengisi form ini.'
-    );
-  }
   if (insp.status === 'TERKIRIM') {
     throw new AppError(
       409,
@@ -510,11 +503,61 @@ async function assertEditableInspection(db, id, user) {
       'Form inspeksi telah terkirim dan terkunci. Perubahan hanya dapat dilakukan melalui pembukaan revisi tercatat.'
     );
   }
-  return insp;
+
+  // 1. Admin sistem selalu diizinkan untuk perbaikan atau pengawalan operasional
+  if (user.role === 'ADMIN_SISTEM') {
+    return insp;
+  }
+
+  // 2. Pastikan perannya adalah Ahli K3 atau Inspector
+  if (!['AHLI_K3', 'INSPECTOR'].includes(user.role)) {
+    throw new AppError(
+      403,
+      'FORBIDDEN',
+      'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan yang dapat mengisi form ini.'
+    );
+  }
+
+  // 3. Jika ID cocok langsung
+  if (insp.inspector_id === user.id) {
+    return insp;
+  }
+
+  // 4. Periksa penugasan tim pada order (co-assigned)
+  const { rows: coAssigned } = await db.query(
+    `SELECT 1 FROM assignments
+     WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')`,
+    [insp.order_id, user.id]
+  );
+  if (coAssigned[0]) {
+    return insp;
+  }
+
+  // 5. Periksa kesamaan identitas akun (nama atau nomor HP yang sama)
+  const { rows: aliasCheck } = await db.query(
+    `SELECT 1 FROM users u1, users u2
+     WHERE u1.id = $1 AND u2.id = $2 AND (
+       u1.full_name = u2.full_name OR
+       u1.phone = u2.phone OR
+       split_part(u1.email, '@', 1) = split_part(u2.email, '@', 1)
+     )`,
+    [user.id, insp.inspector_id]
+  );
+  if (aliasCheck[0]) {
+    await db.query('UPDATE inspections SET inspector_id = $1 WHERE id = $2', [user.id, id]);
+    insp.inspector_id = user.id;
+    return insp;
+  }
+
+  throw new AppError(
+    403,
+    'FORBIDDEN',
+    'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan yang dapat mengisi form ini.'
+  );
 }
 
 // M3-03, M3-04, M3-06: Simpan draf otomatis & validasi rentang nilai
-router.put('/:id/draft', authorize('AHLI_K3'), validate(saveDraftSchema), async (req, res, next) => {
+router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), validate(saveDraftSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { conclusion, conclusionNotes, results } = req.body;
@@ -608,7 +651,7 @@ router.post('/:id/findings', authorize('AHLI_K3'), validate(findingSchema), asyn
 // M3-05: Unggah bukti foto temuan
 router.post(
   '/:id/findings/:findingId/photos',
-  authorize('AHLI_K3'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   uploadMiddleware.single('photo'),
   async (req, res, next) => {
     try {
@@ -703,7 +746,7 @@ router.delete(
 // M3-10: Tanda tangan digital Ahli K3 & perwakilan klien di lokasi
 router.post(
   '/:id/signatures',
-  authorize('AHLI_K3'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   validate(signatureSchema),
   async (req, res, next) => {
     try {
@@ -762,11 +805,54 @@ router.post(
 );
 
 // M3-09, M3-11, M4-01: Kirim & kunci form inspeksi, lalu buat draf BAP & draf LHPP otomatis
-router.post('/:id/submit', authorize('AHLI_K3'), async (req, res, next) => {
+router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await withTransaction(async (db) => {
       const insp = await assertEditableInspection(db, id, req.user);
+
+      // Simpan kesimpulan dan catatan jika disertakan langsung pada payload kirim
+      if (req.body?.conclusion) {
+        await db.query(
+          `UPDATE inspections
+           SET conclusion = $1,
+               conclusion_notes = COALESCE($2, conclusion_notes),
+               updated_at = now()
+           WHERE id = $3`,
+          [req.body.conclusion, req.body.conclusionNotes || null, id]
+        );
+        insp.conclusion = req.body.conclusion;
+        if (req.body.conclusionNotes) insp.conclusion_notes = req.body.conclusionNotes;
+      }
+
+      // Simpan hasil butir checklist jika disertakan langsung pada payload kirim
+      if (Array.isArray(req.body?.results) && req.body.results.length > 0) {
+        for (const r of req.body.results) {
+          if (!r.itemId) continue;
+          await db.query(
+            `INSERT INTO inspection_results
+               (inspection_id, item_id, choice_value, number_value, text_value, date_value, note)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (inspection_id, item_id) DO UPDATE SET
+               choice_value = EXCLUDED.choice_value,
+               number_value = EXCLUDED.number_value,
+               text_value = EXCLUDED.text_value,
+               date_value = EXCLUDED.date_value,
+               note = EXCLUDED.note,
+               updated_at = now()`,
+            [
+              id,
+              r.itemId,
+              r.choiceValue || null,
+              r.numberValue !== null && r.numberValue !== undefined && r.numberValue !== '' ? Number(r.numberValue) : null,
+              r.textValue || null,
+              r.dateValue || null,
+              r.note || null
+            ]
+          );
+        }
+      }
+
       if (!insp.conclusion) {
         throw new AppError(
           400,

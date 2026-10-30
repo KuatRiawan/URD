@@ -38,3 +38,4 @@ Aplikasi menggunakan pola komunikasi RESTful API berbasis JSON dengan pemisahan 
 2. **Antrean Sinkronisasi Otomatis (`offline-sync.js`):**
    - Foto dan draf hasil inspeksi yang diambil saat inspector tidak mendapatkan sinyal internet di lokasi pabrik secara otomatis masuk ke IndexedDB / storage antrean.
    - Saat perangkat kembali terhubung ke internet, listener event `online` memicu proses background auto-sync ke backend tanpa intervensi manual.
+

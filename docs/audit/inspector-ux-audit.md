@@ -89,3 +89,4 @@ Alur kerja dirancang berkesinambungan dalam satu antarmuka (single-flow):
    - Modal rekapitulasi menampilkan persentase kelengkapan checklist, daftar butir tidak sesuai, jumlah foto, dan status tanda tangan sebelum data dikunci.
 7. **Penerbitan Otomatis Dokumen:**
    - Penekanan konfirmasi final otomatis mengunci form riksa uji, menerbitkan dokumen Berita Acara (BAP) final, dan men-generate draf Laporan Hasil Pemeriksaan dan Pengujian (LHPP).
+

@@ -100,60 +100,66 @@ export async function seedDatabase({ password } = {}) {
     const { rows: cats } = await db.query('SELECT * FROM object_categories ORDER BY id ASC');
     const catByCode = Object.fromEntries(cats.map((c) => [c.code, c.id]));
 
-    // Sertifikat kompetensi Ahli K3
-    const inspector1 = userByEmail['ahlik3.paa@upayariksadaya.com'];
-    const inspector2 = userByEmail['ahlik3.listrik@upayariksadaya.com'];
+    // Sertifikat kompetensi Ahli K3 (didukung untuk akun inspector.* dan backward compatibility)
+    const inspector1 = userByEmail['inspector.paa@upayariksadaya.com'] || userByEmail['ahlik3.paa@upayariksadaya.com'];
+    const inspector1Alt = userByEmail['ahlik3.paa@upayariksadaya.com'];
+    const inspector2 = userByEmail['inspector.listrik@upayariksadaya.com'] || userByEmail['ahlik3.listrik@upayariksadaya.com'];
+    const inspector2Alt = userByEmail['ahlik3.listrik@upayariksadaya.com'];
 
-    const competencies = [
+    const targetInspectors1 = [inspector1, inspector1Alt].filter(Boolean);
+    const targetInspectors2 = [inspector2, inspector2Alt].filter(Boolean);
+
+    const baseCompetencies1 = [
       {
-        inspectorId: inspector1.id,
         categoryId: catByCode.PAA,
         certNo: 'SKP-AK3-PAA/2025/0192',
         validFrom: '2025-01-10',
         validUntil: '2028-01-10'
       },
       {
-        inspectorId: inspector1.id,
         categoryId: catByCode.PTP,
         certNo: 'SKP-AK3-PTP/2025/0318',
         validFrom: '2025-01-10',
         validUntil: '2028-01-10'
       },
       {
-        inspectorId: inspector1.id,
         categoryId: catByCode.PUBT,
         certNo: 'SKP-AK3-PUBT/2024/0441',
         validFrom: '2024-06-01',
         validUntil: '2027-06-01'
       },
       {
-        inspectorId: inspector1.id,
         categoryId: catByCode.LE,
         certNo: 'SKP-AK3-LE/2025/0112',
         validFrom: '2025-01-15',
         validUntil: '2028-01-15'
       },
       {
-        inspectorId: inspector1.id,
         categoryId: catByCode.IPK,
         certNo: 'SKP-AK3-IPK/2025/0209',
         validFrom: '2025-01-15',
         validUntil: '2028-01-15'
-      },
+      }
+    ];
+
+    const baseCompetencies2 = [
       {
-        inspectorId: inspector2.id,
         categoryId: catByCode.LIS,
         certNo: 'SKP-AK3-LIS/2024/0815',
         validFrom: '2024-11-15',
         validUntil: '2026-12-10' // Dalam jendela H-60 untuk contoh pengingat sertifikat Ahli K3
       },
       {
-        inspectorId: inspector2.id,
         categoryId: catByCode.IPP,
         certNo: 'SKP-AK3-IPP/2025/0210',
         validFrom: '2025-02-01',
         validUntil: '2028-02-01'
       }
+    ];
+
+    const competencies = [
+      ...targetInspectors1.flatMap((u) => baseCompetencies1.map((c) => ({ ...c, inspectorId: u.id }))),
+      ...targetInspectors2.flatMap((u) => baseCompetencies2.map((c) => ({ ...c, inspectorId: u.id })))
     ];
 
     for (const c of competencies) {

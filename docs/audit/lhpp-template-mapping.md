@@ -79,3 +79,4 @@ Dokumen LHPP di-generate menggunakan library `pdfkit` dengan tata letak berstand
 - Modul generator: `backend/src/services/pdf-generator.js`.
 - Pengujian otomatis: `npm --prefix backend test src/tests/lhpp-pdf-generator.test.js` (6 tes lulus 100%).
 - Verifikasi visual berkas PDF: File ter-render rapi dan konsisten dengan standar dokumen cetak resmi K3.
+

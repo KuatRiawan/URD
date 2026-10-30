@@ -73,3 +73,4 @@ Seluruh perubahan skema dikelola melalui berkas migrasi bernomor urut di `backen
 - `001_initial_schema.sql` sampai migrasi multi-unit dan distribusi dokumen.
 - Skema terverifikasi berjalan lancar pada engine PostgreSQL 18.
 - Status migrasi: **Lengkap & Terverifikasi**.
+

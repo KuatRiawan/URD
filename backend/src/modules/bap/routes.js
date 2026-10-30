@@ -93,6 +93,20 @@ export async function fetchFullBapContext(db, id) {
   };
 }
 
+export async function canAccessBap(db, bap, user) {
+  if (!user) return false;
+  if (['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN'].includes(user.role)) return true;
+  if (!['AHLI_K3', 'INSPECTOR'].includes(user.role)) return false;
+  if (bap.inspector_id === user.id) return true;
+  const { rows } = await db.query(
+    `SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')
+     UNION
+     SELECT 1 FROM users u1, users u2 WHERE u1.id = $2 AND u2.id = $3 AND (u1.full_name = u2.full_name OR u1.phone = u2.phone OR split_part(u1.email, '@', 1) = split_part(u2.email, '@', 1))`,
+    [bap.order_id, user.id, bap.inspector_id]
+  );
+  return Boolean(rows[0]);
+}
+
 router.get('/scopes', async (_req, res, next) => {
   try {
     const { rows: categories } = await query(
@@ -178,7 +192,8 @@ router.get('/:id', async (req, res, next) => {
   try {
     const bap = await fetchFullBapContext({ query }, req.params.id);
     if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && bap.inspector_id !== req.user.id) {
+    const hasAccess = await canAccessBap({ query }, bap, req.user);
+    if (!hasAccess) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengakses BAP milik penugasan Anda.');
     }
     const { rows: revisions } = await query(
@@ -210,7 +225,8 @@ router.put(
       const updated = await withTransaction(async (db) => {
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
+        const hasAccess = await canAccessBap(db, cur, req.user);
+        if (!hasAccess) {
           throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengubah BAP milik penugasan Anda.');
         }
         if (cur.status === 'FINAL') {
@@ -280,7 +296,8 @@ router.post(
       const updated = await withTransaction(async (db) => {
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
+        const hasAccess = await canAccessBap(db, cur, req.user);
+        if (!hasAccess) {
           throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat menandatangani BAP penugasan Anda.');
         }
         if (cur.status === 'FINAL') {
@@ -371,7 +388,8 @@ router.post(
       const result = await withTransaction(async (db) => {
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
+        const hasAccess = await canAccessBap(db, cur, req.user);
+        if (!hasAccess) {
           throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat memfinalisasi BAP penugasan Anda.');
         }
         if (cur.status === 'FINAL') {
@@ -608,7 +626,8 @@ router.get('/:id/pdf', async (req, res, next) => {
   try {
     const bap = await fetchFullBapContext({ query }, req.params.id);
     if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && bap.inspector_id !== req.user.id) {
+    const hasAccess = await canAccessBap({ query }, bap, req.user);
+    if (!hasAccess) {
       throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
     }
     const buf = await generateBapPdfBuffer(bap);
