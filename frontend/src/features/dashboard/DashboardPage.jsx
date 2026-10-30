@@ -148,16 +148,16 @@ export function DashboardPage() {
 
   const filteredAssignedUnits = assignedUnits.filter((u) => {
     if (fieldSearch.trim()) {
-      const q = fieldSearch.toLowerCase();
+      const q = fieldSearch.toLowerCase().trim();
       const match =
-        (u.object_name && u.object_name.toLowerCase().includes(q)) ||
-        (u.serial_number && u.serial_number.toLowerCase().includes(q)) ||
-        (u.client_name && u.client_name.toLowerCase().includes(q)) ||
-        (u.po_number && u.po_number.toLowerCase().includes(q)) ||
-        (u.order_no && u.order_no.toLowerCase().includes(q)) ||
-        (u.location_name && u.location_name.toLowerCase().includes(q)) ||
-        (u.location_address && u.location_address.toLowerCase().includes(q)) ||
-        (u.category_code && u.category_code.toLowerCase().includes(q));
+        (u.object_name && String(u.object_name).toLowerCase().includes(q)) ||
+        (u.serial_number && String(u.serial_number).toLowerCase().includes(q)) ||
+        (u.client_name && String(u.client_name).toLowerCase().includes(q)) ||
+        (u.po_number && String(u.po_number).toLowerCase().includes(q)) ||
+        (u.order_no && String(u.order_no).toLowerCase().includes(q)) ||
+        (u.location_name && String(u.location_name).toLowerCase().includes(q)) ||
+        (u.location_address && String(u.location_address).toLowerCase().includes(q)) ||
+        (u.category_code && String(u.category_code).toLowerCase().includes(q));
       if (!match) return false;
     }
     if (fieldStatusFilter === 'TODO') {
@@ -550,27 +550,27 @@ export function DashboardPage() {
 
                         {/* Kontak PIC Lapangan dengan Tombol Cepat */}
                         {(u.contact_name || u.contact_phone) && (
-                          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 min-w-0">
                               <User size={14} className="text-slate-400 shrink-0" />
                               <span className="font-semibold truncate">PIC: {u.contact_name || 'PIC Klien'}</span>
                             </div>
                             {u.contact_phone && (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <a
-                                  href={`tel:${u.contact_phone}`}
+                                  href={`tel:${String(u.contact_phone).trim()}`}
                                   title="Hubungi PIC via Telepon"
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-semibold hover:bg-slate-300"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-semibold hover:bg-slate-300 min-h-[32px]"
                                 >
                                   <Phone size={12} weight="bold" />
                                   <span>Telepon</span>
                                 </a>
                                 <a
-                                  href={`https://wa.me/${u.contact_phone.replace(/\D/g, '')}`}
+                                  href={`https://wa.me/${String(u.contact_phone).replace(/\D/g, '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   title="Hubungi PIC via WhatsApp"
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold hover:bg-emerald-200"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold hover:bg-emerald-200 min-h-[32px]"
                                 >
                                   <WhatsappLogo size={13} weight="bold" />
                                   <span>WhatsApp</span>

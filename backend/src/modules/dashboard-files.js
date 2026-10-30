@@ -312,7 +312,7 @@ router.get('/work-queue', async (req, res, next) => {
   try {
     const role = req.user.role;
     const userId = req.user.id;
-    const isInspector = role === 'AHLI_K3';
+    const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(role);
     const queue = [];
 
     // 1. PO Baru belum dijadwalkan (khusus Admin & Pimpinan)

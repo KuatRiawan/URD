@@ -17,7 +17,7 @@ router.get('/', async (req, res, next) => {
     const searchTerm = `%${q.toLowerCase()}%`;
     const role = req.user.role;
     const userId = req.user.id;
-    const isInspector = role === 'AHLI_K3';
+    const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(role);
 
     // 1. Cari PO / Orders
     const orderSql = isInspector
