@@ -1,16 +1,55 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import {
   Eye,
   EyeSlash,
-  LockKey,
-  ShieldCheck
+  LockKey
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
 import { ThemeToggle } from '../../components/ui/ThemeToggle.jsx';
 import logoUrd from '../../assets/logo-urd.png';
 import { extractErrorMessage } from '../../lib/utils/format.js';
+
+function TypewriterText({ text, speed = 50, pause = 2000 }) {
+  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+  const [displayed, setDisplayed] = useState(isTest ? text : '');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (isTest) return;
+
+    let timeout;
+    if (!isDeleting && index <= text.length) {
+      setDisplayed(text.slice(0, index));
+      if (index === text.length) {
+        timeout = setTimeout(() => setIsDeleting(true), pause);
+      } else {
+        timeout = setTimeout(() => setIndex((prev) => prev + 1), speed);
+      }
+    } else if (isDeleting && index >= 0) {
+      setDisplayed(text.slice(0, index));
+      if (index === 0) {
+        timeout = setTimeout(() => setIsDeleting(false), 600);
+      } else {
+        timeout = setTimeout(() => setIndex((prev) => prev - 1), speed / 1.5);
+      }
+    }
+
+    return () => clearTimeout(timeout);
+  }, [index, isDeleting, text, speed, pause, isTest]);
+
+  return (
+    <span className="inline-flex items-center">
+      <span>{displayed}</span>
+      <span
+        className="inline-block w-[2.5px] h-[1.1em] ml-1 bg-[#C81E1E] animate-pulse rounded-full align-middle"
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
 
 export function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -57,7 +96,7 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-[#C81E1E] selection:text-white">
-      {/* Panel Merek & Identitas Perusahaan (Tampil di Desktop) */}
+      {/* Panel Merek & Identitas Perusahaan (Desktop) */}
       <aside className="hidden lg:flex lg:w-[48%] xl:w-[45%] relative overflow-hidden flex-col justify-between bg-slate-950 p-12 text-white">
         {/* Dekorasi Latar Belakang Gradien Halus */}
         <div
@@ -86,16 +125,14 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Tagline Utama Minimal & Tegas */}
-        <div className="relative z-10 max-w-lg space-y-4 my-auto py-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold tracking-wider uppercase">
-            <ShieldCheck size={16} weight="bold" />
-            <span>Better safety partner</span>
+        {/* Tagline Terpadu dengan Animasi Ketik */}
+        <div className="relative z-10 max-w-lg my-auto py-8">
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
+            Portal Resmi Riksa Uji K3
+          </p>
+          <div className="text-3xl xl:text-4xl font-black leading-snug tracking-tight text-white min-h-[5.5rem] flex items-center">
+            <TypewriterText text="Better safety partner. Riksa Uji, URD pasti!" />
           </div>
-
-          <h2 className="text-4xl xl:text-5xl font-black leading-tight tracking-tight text-white">
-            Riksa Uji, <span className="text-[#C81E1E]">URD pasti!</span>
-          </h2>
         </div>
 
         {/* Footer Panel Kiri */}
@@ -119,14 +156,9 @@ export function LoginPage() {
                 className="h-6 w-auto object-contain"
               />
             </span>
-            <div>
-              <p className="text-xs font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-                PT Upaya Riksa Daya
-              </p>
-              <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
-                Better safety partner
-              </p>
-            </div>
+            <p className="text-xs font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+              PT Upaya Riksa Daya
+            </p>
           </div>
           <div className="ml-auto">
             <ThemeToggle />
@@ -149,20 +181,11 @@ export function LoginPage() {
                 />
               </span>
 
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold tracking-wide uppercase mb-2">
-                <ShieldCheck size={14} weight="bold" />
-                <span>Better safety partner</span>
-              </div>
-
               <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                 PT Upaya Riksa Daya
               </h1>
 
-              <p className="mt-1 text-sm font-extrabold text-[#C81E1E] dark:text-rose-400">
-                Riksa Uji, URD pasti!
-              </p>
-
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                 Masuk ke Portal Resmi PT Upaya Riksa Daya
               </p>
             </div>
