@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import {
   Alarm,
@@ -116,93 +116,81 @@ export function DashboardPage() {
   const isInspector = ['INSPECTOR', 'AHLI_K3'].includes(user?.role);
 
   const assignedUnits = data.assignedUnits || [];
-  const todoUnits = useMemo(
-    () => assignedUnits.filter((u) => ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status)),
-    [assignedUnits]
+  const todoUnits = assignedUnits.filter((u) =>
+    ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status)
   );
-  const inProgressUnits = useMemo(
-    () => assignedUnits.filter((u) => ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)),
-    [assignedUnits]
+  const inProgressUnits = assignedUnits.filter((u) =>
+    ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)
   );
-  const waitingDocsUnits = useMemo(
-    () =>
-      assignedUnits.filter((u) =>
-        [
-          'MENUNGGU_TTD',
-          'PEMERIKSAAN_TERKIRIM',
-          'FORM_TERKIRIM',
-          'LHPP_DRAF',
-          'LHPP_DIPROSES',
-          'LHPP_SIAP_PREVIEW',
-          'BAP_DRAF',
-          'BAP_DIPROSES',
-          'BAP_SIAP_PREVIEW'
-        ].includes(u.unit_status)
-      ),
-    [assignedUnits]
+  const waitingDocsUnits = assignedUnits.filter((u) =>
+    [
+      'MENUNGGU_TTD',
+      'PEMERIKSAAN_TERKIRIM',
+      'FORM_TERKIRIM',
+      'LHPP_DRAF',
+      'LHPP_DIPROSES',
+      'LHPP_SIAP_PREVIEW',
+      'BAP_DRAF',
+      'BAP_DIPROSES',
+      'BAP_SIAP_PREVIEW'
+    ].includes(u.unit_status)
   );
-  const doneUnits = useMemo(
-    () =>
-      assignedUnits.filter((u) =>
-        [
-          'LHPP_FINAL',
-          'LHPP_TERBIT',
-          'BAP_FINAL',
-          'SIAP_DISTRIBUSI',
-          'SEBAGIAN_DOKUMEN_DIKIRIM',
-          'SELESAI'
-        ].includes(u.unit_status)
-      ),
-    [assignedUnits]
+  const doneUnits = assignedUnits.filter((u) =>
+    [
+      'LHPP_FINAL',
+      'LHPP_TERBIT',
+      'BAP_FINAL',
+      'SIAP_DISTRIBUSI',
+      'SEBAGIAN_DOKUMEN_DIKIRIM',
+      'SELESAI'
+    ].includes(u.unit_status)
   );
 
-  const filteredAssignedUnits = useMemo(() => {
-    return assignedUnits.filter((u) => {
-      if (fieldSearch.trim()) {
-        const q = fieldSearch.toLowerCase();
-        const match =
-          (u.object_name && u.object_name.toLowerCase().includes(q)) ||
-          (u.serial_number && u.serial_number.toLowerCase().includes(q)) ||
-          (u.client_name && u.client_name.toLowerCase().includes(q)) ||
-          (u.po_number && u.po_number.toLowerCase().includes(q)) ||
-          (u.order_no && u.order_no.toLowerCase().includes(q)) ||
-          (u.location_name && u.location_name.toLowerCase().includes(q)) ||
-          (u.location_address && u.location_address.toLowerCase().includes(q)) ||
-          (u.category_code && u.category_code.toLowerCase().includes(q));
-        if (!match) return false;
-      }
-      if (fieldStatusFilter === 'TODO') {
-        return ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status);
-      }
-      if (fieldStatusFilter === 'IN_PROGRESS') {
-        return ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
-      }
-      if (fieldStatusFilter === 'WAITING_DOCS') {
-        return [
-          'MENUNGGU_TTD',
-          'PEMERIKSAAN_TERKIRIM',
-          'FORM_TERKIRIM',
-          'LHPP_DRAF',
-          'LHPP_DIPROSES',
-          'LHPP_SIAP_PREVIEW',
-          'BAP_DRAF',
-          'BAP_DIPROSES',
-          'BAP_SIAP_PREVIEW'
-        ].includes(u.unit_status);
-      }
-      if (fieldStatusFilter === 'DONE') {
-        return [
-          'LHPP_FINAL',
-          'LHPP_TERBIT',
-          'BAP_FINAL',
-          'SIAP_DISTRIBUSI',
-          'SEBAGIAN_DOKUMEN_DIKIRIM',
-          'SELESAI'
-        ].includes(u.unit_status);
-      }
-      return true;
-    });
-  }, [assignedUnits, fieldSearch, fieldStatusFilter]);
+  const filteredAssignedUnits = assignedUnits.filter((u) => {
+    if (fieldSearch.trim()) {
+      const q = fieldSearch.toLowerCase();
+      const match =
+        (u.object_name && u.object_name.toLowerCase().includes(q)) ||
+        (u.serial_number && u.serial_number.toLowerCase().includes(q)) ||
+        (u.client_name && u.client_name.toLowerCase().includes(q)) ||
+        (u.po_number && u.po_number.toLowerCase().includes(q)) ||
+        (u.order_no && u.order_no.toLowerCase().includes(q)) ||
+        (u.location_name && u.location_name.toLowerCase().includes(q)) ||
+        (u.location_address && u.location_address.toLowerCase().includes(q)) ||
+        (u.category_code && u.category_code.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    if (fieldStatusFilter === 'TODO') {
+      return ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status);
+    }
+    if (fieldStatusFilter === 'IN_PROGRESS') {
+      return ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
+    }
+    if (fieldStatusFilter === 'WAITING_DOCS') {
+      return [
+        'MENUNGGU_TTD',
+        'PEMERIKSAAN_TERKIRIM',
+        'FORM_TERKIRIM',
+        'LHPP_DRAF',
+        'LHPP_DIPROSES',
+        'LHPP_SIAP_PREVIEW',
+        'BAP_DRAF',
+        'BAP_DIPROSES',
+        'BAP_SIAP_PREVIEW'
+      ].includes(u.unit_status);
+    }
+    if (fieldStatusFilter === 'DONE') {
+      return [
+        'LHPP_FINAL',
+        'LHPP_TERBIT',
+        'BAP_FINAL',
+        'SIAP_DISTRIBUSI',
+        'SEBAGIAN_DOKUMEN_DIKIRIM',
+        'SELESAI'
+      ].includes(u.unit_status);
+    }
+    return true;
+  });
 
   // ---------------------------------------------------------------------------
   // TAMPILAN KHUSUS INSPECTOR (FIELD-FIRST & MOBILE/TABLET OPTIMIZED)
