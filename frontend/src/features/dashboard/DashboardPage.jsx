@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
   Alarm,
@@ -7,7 +7,10 @@ import {
   ArrowRight,
   ArrowUp,
   Briefcase,
+  Building,
+  CalendarBlank,
   CalendarCheck,
+  Camera,
   Certificate,
   ChartBar,
   ChartLineUp,
@@ -16,16 +19,25 @@ import {
   Clock,
   DownloadSimple,
   FileText,
+  Funnel,
   HourglassMedium,
   ListChecks,
+  MagnifyingGlass,
   MapPin,
+  PenNib,
+  Phone,
   Plus,
   Scroll,
   ShieldCheck,
   ShieldWarning,
+  Sparkle,
+  SquaresFour,
+  Table,
+  User,
   UsersThree,
   WarningCircle,
   WarningOctagon,
+  WhatsappLogo,
   Wrench
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
@@ -54,6 +66,9 @@ export function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [period, setPeriod] = useState('30D');
+  const [fieldSearch, setFieldSearch] = useState('');
+  const [fieldStatusFilter, setFieldStatusFilter] = useState('ALL');
+  const [fieldViewMode, setFieldViewMode] = useState('CARDS');
 
   const loadSummary = useCallback(async (isRefresh = false) => {
     try {
@@ -98,22 +113,111 @@ export function DashboardPage() {
   if (!data) return null;
 
   const m = data.metrics || {};
-  const isInspector = user?.role === 'AHLI_K3';
+  const isInspector = ['INSPECTOR', 'AHLI_K3'].includes(user?.role);
+
+  const assignedUnits = data.assignedUnits || [];
+  const todoUnits = useMemo(
+    () => assignedUnits.filter((u) => ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status)),
+    [assignedUnits]
+  );
+  const inProgressUnits = useMemo(
+    () => assignedUnits.filter((u) => ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)),
+    [assignedUnits]
+  );
+  const waitingDocsUnits = useMemo(
+    () =>
+      assignedUnits.filter((u) =>
+        [
+          'MENUNGGU_TTD',
+          'PEMERIKSAAN_TERKIRIM',
+          'FORM_TERKIRIM',
+          'LHPP_DRAF',
+          'LHPP_DIPROSES',
+          'LHPP_SIAP_PREVIEW',
+          'BAP_DRAF',
+          'BAP_DIPROSES',
+          'BAP_SIAP_PREVIEW'
+        ].includes(u.unit_status)
+      ),
+    [assignedUnits]
+  );
+  const doneUnits = useMemo(
+    () =>
+      assignedUnits.filter((u) =>
+        [
+          'LHPP_FINAL',
+          'LHPP_TERBIT',
+          'BAP_FINAL',
+          'SIAP_DISTRIBUSI',
+          'SEBAGIAN_DOKUMEN_DIKIRIM',
+          'SELESAI'
+        ].includes(u.unit_status)
+      ),
+    [assignedUnits]
+  );
+
+  const filteredAssignedUnits = useMemo(() => {
+    return assignedUnits.filter((u) => {
+      if (fieldSearch.trim()) {
+        const q = fieldSearch.toLowerCase();
+        const match =
+          (u.object_name && u.object_name.toLowerCase().includes(q)) ||
+          (u.serial_number && u.serial_number.toLowerCase().includes(q)) ||
+          (u.client_name && u.client_name.toLowerCase().includes(q)) ||
+          (u.po_number && u.po_number.toLowerCase().includes(q)) ||
+          (u.order_no && u.order_no.toLowerCase().includes(q)) ||
+          (u.location_name && u.location_name.toLowerCase().includes(q)) ||
+          (u.location_address && u.location_address.toLowerCase().includes(q)) ||
+          (u.category_code && u.category_code.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      if (fieldStatusFilter === 'TODO') {
+        return ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status);
+      }
+      if (fieldStatusFilter === 'IN_PROGRESS') {
+        return ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
+      }
+      if (fieldStatusFilter === 'WAITING_DOCS') {
+        return [
+          'MENUNGGU_TTD',
+          'PEMERIKSAAN_TERKIRIM',
+          'FORM_TERKIRIM',
+          'LHPP_DRAF',
+          'LHPP_DIPROSES',
+          'LHPP_SIAP_PREVIEW',
+          'BAP_DRAF',
+          'BAP_DIPROSES',
+          'BAP_SIAP_PREVIEW'
+        ].includes(u.unit_status);
+      }
+      if (fieldStatusFilter === 'DONE') {
+        return [
+          'LHPP_FINAL',
+          'LHPP_TERBIT',
+          'BAP_FINAL',
+          'SIAP_DISTRIBUSI',
+          'SEBAGIAN_DOKUMEN_DIKIRIM',
+          'SELESAI'
+        ].includes(u.unit_status);
+      }
+      return true;
+    });
+  }, [assignedUnits, fieldSearch, fieldStatusFilter]);
 
   // ---------------------------------------------------------------------------
-  // TAMPILAN KHUSUS AHLI K3 (LAPANGAN) - METIS THEME
+  // TAMPILAN KHUSUS INSPECTOR (FIELD-FIRST & MOBILE/TABLET OPTIMIZED)
   // ---------------------------------------------------------------------------
   if (isInspector) {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Dasbor Lapangan Ahli K3"
-          subtitle="Penugasan aktif, lembar pengujian riksa uji, BAP, dan dokumen LHPP Anda"
+          title="Dasbor Lapangan Inspector"
+          subtitle="Fokus riksa uji lapangan, pengisian checklist alat K3, dokumentasi foto, dan tanda tangan digital"
           actions={
             <>
               <Link
                 to="/app/inspections"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] transition-all shadow-xs"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-[#a61717] transition-all shadow-xs"
               >
                 <Plus size={16} weight="bold" aria-hidden="true" />
                 <span>Form Uji Lapangan</span>
@@ -135,178 +239,470 @@ export function DashboardPage() {
           }
         />
 
-        {/* Metis Horizontal Stats Cards Grid */}
-        <section aria-label="Metrik Kerja Ahli K3" className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Card 1: PO Aktif */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-            <div className="flex items-center">
-              <div className="h-11 w-11 rounded-lg bg-brand-500/10 dark:bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-brand-500/20 flex items-center justify-center shrink-0">
-                <ClipboardText size={22} weight="bold" aria-hidden="true" />
+        {/* 4 Kartu Metrik Praktis Lapangan (Tanpa Grafik Rumit) */}
+        <section aria-label="Ringkasan Kerja Lapangan" className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+          {/* Card 1: Total Unit Ditugaskan */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <div className="flex items-center gap-3.5">
+              <div className="h-11 w-11 rounded-lg bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <Wrench size={22} weight="bold" aria-hidden="true" />
               </div>
-              <div className="flex-1 min-w-0 ms-3.5">
+              <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  PO Aktif
+                  Unit Ditugaskan
                 </p>
                 <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
-                  {m.activeAssignments}
+                  {assignedUnits.length}
                 </div>
                 <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  {m.pendingConfirmation} menunggu konfirmasi
+                  {m.activeAssignments || 0} PO aktif berjalan
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Form Uji Draf */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-            <div className="flex items-center">
+          {/* Card 2: Sedang Dikerjakan / Draf */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <div className="flex items-center gap-3.5">
               <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
                 <FileText size={22} weight="bold" aria-hidden="true" />
               </div>
-              <div className="flex-1 min-w-0 ms-3.5">
+              <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  Form Uji Draf
+                  Sedang Dikerjakan
                 </p>
                 <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
-                  {m.draftInspections}
+                  {inProgressUnits.length || m.draftInspections || 0}
                 </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  Sedang dikerjakan
+                <div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 mt-1 truncate">
+                  Checklist sedang diisi
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card 3: Draf BAP */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-            <div className="flex items-center">
+          {/* Card 3: Menunggu TTD / BAP */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <div className="flex items-center gap-3.5">
               <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
                 <Scroll size={22} weight="bold" aria-hidden="true" />
               </div>
-              <div className="flex-1 min-w-0 ms-3.5">
+              <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  Berita Acara
+                  Menunggu TTD / BAP
                 </p>
                 <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums leading-none">
-                  {m.draftBap || 0}
+                  {waitingDocsUnits.length || m.draftBap || 0}
                 </div>
                 <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  {m.finalBap || 0} BAP final
+                  TTD PIC &amp; Inspector
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card 4: Perlu Revisi */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-            <div className="flex items-center">
-              <div className="h-11 w-11 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
-                <WarningOctagon size={22} weight="bold" aria-hidden="true" />
-              </div>
-              <div className="flex-1 min-w-0 ms-3.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  Perlu Revisi
-                </p>
-                <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 tabular-nums leading-none">
-                  {m.returnedLhpp}
-                </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  Dikembalikan reviewer
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 5: LHPP Terbit */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-            <div className="flex items-center">
+          {/* Card 4: Selesai / LHPP Final */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <div className="flex items-center gap-3.5">
               <div className="h-11 w-11 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
                 <CheckCircle size={22} weight="bold" aria-hidden="true" />
               </div>
-              <div className="flex-1 min-w-0 ms-3.5">
+              <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  LHPP Terbit
+                  LHPP Final &amp; Terbit
                 </p>
                 <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">
-                  {m.publishedLhpp}
+                  {doneUnits.length || m.publishedLhpp || 0}
                 </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  Disetujui Pimpinan
+                <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mt-1 truncate">
+                  Dokumen riksa uji selesai
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Metis 2-Column Section: Work Queue + Activity Feed */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8">
-            <WorkQueueWidget />
-          </div>
-
-          <div className="lg:col-span-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden flex flex-col h-full">
-              <div className="px-5 py-3.5 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  Aktivitas Penugasan Terkini
-                </h2>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Live Feed</span>
-              </div>
-              <div className="p-4 flex-1 overflow-y-auto max-h-80 scrollbar-thin divide-y divide-slate-100 dark:divide-slate-800">
-                {!data.recentActivities?.length ? (
-                  <p className="text-xs text-slate-400 text-center py-8">Belum ada aktivitas baru.</p>
-                ) : (
-                  data.recentActivities.map((act) => (
-                    <div key={act.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-3">
-                      <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 text-xs">
-                        <Clock size={14} weight="bold" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                          {act.action || 'Aktivitas'} · {act.entity || 'Sistem'}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {act.user_name || 'Sistem'} · {formatRelativeTime(act.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+        {/* Banner Panduan Riksa Uji Lapangan Ringkas */}
+        <div className="rounded-xl border border-brand-500/20 bg-rose-50/50 dark:bg-rose-950/20 p-4 sm:p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-[#C81E1E] text-white flex items-center justify-center shrink-0 mt-0.5">
+              <ShieldCheck size={18} weight="bold" />
             </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                Mode Riksa Uji Lapangan Aktif
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                Pastikan identitas unit alat sesuai kondisi fisik, isi form butir uji wajib, ambil foto dokumentasi temuan, dan lakukan penandatanganan digital bersama PIC Klien di lokasi.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+            <Link
+              to="/app/bap"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Arsip BAP
+            </Link>
+            <Link
+              to="/app/lhpp"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Arsip LHPP
+            </Link>
           </div>
         </div>
 
-        {/* Metis Table Card: Daftar Unit Alat yang Ditugaskan */}
+        {/* Section Utama: Daftar Unit Alat dengan Kontrol Filter & Switch Tampilan */}
         <section className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-          <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Unit Alat yang Ditugaskan kepada Anda ({(data.assignedUnits || []).length} Unit)
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Daftar objek uji lapangan, status Berita Acara (BAP), dan laporan hasil (LHPP)
-              </p>
+          <div className="p-4 sm:p-5 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>Unit Alat yang Ditugaskan</span>
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {filteredAssignedUnits.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Pilih unit alat di bawah untuk membuka form checklist dan dokumentasi riksa uji
+                </p>
+              </div>
+
+              {/* View Switcher: Card vs Table */}
+              <div className="inline-flex items-center p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setFieldViewMode('CARDS')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    fieldViewMode === 'CARDS'
+                      ? 'bg-[#C81E1E] text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <SquaresFour size={14} weight="bold" />
+                  <span>Kartu Lapangan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFieldViewMode('TABLE')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    fieldViewMode === 'TABLE'
+                      ? 'bg-[#C81E1E] text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Table size={14} weight="bold" />
+                  <span>Tabel Ringkas</span>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs font-semibold">
-              <Link to="/app/bap" className="text-[#C81E1E] dark:text-rose-400 hover:underline">
-                Buka Arsip BAP
-              </Link>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
-              <Link to="/app/lhpp" className="text-slate-600 dark:text-slate-300 hover:underline">
-                Buka Arsip LHPP
-              </Link>
+
+            {/* Filter Tabs & Search Bar */}
+            <div className="flex flex-col md:flex-row gap-3 pt-1">
+              <div className="relative flex-1">
+                <MagnifyingGlass
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={fieldSearch}
+                  onChange={(e) => setFieldSearch(e.target.value)}
+                  placeholder="Cari nama alat, no seri, klien, PO, atau lokasi..."
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#C81E1E] dark:focus:border-rose-500"
+                />
+              </div>
+
+              {/* Status Filter Tabs (Touch Friendly) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setFieldStatusFilter('ALL')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                    fieldStatusFilter === 'ALL'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Semua ({assignedUnits.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFieldStatusFilter('TODO')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                    fieldStatusFilter === 'TODO'
+                      ? 'bg-[#C81E1E] text-white'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Perlu Diperiksa ({todoUnits.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFieldStatusFilter('IN_PROGRESS')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                    fieldStatusFilter === 'IN_PROGRESS'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Sedang Berjalan ({inProgressUnits.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFieldStatusFilter('WAITING_DOCS')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                    fieldStatusFilter === 'WAITING_DOCS'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Menunggu TTD / Dokumen ({waitingDocsUnits.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFieldStatusFilter('DONE')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                    fieldStatusFilter === 'DONE'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Selesai ({doneUnits.length})
+                </button>
+              </div>
             </div>
           </div>
 
-          {!data.assignedUnits?.length ? (
+          {/* Isi Konten: Kartu Lapangan vs Tabel Ringkas */}
+          {!filteredAssignedUnits.length ? (
             <div className="p-8">
               <EmptyState
-                title="Belum Ada Unit Alat yang Ditugaskan"
-                description="Unit alat dari PO yang ditugaskan kepada Anda akan tampil lengkap beserta jadwal, status BAP, dan LHPP di sini."
+                title="Tidak Ada Unit Alat yang Sesuai"
+                description={
+                  fieldSearch || fieldStatusFilter !== 'ALL'
+                    ? 'Tidak ada unit alat yang cocok dengan filter atau kata kunci pencarian Anda.'
+                    : 'Belum ada unit alat yang ditugaskan kepada Anda saat ini.'
+                }
               />
             </div>
+          ) : fieldViewMode === 'CARDS' ? (
+            /* TAMPILAN KARTU LAPANGAN (TOUCH FRIENDLY FOR FIELD TABLETS / MOBILES) */
+            <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredAssignedUnits.map((u) => {
+                const isCompleted = ['LHPP_FINAL', 'LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SELESAI'].includes(
+                  u.unit_status
+                );
+                const isInProgress = ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
+                const isWaitingSign = ['MENUNGGU_TTD', 'PEMERIKSAAN_TERKIRIM'].includes(u.unit_status);
+
+                return (
+                  <div
+                    key={`${u.order_id}-${u.object_id}`}
+                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs"
+                  >
+                    <div className="space-y-3.5">
+                      {/* Top Bar: Kategori & Status Badge */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-[#C81E1E] dark:text-rose-400 font-extrabold text-[11px] tracking-wide">
+                          <span>{u.category_code}</span>
+                          <span className="text-slate-300 dark:text-slate-700">·</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {u.category_name || 'Riksa Uji K3'}
+                          </span>
+                        </div>
+                        <StatusBadge status={u.unit_status} />
+                      </div>
+
+                      {/* Judul Alat & Spesifikasi Utama */}
+                      <div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-snug">
+                          {u.object_name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          <span>
+                            No. Seri: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{u.serial_number}</span>
+                          </span>
+                          {u.capacity && (
+                            <>
+                              <span>·</span>
+                              <span>Kapasitas: <span className="font-semibold text-slate-700 dark:text-slate-300">{u.capacity}</span></span>
+                            </>
+                          )}
+                          {u.install_location && (
+                            <>
+                              <span>·</span>
+                              <span>Lokasi: {u.install_location}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Informasi Klien & Lokasi Kerja */}
+                      <div className="rounded-lg bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 p-3 space-y-2 text-xs">
+                        <div className="flex items-start gap-2">
+                          <Building size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-slate-900 dark:text-slate-100">{u.client_name}</p>
+                            <p className="text-[11px] text-[#C81E1E] dark:text-rose-400 font-mono font-semibold">
+                              PO: {u.po_number || u.order_no}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
+                          <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                          <p className="text-[11px] leading-relaxed">
+                            {u.location_name ? `${u.location_name} - ` : ''}
+                            {u.location_address || u.client_address || 'Alamat lokasi pemeriksaan'}
+                            {u.location_city ? `, ${u.location_city}` : ''}
+                          </p>
+                        </div>
+
+                        {/* Kontak PIC Lapangan dengan Tombol Cepat */}
+                        {(u.contact_name || u.contact_phone) && (
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+                              <User size={14} className="text-slate-400 shrink-0" />
+                              <span className="font-semibold truncate">PIC: {u.contact_name || 'PIC Klien'}</span>
+                            </div>
+                            {u.contact_phone && (
+                              <div className="flex items-center gap-2">
+                                <a
+                                  href={`tel:${u.contact_phone}`}
+                                  title="Hubungi PIC via Telepon"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-semibold hover:bg-slate-300"
+                                >
+                                  <Phone size={12} weight="bold" />
+                                  <span>Telepon</span>
+                                </a>
+                                <a
+                                  href={`https://wa.me/${u.contact_phone.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Hubungi PIC via WhatsApp"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold hover:bg-emerald-200"
+                                >
+                                  <WhatsappLogo size={13} weight="bold" />
+                                  <span>WhatsApp</span>
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Jadwal Pelaksanaan */}
+                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <CalendarBlank size={15} className="text-slate-400 shrink-0" />
+                        <span>
+                          Jadwal: <span className="font-semibold text-slate-800 dark:text-slate-200">{u.start_at ? formatDateTime(u.start_at) : 'Belum dijadwalkan'}</span>
+                        </span>
+                        <span>·</span>
+                        <span className="font-medium text-slate-600 dark:text-slate-300">
+                          {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
+                        </span>
+                      </div>
+
+                      {/* Nomor Dokumen jika sudah terbit */}
+                      {(u.bap_no || u.lhpp_no) && (
+                        <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2.5 text-xs space-y-1">
+                          {u.bap_no && (
+                            <div className="flex items-center justify-between font-mono text-[11px]">
+                              <span className="text-slate-500">No. BAP:</span>
+                              <span className="font-bold text-[#C81E1E] dark:text-rose-400">{u.bap_no}</span>
+                            </div>
+                          )}
+                          {u.lhpp_no && (
+                            <div className="flex items-center justify-between font-mono text-[11px]">
+                              <span className="text-slate-500">No. LHPP:</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{u.lhpp_no}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Catatan Review bila ada koreksi */}
+                      {u.review_notes && (
+                        <div className="rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 p-2.5 text-xs text-rose-800 dark:text-rose-300">
+                          <span className="font-bold">Catatan Perbaikan: </span>
+                          <span>{u.review_notes}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tombol Aksi Lapangan yang Menonjol & Mudah Ditekan */}
+                    <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <Link
+                        to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+                        className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-xs"
+                      >
+                        {isInProgress ? (
+                          <>
+                            <ClipboardText size={18} weight="bold" />
+                            <span>Lanjutkan Ceklis &amp; Foto</span>
+                          </>
+                        ) : isWaitingSign ? (
+                          <>
+                            <PenNib size={18} weight="bold" />
+                            <span>Tanda Tangan &amp; Finalisasi</span>
+                          </>
+                        ) : isCompleted ? (
+                          <>
+                            <FileText size={18} weight="bold" />
+                            <span>Lihat Hasil Pengujian</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wrench size={18} weight="bold" />
+                            <span>Mulai Riksa Uji Lapangan</span>
+                          </>
+                        )}
+                      </Link>
+
+                      {/* Tombol Cepat Unduh Dokumen (jika BAP / LHPP sudah ada) */}
+                      {(u.bap_id || u.lhpp_id) && (
+                        <div className="flex items-center gap-2 pt-1">
+                          {u.bap_id && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDownloadPdf(
+                                  `/bap/${u.bap_id}/pdf`,
+                                  `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
+                                )
+                              }
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs"
+                            >
+                              <DownloadSimple size={14} weight="bold" />
+                              <span>Unduh BAP</span>
+                            </button>
+                          )}
+                          {u.lhpp_id && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDownloadPdf(
+                                  `/lhpp/${u.lhpp_id}/pdf`,
+                                  `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
+                                )
+                              }
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs"
+                            >
+                              <DownloadSimple size={14} weight="bold" />
+                              <span>Unduh LHPP</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+            /* TAMPILAN TABEL RINGKAS (UNTUK INSPEKSI CEPAT BARIS PER BARIS) */
             <TableWrapper containerClassName="border-0 shadow-none rounded-none">
               <TableHead>
                 <tr>
@@ -318,7 +714,7 @@ export function DashboardPage() {
                 </tr>
               </TableHead>
               <TableBody>
-                {data.assignedUnits.map((u) => (
+                {filteredAssignedUnits.map((u) => (
                   <TableRow key={`${u.order_id}-${u.object_id}`}>
                     <TableCell>
                       <div className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
@@ -408,6 +804,11 @@ export function DashboardPage() {
               </TableBody>
             </TableWrapper>
           )}
+        </section>
+
+        {/* Antrean Pekerjaan Saya (Work Queue) untuk Notifikasi Tindak Lanjut */}
+        <section aria-label="Antrean Pekerjaan Saya">
+          <WorkQueueWidget />
         </section>
       </div>
     );

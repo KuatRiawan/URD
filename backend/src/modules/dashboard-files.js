@@ -64,7 +64,7 @@ router.get('/summary', async (req, res, next) => {
   try {
     const role = req.user.role;
 
-    if (role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(role)) {
       const [myAssignments, myInspections, myLhpp, myBap, assignedUnits, recentActivitiesRes] = await Promise.all([
         query(
           `SELECT a.id, a.status AS assignment_status, a.created_at,
@@ -90,7 +90,7 @@ router.get('/summary', async (req, res, next) => {
         ),
         query(
           `SELECT count(*) FILTER (WHERE l.status = 'DIKEMBALIKAN')::int AS returned_count,
-                  count(*) FILTER (WHERE l.status = 'TERBIT')::int AS published_count
+                  count(*) FILTER (WHERE l.status IN ('TERBIT', 'FINAL'))::int AS published_count
            FROM lhpp_documents l
            JOIN inspections i ON i.id = l.inspection_id
            WHERE i.inspector_id = $1`,
