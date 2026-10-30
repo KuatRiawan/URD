@@ -341,11 +341,16 @@ router.get('/work-queue', async (req, res, next) => {
 
     // 2. Penugasan menunggu konfirmasi
     const assignmentSql = isInspector
-      ? `SELECT a.id, a.order_id, a.created_at, o.order_no, o.po_number, c.name AS client_name
+      ? `SELECT a.id, a.order_id, a.created_at, o.order_no, o.po_number, o.service_type,
+                c.name AS client_name, s.start_at AS schedule_start,
+                count(oo.id)::int AS unit_count
          FROM assignments a
          JOIN orders o ON o.id = a.order_id
          JOIN clients c ON c.id = o.client_id
+         LEFT JOIN schedules s ON s.order_id = o.id
+         LEFT JOIN order_objects oo ON oo.order_id = o.id
          WHERE a.inspector_id = $1 AND a.status = 'MENUNGGU'
+         GROUP BY a.id, a.order_id, a.created_at, o.order_no, o.po_number, o.service_type, c.name, s.start_at
          ORDER BY a.created_at ASC`
       : `SELECT a.id, a.order_id, a.created_at, o.order_no, o.po_number, c.name AS client_name, u.full_name AS inspector_name
          FROM assignments a
@@ -368,10 +373,18 @@ router.get('/work-queue', async (req, res, next) => {
         title: isInspector
           ? `Konfirmasi Penugasan Order: ${r.po_number || r.order_no}`
           : `Penugasan Menunggu Konfirmasi: ${r.inspector_name} (${r.order_no})`,
-        description: `Klien: ${r.client_name}`,
+        description: `Klien: ${r.client_name}${r.service_type ? ` · ${r.service_type}` : ''}${r.unit_count ? ` · ${r.unit_count} Unit` : ''}`,
         createdAt: r.created_at,
         actionLabel: isInspector ? 'Tinjau & Terima' : 'Lihat Penugasan',
-        link: isInspector ? '/app/dashboard' : '/app/schedule'
+        link: isInspector ? '/app/dashboard' : '/app/schedule',
+        orderId: r.order_id,
+        assignmentId: r.id,
+        orderNo: r.order_no,
+        poNumber: r.po_number,
+        clientName: r.client_name,
+        serviceType: r.service_type,
+        scheduleStart: r.schedule_start,
+        unitCount: r.unit_count
       });
     }
 

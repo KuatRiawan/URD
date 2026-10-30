@@ -1241,7 +1241,7 @@ router.post(
 // M2-05: Konfirmasi terima atau tolak penugasan oleh Ahli K3
 router.post(
   '/:id/assignments/:assignmentId/respond',
-  authorize('AHLI_K3'),
+  authorize('AHLI_K3', 'INSPECTOR'),
   validate(respondAssignmentSchema),
   async (req, res, next) => {
     try {

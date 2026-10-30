@@ -647,7 +647,7 @@ export function DashboardPage() {
 
         {/* Antrean Pekerjaan Saya (Work Queue) */}
         <section aria-label="Antrean Pekerjaan Saya">
-          <WorkQueueWidget />
+          <WorkQueueWidget onRefresh={() => loadSummary(true)} />
         </section>
       </div>
     );
@@ -874,7 +874,7 @@ export function DashboardPage() {
           </div>
 
           {/* Action Queue */}
-          <WorkQueueWidget />
+          <WorkQueueWidget onRefresh={() => loadSummary(true)} />
         </div>
 
         {/* Right Column (4-cols): Recent Activity Stream */}
