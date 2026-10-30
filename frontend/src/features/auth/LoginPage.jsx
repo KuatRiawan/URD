@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import {
-  CheckCircle,
   Eye,
   EyeSlash,
   LockKey,
@@ -87,9 +86,9 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Tagline Utama & Nilai Layanan */}
-        <div className="relative z-10 max-w-lg space-y-6 my-auto py-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold tracking-wide uppercase">
+        {/* Tagline Utama Minimal & Tegas */}
+        <div className="relative z-10 max-w-lg space-y-4 my-auto py-8">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold tracking-wider uppercase">
             <ShieldCheck size={16} weight="bold" />
             <span>Better safety partner</span>
           </div>
@@ -97,31 +96,6 @@ export function LoginPage() {
           <h2 className="text-4xl xl:text-5xl font-black leading-tight tracking-tight text-white">
             Riksa Uji, <span className="text-[#C81E1E]">URD pasti!</span>
           </h2>
-
-          <p className="text-sm text-slate-300 leading-relaxed">
-            Sistem Informasi Terpadu Pelaksanaan Riksa Uji K3, Verifikasi Parameter Alat, Penerbitan Dokumen Berita Acara (BAP), dan Sertifikasi LHPP Resmi.
-          </p>
-
-          <div className="pt-2 space-y-3.5 text-xs text-slate-300">
-            <div className="flex items-center gap-3">
-              <span className="h-6 w-6 rounded-full bg-rose-500/20 text-rose-400 inline-flex items-center justify-center shrink-0">
-                <CheckCircle size={15} weight="bold" />
-              </span>
-              <span>Layanan Riksa Uji PAA, PUBT, Listrik, Petir, dan Elevator</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="h-6 w-6 rounded-full bg-rose-500/20 text-rose-400 inline-flex items-center justify-center shrink-0">
-                <CheckCircle size={15} weight="bold" />
-              </span>
-              <span>Integrasi Lembar Kerja Digital &amp; Tanda Tangan Lapangan Ahli K3</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="h-6 w-6 rounded-full bg-rose-500/20 text-rose-400 inline-flex items-center justify-center shrink-0">
-                <CheckCircle size={15} weight="bold" />
-              </span>
-              <span>Penerbitan Dokumen Resmi Cepat, Akurat, dan Terpercaya</span>
-            </div>
-          </div>
         </div>
 
         {/* Footer Panel Kiri */}
@@ -175,7 +149,7 @@ export function LoginPage() {
                 />
               </span>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[11px] font-bold tracking-wide uppercase mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold tracking-wide uppercase mb-2">
                 <ShieldCheck size={14} weight="bold" />
                 <span>Better safety partner</span>
               </div>
