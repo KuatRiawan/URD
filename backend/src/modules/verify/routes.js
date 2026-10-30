@@ -23,7 +23,7 @@ router.get('/:code', async (req, res, next) => {
        JOIN object_categories oc ON oc.id = t.category_id
        JOIN clients c ON c.id = t.client_id
        LEFT JOIN users u_rev ON u_rev.id = l.approved_by
-       WHERE UPPER(l.verification_code) = $1 AND l.status = 'TERBIT'
+       WHERE UPPER(l.verification_code) = $1 AND l.status IN ('TERBIT', 'FINAL')
        LIMIT 1`,
       [rawCode]
     );

@@ -29,18 +29,20 @@ import {
 
 const STATUS_TONE = {
   DRAF: 'neutral',
+  SIAP_PREVIEW: 'info',
   REVIEW_TEKNIS: 'warning',
-  PERSETUJUAN_PIMPINAN: 'info',
   DIKEMBALIKAN: 'danger',
+  FINAL: 'success',
   TERBIT: 'success'
 };
 
 export function LhppPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
-  const isInspector = user?.role === 'AHLI_K3';
-  const isPimpinan = user?.role === 'PIMPINAN';
-  const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ export function LhppPage() {
     technicalData: {},
     recommendedValidUntil: ''
   });
-  const [reviewNote, setReviewNote] = useState('');
+
   const [deliveryForm, setDeliveryForm] = useState({
     deliveredAt: new Date().toISOString().slice(0, 16),
     channel: 'EMAIL',
@@ -152,33 +154,25 @@ export function LhppPage() {
     }
   };
 
-  const handleReviewDecision = async (decision) => {
+  const handleFinalizeLhpp = async () => {
     if (!detailLhpp) return;
-    if (decision === 'RETURN' && !reviewNote.trim()) {
-      setError('Catatan revisi wajib diisi saat mengembalikan LHPP.');
-      return;
-    }
-    if (decision === 'APPROVE_FINAL') {
-      const ok = await confirm({
-        title: 'Setujui dan Terbitkan LHPP',
-        message: 'LHPP akan diterbitkan dengan nomor resmi dan tidak dapat diubah lagi.',
-        confirmLabel: 'Ya, Terbitkan',
-        tone: 'warning'
-      });
-      if (!ok) return;
-    }
+    const ok = await confirm({
+      title: 'Finalisasi LHPP & Terbitkan BAP',
+      message: 'LHPP ini akan difinalisasi dengan nomor resmi, dokumen terkunci, dan Berita Acara (BAP) unit akan otomatis diterbitkan. Lanjutkan?',
+      confirmLabel: 'Ya, Finalisasi LHPP',
+      tone: 'danger'
+    });
+    if (!ok) return;
+
     setSubmitting(true);
     setError('');
     try {
-      await api.post(`/lhpp/${detailLhpp.id}/review`, {
-        decision,
-        note: reviewNote
-      });
-      setFeedback('Keputusan review LHPP berhasil disimpan.');
+      await api.post(`/lhpp/${detailLhpp.id}/finalize`);
+      setFeedback('LHPP berhasil difinalisasi dan Berita Acara (BAP) unit telah otomatis diterbitkan.');
       await openDetail(detailLhpp.id);
       await loadData();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal memproses keputusan review LHPP.');
+      setError(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal memfinalisasi LHPP.');
     } finally {
       setSubmitting(false);
     }
@@ -418,14 +412,27 @@ export function LhppPage() {
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => handleDownloadPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
-                className="min-h-10 inline-flex items-center gap-1.5 rounded bg-slate-800 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
-              >
-                <DownloadSimple size={16} />
-                <span>Unduh LHPP Resmi (PDF)</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {['DRAF', 'SIAP_PREVIEW', 'REVIEW_TEKNIS', 'DIKEMBALIKAN'].includes(detailLhpp.status) && canManage && (
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={handleFinalizeLhpp}
+                    className="min-h-10 inline-flex items-center gap-1.5 rounded bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-xs"
+                  >
+                    <CheckCircle size={16} weight="bold" />
+                    <span>Finalisasi LHPP & Terbitkan BAP Unit</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded bg-slate-800 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
+                >
+                  <DownloadSimple size={16} />
+                  <span>Unduh LHPP Resmi (PDF)</span>
+                </button>
+              </div>
             </div>
 
             {/* Form Narasi & Evaluasi Teknis Spesifik Kategori LHPP */}
@@ -673,54 +680,7 @@ export function LhppPage() {
               )}
             </div>
 
-            {/* Panel Review & Pengesahan Pimpinan */}
-            {isPimpinan &&
-              ['REVIEW_TEKNIS', 'PERSETUJUAN_PIMPINAN'].includes(detailLhpp.status) && (
-                <div className="border border-slate-200 dark:border-slate-700 rounded-md p-4 space-y-3 bg-slate-50 dark:bg-slate-800/40">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                    <Scroll size={16} />
-                    <span>Panel Verifikasi &amp; Pengesahan Pimpinan</span>
-                  </h4>
-                  <input
-                    type="text"
-                    value={reviewNote}
-                    onChange={(e) => setReviewNote(e.target.value)}
-                    placeholder="Catatan review / alasan pengembalian revisi..."
-                    className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {detailLhpp.status === 'REVIEW_TEKNIS' && (
-                      <button
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => handleReviewDecision('APPROVE_TECHNICAL')}
-                        className="min-h-10 inline-flex items-center gap-1.5 rounded bg-slate-800 dark:bg-slate-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600"
-                      >
-                        <CheckCircle size={15} />
-                        <span>Setujui Review Teknis</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => handleReviewDecision('APPROVE_FINAL')}
-                      className="min-h-10 inline-flex items-center gap-1.5 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
-                    >
-                      <CheckCircle size={15} />
-                      <span>Sahkan &amp; Terbitkan LHPP Final</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => handleReviewDecision('RETURN')}
-                      className="min-h-10 inline-flex items-center gap-1.5 rounded bg-red-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-800"
-                    >
-                      <XCircle size={15} />
-                      <span>Kembalikan untuk Revisi</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
             {/* Pencatatan Distribusi Dokumen LHPP */}
             <div className="border border-slate-200 dark:border-slate-700 rounded-md p-4 space-y-3 bg-white dark:bg-slate-800">

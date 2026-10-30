@@ -297,7 +297,7 @@ router.get('/', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`o.id IN (
         SELECT order_id FROM assignments WHERE inspector_id = $${params.length}
@@ -374,7 +374,7 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       const { rows: own } = await query(
         'SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 LIMIT 1',
         [id, req.user.id]
@@ -1111,7 +1111,7 @@ router.post(
 
         for (const inspectorId of inspectorIds) {
           const { rows: uRows } = await db.query(
-            "SELECT id, full_name FROM users WHERE id = $1 AND role = 'AHLI_K3' AND is_active = true",
+            "SELECT id, full_name FROM users WHERE id = $1 AND role IN ('AHLI_K3', 'INSPECTOR') AND is_active = true",
             [inspectorId]
           );
           if (!uRows[0]) {
@@ -1416,7 +1416,7 @@ router.patch(
 router.get('/:id/assignment-letter.pdf', async (req, res, next) => {
   try {
     const { id } = req.params;
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       const { rows: own } = await query(
         'SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 LIMIT 1',
         [id, req.user.id]

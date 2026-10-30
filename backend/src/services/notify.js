@@ -20,7 +20,7 @@ export async function notifyRoles(
 ) {
   const runner = dbClient || { query };
   const { rows: users } = await runner.query(
-    `SELECT id FROM users WHERE role = ANY($1::user_role[]) AND is_active = true`,
+    `SELECT id FROM users WHERE role = ANY($1::text[]) AND is_active = true`,
     [roles]
   );
   for (const u of users) {

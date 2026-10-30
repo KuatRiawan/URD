@@ -46,21 +46,28 @@ export function computePoUnitProgress(units = []) {
       unscheduledUnits += 1;
     } else if (st === 'TERJADWAL' || st === 'DITUGASKAN') {
       scheduledUnits += 1;
-    } else if (st === 'SEDANG_DIPERIKSA') {
+    } else if (st === 'SEDANG_DIPERIKSA' || st === 'CHECKLIST_BELUM_LENGKAP' || st === 'MENUNGGU_TTD') {
       inProgressUnits += 1;
     } else if (
       [
         'FORM_TERKIRIM',
-        'BAP_DRAF',
-        'BAP_FINAL',
+        'PEMERIKSAAN_TERKIRIM',
         'LHPP_DRAF',
+        'LHPP_DIPROSES',
+        'LHPP_SIAP_PREVIEW',
+        'LHPP_FINAL',
+        'BAP_DRAF',
+        'BAP_DIPROSES',
+        'BAP_SIAP_PREVIEW',
         'MENUNGGU_REVIEW',
         'PERLU_REVISI',
         'DISETUJUI'
       ].includes(st)
     ) {
       waitingBapLhppUnits += 1;
-    } else if (st === 'LHPP_TERBIT' || st === 'SELESAI') {
+    } else if (
+      ['LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SEBAGIAN_DOKUMEN_DIKIRIM', 'SELESAI'].includes(st)
+    ) {
       completedUnits += 1;
     }
   }
@@ -153,15 +160,15 @@ export async function syncOrderUnitStatus(
   if (nextOrderStatus !== currentOrderStatus) {
     await db.query(
       `UPDATE orders
-       SET status = $1::order_status,
-           completed_at = CASE WHEN $1::order_status = 'SELESAI'::order_status THEN now() ELSE completed_at END,
+       SET status = $1,
+           completed_at = CASE WHEN $1 = 'SELESAI' THEN now() ELSE completed_at END,
            updated_at = now()
        WHERE id = $2`,
       [nextOrderStatus, orderId]
     );
     await db.query(
       `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
-       VALUES ($1, $2::order_status, $3::order_status, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5)`,
       [
         orderId,
         currentOrderStatus,

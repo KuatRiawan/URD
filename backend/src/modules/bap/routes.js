@@ -114,7 +114,7 @@ router.get('/', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`i.inspector_id = $${params.length}`);
     }
@@ -178,7 +178,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const bap = await fetchFullBapContext({ query }, req.params.id);
     if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-    if (req.user.role === 'AHLI_K3' && bap.inspector_id !== req.user.id) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && bap.inspector_id !== req.user.id) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengakses BAP milik penugasan Anda.');
     }
     const { rows: revisions } = await query(
@@ -210,7 +210,7 @@ router.put(
       const updated = await withTransaction(async (db) => {
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-        if (req.user.role === 'AHLI_K3' && cur.inspector_id !== req.user.id) {
+        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
           throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengubah BAP milik penugasan Anda.');
         }
         if (cur.status === 'FINAL') {
@@ -280,7 +280,7 @@ router.post(
       const updated = await withTransaction(async (db) => {
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-        if (req.user.role === 'AHLI_K3' && cur.inspector_id !== req.user.id) {
+        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
           throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat menandatangani BAP penugasan Anda.');
         }
         if (cur.status === 'FINAL') {
@@ -371,7 +371,7 @@ router.post(
       const result = await withTransaction(async (db) => {
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-        if (req.user.role === 'AHLI_K3' && cur.inspector_id !== req.user.id) {
+        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
           throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat memfinalisasi BAP penugasan Anda.');
         }
         if (cur.status === 'FINAL') {
@@ -455,51 +455,53 @@ router.post(
           ]
         );
 
-        // Buat / aktifkan draf LHPP berdasarkan jenis unit setelah BAP Final
-        const { rows: findings } = await db.query(
-          'SELECT severity, description, recommendation FROM inspection_findings WHERE inspection_id = $1',
-          [cur.inspection_id]
-        );
-        const autoRecommendations = findings
-          .map((f, idx) => `${idx + 1}. [${f.severity}] ${f.recommendation}`)
-          .join('\n');
-
-        const { rows: lhppRows } = await db.query(
-          `INSERT INTO lhpp_documents
-             (inspection_id, bap_id, status, method_summary, technical_notes, recommendations, technical_data, prepared_by)
-           VALUES ($1, $2, 'DRAF', $3, $4, $5, $6::jsonb, $7)
-           ON CONFLICT (inspection_id) DO UPDATE SET
-             bap_id = EXCLUDED.bap_id,
-             technical_data = CASE
-               WHEN lhpp_documents.technical_data = '{}'::jsonb THEN EXCLUDED.technical_data
-               ELSE lhpp_documents.technical_data
-             END,
-             updated_at = now()
-           RETURNING *`,
-          [
-            cur.inspection_id,
-            id,
-            `Ruang lingkup riksa uji: ${scopes.join(', ')}.`,
-            cur.notes || cur.conclusion_notes || '',
-            autoRecommendations,
-            JSON.stringify({}),
-            cur.inspector_id
-          ]
-        );
-
+        // Status unit setelah BAP difinalisasi menjadi SIAP_DISTRIBUSI
         await syncOrderUnitStatus(db, {
           orderId: cur.order_id,
           objectId: cur.object_id,
-          unitStatus: 'LHPP_DRAF',
+          unitStatus: 'SIAP_DISTRIBUSI',
           actorId: req.user.id
         });
 
+        // Daftarkan otomatis antrean distribusi dokumen wajib:
+        // 1. BAP ke Klien
+        await db.query(
+          `INSERT INTO document_distributions
+             (document_type, document_id, document_no, order_id, object_id,
+              target_destination, recipient_name, dispatch_date, dispatch_media, status, dispatched_by)
+           VALUES ('BAP', $1, $2, $3, $4, 'KLIEN', $5, CURRENT_DATE, 'PORTAL', 'SIAP_DIKIRIM', $6)
+           ON CONFLICT DO NOTHING`,
+          [id, cur.bap_no, cur.order_id, cur.object_id, cur.client_name, req.user.id]
+        );
+
+        // 2. BAP ke Disnaker
+        await db.query(
+          `INSERT INTO document_distributions
+             (document_type, document_id, document_no, order_id, object_id,
+              target_destination, recipient_name, dispatch_date, dispatch_media, status, dispatched_by)
+           VALUES ('BAP', $1, $2, $3, $4, 'DISNAKER', 'Seksi Pengawasan K3 Disnaker', CURRENT_DATE, 'KURIR_FISIK', 'SIAP_DIKIRIM', $5)
+           ON CONFLICT DO NOTHING`,
+          [id, cur.bap_no, cur.order_id, cur.object_id, req.user.id]
+        );
+
+        // 3. LHPP ke Disnaker
+        if (cur.lhpp_id && cur.lhpp_no) {
+          await db.query(
+            `INSERT INTO document_distributions
+               (document_type, document_id, document_no, order_id, object_id,
+                target_destination, recipient_name, dispatch_date, dispatch_media, status, dispatched_by)
+             VALUES ('LHPP', $1, $2, $3, $4, 'DISNAKER', 'Seksi Pengawasan K3 Disnaker', CURRENT_DATE, 'KURIR_FISIK', 'SIAP_DIKIRIM', $5)
+             ON CONFLICT DO NOTHING`,
+            [cur.lhpp_id, cur.lhpp_no, cur.order_id, cur.object_id, req.user.id]
+          );
+        }
+
         await notifyRoles(
           {
-            roles: ['ADMIN_KANTOR', 'PIMPINAN'],
+            roles: ['MARKETING', 'ADMIN_KANTOR'],
             type: 'BAP_FINALIZED',
             title: `BAP Selesai Difinalisasi: ${cur.bap_no}`,
-            body: `Unit ${cur.object_name} (${cur.client_name}) siap dilanjutkan ke penyusunan LHPP.`,
+            body: `Dokumen BAP & LHPP untuk unit ${cur.object_name} (${cur.client_name}) siap dicetak dan didistribusikan.`,
             link: `/app/bap`
           },
           db
@@ -511,13 +513,13 @@ router.post(
             action: 'BAP_FINALIZE',
             entity: 'bap_documents',
             entityId: id,
-            summary: { bapNo: cur.bap_no, lhppId: lhppRows[0].id },
+            summary: { bapNo: cur.bap_no, lhppId: cur.lhpp_id },
             ip: req.ip
           },
           db
         );
 
-        return { bap: bapRows[0], lhpp: lhppRows[0] };
+        return { bap: bapRows[0] };
       });
 
       return res.json(result);
@@ -606,7 +608,7 @@ router.get('/:id/pdf', async (req, res, next) => {
   try {
     const bap = await fetchFullBapContext({ query }, req.params.id);
     if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
-    if (req.user.role === 'AHLI_K3' && bap.inspector_id !== req.user.id) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && bap.inspector_id !== req.user.id) {
       throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
     }
     const buf = await generateBapPdfBuffer(bap);
@@ -638,7 +640,7 @@ router.get('/order/:orderId/batch-pdf', async (req, res, next) => {
         'Belum ada dokumen BAP yang terbentuk untuk PO/Order ini.'
       );
     }
-    if (req.user.role === 'AHLI_K3' && rows.some((row) => row.inspector_id !== req.user.id)) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && rows.some((row) => row.inspector_id !== req.user.id)) {
       throw new AppError(403, 'FORBIDDEN', 'Anda tidak memiliki akses ke seluruh BAP dalam order ini.');
     }
     const fullList = [];

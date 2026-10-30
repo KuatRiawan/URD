@@ -23,6 +23,16 @@ import { UsersPage } from '../features/users/UsersPage.jsx';
 import { NotificationsPage } from '../features/notifications/NotificationsPage.jsx';
 import { AuditLogPage } from '../features/audit-log/AuditLogPage.jsx';
 import { SettingsPage } from '../features/settings/SettingsPage.jsx';
+import { DocumentDistributionPage } from '../features/distributions/DocumentDistributionPage.jsx';
+
+const ROLE_ALIASES = {
+  ADMIN_KANTOR: 'MARKETING',
+  MARKETING: 'ADMIN_KANTOR',
+  AHLI_K3: 'INSPECTOR',
+  INSPECTOR: 'AHLI_K3',
+  MANAGER: 'PIMPINAN',
+  PIMPINAN: 'MANAGER'
+};
 
 export function RootRedirect() {
   const { user, loading } = useAuth();
@@ -63,8 +73,13 @@ export function RequireRole({ allowedRoles, children }) {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <ForbiddenPage />;
+  if (allowedRoles) {
+    const userRole = user.role;
+    const aliasRole = ROLE_ALIASES[userRole];
+    const hasRole = allowedRoles.includes(userRole) || (aliasRole && allowedRoles.includes(aliasRole));
+    if (!hasRole) {
+      return <ForbiddenPage />;
+    }
   }
   return children;
 }
@@ -156,6 +171,14 @@ export function AppRoutes() {
           element={
             <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
               <HistoryPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="distributions"
+          element={
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']}>
+              <DocumentDistributionPage />
             </RequireRole>
           }
         />

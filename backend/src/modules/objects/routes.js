@@ -58,7 +58,7 @@ router.get('/history/all', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`i.inspector_id = $${params.length}`);
     }
@@ -164,7 +164,7 @@ router.get('/', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`t.id IN (
         SELECT oo.object_id FROM order_objects oo
@@ -219,7 +219,7 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       const { rows: allowed } = await query(
         `SELECT 1 FROM order_objects oo
          JOIN assignments a ON a.order_id = oo.order_id

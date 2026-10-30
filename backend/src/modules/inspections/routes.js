@@ -66,7 +66,9 @@ const findingSchema = Joi.object({
 });
 
 const signatureSchema = Joi.object({
-  signerRole: Joi.string().valid('AHLI_K3', 'PERWAKILAN_KLIEN').required(),
+  signerRole: Joi.string()
+    .valid('INSPECTOR', 'AHLI_K3', 'PERWAKILAN_KLIEN', 'PIC_KLIEN')
+    .required(),
   signerName: Joi.string().min(2).max(120).required(),
   signerTitle: Joi.string().max(120).allow('', null),
   dataUrl: Joi.string().min(30).required()
@@ -243,7 +245,7 @@ router.get('/', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`(i.inspector_id = $${params.length} OR i.order_id IN (
         SELECT order_id FROM assignments WHERE inspector_id = $${params.length} AND status IN ('MENUNGGU','DITERIMA')
@@ -429,7 +431,7 @@ router.get('/:id', async (req, res, next) => {
     const insp = rows[0];
     if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Data inspeksi tidak ditemukan.');
 
-    if (req.user.role === 'AHLI_K3' && insp.inspector_id !== req.user.id) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && insp.inspector_id !== req.user.id) {
       const { rows: coAssigned } = await query(
         `SELECT 1 FROM assignments
          WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')`,
@@ -494,11 +496,11 @@ async function assertEditableInspection(db, id, user) {
   const { rows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
   const insp = rows[0];
   if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
-  if (user.role !== 'AHLI_K3' || insp.inspector_id !== user.id) {
+  if (!['AHLI_K3', 'INSPECTOR'].includes(user.role) || insp.inspector_id !== user.id) {
     throw new AppError(
       403,
       'FORBIDDEN',
-      'Hanya Ahli K3 pemeriksa yang ditugaskan yang dapat mengisi form ini.'
+      'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan yang dapat mengisi form ini.'
     );
   }
   if (insp.status === 'TERKIRIM') {
@@ -649,7 +651,7 @@ router.post(
       if (!req.file) throw new AppError(400, 'NO_FILE', 'Foto hasil riksa uji wajib dipilih.');
       const { rows } = await query('SELECT * FROM inspections WHERE id = $1', [id]);
       if (!rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
-      if (req.user.role === 'AHLI_K3') {
+      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
         await assertEditableInspection({ query }, id, req.user);
       }
 
@@ -809,69 +811,17 @@ router.post('/:id/submit', authorize('AHLI_K3'), async (req, res, next) => {
       const bapNotes = [lockedRows[0].conclusion_notes, findingsSummary].filter(Boolean).join('\n\n') ||
         'Pemeriksaan dan pengujian di lapangan telah dilaksanakan sesuai prosedur K3.';
 
-      // Periksa tanda tangan yang sudah ada pada form inspeksi
+      // Periksa tanda tangan digital yang sudah ada pada form inspeksi
       const { rows: sigRows } = await db.query(
         'SELECT * FROM inspection_signatures WHERE inspection_id = $1',
         [id]
       );
-      const inspSig = sigRows.find((s) => s.signer_role === 'AHLI_K3');
-      const clientSig = sigRows.find((s) => s.signer_role === 'PERWAKILAN_KLIEN');
-      const shouldAutoFinalizeBap = Boolean(req.body?.autoFinalizeBap);
-      const targetBapStatus = shouldAutoFinalizeBap ? 'FINAL' : 'DRAF';
+      const inspSig = sigRows.find((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
+      const clientSig = sigRows.find((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
 
-      const seqRes = await db.query("SELECT nextval('bap_no_seq') AS seq");
-      const now = new Date();
-      const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-      const rm = romanMonths[now.getMonth()];
-      const generatedBapNo = `BAP/URD/${rm}/${now.getFullYear()}/${String(seqRes.rows[0].seq).padStart(4, '0')}`;
-
-      const { rows: bapRows } = await db.query(
-        `INSERT INTO bap_documents
-           (bap_no, inspection_id, order_id, object_id, status, inspection_date, scope_items,
-            conclusion, notes,
-            inspector_signer_name, inspector_signer_title, inspector_signature_file_id, inspector_signed_at,
-            client_signer_name, client_signer_title, client_signature_file_id, client_signed_at,
-            finalized_by, finalized_at, created_by)
-         VALUES ($1,$2,$3,$4,$5,CURRENT_DATE,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-         ON CONFLICT (inspection_id) DO UPDATE SET
-           status = EXCLUDED.status,
-           scope_items = EXCLUDED.scope_items,
-           conclusion = EXCLUDED.conclusion,
-           notes = COALESCE(bap_documents.notes, EXCLUDED.notes),
-           inspector_signer_name = COALESCE(EXCLUDED.inspector_signer_name, bap_documents.inspector_signer_name),
-           inspector_signature_file_id = COALESCE(EXCLUDED.inspector_signature_file_id, bap_documents.inspector_signature_file_id),
-           inspector_signed_at = COALESCE(EXCLUDED.inspector_signed_at, bap_documents.inspector_signed_at),
-           client_signer_name = COALESCE(EXCLUDED.client_signer_name, bap_documents.client_signer_name),
-           client_signature_file_id = COALESCE(EXCLUDED.client_signature_file_id, bap_documents.client_signature_file_id),
-           client_signed_at = COALESCE(EXCLUDED.client_signed_at, bap_documents.client_signed_at),
-           finalized_by = COALESCE(EXCLUDED.finalized_by, bap_documents.finalized_by),
-           finalized_at = COALESCE(EXCLUDED.finalized_at, bap_documents.finalized_at),
-           updated_at = now()
-         RETURNING *`,
-        [
-          generatedBapNo,
-          id,
-          insp.order_id,
-          insp.object_id,
-          targetBapStatus,
-          JSON.stringify(unitScopes),
-          lockedRows[0].conclusion,
-          bapNotes,
-          inspSig?.signer_name || req.user.fullName,
-          inspSig?.signer_title || 'Ahli K3 Pemeriksa',
-          inspSig?.file_id || null,
-          inspSig?.signed_at || now,
-          clientSig?.signer_name || null,
-          clientSig?.signer_title || 'Pemilik Alat / Perwakilan Klien',
-          clientSig?.file_id || null,
-          clientSig?.signed_at || null,
-          shouldAutoFinalizeBap ? req.user.id : null,
-          shouldAutoFinalizeBap ? now : null,
-          req.user.id
-        ]
-      );
-
-      // M4-01: Otomatis buat atau sinkronkan draf LHPP yang terhubung dengan BAP + masa berlaku 1 tahun untuk pengingat Email & WhatsApp
+      // M4-01 TERBARU: Sesuai alur bisnis PT Upaya Riksa Daya terbaru,
+      // LHPP dibuat TERLEBIH DAHULU setelah pemeriksaan dan tanda tangan digital selesai.
+      // Setelah LHPP selesai/difinalisasi, barulah BAP diterbitkan.
       const autoRecommendations = findings.length
         ? findings.map((f, idx) => `${idx + 1}. [${f.severity}] ${f.recommendation}`).join('\n')
         : 'Pertahankan pemeliharaan berkala sesuai standar K3 yang berlaku.';
@@ -880,26 +830,25 @@ router.post('/:id/submit', authorize('AHLI_K3'), async (req, res, next) => {
 
       const { rows: lhppRows } = await db.query(
         `INSERT INTO lhpp_documents
-           (inspection_id, bap_id, status, method_summary, technical_notes, recommendations, recommended_valid_until, prepared_by)
-         VALUES ($1, $2, 'DRAF', $3, $4, $5, $6, $7)
+           (inspection_id, status, method_summary, technical_notes, recommendations, recommended_valid_until, prepared_by)
+         VALUES ($1, 'SIAP_PREVIEW', $2, $3, $4, $5, $6)
          ON CONFLICT (inspection_id) DO UPDATE SET
-           bap_id = EXCLUDED.bap_id,
+           status = CASE WHEN lhpp_documents.status IN ('FINAL', 'TERBIT') THEN lhpp_documents.status ELSE 'SIAP_PREVIEW' END,
            recommendations = COALESCE(lhpp_documents.recommendations, EXCLUDED.recommendations),
            recommended_valid_until = COALESCE(lhpp_documents.recommended_valid_until, EXCLUDED.recommended_valid_until),
            updated_at = now()
          RETURNING *`,
         [
           id,
-          bapRows[0].id,
           `Ruang lingkup pemeriksaan: ${unitScopes.join(', ')}.`,
-          lockedRows[0].conclusion_notes || 'Hasil pemeriksaan telah dicatat sesuai form lapangan dan Berita Acara Riksa Uji.',
+          lockedRows[0].conclusion_notes || 'Hasil pemeriksaan telah dicatat sesuai form lapangan dan standar K3.',
           autoRecommendations,
           validUntilDate,
           req.user.id
         ]
       );
 
-      // Simpan tanggal pemeriksaan berikutnya (1 tahun) pada test_objects untuk riwayat & pengingat Email/WhatsApp
+      // Simpan tanggal pemeriksaan berikutnya pada test_objects untuk riwayat & pengingat
       await db.query(
         `UPDATE test_objects
          SET next_inspection_date = COALESCE(next_inspection_date, $1::date),
@@ -908,16 +857,75 @@ router.post('/:id/submit', authorize('AHLI_K3'), async (req, res, next) => {
         [validUntilDate, insp.object_id]
       );
 
+      // Jika autoFinalizeBap / autoFinalizeLhpp diminta (misal via testing/shortcut)
+      let bapResult = null;
+      const shouldAutoFinalize = Boolean(req.body?.autoFinalizeBap || req.body?.autoFinalizeLhpp);
+      if (shouldAutoFinalize) {
+        const seqRes = await db.query("SELECT nextval('bap_no_seq') AS seq");
+        const now = new Date();
+        const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+        const rm = romanMonths[now.getMonth()];
+        const generatedBapNo = `BAP/URD/${rm}/${now.getFullYear()}/${String(seqRes.rows[0].seq).padStart(4, '0')}`;
+
+        const { rows: bapRows } = await db.query(
+          `INSERT INTO bap_documents
+             (bap_no, inspection_id, lhpp_id, order_id, object_id, status, inspection_date, scope_items,
+              conclusion, notes,
+              inspector_signer_name, inspector_signer_title, inspector_signature_file_id, inspector_signed_at,
+              client_signer_name, client_signer_title, client_signature_file_id, client_signed_at,
+              finalized_by, finalized_at, created_by)
+           VALUES ($1,$2,$3,$4,$5,'FINAL',CURRENT_DATE,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+           ON CONFLICT (inspection_id) DO UPDATE SET
+             lhpp_id = EXCLUDED.lhpp_id,
+             status = 'FINAL',
+             scope_items = EXCLUDED.scope_items,
+             conclusion = EXCLUDED.conclusion,
+             notes = COALESCE(bap_documents.notes, EXCLUDED.notes),
+             inspector_signer_name = COALESCE(EXCLUDED.inspector_signer_name, bap_documents.inspector_signer_name),
+             inspector_signature_file_id = COALESCE(EXCLUDED.inspector_signature_file_id, bap_documents.inspector_signature_file_id),
+             inspector_signed_at = COALESCE(EXCLUDED.inspector_signed_at, bap_documents.inspector_signed_at),
+             client_signer_name = COALESCE(EXCLUDED.client_signer_name, bap_documents.client_signer_name),
+             client_signature_file_id = COALESCE(EXCLUDED.client_signature_file_id, bap_documents.client_signature_file_id),
+             client_signed_at = COALESCE(EXCLUDED.client_signed_at, bap_documents.client_signed_at),
+             finalized_by = req.user.id,
+             finalized_at = now(),
+             updated_at = now()
+           RETURNING *`,
+          [
+            generatedBapNo,
+            id,
+            lhppRows[0].id,
+            insp.order_id,
+            insp.object_id,
+            JSON.stringify(unitScopes),
+            lockedRows[0].conclusion,
+            bapNotes,
+            inspSig?.signer_name || req.user.fullName,
+            inspSig?.signer_title || 'Inspector / Ahli K3',
+            inspSig?.file_id || null,
+            inspSig?.signed_at || now,
+            clientSig?.signer_name || null,
+            clientSig?.signer_title || 'Pemilik Alat / PIC Klien',
+            clientSig?.file_id || null,
+            clientSig?.signed_at || null,
+            req.user.id,
+            now,
+            req.user.id
+          ]
+        );
+        bapResult = bapRows[0];
+      }
+
       await syncOrderUnitStatus(db, {
         orderId: insp.order_id,
         objectId: insp.object_id,
-        unitStatus: shouldAutoFinalizeBap ? 'BAP_FINAL' : 'BAP_DRAF',
+        unitStatus: shouldAutoFinalize ? 'BAP_FINAL' : 'LHPP_SIAP_PREVIEW',
         inspectorId: req.user.id,
         actorId: req.user.id
       });
 
       await db.query(
-        "UPDATE orders SET status = 'MENUNGGU_LAPORAN', updated_at = now() WHERE id = $1 AND status IN ('DITUGASKAN','SEDANG_DIPERIKSA')",
+        "UPDATE orders SET status = 'MENUNGGU_DOKUMEN', updated_at = now() WHERE id = $1 AND status IN ('DITUGASKAN','SEDANG_DIPERIKSA')",
         [insp.order_id]
       );
 
@@ -929,16 +937,15 @@ router.post('/:id/submit', authorize('AHLI_K3'), async (req, res, next) => {
           entityId: id,
           summary: {
             conclusion: lockedRows[0].conclusion,
-            bapId: bapRows[0].id,
-            bapNo: bapRows[0].bap_no,
-            lhppId: lhppRows[0].id
+            lhppId: lhppRows[0].id,
+            bapId: bapResult?.id || null
           },
           ip: req.ip
         },
         db
       );
 
-      return { inspection: lockedRows[0], bap: bapRows[0], lhpp: lhppRows[0] };
+      return { inspection: lockedRows[0], lhpp: lhppRows[0], bap: bapResult };
     });
 
     return res.json(result);
@@ -961,7 +968,7 @@ router.post(
         const { rows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
         const insp = rows[0];
         if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Inspeksi tidak ditemukan.');
-        if (req.user.role === 'AHLI_K3' && insp.inspector_id !== req.user.id) {
+        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && insp.inspector_id !== req.user.id) {
           throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
         }
         if (insp.status !== 'TERKIRIM') {

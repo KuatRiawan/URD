@@ -17,6 +17,7 @@ import {
   List,
   MagnifyingGlass,
   Scroll,
+  ShareNetwork,
   ShieldCheck,
   SignOut,
   User,
@@ -33,83 +34,99 @@ import { FeedbackProvider, useConfirm } from '../ui/FeedbackProvider.jsx';
 import { GlobalSearchDialog } from '../search/GlobalSearchDialog.jsx';
 import { ThemeToggle } from '../ui/ThemeToggle.jsx';
 
+const ROLE_ALIASES = {
+  ADMIN_KANTOR: 'MARKETING',
+  MARKETING: 'ADMIN_KANTOR',
+  AHLI_K3: 'INSPECTOR',
+  INSPECTOR: 'AHLI_K3',
+  MANAGER: 'PIMPINAN',
+  PIMPINAN: 'MANAGER'
+};
+
 const NAV_ITEMS = [
   {
     to: '/app/dashboard',
     group: 'Utama',
     label: 'Dasbor Operasional',
     icon: Gauge,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
-  },
-  {
-    to: '/app/clients',
-    group: 'Operasional',
-    label: 'Data Klien',
-    icon: Buildings,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
-  },
-  {
-    to: '/app/objects',
-    group: 'Operasional',
-    label: 'Objek Uji K3',
-    icon: Cube,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/orders',
     group: 'Operasional',
     label: 'PO & Order Pemeriksaan',
     icon: ClipboardText,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+  },
+  {
+    to: '/app/clients',
+    group: 'Operasional',
+    label: 'Data Klien',
+    icon: Buildings,
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
+  },
+  {
+    to: '/app/objects',
+    group: 'Operasional',
+    label: 'Objek Uji K3',
+    icon: Cube,
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/schedule',
     group: 'Operasional',
-    label: 'Jadwal & Ahli K3',
+    label: 'Jadwal & Penugasan',
     icon: CalendarCheck,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/inspections',
     group: 'Operasional',
-    label: 'Form Pengujian',
+    label: 'Form Pengujian Lapangan',
     icon: FileText,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
-  },
-  {
-    to: '/app/bap',
-    group: 'Dokumen & Sertifikasi',
-    label: 'Berita Acara (BAP)',
-    icon: ClipboardText,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3']
   },
   {
     to: '/app/lhpp',
     group: 'Dokumen & Sertifikasi',
     label: 'Dokumen LHPP',
     icon: Scroll,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+  },
+  {
+    to: '/app/bap',
+    group: 'Dokumen & Sertifikasi',
+    label: 'Berita Acara (BAP)',
+    icon: ClipboardText,
+    roles: ['ADMIN_SISTEM', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+  },
+  {
+    to: '/app/distributions',
+    group: 'Dokumen & Sertifikasi',
+    label: 'Distribusi Dokumen',
+    icon: ShareNetwork,
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/history',
     group: 'Dokumen & Sertifikasi',
     label: 'Riwayat Pengujian',
     icon: ClockCounterClockwise,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/suket',
     group: 'Dokumen & Sertifikasi',
     label: 'Registri Suket K3',
     icon: WarningOctagon,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/reminders',
     group: 'Pemantauan',
     label: 'Pengingat Perpanjangan',
     icon: ShieldCheck,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/users',
@@ -123,14 +140,14 @@ const NAV_ITEMS = [
     group: 'Administrasi',
     label: 'Log Audit',
     icon: ClockCounterClockwise,
-    roles: ['ADMIN_SISTEM', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/settings',
     group: 'Pengaturan',
     label: 'Pengaturan Akun',
     icon: Gear,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   }
 ];
 
@@ -352,7 +369,12 @@ function LayoutShell() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const visibleNav = NAV_ITEMS.filter((item) => item.roles.includes(user?.role));
+  const visibleNav = NAV_ITEMS.filter((item) => {
+    if (!user?.role) return false;
+    const r = user.role;
+    const alias = ROLE_ALIASES[r];
+    return item.roles.includes(r) || (alias && item.roles.includes(alias));
+  });
   const currentNav = visibleNav.find((item) => location.pathname.startsWith(item.to));
 
   useEffect(() => {

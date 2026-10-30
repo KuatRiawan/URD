@@ -22,7 +22,7 @@ router.get('/conflicts', authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3'), a
       throw new AppError(400, 'VALIDATION_ERROR', error.details[0].message);
     }
 
-    if (req.user.role === 'AHLI_K3' && value.inspectorId !== req.user.id) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && value.inspectorId !== req.user.id) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat memeriksa konflik jadwal milik sendiri.');
     }
 
@@ -61,7 +61,7 @@ router.get('/', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`o.id IN (SELECT order_id FROM assignments WHERE inspector_id = $${params.length})`);
     }

@@ -135,7 +135,7 @@ export function LoginPage() {
                 PT Upaya Riksa Daya
               </h1>
               <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-                Masuk ke Sistem Operasional Pemeriksaan &amp; Pengujian K3
+                Masuk ke Portal Resmi PT Upaya Riksa Daya
               </p>
             </div>
 

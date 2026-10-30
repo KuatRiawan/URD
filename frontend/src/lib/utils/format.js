@@ -1,19 +1,62 @@
 export const ROLE_LABELS = {
-  ADMIN_SISTEM: 'Administrator Sistem',
-  ADMIN_KANTOR: 'Admin Kantor',
-  AHLI_K3: 'Ahli K3',
-  PIMPINAN: 'Pimpinan / Reviewer'
+  ADMIN_SISTEM: 'Admin Sistem',
+  MARKETING: 'Marketing',
+  ADMIN_KANTOR: 'Marketing',
+  INSPECTOR: 'Inspector',
+  AHLI_K3: 'Inspector',
+  PIMPINAN: 'Pimpinan / Manager',
+  MANAGER: 'Pimpinan / Manager'
 };
 
 export const ORDER_STATUS_LABELS = {
   ORDER_BARU: 'Order Baru',
+  TERDAFTAR: 'PO Terdaftar',
   TERJADWAL: 'Terjadwal',
+  DIJADWALKAN: 'Dijadwalkan',
   DITUGASKAN: 'Ditugaskan',
   SEDANG_DIPERIKSA: 'Sedang Diperiksa',
+  BERLANGSUNG: 'Sedang Berlangsung',
+  SEBAGIAN_SELESAI: 'Sebagian Selesai',
+  MENUNGGU_DOKUMEN: 'Menunggu Dokumen',
   MENUNGGU_LAPORAN: 'Menunggu Laporan',
   MENUNGGU_REVIEW: 'Menunggu Review',
   SELESAI: 'Selesai',
   DIBATALKAN: 'Dibatalkan'
+};
+
+export const UNIT_STATUS_LABELS = {
+  TERDAFTAR: 'Terdaftar',
+  DIJADWALKAN: 'Dijadwalkan',
+  DITUGASKAN: 'Ditugaskan',
+  INSPEKSI_LAPANGAN: 'Inspeksi Lapangan',
+  INSPEKSI_SELESAI: 'Inspeksi Selesai',
+  LHPP_DIPROSES: 'LHPP Diproses',
+  LHPP_SIAP_PREVIEW: 'LHPP Siap Preview',
+  LHPP_FINAL: 'LHPP Final',
+  BAP_DIPROSES: 'BAP Diproses',
+  BAP_SIAP_PREVIEW: 'BAP Siap Preview',
+  BAP_FINAL: 'BAP Final',
+  SIAP_DISTRIBUSI: 'Siap Distribusi',
+  SEBAGIAN_DOKUMEN_DIKIRIM: 'Sebagian Dokumen Dikirim',
+  SELESAI: 'Selesai'
+};
+
+export const DISTRIBUTION_STATUS_LABELS = {
+  MENUNGGU_DOKUMEN: 'Menunggu Dokumen Final',
+  SIAP_DIKIRIM: 'Siap Dikirim',
+  DIKIRIM: 'Telah Dikirim',
+  DITERIMA: 'Telah Diterima'
+};
+
+export const DISTRIBUTION_TARGET_LABELS = {
+  KLIEN: 'Klien',
+  DISNAKER: 'Disnaker'
+};
+
+export const DISTRIBUTION_DOC_TYPE_LABELS = {
+  BAP: 'Berita Acara (BAP)',
+  LHPP: 'Laporan Hasil Pemeriksaan & Pengujian (LHPP)',
+  LHPP_DAN_BAP: 'LHPP & BAP Paket Disnaker'
 };
 
 export const SERVICE_TYPE_LABELS = {
@@ -25,10 +68,12 @@ export const SERVICE_TYPE_LABELS = {
 
 export const LHPP_STATUS_LABELS = {
   DRAF: 'Draf',
+  SIAP_PREVIEW: 'Siap Preview',
+  FINAL: 'Final (Terkunci)',
+  TERBIT: 'Terbit (Terkunci)',
   REVIEW_TEKNIS: 'Review Teknis',
-  PERSETUJUAN_PIMPINAN: 'Persetujuan Pimpinan',
   DIKEMBALIKAN: 'Dikembalikan (Perlu Revisi)',
-  TERBIT: 'Terbit (Terkunci)'
+  DIBATALKAN: 'Dibatalkan'
 };
 
 export const SUKET_STATUS_LABELS = {

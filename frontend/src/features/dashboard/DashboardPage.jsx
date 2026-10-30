@@ -419,11 +419,11 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dasbor Operasional & Manajemen K3"
+        title="Dasbor Operasional"
         subtitle="Pembaruan berkala · Terhubung langsung ke data operasional PT Upaya Riksa Daya"
         actions={
           <>
-            {['ADMIN_KANTOR', 'ADMIN_SISTEM'].includes(user?.role) && (
+            {['ADMIN_KANTOR', 'ADMIN_SISTEM', 'MARKETING'].includes(user?.role) && (
               <Link
                 to="/app/orders"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] transition-all shadow-xs"

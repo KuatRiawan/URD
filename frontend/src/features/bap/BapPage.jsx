@@ -47,7 +47,7 @@ export function BapPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
 
   const [bapList, setBapList] = useState([]);
   const [scopeCatalog, setScopeCatalog] = useState([]);

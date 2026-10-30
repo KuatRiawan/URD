@@ -48,7 +48,7 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
     });
 
     expect(
-      screen.getByText(/Masuk ke Sistem Operasional Pemeriksaan & Pengujian K3/i)
+      screen.getByText(/Masuk ke Portal Resmi PT Upaya Riksa Daya/i)
     ).toBeInTheDocument();
     expect(screen.getByAltText(/Logo Resmi PT Upaya Riksa Daya/i)).toBeInTheDocument();
 
@@ -124,6 +124,7 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
       { path: '/app/inspections', heading: /Form Inspeksi Lapangan & Checklist K3/i },
       { path: '/app/bap', heading: /Berita Acara Riksa Uji \(BAP\)/i },
       { path: '/app/lhpp', heading: /Laporan Hasil Pemeriksaan dan Pengujian \(LHPP\)/i },
+      { path: '/app/distributions', heading: /Distribusi Dokumen K3/i },
       { path: '/app/suket', heading: /Registri Surat Keterangan \(Suket\) K3/i },
       { path: '/app/history', heading: /Riwayat Pengujian Unit K3/i },
       { path: '/app/reminders', heading: /Pengingat Perpanjangan Unit K3, Suket & SKP Ahli K3/i },

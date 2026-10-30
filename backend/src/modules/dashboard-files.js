@@ -207,7 +207,7 @@ router.get('/summary', async (req, res, next) => {
         FROM users u
         LEFT JOIN assignments a ON a.inspector_id = u.id
         LEFT JOIN orders o ON o.id = a.order_id
-        WHERE u.role = 'AHLI_K3' AND u.is_active = true
+        WHERE u.role IN ('AHLI_K3', 'INSPECTOR') AND u.is_active = true
         GROUP BY u.id, u.full_name
         ORDER BY active_assignments DESC, u.full_name ASC
       `),
@@ -612,7 +612,7 @@ router.get('/files/:fileId', async (req, res, next) => {
     const file = rows[0];
     if (!file) throw new AppError(404, 'FILE_NOT_FOUND', 'Berkas tidak ditemukan.');
 
-    if (req.user.role === 'AHLI_K3' && !(await inspectorCanAccessAttachment(file, req.user.id))) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && !(await inspectorCanAccessAttachment(file, req.user.id))) {
       throw new AppError(403, 'FORBIDDEN', 'Anda tidak memiliki akses pada berkas ini.');
     }
 

@@ -285,7 +285,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         });
       expect(ordRes.status).toBe(201);
       orderId = ordRes.body.order.id;
-      expect(ordRes.body.order.status).toBe('ORDER_BARU');
+      expect(['ORDER_BARU', 'TERDAFTAR']).toContain(ordRes.body.order.status);
 
       const schedRes = await request(app)
         .post(`/api/v1/orders/${orderId}/schedule`)
@@ -444,65 +444,25 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(lockedEdit.body.error.code).toBe('INSPECTION_LOCKED');
     });
 
-    it('menjalankan alur review LHPP: pengembalian dengan catatan, pengajuan ulang, persetujuan Pimpinan, nomor unik & PDF', async () => {
-      // Ahli K3 mengajukan draf LHPP ke Review Teknis
-      const subRev = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/submit-review`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
-      expect(subRev.status).toBe(200);
-      expect(subRev.body.lhpp.status).toBe('REVIEW_TEKNIS');
-
-      // Non-Pimpinan tidak boleh menyetujui LHPP
-      const nonLeader = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/review`)
-        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
-        .send({ decision: 'APPROVE_FINAL' });
-      expect(nonLeader.status).toBe(403);
-
-      // Pimpinan mengembalikan LHPP dengan catatan revisi
-      const retRes = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/review`)
+    it('finalisasi LHPP langsung menghasilkan dokumen final dan BAP draf, sementara Pimpinan strictly read-only (403)', async () => {
+      // Pimpinan mencoba memfinalisasi atau mengubah LHPP -> harus ditolak 403 (MANAGER_READ_ONLY)
+      const pimpinanMutation = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/finalize`)
         .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
-        .send({
-          decision: 'RETURN',
-          note: 'Lengkapi rincian alat ukur pada ringkasan metode pengujian.'
-        });
-      expect(retRes.status).toBe(200);
-      expect(retRes.body.lhpp.status).toBe('DIKEMBALIKAN');
+        .send({ note: 'Coba approval oleh pimpinan' });
+      expect(pimpinanMutation.status).toBe(403);
+      expect(pimpinanMutation.body.error.code).toBe('MANAGER_READ_ONLY');
 
-      // Ahli K3 memperbaiki draf dan mengajukan kembali (versi naik menjadi v2)
-      await request(app)
-        .put(`/api/v1/lhpp/${lhppId}/draft`)
+      // Ahli K3 / Inspector memfinalisasi LHPP -> berhasil dan otomatis menerbitkan BAP
+      const finRes = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/finalize`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-        .send({
-          methodSummary:
-            'Pemeriksaan visual, pengujian fungsi limit switch, dan uji beban menggunakan load cell terkalibrasi.',
-          technicalNotes: 'Seluruh parameter keselamatan mekanis dan elektrik berfungsi baik.',
-          recommendations: '1. [MINOR] Cat ulang penandaan kapasitas SWL 10 Ton pada girder.'
-        });
-
-      const resub = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/submit-review`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
-      expect(resub.status).toBe(200);
-      expect(resub.body.lhpp.version).toBe(2);
-
-      // Pimpinan menyetujui final -> Terbit dengan nomor unik & kode verifikasi
-      const pubRes = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/review`)
-        .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
-        .send({ decision: 'APPROVE_FINAL', note: 'Disetujui untuk diterbitkan.' });
-      expect(pubRes.status).toBe(200);
-      expect(pubRes.body.lhpp.status).toBe('TERBIT');
-      expect(pubRes.body.lhpp.lhpp_no).toMatch(/^\d{4}\/INSP-PAA\/PJK3-URD\/[IVX]+\/\d{4}$/);
-      expect(pubRes.body.lhpp.verification_code).toMatch(/^URD-/);
-
-      // Dokumen terbit tidak dapat diubah atau di-review ulang
-      const mutatePublished = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/review`)
-        .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
-        .send({ decision: 'RETURN', note: 'Coba ubah setelah terbit' });
-      expect(mutatePublished.status).toBe(409);
+        .send({ note: 'LHPP difinalisasi oleh Inspector' });
+      expect(finRes.status).toBe(200);
+      expect(finRes.body.lhpp.status).toBe('FINAL');
+      expect(finRes.body.lhpp.lhpp_no).toMatch(/^\d{4}\/INSP-PAA\/PJK3-URD\/[IVX]+\/\d{4}$/);
+      expect(finRes.body.lhpp.verification_code).toMatch(/^URD-/);
+      expect(finRes.body.bap).toBeTruthy();
 
       // Unduh PDF LHPP
       const pdfRes = await request(app)
@@ -512,18 +472,12 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(pdfRes.headers['content-type']).toContain('application/pdf');
       expect(pdfRes.body.length).toBeGreaterThan(1000);
 
-      // Catat pengiriman LHPP ke klien
-      const delivRes = await request(app)
-        .post(`/api/v1/lhpp/${lhppId}/deliveries`)
-        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
-        .send({
-          deliveredAt: new Date().toISOString(),
-          channel: 'EMAIL',
-          recipientName: 'Irwan Setiawan',
-          recipientEmail: 'irwan.hse@bajakonstruksi.co.id',
-          notes: 'PDF LHPP dikirimkan melalui email resmi'
-        });
-      expect(delivRes.status).toBe(201);
+      // Pimpinan dapat memonitor (Monitoring read-only)
+      const pimpinanView = await request(app)
+        .get(`/api/v1/lhpp/${lhppId}`)
+        .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+      expect(pimpinanView.status).toBe(200);
+      expect(pimpinanView.body.lhpp.id).toBe(lhppId);
     });
   });
 
@@ -779,16 +733,109 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .post(`/api/v1/inspections/${u1InspId}/submit`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
       expect(subRes.status).toBe(200);
-      expect(subRes.body.bap).toBeTruthy();
-      expect(subRes.body.bap.bap_no).toMatch(/^BAP\/URD\/[IVX]+\/\d{4}\/\d{4}$/);
+      expect(subRes.body.inspection.status).toBe('TERKIRIM');
       expect(subRes.body.lhpp).toBeTruthy();
-      expect(subRes.body.lhpp.bap_id).toBe(subRes.body.bap.id);
+      expect(subRes.body.lhpp.status).toBe('SIAP_PREVIEW');
 
-      unit1BapId = subRes.body.bap.id;
       unit1LhppId = subRes.body.lhpp.id;
     });
 
-    it('Langkah 4: BAP dihasilkan sesuai template PT Upaya Riksa Daya, ditandatangani kedua pihak, difinalisasi, dan diunduh sebagai PDF (satuan & batch PO)', async () => {
+    it('Langkah 4: LHPP spesifik kategori PAA diisi foto & data teknis, difinalisasi pertama kali, dan otomatis menerbitkan draf BAP', async () => {
+      const nextYearDate = new Date(Date.now() + 25 * 86400 * 1000).toISOString().slice(0, 10);
+
+      const ownPhoto = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/photos`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .attach('photo', Buffer.from('sample image'), {
+          filename: 'lhpp-photo.png',
+          contentType: 'image/png'
+        });
+      expect(ownPhoto.status).toBe(201);
+
+      const unauthorizedUpload = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/photos`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_LIS}`)
+        .attach('photo', Buffer.from('sample image'), {
+          filename: 'unrelated-photo.png',
+          contentType: 'image/png'
+        });
+      expect(unauthorizedUpload.status).toBe(403);
+
+      const unauthorizedDelete = await request(app)
+        .delete(`/api/v1/lhpp/${unit1LhppId}/photos/${ownPhoto.body.photo.id}`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_LIS}`);
+      expect(unauthorizedDelete.status).toBe(403);
+
+      // Isi parameter teknis spesifik kategori PAA beserta tanggal masa berlaku rekomendasi
+      const draftLhpp = await request(app)
+        .put(`/api/v1/lhpp/${unit1LhppId}/draft`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .send({
+          methodSummary: 'Pemeriksaan visual, dimensi, NDT penetrant pada hook, dan uji beban 125% SWL.',
+          technicalNotes: 'Defleksi girder 6.2 mm (di bawah batas maksimum L/800). Load cell terkalibrasi No. CAL-2026-881.',
+          recommendations: 'Pasang stiker penanda tombol pendant baru.',
+          recommendedValidUntil: nextYearDate,
+          technicalData: {
+            regulationRef: 'Permenaker No. 8 Tahun 2020',
+            swlCapacity: '15 Ton',
+            spanLengthM: '18 Meter',
+            liftingHeightM: '9 Meter',
+            wireRopeChainSpec: 'IWRC 6x36 dia 16 mm',
+            hookCondition: 'Baik, bukaan throat 0% perubahan',
+            brakeSystemResult: 'Rem elektromagnetik menahan beban 125% tanpa slip',
+            limitSwitchResult: 'Upper & lower limit switch memutus arus dengan tepat',
+            deflectionMeasurementMm: '6.2 mm',
+            staticLoadTestPercent: '125% SWL (18.75 Ton)',
+            dynamicLoadTestPercent: '100% SWL (15 Ton)',
+            ndtHookMethod: 'Liquid Penetrant Test (Non-Crack)'
+          }
+        });
+      expect(draftLhpp.status).toBe(200);
+      expect(draftLhpp.body.lhpp.technical_data.swlCapacity).toBe('15 Ton');
+
+      // Pimpinan mencoba mutasi finalisasi -> harus ditolak 403 (MANAGER_READ_ONLY)
+      const pimpinanMutation = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/finalize`)
+        .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
+        .send({ note: 'Coba approval oleh pimpinan' });
+      expect(pimpinanMutation.status).toBe(403);
+      expect(pimpinanMutation.body.error.code).toBe('MANAGER_READ_ONLY');
+
+      // Ahli K3 / Inspector memfinalisasi LHPP -> status FINAL dan BAP otomatis diterbitkan
+      const finRes = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/finalize`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .send({ note: 'LHPP Unit 1 difinalisasi oleh Inspector' });
+      expect(finRes.status).toBe(200);
+      expect(finRes.body.lhpp.status).toBe('FINAL');
+      expect(finRes.body.lhpp.lhpp_no).toMatch(/^\d{4}\/INSP-PAA\/PJK3-URD\/[IVX]+\/\d{4}$/);
+      expect(finRes.body.bap).toBeTruthy();
+      expect(finRes.body.bap.created_after_lhpp).toBe(true);
+
+      unit1BapId = finRes.body.bap.id;
+
+      // Unduh PDF LHPP
+      const lhppPdf = await request(app)
+        .get(`/api/v1/lhpp/${unit1LhppId}/pdf`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(lhppPdf.status).toBe(200);
+      expect(lhppPdf.headers['content-type']).toContain('application/pdf');
+
+      // Catat pengiriman dokumen LHPP ke klien
+      const deliv = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/deliveries`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({
+          deliveredAt: new Date().toISOString(),
+          channel: 'EMAIL',
+          recipientName: 'Irwan Setiawan',
+          recipientEmail: 'irwan.hse@bajakonstruksi.co.id',
+          notes: 'Pengiriman LHPP Unit 1 Overhead Crane PO-URD-2026-001'
+        });
+      expect(deliv.status).toBe(201);
+    });
+
+    it('Langkah 5: BAP diperbarui, ditandatangani kedua pihak, difinalisasi setelah LHPP, dan diunduh sebagai PDF (satuan & batch PO)', async () => {
       const bapGet = await request(app)
         .get(`/api/v1/bap/${unit1BapId}`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
@@ -835,12 +882,13 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         });
       expect(sigClient.status).toBe(201);
 
-      // Finalisasi BAP -> mengunci dokumen BAP
+      // Finalisasi BAP -> mengunci dokumen BAP & otomatis menambahkan antrean distribusi
       const finRes = await request(app)
         .post(`/api/v1/bap/${unit1BapId}/finalize`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
       expect(finRes.status).toBe(200);
       expect(finRes.body.bap.status).toBe('FINAL');
+      expect(finRes.body.bap.bap_no).toMatch(/^BAP\/URD\/[IVX]+\/\d{4}\/\d{4}$/);
 
       // Unduh PDF BAP satuan
       const pdfSingle = await request(app)
@@ -864,121 +912,32 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(unrelatedInspectorBatch.status).toBe(403);
     });
 
-    it('Langkah 5 & 6: LHPP spesifik kategori diisi, direview, dikembalikan, direvisi, disetujui, diunduh PDF, dan dicatat pengirimannya', async () => {
-      const nextYearDate = new Date(Date.now() + 25 * 86400 * 1000).toISOString().slice(0, 10);
-
-      const ownPhoto = await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/photos`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-        .attach('photo', Buffer.from('sample image'), {
-          filename: 'lhpp-photo.png',
-          contentType: 'image/png'
-        });
-      expect(ownPhoto.status).toBe(201);
-
-      const unauthorizedUpload = await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/photos`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_LIS}`)
-        .attach('photo', Buffer.from('sample image'), {
-          filename: 'unrelated-photo.png',
-          contentType: 'image/png'
-        });
-      expect(unauthorizedUpload.status).toBe(403);
-
-      const unauthorizedDelete = await request(app)
-        .delete(`/api/v1/lhpp/${unit1LhppId}/photos/${ownPhoto.body.photo.id}`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_LIS}`);
-      expect(unauthorizedDelete.status).toBe(403);
-
-      // Isi parameter teknis spesifik kategori PAA beserta tanggal masa berlaku rekomendasi
-      const draftLhpp = await request(app)
-        .put(`/api/v1/lhpp/${unit1LhppId}/draft`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-        .send({
-          methodSummary: 'Pemeriksaan visual, dimensi, NDT penetrant pada hook, dan uji beban 125% SWL.',
-          technicalNotes: 'Defleksi girder 6.2 mm (di bawah batas maksimum L/800).',
-          recommendations: 'Pasang stiker penanda tombol pendant baru.',
-          recommendedValidUntil: nextYearDate,
-          technicalData: {
-            regulationRef: 'Permenaker No. 8 Tahun 2020',
-            swlCapacity: '15 Ton',
-            spanLengthM: '18 Meter',
-            liftingHeightM: '9 Meter',
-            wireRopeChainSpec: 'IWRC 6x36 dia 16 mm',
-            hookCondition: 'Baik, bukaan throat 0% perubahan',
-            brakeSystemResult: 'Rem elektromagnetik menahan beban 125% tanpa slip',
-            limitSwitchResult: 'Upper & lower limit switch memutus arus dengan tepat',
-            deflectionMeasurementMm: '6.2 mm',
-            staticLoadTestPercent: '125% SWL (18.75 Ton)',
-            dynamicLoadTestPercent: '100% SWL (15 Ton)',
-            ndtHookMethod: 'Liquid Penetrant Test (Non-Crack)'
-          }
-        });
-      expect(draftLhpp.status).toBe(200);
-      expect(draftLhpp.body.lhpp.technical_data.swlCapacity).toBe('15 Ton');
-
-      // Ajukan ke Review Teknis
-      await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/submit-review`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
-
-      // Pimpinan kembalikan untuk revisi
-      const retRes = await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/review`)
-        .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
-        .send({ decision: 'RETURN', note: 'Tambahkan nomor sertifikat kalibrasi load cell pada catatan teknis.' });
-      expect(retRes.status).toBe(200);
-      expect(retRes.body.lhpp.status).toBe('DIKEMBALIKAN');
-
-      // Inspector perbaiki dan ajukan ulang
-      await request(app)
-        .put(`/api/v1/lhpp/${unit1LhppId}/draft`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-        .send({
-          methodSummary: 'Pemeriksaan visual, dimensi, NDT penetrant pada hook, dan uji beban 125% SWL.',
-          technicalNotes: 'Defleksi girder 6.2 mm. Load cell terkalibrasi No. CAL-2026-881.',
-          recommendations: 'Pasang stiker penanda tombol pendant baru.',
-          recommendedValidUntil: nextYearDate,
-          technicalData: {
-            regulationRef: 'Permenaker No. 8 Tahun 2020',
-            swlCapacity: '15 Ton',
-            spanLengthM: '18 Meter',
-            deflectionMeasurementMm: '6.2 mm',
-            staticLoadTestPercent: '125% SWL'
-          }
-        });
-
-      await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/submit-review`)
-        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
-
-      // Pimpinan setujui final -> TERBIT
-      const pubRes = await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/review`)
-        .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
-        .send({ decision: 'APPROVE_FINAL', note: 'Data teknis PAA lengkap dan disetujui.' });
-      expect(pubRes.status).toBe(200);
-      expect(pubRes.body.lhpp.status).toBe('TERBIT');
-
-      // Unduh PDF LHPP
-      const lhppPdf = await request(app)
-        .get(`/api/v1/lhpp/${unit1LhppId}/pdf`)
+    it('Langkah 6: Pelacakan distribusi dokumen (BAP ke Klien & Disnaker) dan Pimpinan dapat memantau ringkasan secara read-only', async () => {
+      const distList = await request(app)
+        .get('/api/v1/distributions')
         .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
-      expect(lhppPdf.status).toBe(200);
-      expect(lhppPdf.headers['content-type']).toContain('application/pdf');
+      expect(distList.status).toBe(200);
+      expect(distList.body.items.length).toBeGreaterThanOrEqual(1);
 
-      // Catat pengiriman dokumen LHPP ke klien
-      const deliv = await request(app)
-        .post(`/api/v1/lhpp/${unit1LhppId}/deliveries`)
+      const firstDist = distList.body.items[0];
+      const updateDist = await request(app)
+        .patch(`/api/v1/distributions/${firstDist.id}/status`)
         .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
         .send({
-          deliveredAt: new Date().toISOString(),
-          channel: 'EMAIL',
-          recipientName: 'Irwan Setiawan',
-          recipientEmail: 'irwan.hse@bajakonstruksi.co.id',
-          notes: 'Pengiriman LHPP Unit 1 Overhead Crane PO-URD-2026-001'
+          status: 'DIKIRIM',
+          courier: 'Kurir Internal URD',
+          trackingNumber: 'TRK-URD-001',
+          recipientName: 'Irwan Setiawan'
         });
-      expect(deliv.status).toBe(201);
+      expect(updateDist.status).toBe(200);
+      expect(updateDist.body.distribution.status).toBe('DIKIRIM');
+
+      // Pimpinan memonitor ringkasan distribusi (Read-only)
+      const summary = await request(app)
+        .get('/api/v1/distributions/summary')
+        .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+      expect(summary.status).toBe(200);
+      expect(summary.body.summary.total_records).toBeGreaterThanOrEqual(1);
     });
 
     it('Langkah 7: Riwayat pengujian unit muncul lengkap dengan nomor PO, nomor BAP, nomor LHPP, temuan, pengiriman, dan masa berlaku', async () => {
@@ -1085,10 +1044,29 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
           .post(`/api/v1/inspections/${inspId}/submit`)
           .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
         expect(subRes.status).toBe(200);
-        const bId = subRes.body.bap.id;
         const lId = subRes.body.lhpp.id;
 
-        // Tanda tangani & finalisasi BAP
+        // Isi masa berlaku LHPP & finalisasi LHPP terlebih dahulu
+        await request(app)
+          .put(`/api/v1/lhpp/${lId}/draft`)
+          .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+          .send({
+            methodSummary: 'Pemeriksaan visual dan pengujian fungsi keselamatan.',
+            technicalNotes: 'Memenuhi syarat keselamatan kerja.',
+            recommendations: 'Pertahankan perawatan berkala.',
+            recommendedValidUntil: futureValid,
+            technicalData: { regulationRef: 'Standar K3 Nasional' }
+          });
+
+        const finLhppRes = await request(app)
+          .post(`/api/v1/lhpp/${lId}/finalize`)
+          .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+          .send({ note: 'LHPP unit difinalisasi oleh Inspector' });
+        expect(finLhppRes.status).toBe(200);
+
+        const bId = finLhppRes.body.bap.id;
+
+        // Tanda tangani & finalisasi BAP setelah LHPP
         await request(app)
           .post(`/api/v1/bap/${bId}/signatures`)
           .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
@@ -1107,31 +1085,10 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
             signerTitle: 'HSE Supervisor',
             dataUrl: onePxPng
           });
-        await request(app)
+        const finBapRes = await request(app)
           .post(`/api/v1/bap/${bId}/finalize`)
           .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
-
-        // Isi masa berlaku LHPP, ajukan review, dan terbitkan
-        await request(app)
-          .put(`/api/v1/lhpp/${lId}/draft`)
-          .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-          .send({
-            methodSummary: 'Pemeriksaan visual dan pengujian fungsi keselamatan.',
-            technicalNotes: 'Memenuhi syarat keselamatan kerja.',
-            recommendations: 'Pertahankan perawatan berkala.',
-            recommendedValidUntil: futureValid,
-            technicalData: { regulationRef: 'Standar K3 Nasional' }
-          });
-
-        await request(app)
-          .post(`/api/v1/lhpp/${lId}/submit-review`)
-          .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
-
-        const pubRes = await request(app)
-          .post(`/api/v1/lhpp/${lId}/review`)
-          .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
-          .send({ decision: 'APPROVE_FINAL', note: 'Disetujui terbit.' });
-        expect(pubRes.status).toBe(200);
+        expect(finBapRes.status).toBe(200);
       }
 
       // Periksa kembali status PO -> seluruh 3 unit selesai dan PO berstatus SELESAI

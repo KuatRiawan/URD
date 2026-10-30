@@ -266,7 +266,7 @@ router.get('/me', authenticate, async (req, res, next) => {
     }
 
     let inspectorData = null;
-    if (user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(user.role)) {
       const inspRes = await query(
         `SELECT i.employee_no AS "employeeNo", i.notes,
                 coalesce(

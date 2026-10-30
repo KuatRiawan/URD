@@ -75,7 +75,7 @@ const EXPIRY_STATE_LABELS = {
 
 export function RemindersPage() {
   const { user } = useAuth();
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [unitReminders, setUnitReminders] = useState([]);
   const [missingValidityItems, setMissingValidityItems] = useState([]);

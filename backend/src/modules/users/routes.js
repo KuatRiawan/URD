@@ -16,7 +16,7 @@ const createUserSchema = Joi.object({
   email: Joi.string().email().required(),
   fullName: Joi.string().min(2).max(120).required(),
   role: Joi.string()
-    .valid('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN')
+    .valid('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'PIMPINAN', 'ADMIN_KANTOR', 'AHLI_K3')
     .required(),
   phone: Joi.string().allow('', null),
   password: Joi.string().min(8).max(128).required(),
@@ -25,7 +25,7 @@ const createUserSchema = Joi.object({
 
 const updateUserSchema = Joi.object({
   fullName: Joi.string().min(2).max(120),
-  role: Joi.string().valid('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN'),
+  role: Joi.string().valid('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'PIMPINAN', 'ADMIN_KANTOR', 'AHLI_K3'),
   phone: Joi.string().allow('', null),
   isActive: Joi.boolean(),
   password: Joi.string().min(8).max(128)

@@ -24,7 +24,7 @@ router.get('/', async (_req, res, next) => {
               i.employee_no AS "employeeNo", i.notes
        FROM users u
        LEFT JOIN inspectors i ON i.user_id = u.id
-       WHERE u.role = 'AHLI_K3'
+       WHERE u.role IN ('AHLI_K3', 'INSPECTOR')
        ORDER BY u.full_name ASC`
     );
 
@@ -66,7 +66,7 @@ router.post(
 
       const created = await withTransaction(async (db) => {
         const { rows: u } = await db.query(
-          "SELECT id FROM users WHERE id = $1 AND role = 'AHLI_K3'",
+          "SELECT id FROM users WHERE id = $1 AND role IN ('AHLI_K3', 'INSPECTOR')",
           [inspectorId]
         );
         if (!u[0]) throw new AppError(404, 'INSPECTOR_NOT_FOUND', 'Ahli K3 tidak ditemukan.');

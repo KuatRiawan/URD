@@ -21,7 +21,7 @@ import {
 
 export function ObjectsPage() {
   const { user } = useAuth();
-  const canEdit = user?.role === 'ADMIN_SISTEM' || user?.role === 'ADMIN_KANTOR';
+  const canEdit = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [categories, setCategories] = useState([]);
   const [clients, setClients] = useState([]);

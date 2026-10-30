@@ -133,7 +133,7 @@ router.get('/', async (req, res, next) => {
     const conds = [];
     const params = [];
 
-    if (req.user.role === 'AHLI_K3') {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
       conds.push(`i.inspector_id = $${params.length}`);
     }
@@ -183,7 +183,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const data = await fetchFullLhppContext({ query }, req.params.id);
     if (!data) throw new AppError(404, 'LHPP_NOT_FOUND', 'Dokumen LHPP tidak ditemukan.');
-    if (req.user.role === 'AHLI_K3' && data.inspector_id !== req.user.id) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && data.inspector_id !== req.user.id) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat melihat LHPP milik sendiri.');
     }
     return res.json({ lhpp: data });
@@ -208,7 +208,7 @@ router.put(
         if (cur.inspector_id !== req.user.id) {
           throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 penyusun yang dapat mengubah draf ini.');
         }
-        if (cur.status !== 'DRAF' && cur.status !== 'DIKEMBALIKAN') {
+        if (!['DRAF', 'SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(cur.status)) {
           throw new AppError(
             409,
             'LHPP_LOCKED',
@@ -273,7 +273,7 @@ router.post(
       if (!req.file) throw new AppError(400, 'NO_FILE', 'Foto dokumentasi hasil riksa uji wajib dipilih.');
       const cur = await fetchFullLhppContext(query, id);
       if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-      if (req.user.role === 'AHLI_K3' && cur.inspector_id !== req.user.id) {
+      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
         throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengelola foto LHPP milik sendiri.');
       }
       if (cur.status === 'TERBIT') {
@@ -304,7 +304,7 @@ router.delete(
       const { id, photoId } = req.params;
       const cur = await fetchFullLhppContext(query, id);
       if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-      if (req.user.role === 'AHLI_K3' && cur.inspector_id !== req.user.id) {
+      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
         throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengelola foto LHPP milik sendiri.');
       }
       if (cur.status === 'TERBIT') {
@@ -339,7 +339,7 @@ router.post('/:id/submit-review', authorize('AHLI_K3'), async (req, res, next) =
       if (cur.inspector_id !== req.user.id) {
         throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 penyusun yang dapat mengajukan LHPP ini.');
       }
-      if (cur.status !== 'DRAF' && cur.status !== 'DIKEMBALIKAN') {
+      if (!['DRAF', 'SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(cur.status)) {
         throw new AppError(400, 'INVALID_STATE', 'LHPP sudah berada dalam antrean review atau telah terbit.');
       }
 
@@ -412,10 +412,196 @@ router.post('/:id/submit-review', authorize('AHLI_K3'), async (req, res, next) =
   }
 });
 
-// M4-04, M4-03, M4-05, M4-06: Review teknis & persetujuan Pimpinan
+// Finalisasi LHPP langsung oleh Inspector / Marketing tanpa alur verifikasi Pimpinan
+router.post(
+  '/:id/finalize',
+  authorize('INSPECTOR', 'AHLI_K3', 'MARKETING', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { note } = req.body || {};
+
+      const result = await withTransaction(async (db) => {
+        const cur = await fetchFullLhppContext(db, id);
+        if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
+        if (cur.status === 'TERBIT' || cur.status === 'FINAL') {
+          return { lhpp: cur, bap: null, message: 'LHPP sudah dalam status final.' };
+        }
+
+        const seqRes = await db.query("SELECT nextval('lhpp_no_seq') AS seq");
+        const now = new Date();
+        const romanMonth = ROMAN_MONTHS[now.getMonth()];
+        const year = now.getFullYear();
+        const seqStr = String(seqRes.rows[0].seq).padStart(4, '0');
+        const lhppNo = `${seqStr}/INSP-${cur.category_code}/PJK3-URD/${romanMonth}/${year}`;
+        const verificationCode = `URD-${crypto
+          .randomBytes(5)
+          .toString('hex')
+          .toUpperCase()}`;
+
+        const fullForPdf = {
+          ...cur,
+          lhpp_no: lhppNo,
+          status: 'TERBIT',
+          verification_code: verificationCode,
+          reviewer_name: cur.reviewer_name || req.user.fullName,
+          approver_name: req.user.fullName,
+          published_at: now.toISOString()
+        };
+
+        const pdfBuffer = await generateLhppPdfBuffer(fullForPdf);
+        const docHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+        const savedPdf = await saveUploadedFile(
+          {
+            buffer: pdfBuffer,
+            originalName: `${lhppNo.replace(/\//g, '-')}.pdf`,
+            mimeType: 'application/pdf',
+            ownerType: 'LHPP_PDF',
+            ownerId: id,
+            caption: `Dokumen Resmi ${lhppNo}`,
+            uploadedBy: req.user.id
+          },
+          db
+        );
+
+        const { rows: lhppRows } = await db.query(
+          `UPDATE lhpp_documents
+           SET lhpp_no = $1,
+               status = 'FINAL',
+               verification_code = $2,
+               document_hash = $3,
+               finalized_by = $4,
+               finalized_at = now(),
+               published_at = now(),
+               pdf_file_id = $5,
+               updated_at = now()
+           WHERE id = $6
+           RETURNING *`,
+          [lhppNo, verificationCode, docHash, req.user.id, savedPdf.id, id]
+        );
+
+        await db.query(
+          `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
+           VALUES ($1, $2, 'FINALIZED', $3, $4, $5)`,
+          [
+            id,
+            cur.version,
+            note || 'LHPP difinalisasi dan siap diterbitkan',
+            { lhpp_no: lhppNo, verification_code: verificationCode },
+            req.user.id
+          ]
+        );
+
+        if (cur.recommended_valid_until) {
+          await db.query(
+            `UPDATE test_objects
+             SET next_inspection_date = COALESCE(next_inspection_date, $1), updated_at = now()
+             WHERE id = $2`,
+            [cur.recommended_valid_until, cur.object_id]
+          );
+        }
+
+        // TERBITKAN BAP SECARA OTOMATIS SETELAH LHPP SELESAI
+        const seqBapRes = await db.query("SELECT nextval('bap_no_seq') AS seq");
+        const rmBap = ROMAN_MONTHS[now.getMonth()];
+        const generatedBapNo = `BAP/URD/${rmBap}/${year}/${String(seqBapRes.rows[0].seq).padStart(4, '0')}`;
+
+        const { rows: sigRows } = await db.query(
+          'SELECT * FROM inspection_signatures WHERE inspection_id = $1',
+          [cur.inspection_id]
+        );
+        const inspSig = sigRows.find((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
+        const clientSig = sigRows.find((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
+
+        const { rows: scopeRows } = await db.query(
+          `SELECT oo.scope_items, oc.default_bap_scopes
+           FROM order_objects oo
+           JOIN test_objects t ON t.id = oo.object_id
+           JOIN object_categories oc ON oc.id = t.category_id
+           WHERE oo.order_id = $1 AND oo.object_id = $2`,
+          [cur.order_id, cur.object_id]
+        );
+        const bapScopes = Array.isArray(scopeRows[0]?.scope_items) && scopeRows[0].scope_items.length
+          ? scopeRows[0].scope_items
+          : Array.isArray(scopeRows[0]?.default_bap_scopes)
+          ? scopeRows[0].default_bap_scopes
+          : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
+
+        const { rows: bapRows } = await db.query(
+          `INSERT INTO bap_documents
+             (bap_no, inspection_id, lhpp_id, order_id, object_id, status, inspection_date, scope_items,
+              conclusion, notes,
+              inspector_signer_name, inspector_signer_title, inspector_signature_file_id, inspector_signed_at,
+              client_signer_name, client_signer_title, client_signature_file_id, client_signed_at,
+              created_by)
+           VALUES ($1, $2, $3, $4, $5, 'DRAF', CURRENT_DATE, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+           ON CONFLICT (inspection_id) DO UPDATE SET
+             lhpp_id = EXCLUDED.lhpp_id,
+             scope_items = EXCLUDED.scope_items,
+             conclusion = EXCLUDED.conclusion,
+             notes = COALESCE(bap_documents.notes, EXCLUDED.notes),
+             inspector_signer_name = COALESCE(EXCLUDED.inspector_signer_name, bap_documents.inspector_signer_name),
+             inspector_signature_file_id = COALESCE(EXCLUDED.inspector_signature_file_id, bap_documents.inspector_signature_file_id),
+             inspector_signed_at = COALESCE(EXCLUDED.inspector_signed_at, bap_documents.inspector_signed_at),
+             client_signer_name = COALESCE(EXCLUDED.client_signer_name, bap_documents.client_signer_name),
+             client_signature_file_id = COALESCE(EXCLUDED.client_signature_file_id, bap_documents.client_signature_file_id),
+             client_signed_at = COALESCE(EXCLUDED.client_signed_at, bap_documents.client_signed_at),
+             updated_at = now()
+           RETURNING *`,
+          [
+            generatedBapNo,
+            cur.inspection_id,
+            id,
+            cur.order_id,
+            cur.object_id,
+            JSON.stringify(bapScopes),
+            cur.conclusion || 'MEMENUHI_SYARAT',
+            cur.technical_notes || 'Pemeriksaan riksa uji selesai dan LHPP telah difinalisasi.',
+            inspSig?.signer_name || cur.inspector_name || req.user.fullName,
+            inspSig?.signer_title || 'Inspector K3',
+            inspSig?.file_id || null,
+            inspSig?.signed_at || now,
+            clientSig?.signer_name || null,
+            clientSig?.signer_title || 'PIC / Pemilik Unit',
+            clientSig?.file_id || null,
+            clientSig?.signed_at || null,
+            req.user.id
+          ]
+        );
+
+        await syncOrderUnitStatus(db, {
+          orderId: cur.order_id,
+          objectId: cur.object_id,
+          unitStatus: 'BAP_DIPROSES',
+          actorId: req.user.id
+        });
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'LHPP_FINALIZE',
+            entity: 'lhpp_documents',
+            entityId: id,
+            summary: { lhppNo, bapId: bapRows[0].id, bapNo: bapRows[0].bap_no },
+            ip: req.ip
+          },
+          db
+        );
+
+        return { lhpp: lhppRows[0], bap: bapRows[0] };
+      });
+
+      return res.json(result);
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Review teknis & persetujuan (backward-compatibility untuk endpoint eksisting)
 router.post(
   '/:id/review',
-  authorize('PIMPINAN'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'ADMIN_KANTOR', 'AHLI_K3'),
   validate(reviewActionSchema),
   async (req, res, next) => {
     try {
@@ -657,7 +843,7 @@ router.get('/:id/pdf', async (req, res, next) => {
   try {
     const cur = await fetchFullLhppContext({ query }, req.params.id);
     if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-    if (req.user.role === 'AHLI_K3' && cur.inspector_id !== req.user.id) {
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && cur.inspector_id !== req.user.id) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengunduh LHPP milik sendiri.');
     }
 
@@ -699,11 +885,11 @@ router.post(
           [id]
         );
         if (!lhpp[0]) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-        if (lhpp[0].status !== 'TERBIT') {
+        if (lhpp[0].status !== 'TERBIT' && lhpp[0].status !== 'FINAL') {
           throw new AppError(
             400,
             'LHPP_NOT_PUBLISHED',
-            'Hanya LHPP yang sudah berstatus TERBIT yang dapat dicatat pengirimannya ke klien.'
+            'Hanya LHPP yang sudah berstatus FINAL atau TERBIT yang dapat dicatat pengirimannya ke klien.'
           );
         }
 

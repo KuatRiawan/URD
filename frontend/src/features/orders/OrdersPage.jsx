@@ -74,7 +74,7 @@ export function OrdersPage() {
   const toast = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);

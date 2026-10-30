@@ -27,28 +27,48 @@ export async function seedDatabase({ password } = {}) {
         phone: '021-4891409'
       },
       {
-        email: 'admin.kantor@upayariksadaya.com',
-        fullName: 'Siti Rahmawati (Admin Kantor)',
-        role: 'ADMIN_KANTOR',
+        email: 'marketing@upayariksadaya.com',
+        fullName: 'Siti Rahmawati (Marketing / PO Officer)',
+        role: 'MARKETING',
         phone: '0812-8000-1101'
       },
       {
+        email: 'admin.kantor@upayariksadaya.com',
+        fullName: 'Siti Rahmawati (Marketing / PO Officer)',
+        role: 'MARKETING',
+        phone: '0812-8000-1101'
+      },
+      {
+        email: 'inspector.paa@upayariksadaya.com',
+        fullName: 'Ir. Budi Santoso (Inspector PAA & PUBT)',
+        role: 'INSPECTOR',
+        phone: '0812-8000-1102',
+        employeeNo: 'URD-INSP-001'
+      },
+      {
         email: 'ahlik3.paa@upayariksadaya.com',
-        fullName: 'Ir. Budi Santoso (Ahli K3 PAA & PUBT)',
-        role: 'AHLI_K3',
+        fullName: 'Ir. Budi Santoso (Inspector PAA & PUBT)',
+        role: 'INSPECTOR',
         phone: '0812-8000-1102',
         employeeNo: 'URD-AK3-001'
       },
       {
+        email: 'inspector.listrik@upayariksadaya.com',
+        fullName: 'Rizky Pratama, S.T. (Inspector Listrik & Petir)',
+        role: 'INSPECTOR',
+        phone: '0812-8000-1103',
+        employeeNo: 'URD-INSP-002'
+      },
+      {
         email: 'ahlik3.listrik@upayariksadaya.com',
-        fullName: 'Rizky Pratama, S.T. (Ahli K3 Listrik & Petir)',
-        role: 'AHLI_K3',
+        fullName: 'Rizky Pratama, S.T. (Inspector Listrik & Petir)',
+        role: 'INSPECTOR',
         phone: '0812-8000-1103',
         employeeNo: 'URD-AK3-002'
       },
       {
         email: 'pimpinan@upayariksadaya.com',
-        fullName: 'Kuat Riawan (Pimpinan / Reviewer)',
+        fullName: 'Kuat Riawan (Pimpinan / Manager Monitoring)',
         role: 'PIMPINAN',
         phone: '0812-8000-1100'
       }
@@ -67,7 +87,7 @@ export async function seedDatabase({ password } = {}) {
         [acc.email, acc.fullName, acc.role, acc.phone, passwordHash]
       );
       userByEmail[acc.email] = rows[0];
-      if (acc.role === 'AHLI_K3') {
+      if (acc.role === 'INSPECTOR' || acc.role === 'AHLI_K3') {
         await db.query(
           `INSERT INTO inspectors (user_id, employee_no)
            VALUES ($1, $2)
@@ -262,9 +282,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (!env.isProd) {
         console.log('Akun pengembangan:');
         console.log('  - admin.sistem@upayariksadaya.com (ADMIN_SISTEM)');
-        console.log('  - admin.kantor@upayariksadaya.com (ADMIN_KANTOR)');
-        console.log('  - ahlik3.paa@upayariksadaya.com   (AHLI_K3)');
-        console.log('  - pimpinan@upayariksadaya.com     (PIMPINAN)');
+        console.log('  - marketing@upayariksadaya.com    (MARKETING)');
+        console.log('  - inspector.paa@upayariksadaya.com(INSPECTOR)');
+        console.log('  - pimpinan@upayariksadaya.com     (PIMPINAN / Manager Monitoring)');
         console.log(`Kata sandi pengembangan saat ini: ${seedPassword}`);
       }
       return pool.end();
