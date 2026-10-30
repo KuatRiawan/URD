@@ -671,6 +671,35 @@ router.post(
   }
 );
 
+// M3-05c: Hapus foto dokumentasi hasil riksa uji sebelum finalisasi
+router.delete(
+  '/:id/photos/:photoId',
+  authorize('INSPECTOR', 'AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  async (req, res, next) => {
+    try {
+      const { id, photoId } = req.params;
+      const { rows } = await query('SELECT * FROM inspections WHERE id = $1', [id]);
+      if (!rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
+      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
+        await assertEditableInspection({ query }, id, req.user);
+      }
+
+      const { rowCount } = await query(
+        `UPDATE file_attachments
+         SET deleted_at = now()
+         WHERE id = $1 AND owner_id = $2 AND owner_type = 'INSPECTION_FINDING' AND deleted_at IS NULL`,
+        [photoId, id]
+      );
+      if (!rowCount) {
+        throw new AppError(404, 'PHOTO_NOT_FOUND', 'Foto tidak ditemukan atau sudah dihapus.');
+      }
+      return res.json({ success: true, message: 'Foto dokumentasi berhasil dihapus.' });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
 // M3-10: Tanda tangan digital Ahli K3 & perwakilan klien di lokasi
 router.post(
   '/:id/signatures',

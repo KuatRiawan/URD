@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+import { resolveAttachmentPath } from '../storage/file-storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const officialLogoPath = path.resolve(__dirname, '../../../logo-urd.png');
@@ -735,7 +736,17 @@ export function buildLhppReportContent(data) {
       reviewer: data.reviewer_name || '-',
       approver: data.approver_name || '-',
       publishedAt: data.published_at ? formatIndoDate(data.published_at) : '-'
-    }
+    },
+    photos: Array.isArray(data.photos)
+      ? data.photos.map((p) => ({
+          id: p.id,
+          caption: p.caption || p.originalName || 'Foto Dokumentasi Riksa Uji',
+          originalName: p.originalName || p.original_name,
+          storageKey: p.storageKey || p.storage_key,
+          mimeType: p.mimeType || p.mime_type,
+          createdAt: p.createdAt || p.created_at
+        }))
+      : []
   };
 }
 
@@ -1302,6 +1313,124 @@ export async function generateLhppPdfBuffer(data) {
     doc.text(`Disusun oleh Ahli K3: ${report.signature.inspector}`, 45, nameY + 16, { width: 505, align: 'center' });
 
     doc.y = nameY + 28;
+
+    // ==========================================
+    // VI. LAMPIRAN DOKUMENTASI FOTO HASIL RIKSA UJI
+    // ==========================================
+    if (report.photos && report.photos.length > 0) {
+      doc.addPage();
+      doc.y = 135;
+
+      const photoSecTitle = 'VI. LAMPIRAN DOKUMENTASI FOTO HASIL RIKSA UJI';
+      doc
+        .rect(45, doc.y, 505, 20)
+        .fillColor('#8B262B')
+        .fill();
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8.5)
+        .fillColor('#FFFFFF')
+        .text(photoSecTitle, 52, doc.y + 5, { width: 495 });
+      doc.y += 28;
+
+      const cardW = 245;
+      const cardH = 175;
+      const imgW = 233;
+      const imgH = 135;
+
+      for (let i = 0; i < report.photos.length; i += 2) {
+        ensureSpace(cardH + 20);
+        const rowY = doc.y;
+
+        // Foto 1 (Kolom Kiri)
+        const p1 = report.photos[i];
+        const p1X = 45;
+        doc.rect(p1X, rowY, cardW, cardH).fillColor('#F8FAFC').fill();
+        doc.rect(p1X, rowY, cardW, cardH).lineWidth(0.6).strokeColor('#CBD5E1').stroke();
+
+        const p1Path = p1.storageKey ? resolveAttachmentPath(p1.storageKey) : null;
+        if (p1Path && fs.existsSync(p1Path) && (p1.mimeType || '').startsWith('image/')) {
+          try {
+            doc.image(p1Path, p1X + 6, rowY + 6, {
+              fit: [imgW, imgH],
+              align: 'center',
+              valign: 'center'
+            });
+          } catch {
+            doc
+              .font('Helvetica')
+              .fontSize(7.5)
+              .fillColor('#64748B')
+              .text('[Gambar tidak dapat dirender]', p1X + 10, rowY + 60, { width: imgW, align: 'center' });
+          }
+        } else {
+          doc
+            .font('Helvetica')
+            .fontSize(7.5)
+            .fillColor('#64748B')
+            .text('[Foto Terlampir]', p1X + 10, rowY + 60, { width: imgW, align: 'center' });
+        }
+
+        // Caption Foto 1
+        doc.rect(p1X, rowY + 145, cardW, 30).fillColor('#F1F5F9').fill();
+        doc.rect(p1X, rowY + 145, cardW, 30).lineWidth(0.5).strokeColor('#E2E8F0').stroke();
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(7.2)
+          .fillColor('#1E293B')
+          .text(`Foto ${i + 1}: ${p1.caption || p1.originalName || 'Dokumentasi Riksa Uji'}`, p1X + 6, rowY + 150, {
+            width: cardW - 12,
+            height: 22,
+            ellipsis: true
+          });
+
+        // Foto 2 (Kolom Kanan, jika ada)
+        if (i + 1 < report.photos.length) {
+          const p2 = report.photos[i + 1];
+          const p2X = 305;
+          doc.rect(p2X, rowY, cardW, cardH).fillColor('#F8FAFC').fill();
+          doc.rect(p2X, rowY, cardW, cardH).lineWidth(0.6).strokeColor('#CBD5E1').stroke();
+
+          const p2Path = p2.storageKey ? resolveAttachmentPath(p2.storageKey) : null;
+          if (p2Path && fs.existsSync(p2Path) && (p2.mimeType || '').startsWith('image/')) {
+            try {
+              doc.image(p2Path, p2X + 6, rowY + 6, {
+                fit: [imgW, imgH],
+                align: 'center',
+                valign: 'center'
+              });
+            } catch {
+              doc
+                .font('Helvetica')
+                .fontSize(7.5)
+                .fillColor('#64748B')
+                .text('[Gambar tidak dapat dirender]', p2X + 10, rowY + 60, { width: imgW, align: 'center' });
+            }
+          } else {
+            doc
+              .font('Helvetica')
+              .fontSize(7.5)
+              .fillColor('#64748B')
+              .text('[Foto Terlampir]', p2X + 10, rowY + 60, { width: imgW, align: 'center' });
+          }
+
+          // Caption Foto 2
+          doc.rect(p2X, rowY + 145, cardW, 30).fillColor('#F1F5F9').fill();
+          doc.rect(p2X, rowY + 145, cardW, 30).lineWidth(0.5).strokeColor('#E2E8F0').stroke();
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(7.2)
+            .fillColor('#1E293B')
+            .text(`Foto ${i + 2}: ${p2.caption || p2.originalName || 'Dokumentasi Riksa Uji'}`, p2X + 6, rowY + 150, {
+              width: cardW - 12,
+              height: 22,
+              ellipsis: true
+            });
+        }
+
+        doc.y = rowY + cardH + 14;
+      }
+    }
 
     // ==========================================
     // 3. FOOTER SETIAP HALAMAN ISI LAPORAN

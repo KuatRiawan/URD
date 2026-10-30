@@ -2,16 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import {
   Camera,
+  Check,
   CheckCircle,
   ClipboardText,
   DownloadSimple,
+  Eye,
   FileText,
   FloppyDisk,
   PaperPlaneTilt,
   Plus,
   SealCheck,
   Signature,
-  Warning
+  Trash,
+  Warning,
+  WarningCircle,
+  X
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
@@ -40,7 +45,7 @@ export function InspectionsPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isInspector = user?.role === 'AHLI_K3';
+  const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const canValidateTemplate = ['ADMIN_SISTEM', 'PIMPINAN'].includes(user?.role);
 
   const [inspections, setInspections] = useState([]);
@@ -61,6 +66,9 @@ export function InspectionsPage() {
 
   const [activeDetail, setActiveDetail] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [isAutosaving, setIsAutosaving] = useState(false);
   const [draftConclusion, setDraftConclusion] = useState('MEMENUHI_SYARAT');
   const [draftConclusionNotes, setDraftConclusionNotes] = useState('');
   const [draftResults, setDraftResults] = useState({});
@@ -462,6 +470,59 @@ export function InspectionsPage() {
     }
   };
 
+  const handleDeleteInspectionPhoto = async (photoId) => {
+    if (!activeDetail?.inspection) return;
+    const ok = await confirm({
+      title: 'Hapus Foto Dokumentasi',
+      message: 'Foto hasil riksa uji ini akan dihapus dari lampiran formulir. Lanjutkan?',
+      confirmLabel: 'Ya, Hapus Foto',
+      tone: 'danger'
+    });
+    if (!ok) return;
+
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.delete(`/inspections/${activeDetail.inspection.id}/photos/${photoId}`);
+      setFeedback('Foto dokumentasi berhasil dihapus.');
+      await openInspectionDetail(activeDetail.inspection.id);
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal menghapus foto dokumentasi.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUploadItemInlinePhoto = async (item, file) => {
+    if (!activeDetail?.inspection || !file) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const prepared = await compressImage(file);
+      const caption = `[${item.section}] ${item.label}`;
+      const fd = new FormData();
+      fd.append('photo', prepared);
+      fd.append('caption', caption);
+      await api.post(`/inspections/${activeDetail.inspection.id}/photos`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFeedback(`Foto untuk butir [${item.section}] ${item.label} berhasil dilampirkan.`);
+      await openInspectionDetail(activeDetail.inspection.id);
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal melampirkan foto butir checklist.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const clearSignatureCanvas = () => {
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
@@ -500,22 +561,30 @@ export function InspectionsPage() {
 
   const handleSaveSignature = async (e) => {
     e.preventDefault();
-    if (!activeDetail?.inspection || !sigForm.signerName.trim()) return;
+    if (!activeDetail?.inspection || !sigForm.signerName.trim()) {
+      setError('Nama penanda tangan wajib diisi.');
+      return;
+    }
+    if (!hasDrawnSig || !sigCanvasRef.current) {
+      setError('Silakan bubuhkan tanda tangan pada kotak kanvas terlebih dahulu.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
-      let dataUrl = DEFAULT_SIGNATURE_PNG;
-      if (hasDrawnSig && sigCanvasRef.current) {
-        dataUrl = sigCanvasRef.current.toDataURL('image/png');
-      }
+      const dataUrl = sigCanvasRef.current.toDataURL('image/png');
       await api.post(`/inspections/${activeDetail.inspection.id}/signatures`, {
         signerRole: sigForm.signerRole,
-        signerName: sigForm.signerName,
-        signerTitle: sigForm.signerTitle,
+        signerName: sigForm.signerName.trim(),
+        signerTitle: sigForm.signerTitle ? sigForm.signerTitle.trim() : null,
         dataUrl
       });
       clearSignatureCanvas();
-      setFeedback(`Tanda tangan digital (${sigForm.signerRole}) berhasil disimpan.`);
+      setFeedback(
+        `Tanda tangan digital (${
+          sigForm.signerRole === 'AHLI_K3' ? 'Inspector' : 'Perwakilan Klien'
+        }) berhasil disimpan.`
+      );
       await openInspectionDetail(activeDetail.inspection.id);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal menyimpan tanda tangan digital.');
@@ -544,15 +613,8 @@ export function InspectionsPage() {
     }
   };
 
-  const handleSubmitInspection = async () => {
+  const handleSubmitFinalInspection = async () => {
     if (!activeDetail?.inspection) return;
-    const ok = await confirm({
-      title: 'Selesaikan Riksa Uji',
-      message: 'Form akan dikunci, BAP difinalisasi, dan draf LHPP diterbitkan. Pastikan hasil pemeriksaan, foto, dan tanda tangan sudah benar.',
-      confirmLabel: 'Ya, Selesaikan',
-      tone: 'warning'
-    });
-    if (!ok) return;
     setSubmitting(true);
     setError('');
     try {
@@ -561,6 +623,7 @@ export function InspectionsPage() {
         scopeItems: draftScopes,
         autoFinalizeBap: true
       });
+      setReviewModalOpen(false);
       setFeedback(
         `Riksa uji selesai! Dokumen BAP (${res.data?.bap?.bap_no || 'Baru'}) dan LHPP telah diterbitkan dan siap diunduh.`
       );
@@ -890,6 +953,29 @@ export function InspectionsPage() {
       >
         {activeDetail?.inspection && (
           <div className="space-y-6 text-sm">
+            {/* Header Status & Indikator Autosave */}
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-1">
+              <span className="font-bold text-slate-700 dark:text-slate-300">
+                Lembar Pemeriksaan Teknis &amp; Pengujian Lapangan
+              </span>
+              <div className="flex items-center gap-1.5 text-[11px] font-medium bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md">
+                {lastSavedAt ? (
+                  <>
+                    <CheckCircle size={14} weight="bold" className="text-emerald-500 shrink-0" />
+                    <span>
+                      Tersimpan otomatis pukul{' '}
+                      {lastSavedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <FloppyDisk size={14} className="text-slate-400 shrink-0" />
+                    <span>Autosave aktif</span>
+                  </>
+                )}
+              </div>
+            </div>
+
             {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
             {feedback && (
               <Notice tone="success" onClose={() => setFeedback('')}>
@@ -997,23 +1083,45 @@ export function InspectionsPage() {
                 {(activeDetail.items || []).map((item) => {
                   const row = draftResults[item.id] || {};
                   const readOnly = !isInspector || activeDetail.inspection.status !== 'DRAF';
+                  const itemPhotos = (activeDetail.photos || []).filter(
+                    (ph) => ph.caption && ph.caption.includes(`[${item.section}] ${item.label}`)
+                  );
+
                   return (
                     <div
                       key={item.id}
                       className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                     >
                       <div className="flex-1">
-                        <span className="font-semibold text-slate-500 dark:text-slate-400">[{item.section}]</span>{' '}
-                        <span className="font-bold text-slate-900 dark:text-white">{item.label}</span>
-                        {item.unit && (
-                          <span className="ml-1 text-slate-500 dark:text-slate-400">
-                            (Satuan: {item.unit}
-                            {item.min_value !== null ? `, Min: ${item.min_value}` : ''}
-                            {item.max_value !== null ? `, Maks: ${item.max_value}` : ''})
-                          </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-rose-700 dark:text-rose-400">[{item.section}]</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{item.label}</span>
+                          {item.unit && (
+                            <span className="text-slate-500 dark:text-slate-400 text-[11px]">
+                              ({item.unit}
+                              {item.min_value !== null ? `, Min: ${item.min_value}` : ''}
+                              {item.max_value !== null ? `, Maks: ${item.max_value}` : ''})
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Indikator foto yang terlampir untuk butir uji ini */}
+                        {itemPhotos.length > 0 && (
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            {itemPhotos.map((ip) => (
+                              <div
+                                key={ip.id}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-[10px] font-semibold text-[#C81E1E] dark:text-rose-300"
+                              >
+                                <Camera size={11} weight="bold" />
+                                <span>Foto Terlampir</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex flex-wrap items-center gap-2">
                         {item.input_type === 'CHOICE' && (
                           <select
                             disabled={readOnly}
@@ -1024,7 +1132,13 @@ export function InspectionsPage() {
                                 [item.id]: { ...row, choiceValue: e.target.value }
                               }))
                             }
-                            className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-2.5 py-1 text-xs"
+                            className={`min-h-9 rounded border px-2.5 py-1 text-xs font-semibold ${
+                              row.choiceValue === 'TIDAK_SESUAI'
+                                ? 'border-rose-400 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                                : row.choiceValue === 'TIDAK_BERLAKU'
+                                ? 'border-slate-300 bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                            }`}
                           >
                             <option value="SESUAI">SESUAI (Memenuhi)</option>
                             <option value="TIDAK_SESUAI">TIDAK SESUAI (Temuan)</option>
@@ -1060,6 +1174,27 @@ export function InspectionsPage() {
                             }
                             className="w-44 min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-2.5 py-1 text-xs"
                           />
+                        )}
+
+                        {/* Inline Camera Trigger untuk butir ini */}
+                        {!readOnly && (
+                          <label
+                            title="Ambil / Unggah Foto untuk butir ini"
+                            className="min-h-9 inline-flex items-center gap-1 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-xs font-semibold"
+                          >
+                            <Camera size={14} weight="bold" />
+                            <span className="hidden sm:inline">Foto</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="sr-only"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleUploadItemInlinePhoto(item, f);
+                              }}
+                            />
+                          </label>
                         )}
                       </div>
                     </div>
@@ -1142,33 +1277,64 @@ export function InspectionsPage() {
             </div>
 
             {/* Lampiran Foto Hasil Riksa Uji */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                <Camera size={16} />
-                <span>
-                  3. Lampiran Foto Hasil Riksa Uji ({(activeDetail.photos || []).length} Foto)
+            <div className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                  <Camera size={16} />
+                  <span>
+                    3. Lampiran Foto Hasil Riksa Uji ({(activeDetail.photos || []).length} Foto)
+                  </span>
+                </h4>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Minimal 2 foto dokumentasi (Nameplate &amp; Fisik Alat)
                 </span>
-              </h4>
-              {(activeDetail.photos || []).length > 0 && (
-                <div className="flex flex-wrap gap-2">
+              </div>
+
+              {/* Grid Foto Responsif & Tombol Hapus */}
+              {(activeDetail.photos || []).length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {(activeDetail.photos || []).map((ph) => (
-                    <a
+                    <div
                       key={ph.id}
-                      href={`/api/v1/dashboard/files/${ph.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      className="group relative rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 overflow-hidden shadow-2xs flex flex-col justify-between"
                     >
-                      <Camera size={14} />
-                      <span>{ph.caption || ph.originalName}</span>
-                    </a>
+                      <div className="relative aspect-4/3 bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <img
+                          src={`/api/v1/dashboard/files/${ph.id}`}
+                          alt={ph.caption || ph.originalName}
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteInspectionPhoto(ph.id)}
+                            disabled={submitting}
+                            title="Hapus foto ini"
+                            className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-rose-600/90 text-white hover:bg-rose-700 transition-all shadow-xs"
+                          >
+                            <Trash size={13} weight="bold" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="p-2">
+                        <p className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 line-clamp-2 leading-tight">
+                          {ph.caption || ph.originalName}
+                        </p>
+                      </div>
+                    </div>
                   ))}
                 </div>
+              ) : (
+                <div className="p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Belum ada foto dokumentasi terlampir. Gunakan tombol di bawah atau kamera butir uji di atas untuk melampirkan foto nameplate dan kondisi alat.
+                </div>
               )}
+
               {isInspector && activeDetail.inspection.status === 'DRAF' && (
                 <form
                   onSubmit={handleUploadInspectionPhoto}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex flex-col gap-1.5">
                     <input
@@ -1334,8 +1500,8 @@ export function InspectionsPage() {
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <div className="space-y-1">
-                      <span className="block text-[11px] text-slate-500 dark:text-slate-400">
-                        Goreskan tanda tangan di kotak bawah (opsional):
+                      <span className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Bubuhkan tanda tangan di kotak kanvas (wajib digoreskan):
                       </span>
                       <canvas
                         ref={sigCanvasRef}
@@ -1359,7 +1525,7 @@ export function InspectionsPage() {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="min-h-9 rounded bg-slate-800 dark:bg-slate-700 px-4 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600"
+                        className="min-h-9 rounded bg-slate-800 dark:bg-slate-700 px-4 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50"
                       >
                         Simpan Tanda Tangan ({sigForm.signerRole === 'AHLI_K3' ? 'Inspector' : 'Klien'})
                       </button>
@@ -1384,16 +1550,195 @@ export function InspectionsPage() {
                 <button
                   type="button"
                   disabled={submitting}
-                  onClick={handleSubmitInspection}
+                  onClick={() => setReviewModalOpen(true)}
                   className="min-h-11 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616]"
                 >
                   <PaperPlaneTilt size={16} />
-                  <span>Selesaikan Riksa Uji & Terbitkan BAP + LHPP</span>
+                  <span>Selesaikan &amp; Verifikasi Pra-Kirim</span>
                 </button>
               </div>
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Modal Ringkasan Pra-Kirim Riksa Uji (Pre-Submit Summary Gate) */}
+      <Modal
+        open={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        title="Ringkasan Verifikasi Pra-Kirim Riksa Uji K3"
+        size="lg"
+      >
+        {activeDetail?.inspection && (() => {
+          const totalItems = (activeDetail.items || []).length;
+          const evaluatedItems = (activeDetail.items || []).filter((item) => {
+            const res = draftResults[item.id];
+            if (!res) return false;
+            if (item.input_type === 'CHOICE') return !!res.choiceValue;
+            if (item.input_type === 'NUMBER')
+              return res.numberValue !== '' && res.numberValue !== null && res.numberValue !== undefined;
+            if (item.input_type === 'TEXT') return !!res.textValue;
+            return true;
+          }).length;
+          const missingItems = totalItems - evaluatedItems;
+          const nonConformingItems = (activeDetail.items || []).filter(
+            (item) => draftResults[item.id]?.choiceValue === 'TIDAK_SESUAI'
+          );
+          const photosCount = (activeDetail.photos || []).length;
+
+          const inspectorSig = (activeDetail.signatures || []).find((s) =>
+            ['AHLI_K3', 'INSPECTOR'].includes(s.signer_role)
+          );
+          const clientSig = (activeDetail.signatures || []).find((s) =>
+            ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role)
+          );
+
+          return (
+            <div className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400 text-sm">
+                    {activeDetail.inspection.po_number || activeDetail.inspection.order_no}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-rose-100 text-[#C81E1E] dark:bg-rose-950/60 dark:text-rose-300">
+                    {activeDetail.inspection.category_code}
+                  </span>
+                </div>
+                <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                  {activeDetail.inspection.object_name}
+                </div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  SN: {activeDetail.inspection.serial_number} · Klien: {activeDetail.inspection.client_name}
+                </div>
+              </div>
+
+              {/* Status Kelengkapan Checklist */}
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                    Kelengkapan Checklist Parameter Uji
+                  </span>
+                  <span className={`font-bold ${missingItems > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {evaluatedItems} dari {totalItems} butir terisi
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className={`h-full ${missingItems > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
+                  />
+                </div>
+                {missingItems > 0 && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Peringatan: Masih ada {missingItems} butir checklist yang belum diisi.
+                  </p>
+                )}
+                {nonConformingItems.length > 0 && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-rose-700 dark:text-rose-400 font-medium">
+                    Terdapat {nonConformingItems.length} butir dengan hasil TIDAK SESUAI:
+                    <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                      {nonConformingItems.map((ni) => (
+                        <li key={ni.id}>[{ni.section}] {ni.label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Status Foto & Tanda Tangan */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                    <span>Foto Dokumentasi</span>
+                    <span className={photosCount > 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                      {photosCount} Foto
+                    </span>
+                  </div>
+                  {photosCount === 0 ? (
+                    <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                      Disarankan melampirkan minimal 2 foto fisik alat &amp; nameplate sebelum submit.
+                    </p>
+                  ) : (
+                    <div className="flex gap-1.5 overflow-x-auto py-1">
+                      {(activeDetail.photos || []).slice(0, 4).map((p) => (
+                        <img
+                          key={p.id}
+                          src={`/api/v1/dashboard/files/${p.id}`}
+                          alt="preview"
+                          className="h-12 w-12 rounded object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                  <div className="font-bold text-slate-900 dark:text-slate-100">
+                    Tanda Tangan Digital
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span>Ahli K3 / Inspector:</span>
+                      {inspectorSig ? (
+                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle size={13} weight="bold" /> Sudah TTD
+                        </span>
+                      ) : (
+                        <span className="text-rose-600 font-bold">Belum TTD</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Perwakilan Klien:</span>
+                      {clientSig ? (
+                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle size={13} weight="bold" /> Sudah TTD
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 font-semibold">Belum TTD (Bisa di BAP)</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kesimpulan Akhir */}
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Kesimpulan Akhir yang Akan Diterbitkan:
+                </span>
+                <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                  {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
+                </div>
+                {draftConclusionNotes && (
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Catatan: {draftConclusionNotes}
+                  </p>
+                )}
+              </div>
+
+              {/* Tombol Aksi */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setReviewModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50"
+                >
+                  Periksa Kembali
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={handleSubmitFinalInspection}
+                  className="px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <PaperPlaneTilt size={15} weight="bold" />
+                  <span>{submitting ? 'Memproses Penerbitan...' : 'Konfirmasi & Kirim Riksa Uji'}</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );

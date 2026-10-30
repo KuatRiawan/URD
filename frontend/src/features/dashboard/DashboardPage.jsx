@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
   Alarm,
@@ -66,9 +66,12 @@ export function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [period, setPeriod] = useState('30D');
+
+  // Inspector Field Dashboard Filters & Controls
   const [fieldSearch, setFieldSearch] = useState('');
-  const [fieldStatusFilter, setFieldStatusFilter] = useState('ALL');
-  const [fieldViewMode, setFieldViewMode] = useState('CARDS');
+  const [fieldTab, setFieldTab] = useState('TODAY'); // 'TODAY' | 'PENDING' | 'UPCOMING' | 'COMPLETED' | 'ALL'
+  const [fieldViewMode, setFieldViewMode] = useState('CARDS'); // 'CARDS' | 'TABLE'
+  const [displayMode, setDisplayMode] = useState('TABBED'); // 'TABBED' | 'STACKED'
 
   const loadSummary = useCallback(async (isRefresh = false) => {
     try {
@@ -108,79 +111,20 @@ export function DashboardPage() {
     }
   };
 
-  if (loading) return <LoadingState message="Memuat ringkasan operasional PT Upaya Riksa Daya..." />;
-  if (error) return <ErrorState message={error} onRetry={() => loadSummary()} />;
-  if (!data) return null;
+  const assignedUnits = useMemo(() => data?.assignedUnits || [], [data]);
 
-  const m = data.metrics || {};
-  const isInspector = ['INSPECTOR', 'AHLI_K3'].includes(user?.role);
+  // Klasifikasi unit lapangan ke dalam 3 area operasional utama
+  const categorizedUnits = useMemo(() => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const assignedUnits = data.assignedUnits || [];
-  const todoUnits = assignedUnits.filter((u) =>
-    ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status)
-  );
-  const inProgressUnits = assignedUnits.filter((u) =>
-    ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)
-  );
-  const waitingDocsUnits = assignedUnits.filter((u) =>
-    [
-      'MENUNGGU_TTD',
-      'PEMERIKSAAN_TERKIRIM',
-      'FORM_TERKIRIM',
-      'LHPP_DRAF',
-      'LHPP_DIPROSES',
-      'LHPP_SIAP_PREVIEW',
-      'BAP_DRAF',
-      'BAP_DIPROSES',
-      'BAP_SIAP_PREVIEW'
-    ].includes(u.unit_status)
-  );
-  const doneUnits = assignedUnits.filter((u) =>
-    [
-      'LHPP_FINAL',
-      'LHPP_TERBIT',
-      'BAP_FINAL',
-      'SIAP_DISTRIBUSI',
-      'SEBAGIAN_DOKUMEN_DIKIRIM',
-      'SELESAI'
-    ].includes(u.unit_status)
-  );
+    const todayList = [];
+    const pendingList = [];
+    const upcomingList = [];
+    const completedList = [];
 
-  const filteredAssignedUnits = assignedUnits.filter((u) => {
-    if (fieldSearch.trim()) {
-      const q = fieldSearch.toLowerCase().trim();
-      const match =
-        (u.object_name && String(u.object_name).toLowerCase().includes(q)) ||
-        (u.serial_number && String(u.serial_number).toLowerCase().includes(q)) ||
-        (u.client_name && String(u.client_name).toLowerCase().includes(q)) ||
-        (u.po_number && String(u.po_number).toLowerCase().includes(q)) ||
-        (u.order_no && String(u.order_no).toLowerCase().includes(q)) ||
-        (u.location_name && String(u.location_name).toLowerCase().includes(q)) ||
-        (u.location_address && String(u.location_address).toLowerCase().includes(q)) ||
-        (u.category_code && String(u.category_code).toLowerCase().includes(q));
-      if (!match) return false;
-    }
-    if (fieldStatusFilter === 'TODO') {
-      return ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN'].includes(u.unit_status);
-    }
-    if (fieldStatusFilter === 'IN_PROGRESS') {
-      return ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
-    }
-    if (fieldStatusFilter === 'WAITING_DOCS') {
-      return [
-        'MENUNGGU_TTD',
-        'PEMERIKSAAN_TERKIRIM',
-        'FORM_TERKIRIM',
-        'LHPP_DRAF',
-        'LHPP_DIPROSES',
-        'LHPP_SIAP_PREVIEW',
-        'BAP_DRAF',
-        'BAP_DIPROSES',
-        'BAP_SIAP_PREVIEW'
-      ].includes(u.unit_status);
-    }
-    if (fieldStatusFilter === 'DONE') {
-      return [
+    assignedUnits.forEach((u) => {
+      const isFinished = [
         'LHPP_FINAL',
         'LHPP_TERBIT',
         'BAP_FINAL',
@@ -188,19 +132,95 @@ export function DashboardPage() {
         'SEBAGIAN_DOKUMEN_DIKIRIM',
         'SELESAI'
       ].includes(u.unit_status);
-    }
-    return true;
-  });
+
+      if (isFinished) {
+        completedList.push(u);
+        return;
+      }
+
+      let scheduleDateStr = null;
+      if (u.start_at) {
+        const sDate = new Date(u.start_at);
+        scheduleDateStr = `${sDate.getFullYear()}-${String(sDate.getMonth() + 1).padStart(2, '0')}-${String(sDate.getDate()).padStart(2, '0')}`;
+      }
+
+      const isInspectingNow = u.unit_status === 'SEDANG_DIPERIKSA';
+      const isScheduledToday = scheduleDateStr === todayStr;
+
+      if (isScheduledToday || isInspectingNow) {
+        todayList.push(u);
+        return;
+      }
+
+      const isFuture = scheduleDateStr && scheduleDateStr > todayStr;
+      if (isFuture) {
+        upcomingList.push(u);
+        return;
+      }
+
+      // Unit yang perlu tindakan lanjutan (checklist belum lengkap, menunggu ttd, dikembalikan, atau draf)
+      pendingList.push(u);
+    });
+
+    return {
+      today: todayList,
+      pending: pendingList,
+      upcoming: upcomingList,
+      completed: completedList
+    };
+  }, [assignedUnits]);
+
+  // Filter pencarian pada unit yang ditugaskan
+  const matchesSearch = useCallback(
+    (u) => {
+      if (!fieldSearch.trim()) return true;
+      const q = fieldSearch.toLowerCase().trim();
+      return (
+        (u.object_name && String(u.object_name).toLowerCase().includes(q)) ||
+        (u.serial_number && String(u.serial_number).toLowerCase().includes(q)) ||
+        (u.client_name && String(u.client_name).toLowerCase().includes(q)) ||
+        (u.po_number && String(u.po_number).toLowerCase().includes(q)) ||
+        (u.order_no && String(u.order_no).toLowerCase().includes(q)) ||
+        (u.location_name && String(u.location_name).toLowerCase().includes(q)) ||
+        (u.location_address && String(u.location_address).toLowerCase().includes(q)) ||
+        (u.category_code && String(u.category_code).toLowerCase().includes(q))
+      );
+    },
+    [fieldSearch]
+  );
+
+  const filteredUnitsForTab = useMemo(() => {
+    let list = [];
+    if (fieldTab === 'TODAY') list = categorizedUnits.today;
+    else if (fieldTab === 'PENDING') list = categorizedUnits.pending;
+    else if (fieldTab === 'UPCOMING') list = categorizedUnits.upcoming;
+    else if (fieldTab === 'COMPLETED') list = categorizedUnits.completed;
+    else list = assignedUnits;
+
+    return list.filter(matchesSearch);
+  }, [fieldTab, categorizedUnits, assignedUnits, matchesSearch]);
+
+  if (loading) return <LoadingState message="Memuat ringkasan operasional PT Upaya Riksa Daya..." />;
+  if (error) return <ErrorState message={error} onRetry={() => loadSummary()} />;
+  if (!data) return null;
+
+  const m = data.metrics || {};
+  const isInspector = ['INSPECTOR', 'AHLI_K3'].includes(user?.role);
 
   // ---------------------------------------------------------------------------
-  // TAMPILAN KHUSUS INSPECTOR (FIELD-FIRST & MOBILE/TABLET OPTIMIZED)
+  // TAMPILAN KHUSUS INSPECTOR (FIELD-FIRST, 3 AREA OPERASIONAL, MOBILE/TABLET READY)
   // ---------------------------------------------------------------------------
   if (isInspector) {
+    const todayFiltered = categorizedUnits.today.filter(matchesSearch);
+    const pendingFiltered = categorizedUnits.pending.filter(matchesSearch);
+    const upcomingFiltered = categorizedUnits.upcoming.filter(matchesSearch);
+    const completedFiltered = categorizedUnits.completed.filter(matchesSearch);
+
     return (
       <div className="space-y-6">
         <PageHeader
           title="Dasbor Lapangan Inspector"
-          subtitle="Fokus riksa uji lapangan, pengisian checklist alat K3, dokumentasi foto, dan tanda tangan digital"
+          subtitle="Pekerjaan riksa uji teknis lapangan, verifikasi unit, pengisian checklist, dokumentasi foto, dan tanda tangan digital"
           actions={
             <>
               <Link
@@ -227,166 +247,206 @@ export function DashboardPage() {
           }
         />
 
-        {/* 4 Kartu Metrik Praktis Lapangan (Tanpa Grafik Rumit) */}
-        <section aria-label="Ringkasan Kerja Lapangan" className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-          {/* Card 1: Total Unit Ditugaskan */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+        {/* 4 Kartu Status Lapangan Ringkas (Mudah Dibaca di Lapangan) */}
+        <section aria-label="Ringkasan Operasional Lapangan" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Card 1: Pekerjaan Hari Ini */}
+          <button
+            type="button"
+            onClick={() => {
+              setFieldTab('TODAY');
+              setDisplayMode('TABBED');
+            }}
+            className={`text-left rounded-xl p-4 sm:p-5 border transition-all shadow-xs ${
+              fieldTab === 'TODAY'
+                ? 'border-[#C81E1E] bg-rose-50/50 dark:bg-rose-950/20 ring-2 ring-[#C81E1E]/20'
+                : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+            }`}
+          >
             <div className="flex items-center gap-3.5">
               <div className="h-11 w-11 rounded-lg bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
-                <Wrench size={22} weight="bold" aria-hidden="true" />
+                <CalendarCheck size={22} weight="bold" aria-hidden="true" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  Unit Ditugaskan
+                <p className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 mb-0.5">
+                  Pekerjaan Hari Ini
                 </p>
                 <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
-                  {assignedUnits.length}
+                  {categorizedUnits.today.length}
                 </div>
                 <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  {m.activeAssignments || 0} PO aktif berjalan
+                  Unit aktif &amp; terjadwal hari ini
                 </div>
               </div>
             </div>
-          </div>
+          </button>
 
-          {/* Card 2: Sedang Dikerjakan / Draf */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-            <div className="flex items-center gap-3.5">
-              <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
-                <FileText size={22} weight="bold" aria-hidden="true" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  Sedang Dikerjakan
-                </p>
-                <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
-                  {inProgressUnits.length || m.draftInspections || 0}
-                </div>
-                <div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 mt-1 truncate">
-                  Checklist sedang diisi
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Menunggu TTD / BAP */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+          {/* Card 2: Pekerjaan Belum Selesai */}
+          <button
+            type="button"
+            onClick={() => {
+              setFieldTab('PENDING');
+              setDisplayMode('TABBED');
+            }}
+            className={`text-left rounded-xl p-4 sm:p-5 border transition-all shadow-xs ${
+              fieldTab === 'PENDING'
+                ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 ring-2 ring-amber-500/20'
+                : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+            }`}
+          >
             <div className="flex items-center gap-3.5">
               <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <Scroll size={22} weight="bold" aria-hidden="true" />
+                <HourglassMedium size={22} weight="bold" aria-hidden="true" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  Menunggu TTD / BAP
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
+                  Belum Selesai
                 </p>
                 <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums leading-none">
-                  {waitingDocsUnits.length || m.draftBap || 0}
+                  {categorizedUnits.pending.length}
                 </div>
                 <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  TTD PIC &amp; Inspector
+                  Draf, TTD, atau revisi
                 </div>
               </div>
             </div>
-          </div>
+          </button>
 
-          {/* Card 4: Selesai / LHPP Final */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+          {/* Card 3: Pekerjaan Mendatang */}
+          <button
+            type="button"
+            onClick={() => {
+              setFieldTab('UPCOMING');
+              setDisplayMode('TABBED');
+            }}
+            className={`text-left rounded-xl p-4 sm:p-5 border transition-all shadow-xs ${
+              fieldTab === 'UPCOMING'
+                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 ring-2 ring-blue-500/20'
+                : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                <CalendarBlank size={22} weight="bold" aria-hidden="true" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 mb-0.5">
+                  Pekerjaan Mendatang
+                </p>
+                <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums leading-none">
+                  {categorizedUnits.upcoming.length}
+                </div>
+                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
+                  Terjadwal hari berikutnya
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* Card 4: Riwayat Selesai */}
+          <button
+            type="button"
+            onClick={() => {
+              setFieldTab('COMPLETED');
+              setDisplayMode('TABBED');
+            }}
+            className={`text-left rounded-xl p-4 sm:p-5 border transition-all shadow-xs ${
+              fieldTab === 'COMPLETED'
+                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-500/20'
+                : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+            }`}
+          >
             <div className="flex items-center gap-3.5">
               <div className="h-11 w-11 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
                 <CheckCircle size={22} weight="bold" aria-hidden="true" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                  LHPP Final &amp; Terbit
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-0.5">
+                  Riksa Uji Selesai
                 </p>
                 <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">
-                  {doneUnits.length || m.publishedLhpp || 0}
+                  {categorizedUnits.completed.length}
                 </div>
-                <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mt-1 truncate">
-                  Dokumen riksa uji selesai
+                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
+                  Dokumen LHPP &amp; BAP terbit
                 </div>
               </div>
             </div>
-          </div>
+          </button>
         </section>
 
-        {/* Banner Panduan Riksa Uji Lapangan Ringkas */}
-        <div className="rounded-xl border border-brand-500/20 bg-rose-50/50 dark:bg-rose-950/20 p-4 sm:p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-lg bg-[#C81E1E] text-white flex items-center justify-center shrink-0 mt-0.5">
-              <ShieldCheck size={18} weight="bold" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                Mode Riksa Uji Lapangan Aktif
-              </p>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                Pastikan identitas unit alat sesuai kondisi fisik, isi form butir uji wajib, ambil foto dokumentasi temuan, dan lakukan penandatanganan digital bersama PIC Klien di lokasi.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-            <Link
-              to="/app/bap"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-            >
-              Arsip BAP
-            </Link>
-            <Link
-              to="/app/lhpp"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-            >
-              Arsip LHPP
-            </Link>
-          </div>
-        </div>
-
-        {/* Section Utama: Daftar Unit Alat dengan Kontrol Filter & Switch Tampilan */}
+        {/* Kontrol Pencarian, Pilihan Tab, dan Tampilan */}
         <section className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 space-y-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span>Unit Alat yang Ditugaskan</span>
+                  <span>Daftar Unit Operasional Riksa Uji</span>
                   <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    {filteredAssignedUnits.length}
+                    {assignedUnits.length}
                   </span>
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Pilih unit alat di bawah untuk membuka form checklist dan dokumentasi riksa uji
+                  Pilih unit alat di bawah untuk membuka form pemeriksaan teknis, dokumentasi foto, dan tanda tangan berita acara
                 </p>
               </div>
 
-              {/* View Switcher: Card vs Table */}
-              <div className="inline-flex items-center p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setFieldViewMode('CARDS')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    fieldViewMode === 'CARDS'
-                      ? 'bg-[#C81E1E] text-white shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <SquaresFour size={14} weight="bold" />
-                  <span>Kartu Lapangan</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFieldViewMode('TABLE')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    fieldViewMode === 'TABLE'
-                      ? 'bg-[#C81E1E] text-white shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Table size={14} weight="bold" />
-                  <span>Tabel Ringkas</span>
-                </button>
+              {/* Tombol Pengatur Tampilan (Kartu vs Tabel & Tab vs Stacked) */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="inline-flex items-center p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode('TABBED')}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                      displayMode === 'TABBED'
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Tampilan Tab
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode('STACKED')}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                      displayMode === 'STACKED'
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Semua Seksi
+                  </button>
+                </div>
+
+                <div className="inline-flex items-center p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setFieldViewMode('CARDS')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                      fieldViewMode === 'CARDS'
+                        ? 'bg-[#C81E1E] text-white shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <SquaresFour size={14} weight="bold" />
+                    <span>Kartu</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFieldViewMode('TABLE')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                      fieldViewMode === 'TABLE'
+                        ? 'bg-[#C81E1E] text-white shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Table size={14} weight="bold" />
+                    <span>Tabel</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Filter Tabs & Search Bar */}
+            {/* Kolom Pencarian Cepat & Tab Navigasi Lapangan */}
             <div className="flex flex-col md:flex-row gap-3 pt-1">
               <div className="relative flex-1">
                 <MagnifyingGlass
@@ -402,399 +462,190 @@ export function DashboardPage() {
                 />
               </div>
 
-              {/* Status Filter Tabs (Touch Friendly) */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-                <button
-                  type="button"
-                  onClick={() => setFieldStatusFilter('ALL')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                    fieldStatusFilter === 'ALL'
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Semua ({assignedUnits.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFieldStatusFilter('TODO')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                    fieldStatusFilter === 'TODO'
-                      ? 'bg-[#C81E1E] text-white'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Perlu Diperiksa ({todoUnits.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFieldStatusFilter('IN_PROGRESS')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                    fieldStatusFilter === 'IN_PROGRESS'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Sedang Berjalan ({inProgressUnits.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFieldStatusFilter('WAITING_DOCS')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                    fieldStatusFilter === 'WAITING_DOCS'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Menunggu TTD / Dokumen ({waitingDocsUnits.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFieldStatusFilter('DONE')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                    fieldStatusFilter === 'DONE'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Selesai ({doneUnits.length})
-                </button>
-              </div>
+              {displayMode === 'TABBED' && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                  <button
+                    type="button"
+                    onClick={() => setFieldTab('TODAY')}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                      fieldTab === 'TODAY'
+                        ? 'bg-[#C81E1E] text-white'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Hari Ini ({categorizedUnits.today.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFieldTab('PENDING')}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                      fieldTab === 'PENDING'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Belum Selesai ({categorizedUnits.pending.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFieldTab('UPCOMING')}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                      fieldTab === 'UPCOMING'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Mendatang ({categorizedUnits.upcoming.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFieldTab('COMPLETED')}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                      fieldTab === 'COMPLETED'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Selesai ({categorizedUnits.completed.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFieldTab('ALL')}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                      fieldTab === 'ALL'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Semua ({assignedUnits.length})
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Isi Konten: Kartu Lapangan vs Tabel Ringkas */}
-          {!filteredAssignedUnits.length ? (
-            <div className="p-8">
-              <EmptyState
-                title="Tidak Ada Unit Alat yang Sesuai"
-                description={
-                  fieldSearch || fieldStatusFilter !== 'ALL'
-                    ? 'Tidak ada unit alat yang cocok dengan filter atau kata kunci pencarian Anda.'
-                    : 'Belum ada unit alat yang ditugaskan kepada Anda saat ini.'
-                }
-              />
-            </div>
-          ) : fieldViewMode === 'CARDS' ? (
-            /* TAMPILAN KARTU LAPANGAN (TOUCH FRIENDLY FOR FIELD TABLETS / MOBILES) */
-            <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredAssignedUnits.map((u) => {
-                const isCompleted = ['LHPP_FINAL', 'LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SELESAI'].includes(
-                  u.unit_status
-                );
-                const isInProgress = ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
-                const isWaitingSign = ['MENUNGGU_TTD', 'PEMERIKSAAN_TERKIRIM'].includes(u.unit_status);
-
-                return (
-                  <div
-                    key={`${u.order_id}-${u.object_id}`}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs"
-                  >
-                    <div className="space-y-3.5">
-                      {/* Top Bar: Kategori & Status Badge */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-[#C81E1E] dark:text-rose-400 font-extrabold text-[11px] tracking-wide">
-                          <span>{u.category_code}</span>
-                          <span className="text-slate-300 dark:text-slate-700">·</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {u.category_name || 'Riksa Uji K3'}
-                          </span>
-                        </div>
-                        <StatusBadge status={u.unit_status} />
-                      </div>
-
-                      {/* Judul Alat & Spesifikasi Utama */}
-                      <div>
-                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-snug">
-                          {u.object_name}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          <span>
-                            No. Seri: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{u.serial_number}</span>
-                          </span>
-                          {u.capacity && (
-                            <>
-                              <span>·</span>
-                              <span>Kapasitas: <span className="font-semibold text-slate-700 dark:text-slate-300">{u.capacity}</span></span>
-                            </>
-                          )}
-                          {u.install_location && (
-                            <>
-                              <span>·</span>
-                              <span>Lokasi: {u.install_location}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Informasi Klien & Lokasi Kerja */}
-                      <div className="rounded-lg bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 p-3 space-y-2 text-xs">
-                        <div className="flex items-start gap-2">
-                          <Building size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-900 dark:text-slate-100">{u.client_name}</p>
-                            <p className="text-[11px] text-[#C81E1E] dark:text-rose-400 font-mono font-semibold">
-                              PO: {u.po_number || u.order_no}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
-                          <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                          <p className="text-[11px] leading-relaxed">
-                            {u.location_name ? `${u.location_name} - ` : ''}
-                            {u.location_address || u.client_address || 'Alamat lokasi pemeriksaan'}
-                            {u.location_city ? `, ${u.location_city}` : ''}
-                          </p>
-                        </div>
-
-                        {/* Kontak PIC Lapangan dengan Tombol Cepat */}
-                        {(u.contact_name || u.contact_phone) && (
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 min-w-0">
-                              <User size={14} className="text-slate-400 shrink-0" />
-                              <span className="font-semibold truncate">PIC: {u.contact_name || 'PIC Klien'}</span>
-                            </div>
-                            {u.contact_phone && (
-                              <div className="flex items-center gap-2 shrink-0">
-                                <a
-                                  href={`tel:${String(u.contact_phone).trim()}`}
-                                  title="Hubungi PIC via Telepon"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-semibold hover:bg-slate-300 min-h-[32px]"
-                                >
-                                  <Phone size={12} weight="bold" />
-                                  <span>Telepon</span>
-                                </a>
-                                <a
-                                  href={`https://wa.me/${String(u.contact_phone).replace(/\D/g, '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Hubungi PIC via WhatsApp"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold hover:bg-emerald-200 min-h-[32px]"
-                                >
-                                  <WhatsappLogo size={13} weight="bold" />
-                                  <span>WhatsApp</span>
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Jadwal Pelaksanaan */}
-                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <CalendarBlank size={15} className="text-slate-400 shrink-0" />
-                        <span>
-                          Jadwal: <span className="font-semibold text-slate-800 dark:text-slate-200">{u.start_at ? formatDateTime(u.start_at) : 'Belum dijadwalkan'}</span>
-                        </span>
-                        <span>·</span>
-                        <span className="font-medium text-slate-600 dark:text-slate-300">
-                          {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
-                        </span>
-                      </div>
-
-                      {/* Nomor Dokumen jika sudah terbit */}
-                      {(u.bap_no || u.lhpp_no) && (
-                        <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2.5 text-xs space-y-1">
-                          {u.bap_no && (
-                            <div className="flex items-center justify-between font-mono text-[11px]">
-                              <span className="text-slate-500">No. BAP:</span>
-                              <span className="font-bold text-[#C81E1E] dark:text-rose-400">{u.bap_no}</span>
-                            </div>
-                          )}
-                          {u.lhpp_no && (
-                            <div className="flex items-center justify-between font-mono text-[11px]">
-                              <span className="text-slate-500">No. LHPP:</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200">{u.lhpp_no}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Catatan Review bila ada koreksi */}
-                      {u.review_notes && (
-                        <div className="rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 p-2.5 text-xs text-rose-800 dark:text-rose-300">
-                          <span className="font-bold">Catatan Perbaikan: </span>
-                          <span>{u.review_notes}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tombol Aksi Lapangan yang Menonjol & Mudah Ditekan */}
-                    <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                      <Link
-                        to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-                        className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-xs"
-                      >
-                        {isInProgress ? (
-                          <>
-                            <ClipboardText size={18} weight="bold" />
-                            <span>Lanjutkan Ceklis &amp; Foto</span>
-                          </>
-                        ) : isWaitingSign ? (
-                          <>
-                            <PenNib size={18} weight="bold" />
-                            <span>Tanda Tangan &amp; Finalisasi</span>
-                          </>
-                        ) : isCompleted ? (
-                          <>
-                            <FileText size={18} weight="bold" />
-                            <span>Lihat Hasil Pengujian</span>
-                          </>
-                        ) : (
-                          <>
-                            <Wrench size={18} weight="bold" />
-                            <span>Mulai Riksa Uji Lapangan</span>
-                          </>
-                        )}
-                      </Link>
-
-                      {/* Tombol Cepat Unduh Dokumen (jika BAP / LHPP sudah ada) */}
-                      {(u.bap_id || u.lhpp_id) && (
-                        <div className="flex items-center gap-2 pt-1">
-                          {u.bap_id && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDownloadPdf(
-                                  `/bap/${u.bap_id}/pdf`,
-                                  `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                                )
-                              }
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs"
-                            >
-                              <DownloadSimple size={14} weight="bold" />
-                              <span>Unduh BAP</span>
-                            </button>
-                          )}
-                          {u.lhpp_id && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDownloadPdf(
-                                  `/lhpp/${u.lhpp_id}/pdf`,
-                                  `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                                )
-                              }
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs"
-                            >
-                              <DownloadSimple size={14} weight="bold" />
-                              <span>Unduh LHPP</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Rendering Konten Unit: Berdasarkan Tab atau 3 Area Seksi Stacked */}
+          {displayMode === 'TABBED' ? (
+            /* MODE TAB TUNGGAL */
+            filteredUnitsForTab.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  title="Tidak Ada Unit pada Kategori Ini"
+                  description={
+                    fieldSearch
+                      ? 'Tidak ada unit alat yang cocok dengan kata kunci pencarian Anda.'
+                      : 'Belum ada unit riksa uji pada kelompok ini saat ini.'
+                  }
+                />
+              </div>
+            ) : fieldViewMode === 'CARDS' ? (
+              <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredUnitsForTab.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+              </div>
+            ) : (
+              renderInspectorUnitTable(filteredUnitsForTab, handleDownloadPdf)
+            )
           ) : (
-            /* TAMPILAN TABEL RINGKAS (UNTUK INSPEKSI CEPAT BARIS PER BARIS) */
-            <TableWrapper containerClassName="border-0 shadow-none rounded-none">
-              <TableHead>
-                <tr>
-                  <TableCell isHeader>Nomor PO &amp; Klien</TableCell>
-                  <TableCell isHeader>Unit Alat &amp; Spesifikasi</TableCell>
-                  <TableCell isHeader>Jadwal &amp; Layanan</TableCell>
-                  <TableCell isHeader>Status &amp; Dokumen</TableCell>
-                  <TableCell isHeader className="text-right">Aksi Pelaksanaan</TableCell>
-                </tr>
-              </TableHead>
-              <TableBody>
-                {filteredAssignedUnits.map((u) => (
-                  <TableRow key={`${u.order_id}-${u.object_id}`}>
-                    <TableCell>
-                      <div className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
-                        {u.po_number || u.order_no}
-                      </div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100 mt-0.5">{u.client_name}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {u.location_name || u.install_location || u.client_address || '-'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{u.object_name}</div>
-                      <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">{u.category_code}</span> ·
-                        SN: <span className="font-mono font-semibold">{u.serial_number}</span>{' '}
-                        {u.capacity ? `· ${u.capacity}` : ''}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">
-                        {u.start_at ? formatDateTime(u.start_at) : 'Belum dijadwalkan'}
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={u.unit_status} />
-                      {u.bap_no && (
-                        <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-rose-400">
-                          BAP: {u.bap_no} ({u.bap_status})
-                        </div>
-                      )}
-                      {u.lhpp_no && (
-                        <div className="mt-0.5 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                          LHPP: {u.lhpp_no} ({u.lhpp_status})
-                        </div>
-                      )}
-                      {u.review_notes && u.lhpp_status === 'DIKEMBALIKAN' && (
-                        <div className="mt-1 text-[11px] text-rose-700 dark:text-rose-400 font-semibold">
-                          Catatan: {u.review_notes}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-1.5">
-                        <Link
-                          to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-                          className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold hover:bg-[#a61717] text-xs shadow-2xs"
-                        >
-                          {u.inspection_status === 'TERKIRIM' ? 'Lihat Form Uji' : 'Kerjakan Uji'}
-                        </Link>
-                        {u.bap_id && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDownloadPdf(
-                                `/bap/${u.bap_id}/pdf`,
-                                `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                          >
-                            <DownloadSimple size={13} weight="bold" />
-                            <span>BAP</span>
-                          </button>
-                        )}
-                        {u.lhpp_id && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDownloadPdf(
-                                `/lhpp/${u.lhpp_id}/pdf`,
-                                `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                          >
-                            <DownloadSimple size={13} weight="bold" />
-                            <span>LHPP</span>
-                          </button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </TableWrapper>
+            /* MODE SEMUA 3 SEKSI STACKED */
+            <div className="p-4 sm:p-5 space-y-8">
+              {/* Seksi 1: Pekerjaan Hari Ini */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-rose-200 dark:border-rose-900/60">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#C81E1E]" />
+                    <h3 className="text-sm font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                      1. Pekerjaan Hari Ini ({todayFiltered.length})
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-rose-600 dark:text-rose-400">Prioritas Utama</span>
+                </div>
+                {todayFiltered.length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 italic py-2">
+                    Tidak ada jadwal riksa uji lapangan baru untuk hari ini.
+                  </p>
+                ) : fieldViewMode === 'CARDS' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {todayFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                  </div>
+                ) : (
+                  renderInspectorUnitTable(todayFiltered, handleDownloadPdf)
+                )}
+              </div>
+
+              {/* Seksi 2: Pekerjaan Belum Selesai */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-amber-200 dark:border-amber-900/60">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                    <h3 className="text-sm font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                      2. Pekerjaan Belum Selesai ({pendingFiltered.length})
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Perlu Tindakan Lanjutan</span>
+                </div>
+                {pendingFiltered.length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 italic py-2">
+                    Semua pemeriksaan yang berjalan telah diselesaikan dan ditandatangani.
+                  </p>
+                ) : fieldViewMode === 'CARDS' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pendingFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                  </div>
+                ) : (
+                  renderInspectorUnitTable(pendingFiltered, handleDownloadPdf)
+                )}
+              </div>
+
+              {/* Seksi 3: Pekerjaan Mendatang */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-blue-200 dark:border-blue-900/60">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    <h3 className="text-sm font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                      3. Pekerjaan Mendatang ({upcomingFiltered.length})
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Persiapan Alat &amp; Berkas</span>
+                </div>
+                {upcomingFiltered.length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 italic py-2">
+                    Belum ada penugasan baru yang dijadwalkan pada hari-hari berikutnya.
+                  </p>
+                ) : fieldViewMode === 'CARDS' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {upcomingFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                  </div>
+                ) : (
+                  renderInspectorUnitTable(upcomingFiltered, handleDownloadPdf)
+                )}
+              </div>
+
+              {/* Seksi 4: Riwayat Selesai */}
+              {completedFiltered.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-emerald-200 dark:border-emerald-900/60">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      <h3 className="text-sm font-extrabold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                        4. Riwayat Riksa Uji Selesai ({completedFiltered.length})
+                      </h3>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Arsip Terbit</span>
+                  </div>
+                  {fieldViewMode === 'CARDS' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {completedFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                    </div>
+                  ) : (
+                    renderInspectorUnitTable(completedFiltered, handleDownloadPdf)
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </section>
 
-        {/* Antrean Pekerjaan Saya (Work Queue) untuk Notifikasi Tindak Lanjut */}
+        {/* Antrean Pekerjaan Saya (Work Queue) */}
         <section aria-label="Antrean Pekerjaan Saya">
           <WorkQueueWidget />
         </section>
@@ -803,7 +654,7 @@ export function DashboardPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // TAMPILAN DASHBOARD UTAMA (ADMIN SISTEM, ADMIN KANTOR, PIMPINAN) - METIS THEME
+  // TAMPILAN DASHBOARD UTAMA (ADMIN SISTEM, MARKETING, PIMPINAN) - METIS THEME
   // ---------------------------------------------------------------------------
   return (
     <div className="space-y-6">
@@ -1022,48 +873,44 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Unified Work Queue (Action Queue) */}
+          {/* Action Queue */}
           <WorkQueueWidget />
         </div>
 
-        {/* Right Column (4-cols): Metis Signature Recent Activity Feed */}
-        <div className="lg:col-span-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden flex flex-col h-full">
-            <div className="px-5 py-4 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+        {/* Right Column (4-cols): Recent Activity Stream */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
+            <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Log Aktivitas Terkini
                 </h2>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Riwayat audit &amp; penanganan sistem
-                </p>
               </div>
-              <Link
-                to="/app/audit-logs"
-                className="text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
-              >
-                Semua Log →
-              </Link>
+              <span className="text-[11px] font-medium text-slate-400">
+                {(data.recentActivities || []).length} entri
+              </span>
             </div>
 
-            {/* Metis Activity Feed List */}
-            <div className="p-4 flex-1 overflow-y-auto max-h-[560px] scrollbar-thin divide-y divide-slate-100 dark:divide-slate-800">
-              {!data.recentActivities?.length ? (
-                <p className="text-xs text-slate-400 text-center py-12">Belum ada aktivitas tercatat.</p>
+            <div className="p-4 divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[460px] overflow-y-auto">
+              {(data.recentActivities || []).length === 0 ? (
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-8">
+                  Belum ada aktivitas operasional tercatat hari ini.
+                </p>
               ) : (
-                data.recentActivities.map((act) => (
+                (data.recentActivities || []).map((act) => (
                   <div key={act.id} className="py-3 first:pt-0 last:pb-0 flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
-                      <Clock size={16} weight="bold" />
+                    <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                      <User size={13} weight="bold" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 leading-snug">
-                        {act.action || 'Aktivitas'} · <span className="font-mono text-slate-600 dark:text-slate-400">{act.entity || 'Sistem'}</span>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {act.action?.replace(/_/g, ' ') || 'Aktivitas'}
                       </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                        {act.user_name || 'Sistem'} ({ROLE_LABELS[act.user_role] || act.user_role || 'Sistem'})
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                        {act.user_name || 'Sistem'} · {act.user_role || '-'}
                       </p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                         {formatRelativeTime(act.created_at)}
                       </p>
                     </div>
@@ -1072,189 +919,318 @@ export function DashboardPage() {
               )}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* 4. Metis Secondary Section: Recent Orders Table (8-cols) + Distribution Card (4-cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left (8-cols): Recent Orders Table */}
-        <section className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-          <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Purchase Order Terbaru
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Pekerjaan riksa uji yang baru dicatat dan sedang berjalan
-              </p>
+          {/* Quick Help Card */}
+          <div className="rounded-xl border border-rose-200/70 dark:border-rose-900/40 bg-gradient-to-br from-rose-50/60 to-white dark:from-rose-950/20 dark:to-slate-900 p-5 space-y-3 shadow-2xs">
+            <div className="flex items-center gap-2 text-[#C81E1E] dark:text-rose-400">
+              <ShieldCheck size={20} weight="bold" />
+              <h3 className="text-xs font-bold uppercase tracking-wider">
+                Integritas Riksa Uji K3
+              </h3>
             </div>
-            <Link
-              to="/app/orders"
-              className="text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
-            >
-              Kelola Semua Order →
-            </Link>
-          </div>
-
-          {!data.recentOrders?.length ? (
-            <div className="p-6">
-              <EmptyState
-                title="Belum Ada Order Pemeriksaan"
-                description="Order pemeriksaan yang baru dicatat akan tampil secara otomatis pada tabel ini."
-              />
-            </div>
-          ) : (
-            <TableWrapper containerClassName="border-0 shadow-none rounded-none">
-              <TableHead>
-                <tr>
-                  <TableCell isHeader>Nomor Order</TableCell>
-                  <TableCell isHeader>Perusahaan Klien</TableCell>
-                  <TableCell isHeader>Layanan</TableCell>
-                  <TableCell isHeader>Status</TableCell>
-                  <TableCell isHeader>Tanggal</TableCell>
-                </tr>
-              </TableHead>
-              <TableBody>
-                {data.recentOrders.map((ord) => (
-                  <TableRow key={ord.id}>
-                    <TableCell className="font-mono font-bold">
-                      <Link
-                        to={`/app/orders?orderId=${ord.id}`}
-                        className="text-[#C81E1E] dark:text-rose-400 hover:underline"
-                      >
-                        {ord.order_no}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-semibold text-slate-900 dark:text-slate-100">
-                      {ord.client_name}
-                    </TableCell>
-                    <TableCell className="text-slate-500 dark:text-slate-400 text-xs">
-                      {SERVICE_TYPE_LABELS[ord.service_type] || ord.service_type}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        status={ord.status}
-                        label={ORDER_STATUS_LABELS[ord.status] || ord.status}
-                      />
-                    </TableCell>
-                    <TableCell className="text-slate-500 dark:text-slate-400 text-xs">
-                      {formatDate(ord.created_at)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </TableWrapper>
-          )}
-        </section>
-
-        {/* Right (4-cols): Metis Status & Equipment Distribution Card */}
-        <section className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden flex flex-col justify-between p-5">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <ChartBar size={18} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Distribusi Objek per Bidang K3
-                </h2>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Komposisi</span>
-            </div>
-
-            {(() => {
-              const cats = data.analytics?.categoryDistribution || [];
-              const totalUnits = cats.reduce((acc, c) => acc + Number(c.unit_count || 0), 0);
-              const maxCount = Math.max(...cats.map((c) => Number(c.unit_count || 0)), 1);
-
-              return (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                    <span>Total Database Unit</span>
-                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{totalUnits} Unit</span>
-                  </div>
-                  <div className="space-y-3">
-                    {cats.slice(0, 5).map((cat) => {
-                      const count = Number(cat.unit_count || 0);
-                      const pct = totalUnits > 0 ? Math.round((count / totalUnits) * 100) : 0;
-                      const barWidth = Math.round((count / maxCount) * 100);
-                      return (
-                        <div key={cat.code} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-slate-800 dark:text-slate-200">
-                              {cat.code}{' '}
-                              <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                                ({cat.name})
-                              </span>
-                            </span>
-                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                              {count} unit ({pct}%)
-                            </span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                            <div
-                              style={{ width: `${barWidth}%` }}
-                              className="h-full rounded-full bg-[#C81E1E] dark:bg-rose-500"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </section>
-      </div>
-
-      {/* 5. Peta Interaktif Sebaran Wilayah Pengujian Indonesia */}
-      {data.analytics?.regionalMapping && (
-        <IndonesiaMapWidget regions={data.analytics.regionalMapping} />
-      )}
-
-      {/* 6. Beban Kerja Tim Ahli K3 */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-        <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Beban Kerja Tim Ahli K3
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Distribusi penugasan lapangan dan kapasitas personel
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Seluruh proses riksa uji dari pencatatan PO multi-unit, lembar kerja digital, BAP, hingga penerbitan LHPP dilindungi oleh jejak audit sistem yang tidak dapat diubah (append-only).
             </p>
-          </div>
-          <Link
-            to="/app/schedule"
-            className="text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
-          >
-            Jadwal &amp; Penugasan →
-          </Link>
-        </div>
-
-        {!data.inspectorWorkload?.length ? (
-          <div className="p-6">
-            <EmptyState title="Belum Ada Personel Ahli K3 Terdaftar" />
-          </div>
-        ) : (
-          <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {data.inspectorWorkload.map((ins) => (
-              <div
-                key={ins.id}
-                className="p-3.5 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+            <div className="pt-1">
+              <Link
+                to="/app/audit-log"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
               >
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-slate-100 truncate">{ins.full_name}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    {ins.completed_inspections} inspeksi selesai disetujui
-                  </p>
-                </div>
-                <span className="shrink-0 px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 text-xs shadow-2xs">
-                  {ins.active_assignments} Tugas Aktif
-                </span>
-              </div>
-            ))}
+                <span>Buka Log Audit Lengkap</span>
+                <ArrowRight size={13} weight="bold" />
+              </Link>
+            </div>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* 4. Lower Section: Sebaran Geografis Objek Uji */}
+      <section aria-label="Sebaran Geografis Objek Uji K3">
+        <IndonesiaMapWidget provinceDistribution={data.analytics?.provinceDistribution || []} />
       </section>
     </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// HELPER KOMPONEN KARTU UNIT UNTUK INSPECTOR
+// -----------------------------------------------------------------------------
+function renderInspectorUnitCard(u, handleDownloadPdf) {
+  const isCompleted = [
+    'LHPP_FINAL',
+    'LHPP_TERBIT',
+    'BAP_FINAL',
+    'SIAP_DISTRIBUSI',
+    'SEBAGIAN_DOKUMEN_DIKIRIM',
+    'SELESAI'
+  ].includes(u.unit_status);
+  const isInProgress = ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status);
+  const isWaitingSign = ['MENUNGGU_TTD', 'PEMERIKSAAN_TERKIRIM'].includes(u.unit_status);
+  const isReturned = u.lhpp_status === 'DIKEMBALIKAN';
+
+  const contactPhone = u.contact_phone || u.client_phone;
+  const waNumber = contactPhone ? contactPhone.replace(/\D/g, '').replace(/^0/, '62') : null;
+
+  return (
+    <div
+      key={`${u.order_id}-${u.object_id}`}
+      className={`rounded-xl border bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between transition-all shadow-xs ${
+        isReturned
+          ? 'border-rose-400 bg-rose-50/20 dark:border-rose-800 dark:bg-rose-950/10'
+          : isInProgress
+          ? 'border-blue-300 dark:border-blue-800'
+          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+      }`}
+    >
+      <div className="space-y-3.5">
+        {/* Top Bar: Kategori & Status Badge */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-[#C81E1E] dark:text-rose-400 font-extrabold text-[11px] tracking-wide">
+            <span>{u.category_code}</span>
+            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              {u.category_name || 'Riksa Uji K3'}
+            </span>
+          </div>
+          <StatusBadge status={u.unit_status} />
+        </div>
+
+        {/* Informasi Utama Unit Alat */}
+        <div>
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 leading-snug">
+            {u.object_name}
+          </h3>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <span>
+              SN: <strong className="font-mono text-slate-800 dark:text-slate-200">{u.serial_number}</strong>
+            </span>
+            {u.capacity && (
+              <>
+                <span>·</span>
+                <span>Kapasitas: <strong className="text-slate-800 dark:text-slate-200">{u.capacity}</strong></span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Info PO & Perusahaan Klien */}
+        <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 p-3 space-y-1.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
+              PO: {u.po_number || u.order_no}
+            </span>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
+            </span>
+          </div>
+          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+            <Building size={14} className="text-slate-400 shrink-0" />
+            <span className="truncate">{u.client_name}</span>
+          </div>
+          <div className="text-slate-600 dark:text-slate-400 flex items-start gap-1.5 text-[11px]">
+            <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
+            <span className="line-clamp-2">
+              {u.location_name ? `${u.location_name} · ` : ''}
+              {u.location_address || u.install_location || u.client_address || 'Lokasi belum diinput'}
+            </span>
+          </div>
+
+          {/* Kontak PIC Lapangan */}
+          {contactPhone && (
+            <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                PIC: <strong className="text-slate-800 dark:text-slate-200">{u.contact_name || 'Petugas Lapangan'}</strong>
+              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={`tel:${contactPhone}`}
+                  title="Hubungi telepon"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50"
+                >
+                  <Phone size={12} weight="bold" />
+                  <span>Telepon</span>
+                </a>
+                {waNumber && (
+                  <a
+                    href={`https://wa.me/${waNumber}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Hubungi WhatsApp"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
+                  >
+                    <WhatsappLogo size={12} weight="bold" />
+                    <span>WA</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Catatan Revisi jika LHPP dikembalikan */}
+        {isReturned && u.review_notes && (
+          <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-2.5 text-xs text-rose-800 dark:text-rose-300">
+            <span className="font-bold flex items-center gap-1 mb-0.5">
+              <WarningCircle size={14} weight="bold" /> Catatan Revisi Riksa Uji:
+            </span>
+            <p>{u.review_notes}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Action Strip: Kerjakan Uji Lapangan / Unduh Berkas */}
+      <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          {u.start_at ? `Jadwal: ${formatDate(u.start_at)}` : 'Jadwal fleksibel'}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {u.bap_id && (
+            <button
+              type="button"
+              onClick={() =>
+                handleDownloadPdf(
+                  `/bap/${u.bap_id}/pdf`,
+                  `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
+                )
+              }
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold"
+            >
+              <DownloadSimple size={13} weight="bold" />
+              <span>BAP</span>
+            </button>
+          )}
+
+          {u.lhpp_id && (
+            <button
+              type="button"
+              onClick={() =>
+                handleDownloadPdf(
+                  `/lhpp/${u.lhpp_id}/pdf`,
+                  `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
+                )
+              }
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold"
+            >
+              <DownloadSimple size={13} weight="bold" />
+              <span>LHPP</span>
+            </button>
+          )}
+
+          <Link
+            to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] transition-all text-xs font-bold shadow-2xs"
+          >
+            <ClipboardText size={14} weight="bold" />
+            <span>
+              {isCompleted ? 'Lihat Form Uji' : isInProgress ? 'Lanjutkan Uji' : 'Kerjakan Uji Lapangan'}
+            </span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// HELPER TABEL UNIT UNTUK INSPECTOR
+// -----------------------------------------------------------------------------
+function renderInspectorUnitTable(units, handleDownloadPdf) {
+  return (
+    <TableWrapper containerClassName="border-0 shadow-none rounded-none">
+      <TableHead>
+        <tr>
+          <TableCell isHeader>Nomor PO &amp; Klien</TableCell>
+          <TableCell isHeader>Unit Alat &amp; Spesifikasi</TableCell>
+          <TableCell isHeader>Jadwal &amp; Layanan</TableCell>
+          <TableCell isHeader>Status &amp; Dokumen</TableCell>
+          <TableCell isHeader className="text-right">Aksi Pelaksanaan</TableCell>
+        </tr>
+      </TableHead>
+      <TableBody>
+        {units.map((u) => (
+          <TableRow key={`${u.order_id}-${u.object_id}`}>
+            <TableCell>
+              <div className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
+                {u.po_number || u.order_no}
+              </div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 mt-0.5">{u.client_name}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-xs">
+                {u.location_name || u.install_location || u.client_address || '-'}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="font-bold text-slate-900 dark:text-slate-100">{u.object_name}</div>
+              <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{u.category_code}</span> ·
+                SN: <span className="font-mono font-semibold">{u.serial_number}</span>{' '}
+                {u.capacity ? `· ${u.capacity}` : ''}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">
+                {u.start_at ? formatDateTime(u.start_at) : 'Belum dijadwalkan'}
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
+              </div>
+            </TableCell>
+            <TableCell>
+              <StatusBadge status={u.unit_status} />
+              {u.bap_no && (
+                <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-rose-400">
+                  BAP: {u.bap_no} ({u.bap_status})
+                </div>
+              )}
+              {u.lhpp_no && (
+                <div className="mt-0.5 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  LHPP: {u.lhpp_no} ({u.lhpp_status})
+                </div>
+              )}
+            </TableCell>
+            <TableCell className="text-right">
+              <div className="inline-flex flex-wrap justify-end gap-1.5">
+                <Link
+                  to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+                  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold hover:bg-[#a61717] text-xs shadow-2xs"
+                >
+                  {u.inspection_status === 'TERKIRIM' ? 'Lihat Form Uji' : 'Kerjakan Uji'}
+                </Link>
+                {u.bap_id && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadPdf(
+                        `/bap/${u.bap_id}/pdf`,
+                        `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
+                      )
+                    }
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                  >
+                    <DownloadSimple size={13} weight="bold" />
+                    <span>BAP</span>
+                  </button>
+                )}
+                {u.lhpp_id && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadPdf(
+                        `/lhpp/${u.lhpp_id}/pdf`,
+                        `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
+                      )
+                    }
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                  >
+                    <DownloadSimple size={13} weight="bold" />
+                    <span>LHPP</span>
+                  </button>
+                )}
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </TableWrapper>
   );
 }
