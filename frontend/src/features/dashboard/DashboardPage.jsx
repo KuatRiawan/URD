@@ -38,13 +38,17 @@ import {
   WarningCircle,
   WarningOctagon,
   WhatsappLogo,
-  Wrench
+  Wrench,
+  Play,
+  XCircle,
+  Eye
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { StatusBadge } from '../../components/ui/Badge.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { TableWrapper, TableHead, TableBody, TableRow, TableCell } from '../../components/ui/TableWrapper.jsx';
+import { Modal } from '../../components/ui/Modal.jsx';
 import { WorkQueueWidget } from './WorkQueueWidget.jsx';
 import { SplineAreaChart } from './SplineAreaChart.jsx';
 import { IndonesiaMapWidget } from './IndonesiaMapWidget.jsx';
@@ -113,17 +117,53 @@ export function DashboardPage() {
 
   const assignedUnits = useMemo(() => data?.assignedUnits || [], [data]);
 
-  // Klasifikasi unit lapangan ke dalam 3 area operasional utama
+  // Modal & state untuk konfirmasi terima / tolak / batal penugasan riksa uji
+  const [rejectModalData, setRejectModalData] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState('');
+
+  const handleRespondAssignment = async (orderId, assignmentId, decision, customReason = '') => {
+    setActionLoading(true);
+    setError('');
+    setActionFeedback('');
+    try {
+      await api.post(`/orders/${orderId}/assignments/${assignmentId}/respond`, {
+        decision,
+        rejectReason: decision === 'DITOLAK' ? (customReason || rejectReason).trim() : undefined
+      });
+      setRejectModalData(null);
+      setRejectReason('');
+      setActionFeedback(
+        decision === 'DITERIMA'
+          ? 'Penugasan berhasil diterima! Silakan mulai pengujian riksa uji saat tiba di lokasi.'
+          : 'Penugasan berhasil ditolak atau dibatalkan.'
+      );
+      await loadSummary(true);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Klasifikasi unit lapangan ke dalam area operasional utama
   const categorizedUnits = useMemo(() => {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+    const confirmationList = [];
     const todayList = [];
     const pendingList = [];
     const upcomingList = [];
     const completedList = [];
 
     assignedUnits.forEach((u) => {
+      // 1. Cek apakah penugasan ini masih menunggu konfirmasi penerimaan
+      if (u.assignment_status === 'MENUNGGU') {
+        confirmationList.push(u);
+      }
+
       const isFinished = [
         'LHPP_FINAL',
         'LHPP_TERBIT',
@@ -163,6 +203,7 @@ export function DashboardPage() {
     });
 
     return {
+      confirmation: confirmationList,
       today: todayList,
       pending: pendingList,
       upcoming: upcomingList,
@@ -191,7 +232,8 @@ export function DashboardPage() {
 
   const filteredUnitsForTab = useMemo(() => {
     let list = [];
-    if (fieldTab === 'TODAY') list = categorizedUnits.today;
+    if (fieldTab === 'CONFIRMATION') list = categorizedUnits.confirmation;
+    else if (fieldTab === 'TODAY') list = categorizedUnits.today;
     else if (fieldTab === 'PENDING') list = categorizedUnits.pending;
     else if (fieldTab === 'UPCOMING') list = categorizedUnits.upcoming;
     else if (fieldTab === 'COMPLETED') list = categorizedUnits.completed;
@@ -466,6 +508,31 @@ export function DashboardPage() {
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
                   <button
                     type="button"
+                    onClick={() => setFieldTab('ALL')}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                      fieldTab === 'ALL'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Semua ({assignedUnits.length})
+                  </button>
+                  {categorizedUnits.confirmation.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFieldTab('CONFIRMATION')}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 ${
+                        fieldTab === 'CONFIRMATION'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 hover:bg-rose-100'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      <span>Perlu Konfirmasi ({categorizedUnits.confirmation.length})</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
                     onClick={() => setFieldTab('TODAY')}
                     className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
                       fieldTab === 'TODAY'
@@ -508,17 +575,6 @@ export function DashboardPage() {
                   >
                     Selesai ({categorizedUnits.completed.length})
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setFieldTab('ALL')}
-                    className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                      fieldTab === 'ALL'
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    Semua ({assignedUnits.length})
-                  </button>
                 </div>
               )}
             </div>
@@ -540,10 +596,10 @@ export function DashboardPage() {
               </div>
             ) : fieldViewMode === 'CARDS' ? (
               <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredUnitsForTab.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                {filteredUnitsForTab.map((u) => renderInspectorUnitCard(u, handleDownloadPdf, handleRespondAssignment, setRejectModalData))}
               </div>
             ) : (
-              renderInspectorUnitTable(filteredUnitsForTab, handleDownloadPdf)
+              renderInspectorUnitTable(filteredUnitsForTab, handleDownloadPdf, handleRespondAssignment, setRejectModalData)
             )
           ) : (
             /* MODE SEMUA 3 SEKSI STACKED */
@@ -565,10 +621,10 @@ export function DashboardPage() {
                   </p>
                 ) : fieldViewMode === 'CARDS' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {todayFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                    {todayFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf, handleRespondAssignment, setRejectModalData))}
                   </div>
                 ) : (
-                  renderInspectorUnitTable(todayFiltered, handleDownloadPdf)
+                  renderInspectorUnitTable(todayFiltered, handleDownloadPdf, handleRespondAssignment, setRejectModalData)
                 )}
               </div>
 
@@ -589,10 +645,10 @@ export function DashboardPage() {
                   </p>
                 ) : fieldViewMode === 'CARDS' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {pendingFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                    {pendingFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf, handleRespondAssignment, setRejectModalData))}
                   </div>
                 ) : (
-                  renderInspectorUnitTable(pendingFiltered, handleDownloadPdf)
+                  renderInspectorUnitTable(pendingFiltered, handleDownloadPdf, handleRespondAssignment, setRejectModalData)
                 )}
               </div>
 
@@ -613,10 +669,10 @@ export function DashboardPage() {
                   </p>
                 ) : fieldViewMode === 'CARDS' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {upcomingFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                    {upcomingFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf, handleRespondAssignment, setRejectModalData))}
                   </div>
                 ) : (
-                  renderInspectorUnitTable(upcomingFiltered, handleDownloadPdf)
+                  renderInspectorUnitTable(upcomingFiltered, handleDownloadPdf, handleRespondAssignment, setRejectModalData)
                 )}
               </div>
 
@@ -634,10 +690,10 @@ export function DashboardPage() {
                   </div>
                   {fieldViewMode === 'CARDS' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {completedFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf))}
+                      {completedFiltered.map((u) => renderInspectorUnitCard(u, handleDownloadPdf, handleRespondAssignment, setRejectModalData))}
                     </div>
                   ) : (
-                    renderInspectorUnitTable(completedFiltered, handleDownloadPdf)
+                    renderInspectorUnitTable(completedFiltered, handleDownloadPdf, handleRespondAssignment, setRejectModalData)
                   )}
                 </div>
               )}
@@ -645,10 +701,61 @@ export function DashboardPage() {
           )}
         </section>
 
-        {/* Antrean Pekerjaan Saya (Work Queue) */}
-        <section aria-label="Antrean Pekerjaan Saya">
-          <WorkQueueWidget onRefresh={() => loadSummary(true)} />
-        </section>
+        {/* Modal Konfirmasi Tolak / Batal Penugasan */}
+        <Modal
+          open={Boolean(rejectModalData)}
+          onClose={() => setRejectModalData(null)}
+          title={rejectModalData?.isCancel ? "Batalkan Penerimaan Penugasan" : "Tolak Penugasan Riksa Uji"}
+          size="sm"
+        >
+          <div className="space-y-4 text-xs">
+            <p className="text-slate-600 dark:text-slate-300">
+              {rejectModalData?.isCancel
+                ? `Apakah Anda yakin ingin membatalkan penerimaan penugasan untuk PO/Order ${rejectModalData?.poNo}? Unit akan dikembalikan ke status Terjadwal agar dapat ditugaskan kembali.`
+                : `Mohon tuliskan alasan penolakan penugasan PO/Order ${rejectModalData?.poNo} (misal: jadwal bentrok atau berhalangan).`}
+            </p>
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+                Alasan {rejectModalData?.isCancel ? 'Pembatalan' : 'Penolakan'} *
+              </label>
+              <textarea
+                rows={3}
+                required
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Tuliskan alasan jelas..."
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setRejectModalData(null)}
+                className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading || !rejectReason.trim()}
+                onClick={() =>
+                  handleRespondAssignment(
+                    rejectModalData.orderId,
+                    rejectModalData.assignmentId,
+                    'DITOLAK',
+                    rejectModalData.isCancel
+                      ? `Dibatalkan oleh inspector: ${rejectReason.trim()}`
+                      : rejectReason.trim()
+                  )
+                }
+                className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all disabled:opacity-50"
+              >
+                {actionLoading ? 'Memproses...' : rejectModalData?.isCancel ? 'Konfirmasi Batal' : 'Tolak Penugasan'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     );
   }
@@ -1078,20 +1185,39 @@ function renderInspectorUnitCard(u, handleDownloadPdf) {
         )}
       </div>
 
-      {/* Action Strip: 1 Aksi Utama yang Jelas dan Terarah Sesuai Status */}
+            {/* Action Strip: Aksi Utama Sesuai Status Penugasan & Pelaksanaan */}
       <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
         <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
           {u.start_at ? `Jadwal: ${formatDate(u.start_at)}` : 'Jadwal operasional'}
         </div>
 
         <div className="flex items-center gap-2">
-          {isCompleted ? (
+          {u.assignment_status === 'MENUNGGU' ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+              >
+                <CheckCircle size={15} weight="bold" />
+                <span>Terima</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenRejectModal({ orderId: u.order_id, assignmentId: u.assignment_id, poNo: u.po_number || u.order_no, isCancel: false })}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer"
+              >
+                <XCircle size={15} weight="bold" />
+                <span>Tolak</span>
+              </button>
+            </div>
+          ) : isCompleted ? (
             <Link
               to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all text-xs font-bold shadow-2xs"
             >
-              <CheckCircle size={15} weight="bold" className="text-emerald-600" />
-              <span>Lihat Hasil Pemeriksaan</span>
+              <Eye size={15} weight="bold" className="text-emerald-600" />
+              <span>Review Hasil</span>
             </Link>
           ) : isInProgress ? (
             <Link
@@ -1099,16 +1225,28 @@ function renderInspectorUnitCard(u, handleDownloadPdf) {
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all text-xs font-bold shadow-2xs"
             >
               <ClipboardText size={15} weight="bold" />
-              <span>Lanjutkan Pemeriksaan</span>
+              <span>Lanjutkan Form</span>
             </Link>
           ) : (
-            <Link
-              to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] transition-all text-xs font-bold shadow-2xs"
-            >
-              <ClipboardText size={15} weight="bold" />
-              <span>Mulai Pemeriksaan</span>
-            </Link>
+            <div className="flex items-center gap-1.5">
+              <Link
+                to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] transition-all text-xs font-bold shadow-2xs"
+              >
+                <Play size={14} weight="fill" />
+                <span>Mulai Kerjakan</span>
+              </Link>
+              {!u.inspection_id && (
+                <button
+                  type="button"
+                  title="Batalkan penerimaan penugasan ini"
+                  onClick={() => onOpenRejectModal({ orderId: u.order_id, assignmentId: u.assignment_id, poNo: u.po_number || u.order_no, isCancel: true })}
+                  className="px-2 py-1.5 rounded text-[11px] font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -1119,7 +1257,7 @@ function renderInspectorUnitCard(u, handleDownloadPdf) {
 // -----------------------------------------------------------------------------
 // HELPER TABEL UNIT UNTUK INSPECTOR
 // -----------------------------------------------------------------------------
-function renderInspectorUnitTable(units, handleDownloadPdf) {
+function renderInspectorUnitTable(units, handleDownloadPdf, onRespondAssignment, onOpenRejectModal) {
   return (
     <TableWrapper containerClassName="border-0 shadow-none rounded-none">
       <TableHead>
@@ -1160,49 +1298,99 @@ function renderInspectorUnitTable(units, handleDownloadPdf) {
               </div>
             </TableCell>
             <TableCell>
-              <StatusBadge status={u.unit_status} />
-              {u.bap_no && (
-                <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-rose-400">
-                  BAP: {u.bap_no} ({u.bap_status})
-                </div>
-              )}
-              {u.lhpp_no && (
-                <div className="mt-0.5 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                  LHPP: {u.lhpp_no} ({u.lhpp_status})
-                </div>
+              {u.assignment_status === 'MENUNGGU' ? (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                  Menunggu Konfirmasi
+                </span>
+              ) : (
+                <>
+                  <StatusBadge status={u.unit_status} />
+                  {u.bap_no && (
+                    <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-rose-400">
+                      BAP: {u.bap_no} ({u.bap_status})
+                    </div>
+                  )}
+                  {u.lhpp_no && (
+                    <div className="mt-0.5 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                      LHPP: {u.lhpp_no} ({u.lhpp_status})
+                    </div>
+                  )}
+                </>
               )}
             </TableCell>
             <TableCell className="text-right">
-              <div className="inline-flex items-center justify-end gap-1.5">
-                <Link
-                  to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs ${
-                    [
+              {u.assignment_status === 'MENUNGGU' ? (
+                <div className="inline-flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA')}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <CheckCircle size={14} weight="bold" />
+                    <span>Terima</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenRejectModal({ orderId: u.order_id, assignmentId: u.assignment_id, poNo: u.po_number || u.order_no, isCancel: false })}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <XCircle size={14} weight="bold" />
+                    <span>Tolak</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="inline-flex items-center justify-end gap-1.5">
+                  <Link
+                    to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-all ${
+                      [
+                        'LHPP_FINAL',
+                        'LHPP_TERBIT',
+                        'BAP_FINAL',
+                        'SIAP_DISTRIBUSI',
+                        'SELESAI'
+                      ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM'
+                        ? 'border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
+                        : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status) || u.inspection_id
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-[#C81E1E] hover:bg-[#a61717] text-white'
+                    }`}
+                  >
+                    {[
                       'LHPP_FINAL',
                       'LHPP_TERBIT',
                       'BAP_FINAL',
                       'SIAP_DISTRIBUSI',
                       'SELESAI'
-                    ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM'
-                      ? 'border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
-                      : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
-                  }`}
-                >
-                  {[
-                    'LHPP_FINAL',
-                    'LHPP_TERBIT',
-                    'BAP_FINAL',
-                    'SIAP_DISTRIBUSI',
-                    'SELESAI'
-                  ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM'
-                    ? 'Lihat Hasil'
-                    : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)
-                    ? 'Lanjutkan Uji'
-                    : 'Mulai Pemeriksaan'}
-                </Link>
-              </div>
+                    ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM' ? (
+                      <>
+                        <Eye size={14} weight="bold" />
+                        <span>Review Hasil</span>
+                      </>
+                    ) : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status) || u.inspection_id ? (
+                      <>
+                        <ClipboardText size={14} weight="bold" />
+                        <span>Lanjutkan Form</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={13} weight="fill" />
+                        <span>Mulai Kerjakan</span>
+                      </>
+                    )}
+                  </Link>
+                  {!u.inspection_id && (
+                    <button
+                      type="button"
+                      title="Batalkan penerimaan penugasan ini"
+                      onClick={() => onOpenRejectModal({ orderId: u.order_id, assignmentId: u.assignment_id, poNo: u.po_number || u.order_no, isCancel: true })}
+                      className="px-2 py-1.5 rounded text-[11px] font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  )}
+                </div>
+              )}
             </TableCell>
           </TableRow>
         ))}

@@ -115,7 +115,8 @@ router.get('/summary', async (req, res, next) => {
                   s.start_at, s.end_at, s.notes AS schedule_notes,
                   i.id AS inspection_id, i.status AS inspection_status,
                   b.id AS bap_id, b.bap_no, b.status AS bap_status,
-                  l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status, l.review_notes
+                  l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status, l.review_notes,
+                  asg.id AS assignment_id, asg.status AS assignment_status, asg.reject_reason
            FROM order_objects oo
            JOIN orders o ON o.id = oo.order_id
            JOIN clients c ON c.id = o.client_id
@@ -127,6 +128,13 @@ router.get('/summary', async (req, res, next) => {
            LEFT JOIN inspections i ON i.order_id = oo.order_id AND i.object_id = oo.object_id
            LEFT JOIN bap_documents b ON b.inspection_id = i.id
            LEFT JOIN lhpp_documents l ON l.inspection_id = i.id
+           LEFT JOIN LATERAL (
+             SELECT id, status, reject_reason
+             FROM assignments
+             WHERE order_id = o.id AND inspector_id = $1
+             ORDER BY created_at DESC
+             LIMIT 1
+           ) asg ON true
            WHERE (oo.inspector_id = $1 OR o.id IN (
              SELECT order_id FROM assignments WHERE inspector_id = $1 AND status IN ('MENUNGGU','DITERIMA')
            ))

@@ -20,7 +20,8 @@ import {
   Trash,
   Warning,
   WarningCircle,
-  X
+  X,
+  XCircle
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
@@ -70,7 +71,6 @@ export function InspectionsPage() {
 
   const [activeDetail, setActiveDetail] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [formStep, setFormStep] = useState(1);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [isAutosaving, setIsAutosaving] = useState(false);
@@ -87,14 +87,19 @@ export function InspectionsPage() {
     description: '',
     recommendation: ''
   });
-  const [sigForm, setSigForm] = useState({
-    signerRole: 'AHLI_K3',
-    signerName: '',
-    signerTitle: 'Ahli K3 Spesialis'
-  });
-  const sigCanvasRef = useRef(null);
-  const isDrawingRef = useRef(false);
-  const [hasDrawnSig, setHasDrawnSig] = useState(false);
+  const [inspectorSigName, setInspectorSigName] = useState('');
+  const [inspectorSigTitle, setInspectorSigTitle] = useState('Ahli K3 Spesialis');
+  const [clientSigName, setClientSigName] = useState('');
+  const [clientSigTitle, setClientSigTitle] = useState('Pemilik Alat / PIC Klien');
+
+  const inspectorCanvasRef = useRef(null);
+  const clientCanvasRef = useRef(null);
+  const isDrawingInspectorRef = useRef(false);
+  const isDrawingClientRef = useRef(false);
+  const [hasDrawnInspectorSig, setHasDrawnInspectorSig] = useState(false);
+  const [hasDrawnClientSig, setHasDrawnClientSig] = useState(false);
+  const [reSigningInspector, setReSigningInspector] = useState(false);
+  const [reSigningClient, setReSigningClient] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -224,12 +229,14 @@ export function InspectionsPage() {
           ? data.inspection.default_bap_scopes
           : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
       setDraftScopes(initialScopes);
-      setSigForm({
-        signerRole: 'AHLI_K3',
-        signerName: user?.fullName || '',
-        signerTitle: 'Ahli K3 Spesialis'
-      });
-      setHasDrawnSig(false);
+      setInspectorSigName(user?.fullName || 'Ir. Budi Santoso');
+      setInspectorSigTitle('Ahli K3 Spesialis');
+      setClientSigName(data.inspection?.contact_name || '');
+      setClientSigTitle('Pemilik Alat / PIC Klien');
+      setHasDrawnInspectorSig(false);
+      setHasDrawnClientSig(false);
+      setReSigningInspector(false);
+      setReSigningClient(false);
       setFormStep(data.inspection?.status === 'TERKIRIM' ? 4 : 1);
       setDetailModalOpen(true);
     } catch (err) {
@@ -529,16 +536,16 @@ export function InspectionsPage() {
     }
   };
 
-  const clearSignatureCanvas = () => {
-    const canvas = sigCanvasRef.current;
+  const clearInspectorCanvas = () => {
+    const canvas = inspectorCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasDrawnSig(false);
+    setHasDrawnInspectorSig(false);
   };
 
-  const handleCanvasPointerDown = (e) => {
-    const canvas = sigCanvasRef.current;
+  const handleInspectorPointerDown = (e) => {
+    const canvas = inspectorCanvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
@@ -547,13 +554,13 @@ export function InspectionsPage() {
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    isDrawingRef.current = true;
-    setHasDrawnSig(true);
+    isDrawingInspectorRef.current = true;
+    setHasDrawnInspectorSig(true);
   };
 
-  const handleCanvasPointerMove = (e) => {
-    if (!isDrawingRef.current) return;
-    const canvas = sigCanvasRef.current;
+  const handleInspectorPointerMove = (e) => {
+    if (!isDrawingInspectorRef.current) return;
+    const canvas = inspectorCanvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
@@ -561,39 +568,103 @@ export function InspectionsPage() {
     ctx.stroke();
   };
 
-  const handleCanvasPointerUp = () => {
-    isDrawingRef.current = false;
+  const handleInspectorPointerUp = () => {
+    isDrawingInspectorRef.current = false;
   };
 
-  const handleSaveSignature = async (e) => {
-    e.preventDefault();
-    if (!activeDetail?.inspection || !sigForm.signerName.trim()) {
-      setError('Nama penanda tangan wajib diisi.');
+  const handleSaveInspectorSignature = async () => {
+    if (!activeDetail?.inspection || !inspectorSigName.trim()) {
+      setError('Nama Ahli K3 / Inspector wajib diisi.');
       return;
     }
-    if (!hasDrawnSig || !sigCanvasRef.current) {
-      setError('Silakan bubuhkan tanda tangan pada kotak kanvas terlebih dahulu.');
+    const canvas = inspectorCanvasRef.current;
+    if (!canvas || !hasDrawnInspectorSig) {
+      setError('Silakan goreskan tanda tangan Ahli K3 pada kotak kanvas terlebih dahulu.');
       return;
     }
     setSubmitting(true);
     setError('');
     try {
-      const dataUrl = sigCanvasRef.current.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/png');
       await api.post(`/inspections/${activeDetail.inspection.id}/signatures`, {
-        signerRole: sigForm.signerRole,
-        signerName: sigForm.signerName.trim(),
-        signerTitle: sigForm.signerTitle ? sigForm.signerTitle.trim() : null,
+        signerRole: 'AHLI_K3',
+        signerName: inspectorSigName.trim(),
+        signerTitle: inspectorSigTitle.trim() || 'Ahli K3 Spesialis',
         dataUrl
       });
-      clearSignatureCanvas();
-      setFeedback(
-        `Tanda tangan digital (${
-          sigForm.signerRole === 'AHLI_K3' ? 'Inspector' : 'Perwakilan Klien'
-        }) berhasil disimpan.`
-      );
+      clearInspectorCanvas();
+      setReSigningInspector(false);
+      setFeedback('Tanda tangan digital Ahli K3 / Inspector berhasil disimpan.');
       await openInspectionDetail(activeDetail.inspection.id);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan tanda tangan digital.');
+      setError(err.response?.data?.message || 'Gagal menyimpan tanda tangan digital Ahli K3.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const clearClientCanvas = () => {
+    const canvas = clientCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawnClientSig(false);
+  };
+
+  const handleClientPointerDown = (e) => {
+    const canvas = clientCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    isDrawingClientRef.current = true;
+    setHasDrawnClientSig(true);
+  };
+
+  const handleClientPointerMove = (e) => {
+    if (!isDrawingClientRef.current) return;
+    const canvas = clientCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext('2d');
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const handleClientPointerUp = () => {
+    isDrawingClientRef.current = false;
+  };
+
+  const handleSaveClientSignature = async () => {
+    if (!activeDetail?.inspection || !clientSigName.trim()) {
+      setError('Nama PIC Perusahaan / Klien wajib diisi.');
+      return;
+    }
+    const canvas = clientCanvasRef.current;
+    if (!canvas || !hasDrawnClientSig) {
+      setError('Silakan goreskan tanda tangan PIC Klien pada kotak kanvas terlebih dahulu.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      await api.post(`/inspections/${activeDetail.inspection.id}/signatures`, {
+        signerRole: 'PERWAKILAN_KLIEN',
+        signerName: clientSigName.trim(),
+        signerTitle: clientSigTitle.trim() || 'Pemilik Alat / PIC Klien',
+        dataUrl
+      });
+      clearClientCanvas();
+      setReSigningClient(false);
+      setFeedback('Tanda tangan digital PIC Klien / Pemilik Alat berhasil disimpan.');
+      await openInspectionDetail(activeDetail.inspection.id);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyimpan tanda tangan digital PIC Klien.');
     } finally {
       setSubmitting(false);
     }
@@ -685,16 +756,14 @@ export function InspectionsPage() {
       });
 
       clearLocalDraft(activeDetail.inspection.id);
-      setReviewModalOpen(false);
       setFeedback(
-        `Riksa uji selesai! Dokumen BAP (${res.data?.bap?.bap_no || 'Baru'}) dan LHPP telah diterbitkan dan siap diunduh.`
+        `Riksa uji selesai! Dokumen BAP (${res.data?.bap?.bap_no || 'Telah Terbit'}) dan LHPP telah diterbitkan secara resmi.`
       );
       await openInspectionDetail(activeDetail.inspection.id);
       await loadData();
     } catch (err) {
       if (err.response?.status === 409 || err.response?.data?.error?.code === 'INSPECTION_LOCKED') {
         clearLocalDraft(activeDetail.inspection.id);
-        setReviewModalOpen(false);
         setFeedback(
           'Formulir riksa uji ini telah terkirim dan terkunci. Dokumen BAP dan LHPP siap diunduh.'
         );
@@ -1195,233 +1264,335 @@ export function InspectionsPage() {
             </div>
 
             {/* Stepper Wizard Navigasi 4 Langkah Alur Riksa Uji Lapangan */}
-            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80">
               <button
                 type="button"
                 onClick={() => setFormStep(1)}
-                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   formStep === 1
-                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs ring-1 ring-slate-200 dark:ring-slate-700'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${
                   missingItems === 0
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-slate-200 dark:bg-slate-700'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
                   {missingItems === 0 ? '✓' : '1'}
                 </span>
-                <span className="hidden sm:inline">1. Checklist ({evaluatedItems}/{totalItems})</span>
-                <span className="sm:hidden text-[10px]">1. Checklist</span>
+                <span className="truncate">1. Checklist ({evaluatedItems}/{totalItems})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setFormStep(2)}
-                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   formStep === 2
-                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs ring-1 ring-slate-200 dark:ring-slate-700'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
-                <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-extrabold">
+                <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-extrabold shrink-0">
                   2
                 </span>
-                <span className="hidden sm:inline">2. Kesimpulan &amp; Temuan</span>
-                <span className="sm:hidden text-[10px]">2. Kesimpulan</span>
+                <span className="truncate">2. Kesimpulan &amp; Lingkup</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setFormStep(3)}
-                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   formStep === 3
-                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs ring-1 ring-slate-200 dark:ring-slate-700'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
-                  inspectorSig
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${
+                  photosCount >= 2
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-slate-200 dark:bg-slate-700'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
-                  {inspectorSig ? '✓' : '3'}
+                  {photosCount >= 2 ? '✓' : '3'}
                 </span>
-                <span className="hidden sm:inline">3. Tanda Tangan Digital</span>
-                <span className="sm:hidden text-[10px]">3. TTD</span>
+                <span className="truncate">3. Foto ({photosCount}) &amp; Temuan</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setFormStep(4)}
-                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   formStep === 4
-                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs ring-1 ring-slate-200 dark:ring-slate-700'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
-                <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-extrabold">
-                  4
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${
+                  inspectorSig
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {inspectorSig ? '✓' : '4'}
                 </span>
-                <span className="hidden sm:inline">4. Ringkasan &amp; Kirim</span>
-                <span className="sm:hidden text-[10px]">4. Kirim</span>
+                <span className="truncate">4. Tanda Tangan &amp; Selesai</span>
               </button>
             </div>
 
-            {/* LANGKAH 1: Parameter Checklist & Pengukuran Teknis */}
-            {formStep === 1 && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">
-                        1. Parameter Pemeriksaan &amp; Pengukuran Teknis
-                      </span>
-                      <span className={`text-xs font-bold ${missingItems === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        ({evaluatedItems} dari {totalItems} terisi)
-                      </span>
+            {/* LANGKAH 1: Parameter Checklist Berdasarkan Seksi Teknis */}
+            {formStep === 1 && (() => {
+              const sections = [];
+              const sectionMap = new Map();
+              for (const item of activeDetail.items || []) {
+                const sec = item.section || 'UMUM';
+                if (!sectionMap.has(sec)) {
+                  sectionMap.set(sec, []);
+                  sections.push(sec);
+                }
+                sectionMap.get(sec).push(item);
+              }
+
+              return (
+                <div className="space-y-4">
+                  {/* Status Bar Kelengkapan Checklist & Tombol Tandai Semua */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">
+                          Kelengkapan Parameter Riksa Uji
+                        </span>
+                        <span className={`text-xs font-bold ${missingItems === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          ({evaluatedItems} dari {totalItems} butir terisi)
+                        </span>
+                      </div>
+                      <div className="w-56 sm:w-72 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${missingItems === 0 ? 'bg-emerald-500' : 'bg-[#C81E1E]'}`}
+                          style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-48 sm:w-64 h-2 rounded-full bg-slate-200 dark:bg-slate-800 mt-2 overflow-hidden">
-                      <div
-                        className={`h-full ${missingItems === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                        style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
-                      />
-                    </div>
+
+                    {isInspector && activeDetail.inspection.status === 'DRAF' && missingItems > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleAutoFillAllStandard}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] font-bold text-xs shrink-0 shadow-xs transition-colors cursor-pointer"
+                      >
+                        <CheckCircle size={15} weight="bold" />
+                        <span>Tandai Semua Sesuai Standar</span>
+                      </button>
+                    )}
                   </div>
 
-                  {isInspector && activeDetail.inspection.status === 'DRAF' && missingItems > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleAutoFillAllStandard}
-                      className="px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] font-bold text-xs shrink-0 shadow-xs transition-colors"
-                    >
-                      Tandai Semua Sesuai Standar
-                    </button>
-                  )}
-                </div>
+                  {/* Render Checklist Berkelompok per Seksi Teknis */}
+                  <div className="space-y-4">
+                    {sections.map((secName, secIdx) => {
+                      const secItems = sectionMap.get(secName) || [];
+                      const secFilled = secItems.filter((it) => {
+                        const r = draftResults[it.id];
+                        if (!r) return false;
+                        if (it.input_type === 'CHOICE') return !!r.choiceValue;
+                        if (it.input_type === 'NUMBER') return r.numberValue !== '' && r.numberValue !== null && r.numberValue !== undefined;
+                        if (it.input_type === 'TEXT') return !!r.textValue;
+                        return true;
+                      }).length;
 
-                <div className="border border-slate-200 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-                {(activeDetail.items || []).map((item) => {
-                  const row = draftResults[item.id] || {};
-                  const readOnly = !isInspector || activeDetail.inspection.status !== 'DRAF';
-                  const itemPhotos = (activeDetail.photos || []).filter(
-                    (ph) => ph.caption && ph.caption.includes(`[${item.section}] ${item.label}`)
-                  );
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-rose-700 dark:text-rose-400">[{item.section}]</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{item.label}</span>
-                          {item.unit && (
-                            <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-                              ({item.unit}
-                              {item.min_value !== null ? `, Min: ${item.min_value}` : ''}
-                              {item.max_value !== null ? `, Maks: ${item.max_value}` : ''})
+                      return (
+                        <div
+                          key={secName}
+                          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs"
+                        >
+                          {/* Header Seksi */}
+                          <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-[#C81E1E]" />
+                              <span className="font-extrabold text-xs uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                                {secIdx + 1}. {secName}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                              {secFilled}/{secItems.length} Terisi
                             </span>
-                          )}
-                        </div>
-
-                        {/* Indikator foto yang terlampir untuk butir uji ini */}
-                        {itemPhotos.length > 0 && (
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            {itemPhotos.map((ip) => (
-                              <div
-                                key={ip.id}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-[10px] font-semibold text-[#C81E1E] dark:text-rose-300"
-                              >
-                                <Camera size={11} weight="bold" />
-                                <span>Foto Terlampir</span>
-                              </div>
-                            ))}
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        {item.input_type === 'CHOICE' && (
-                          <select
-                            disabled={readOnly}
-                            value={row.choiceValue || 'SESUAI'}
-                            onChange={(e) =>
-                              setDraftResults((prev) => ({
-                                ...prev,
-                                [item.id]: { ...row, choiceValue: e.target.value }
-                              }))
-                            }
-                            className={`min-h-9 rounded border px-2.5 py-1 text-xs font-semibold ${
-                              row.choiceValue === 'TIDAK_SESUAI'
-                                ? 'border-rose-400 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                                : row.choiceValue === 'TIDAK_BERLAKU'
-                                ? 'border-slate-300 bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
-                            }`}
-                          >
-                            <option value="SESUAI">SESUAI (Memenuhi)</option>
-                            <option value="TIDAK_SESUAI">TIDAK SESUAI (Temuan)</option>
-                            <option value="TIDAK_BERLAKU">TIDAK BERLAKU (N/A)</option>
-                          </select>
-                        )}
-                        {item.input_type === 'NUMBER' && (
-                          <input
-                            type="number"
-                            step="any"
-                            disabled={readOnly}
-                            value={row.numberValue ?? ''}
-                            onChange={(e) =>
-                              setDraftResults((prev) => ({
-                                ...prev,
-                                [item.id]: { ...row, numberValue: e.target.value }
-                              }))
-                            }
-                            placeholder={`Nilai (${item.unit || ''})`}
-                            className="w-28 min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-2.5 py-1 text-xs"
-                          />
-                        )}
-                        {item.input_type === 'TEXT' && (
-                          <input
-                            type="text"
-                            disabled={readOnly}
-                            value={row.textValue ?? ''}
-                            onChange={(e) =>
-                              setDraftResults((prev) => ({
-                                ...prev,
-                                [item.id]: { ...row, textValue: e.target.value }
-                              }))
-                            }
-                            className="w-44 min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-2.5 py-1 text-xs"
-                          />
-                        )}
+                          {/* Daftar Butir Checklist dalam Seksi */}
+                          <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                            {secItems.map((item) => {
+                              const row = draftResults[item.id] || {};
+                              const readOnly = !isInspector || activeDetail.inspection.status !== 'DRAF';
+                              const itemPhotos = (activeDetail.photos || []).filter(
+                                (ph) => ph.caption && ph.caption.includes(`[${item.section}] ${item.label}`)
+                              );
 
-                        {/* Inline Camera Trigger untuk butir ini */}
-                        {!readOnly && (
-                          <label
-                            title="Ambil / Unggah Foto untuk butir ini"
-                            className="min-h-9 inline-flex items-center gap-1 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-xs font-semibold"
-                          >
-                            <Camera size={14} weight="bold" />
-                            <span className="hidden sm:inline">Foto</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
-                              className="sr-only"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleUploadItemInlinePhoto(item, f);
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                                >
+                                  {/* Info Butir & Standar */}
+                                  <div className="flex-1 space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                                        {item.label}
+                                      </span>
+                                      {item.is_required && (
+                                        <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400">
+                                          *Wajib
+                                        </span>
+                                      )}
+                                      {item.unit && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                          {item.unit}
+                                          {item.min_value !== null ? ` · Min: ${item.min_value}` : ''}
+                                          {item.max_value !== null ? ` · Maks: ${item.max_value}` : ''}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Indikator Foto Terlampir */}
+                                    {itemPhotos.length > 0 && (
+                                      <div className="flex items-center gap-1.5 pt-0.5">
+                                        {itemPhotos.map((ip) => (
+                                          <span
+                                            key={ip.id}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/60 text-[10px] font-semibold text-[#C81E1E] dark:text-rose-300"
+                                          >
+                                            <Camera size={11} weight="bold" />
+                                            <span>Foto Terlampir</span>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Kontrol Input Lapangan */}
+                                  <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
+                                    {item.input_type === 'CHOICE' && (
+                                      <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700">
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() =>
+                                            setDraftResults((prev) => ({
+                                              ...prev,
+                                              [item.id]: { ...(prev[item.id] || {}), itemId: item.id, choiceValue: 'SESUAI' }
+                                            }))
+                                          }
+                                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                            row.choiceValue === 'SESUAI'
+                                              ? 'bg-emerald-600 text-white shadow-xs'
+                                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                          }`}
+                                        >
+                                          <Check size={13} weight="bold" />
+                                          <span>Sesuai</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() =>
+                                            setDraftResults((prev) => ({
+                                              ...prev,
+                                              [item.id]: { ...(prev[item.id] || {}), itemId: item.id, choiceValue: 'TIDAK_SESUAI' }
+                                            }))
+                                          }
+                                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                            row.choiceValue === 'TIDAK_SESUAI'
+                                              ? 'bg-rose-600 text-white shadow-xs'
+                                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                          }`}
+                                        >
+                                          <X size={13} weight="bold" />
+                                          <span>Tidak Sesuai</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() =>
+                                            setDraftResults((prev) => ({
+                                              ...prev,
+                                              [item.id]: { ...(prev[item.id] || {}), itemId: item.id, choiceValue: 'TIDAK_BERLAKU' }
+                                            }))
+                                          }
+                                          className={`px-2.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                            row.choiceValue === 'TIDAK_BERLAKU'
+                                              ? 'bg-slate-700 text-white shadow-xs'
+                                              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                          }`}
+                                        >
+                                          N/A
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {item.input_type === 'NUMBER' && (
+                                      <div className="relative inline-flex items-center">
+                                        <input
+                                          type="number"
+                                          step="any"
+                                          disabled={readOnly}
+                                          value={row.numberValue ?? ''}
+                                          onChange={(e) =>
+                                            setDraftResults((prev) => ({
+                                              ...prev,
+                                              [item.id]: { ...(prev[item.id] || {}), itemId: item.id, numberValue: e.target.value }
+                                            }))
+                                          }
+                                          placeholder="0"
+                                          className="w-28 h-9 pl-3 pr-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#C81E1E]"
+                                        />
+                                        {item.unit && (
+                                          <span className="absolute right-2 text-[11px] font-semibold text-slate-400 pointer-events-none">
+                                            {item.unit}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {item.input_type === 'TEXT' && (
+                                      <input
+                                        type="text"
+                                        disabled={readOnly}
+                                        value={row.textValue ?? ''}
+                                        onChange={(e) =>
+                                          setDraftResults((prev) => ({
+                                            ...prev,
+                                            [item.id]: { ...(prev[item.id] || {}), itemId: item.id, textValue: e.target.value }
+                                          }))
+                                        }
+                                        placeholder="Kondisi atau spesifikasi..."
+                                        className="w-48 h-9 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#C81E1E]"
+                                      />
+                                    )}
+
+                                    {/* Tombol Kamera Cepat untuk Butir Ini */}
+                                    {!readOnly && (
+                                      <label
+                                        title="Ambil / Unggah Foto untuk butir ini"
+                                        className="h-9 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold cursor-pointer shadow-2xs transition-colors"
+                                      >
+                                        <Camera size={14} weight="bold" className="text-[#C81E1E]" />
+                                        <span className="hidden sm:inline">Foto</span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          capture="environment"
+                                          className="sr-only"
+                                          onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handleUploadItemInlinePhoto(item, f);
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Tombol Navigasi Bawah Langkah 1 */}
@@ -1432,7 +1603,7 @@ export function InspectionsPage() {
                           type="button"
                           disabled={submitting}
                           onClick={handleSaveDraft}
-                          className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                         >
                           <FloppyDisk size={15} />
                           <span>Simpan Draf</span>
@@ -1442,914 +1613,916 @@ export function InspectionsPage() {
                     <button
                       type="button"
                       onClick={() => setFormStep(2)}
-                      className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs"
+                      className="min-h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs cursor-pointer"
                     >
-                      <span>Lanjut: Kesimpulan &amp; Temuan</span>
+                      <span>Lanjut: Kesimpulan &amp; Lingkup</span>
                       <ArrowRight size={15} weight="bold" />
                     </button>
                   </div>
                 </div>
-              )}
+              );
+            })()}
 
-              {/* LANGKAH 2: Kesimpulan, Lingkup BAP, Foto & Temuan */}
+              {/* LANGKAH 2: Kesimpulan Kelayakan K3 & Lingkup BAP */}
               {formStep === 2 && (
-                <div className="space-y-4">
-                  {/* Kesimpulan Teknis */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-md border border-slate-200 dark:border-slate-700">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Kesimpulan Kelayakan K3 *
-                </label>
-                <select
-                  disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
-                  value={draftConclusion}
-                  onChange={(e) => setDraftConclusion(e.target.value)}
-                  className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                >
-                  {Object.entries(CONCLUSION_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Catatan Kesimpulan Teknis
-                </label>
-                <input
-                  type="text"
-                  disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
-                  value={draftConclusionNotes}
-                  onChange={(e) => setDraftConclusionNotes(e.target.value)}
-                  placeholder="Ringkasan hasil pengujian..."
-                  className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-            </div>
-
-            {/* Ruang Lingkup BAP (Sesuai Template Berita Acara Riksa Uji) */}
-            <div className="border border-slate-200 rounded-md p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#475569]">
-                  2. Ruang Lingkup Riksa Uji (Untuk Dokumen BAP)
-                </h4>
-                <span className="text-xs font-semibold text-[#C81E1E]">
-                  {draftScopes.length} lingkup dipilih
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-2 rounded border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs">
-                {(activeDetail.scopeCatalog || []).map((scopeItem) => {
-                  const checked = draftScopes.includes(scopeItem);
-                  const readOnly = !isInspector || activeDetail.inspection.status !== 'DRAF';
-                  return (
-                    <label
-                      key={scopeItem}
-                      className="flex items-center gap-2 px-2 py-1 rounded hover:bg-white dark:hover:bg-slate-800 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={readOnly}
-                        checked={checked}
-                        onChange={() =>
-                          setDraftScopes((prev) =>
-                            checked ? prev.filter((s) => s !== scopeItem) : [...prev, scopeItem]
-                          )
-                        }
-                        className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-700 text-[#C81E1E]"
-                      />
-                      <span className={checked ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}>
-                        {scopeItem}
+                <div className="space-y-5">
+                  {/* Pilihan Kartu Visual Kesimpulan Kelayakan K3 */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <SealCheck size={16} weight="bold" className="text-[#C81E1E]" />
+                        <span>Kesimpulan Kelayakan K3 Lapangan *</span>
+                      </label>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Pilih status kelaikan hasil pengujian
                       </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {[
+                        {
+                          id: 'MEMENUHI_SYARAT',
+                          title: 'Memenuhi Syarat K3',
+                          desc: 'Seluruh parameter teknis sesuai standar. Alat dinyatakan aman dan laik beroperasi.',
+                          icon: CheckCircle,
+                          badge: 'Laik Operasi',
+                          activeClass: 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500 shadow-sm',
+                          iconClass: 'text-emerald-600 dark:text-emerald-400',
+                          badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                        },
+                        {
+                          id: 'MEMENUHI_SYARAT_DENGAN_PERBAIKAN',
+                          title: 'Memenuhi dengan Catatan',
+                          desc: 'Laik operasi bersyarat. Wajib menindaklanjuti rekomendasi perbaikan minor dari Ahli K3.',
+                          icon: WarningCircle,
+                          badge: 'Laik Bersyarat',
+                          activeClass: 'border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 ring-2 ring-amber-500 shadow-sm',
+                          iconClass: 'text-amber-600 dark:text-amber-400',
+                          badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                        },
+                        {
+                          id: 'TIDAK_MEMENUHI_SYARAT',
+                          title: 'Tidak Memenuhi Syarat',
+                          desc: 'Ditemukan potensi bahaya kritis atau kegagalan fungsi. Alat dilarang beroperasi.',
+                          icon: XCircle,
+                          badge: 'Tidak Laik',
+                          activeClass: 'border-rose-500 bg-rose-50/70 dark:bg-rose-950/40 text-rose-950 dark:text-rose-100 ring-2 ring-rose-500 shadow-sm',
+                          iconClass: 'text-rose-600 dark:text-rose-400',
+                          badgeClass: 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300'
+                        }
+                      ].map((item) => {
+                        const isSelected = draftConclusion === item.id;
+                        const Icon = item.icon;
+                        const disabled = !isInspector || activeDetail.inspection.status !== 'DRAF';
+
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => setDraftConclusion(item.id)}
+                            className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-3 cursor-pointer ${
+                              isSelected
+                                ? item.activeClass
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 text-slate-800 dark:text-slate-200'
+                            } ${disabled ? 'cursor-not-allowed opacity-80' : ''}`}
+                          >
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Icon size={20} weight={isSelected ? 'fill' : 'bold'} className={item.iconClass} />
+                                  <span className="font-extrabold text-xs">{item.title}</span>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeClass}`}>
+                                  {item.badge}
+                                </span>
+                              </div>
+                              <p className="text-[11px] leading-relaxed opacity-80">
+                                {item.desc}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-1 text-[11px] font-bold">
+                              <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                                isSelected ? 'border-[#C81E1E] bg-[#C81E1E] text-white' : 'border-slate-300 dark:border-slate-600'
+                              }`}>
+                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                              </div>
+                              <span className={isSelected ? 'font-bold' : 'text-slate-500 font-normal'}>
+                                {isSelected ? 'Pilihan Terpilih' : 'Pilih Kesimpulan'}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Catatan Kesimpulan Teknis */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Catatan / Ringkasan Kesimpulan Teknis
                     </label>
-                  );
-                })}
-              </div>
-            </div>
+                    <textarea
+                      rows={2}
+                      disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
+                      value={draftConclusionNotes}
+                      onChange={(e) => setDraftConclusionNotes(e.target.value)}
+                      placeholder="Tuliskan catatan teknis hasil riksa uji (misalnya: Rekomendasi uji beban berkala, batas kapasitas aman, atau tindak lanjut pemeliharaan)..."
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#C81E1E]"
+                    />
+                  </div>
 
-            {/* Lampiran Foto Hasil Riksa Uji */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                  <Camera size={16} />
-                  <span>
-                    3. Lampiran Foto Hasil Riksa Uji ({(activeDetail.photos || []).length} Foto)
-                  </span>
-                </h4>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Minimal 2 foto dokumentasi (Nameplate &amp; Fisik Alat)
-                </span>
-              </div>
-
-              {/* Grid Foto Responsif & Tombol Hapus */}
-              {(activeDetail.photos || []).length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {(activeDetail.photos || []).map((ph) => (
-                    <div
-                      key={ph.id}
-                      className="group relative rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 overflow-hidden shadow-2xs flex flex-col justify-between"
-                    >
-                      <div className="relative aspect-4/3 bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                        <img
-                          src={`/api/v1/dashboard/files/${ph.id}`}
-                          alt={ph.caption || ph.originalName}
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          loading="lazy"
-                        />
+                  {/* Ruang Lingkup BAP (Untuk Dokumen Berita Acara Riksa Uji) */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <FileText size={16} weight="bold" className="text-[#C81E1E]" />
+                          <span>Ruang Lingkup Pemeriksaan (Dokumen BAP)</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Ceklis lingkup pengujian yang masuk ke Berita Acara Pemeriksaan.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#C81E1E] dark:text-rose-400 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+                          {draftScopes.length} lingkup dipilih
+                        </span>
                         {isInspector && activeDetail.inspection.status === 'DRAF' && (
                           <button
                             type="button"
-                            onClick={() => handleDeleteInspectionPhoto(ph.id)}
-                            disabled={submitting}
-                            title="Hapus foto ini"
-                            className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-rose-600/90 text-white hover:bg-rose-700 transition-all shadow-xs"
+                            onClick={() => setDraftScopes([...(activeDetail.scopeCatalog || [])])}
+                            className="text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline cursor-pointer"
                           >
-                            <Trash size={13} weight="bold" />
+                            Pilih Semua
                           </button>
                         )}
                       </div>
-                      <div className="p-2">
-                        <p className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 line-clamp-2 leading-tight">
-                          {ph.caption || ph.originalName}
-                        </p>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
-                  Belum ada foto dokumentasi terlampir. Gunakan tombol di bawah atau kamera butir uji di atas untuk melampirkan foto nameplate dan kondisi alat.
-                </div>
-              )}
 
-              {isInspector && activeDetail.inspection.status === 'DRAF' && (
-                <form
-                  onSubmit={handleUploadInspectionPhoto}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
-                >
-                  <div className="flex flex-col gap-1.5">
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                      className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200"
-                    />
-                    <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden">
-                      <Camera size={14} />
-                      <span>{photoFile ? photoFile.name : 'Ambil Foto dari Kamera'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="sr-only"
-                        onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
-                  </div>
-                  <input
-                    type="text"
-                    value={photoCaption}
-                    onChange={(e) => setPhotoCaption(e.target.value)}
-                    placeholder="Keterangan foto (mis: Nameplate & Uji Beban)..."
-                    className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
-                  />
-                  <button
-                    type="submit"
-                    disabled={submitting || !photoFile}
-                    className="min-h-9 rounded bg-slate-800 dark:bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50"
-                  >
-                    + Lampirkan Foto Riksa Uji
-                  </button>
-                </form>
-              )}
-            </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                      {(activeDetail.scopeCatalog || []).map((scopeItem) => {
+                        const checked = draftScopes.includes(scopeItem);
+                        const disabled = !isInspector || activeDetail.inspection.status !== 'DRAF';
 
-            {/* Temuan Ketidaksesuaian */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                <Warning size={16} />
-                <span>4. Temuan Lapangan ({(activeDetail.findings || []).length})</span>
-              </h4>
-              {(activeDetail.findings || []).map((f) => (
-                <div key={f.id} className="rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 p-2.5 text-xs">
-                  <span className="font-bold text-amber-900 dark:text-amber-200">[{f.severity}]</span>{' '}
-                  <span className="text-slate-800 dark:text-slate-200">{f.description}</span>
-                  {f.recommendation && (
-                    <div className="text-slate-600 dark:text-slate-400 mt-0.5">
-                      Rekomendasi: {f.recommendation}
+                        return (
+                          <button
+                            key={scopeItem}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() =>
+                              setDraftScopes((prev) =>
+                                checked ? prev.filter((s) => s !== scopeItem) : [...prev, scopeItem]
+                              )
+                            }
+                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                              checked
+                                ? 'border-[#C81E1E] bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-300 font-bold shadow-2xs'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 font-medium'
+                            } ${disabled ? 'cursor-not-allowed opacity-80' : ''}`}
+                          >
+                            <div
+                              className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                                checked
+                                  ? 'bg-[#C81E1E] border-[#C81E1E] text-white'
+                                  : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                              }`}
+                            >
+                              {checked && <Check size={12} weight="bold" />}
+                            </div>
+                            <span className="text-xs truncate">{scopeItem}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-              ))}
-              {isInspector && activeDetail.inspection.status === 'DRAF' && (
-                <form onSubmit={handleAddFinding} className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                  <select
-                    value={findingForm.severity}
-                    onChange={(e) =>
-                      setFindingForm((prev) => ({ ...prev, severity: e.target.value }))
-                    }
-                    className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="MINOR">MINOR</option>
-                    <option value="MAYOR">MAYOR</option>
-                    <option value="KRITIS">KRITIS</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={findingForm.description}
-                    onChange={(e) =>
-                      setFindingForm((prev) => ({ ...prev, description: e.target.value }))
-                    }
-                    placeholder="Uraian temuan..."
-                    className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
-                  />
-                  <input
-                    type="text"
-                    value={findingForm.recommendation}
-                    onChange={(e) =>
-                      setFindingForm((prev) => ({ ...prev, recommendation: e.target.value }))
-                    }
-                    placeholder="Rekomendasi perbaikan..."
-                    className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
-                  />
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="min-h-9 rounded bg-slate-800 dark:bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600"
-                  >
-                    + Tambah Temuan
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Tombol Navigasi Bawah Langkah 2 */}
-            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setFormStep(1)}
-                className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <ArrowLeft size={15} weight="bold" />
-                <span>Kembali ke Checklist</span>
-              </button>
-              <div className="flex items-center gap-2">
-                {isInspector && activeDetail.inspection.status === 'DRAF' && (
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={handleSaveDraft}
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    <FloppyDisk size={15} />
-                    <span>Simpan Draf</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setFormStep(3)}
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs"
-                >
-                  <span>Lanjut: Tanda Tangan</span>
-                  <ArrowRight size={15} weight="bold" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* LANGKAH 3: Tanda Tangan Digital Touchscreen */}
-        {formStep === 3 && (
-          <div className="space-y-4">
-            {/* Tanda Tangan Berita Acara (Kanvas Interaktif) */}
-            <div id="ttd-digital-section" className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                <Signature size={16} />
-                <span>
-                  5. Kolom Tanda Tangan Berita Acara (Inspector & Pemilik Alat / Klien) (
-                  {(activeDetail.signatures || []).length})
-                </span>
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {(activeDetail.signatures || []).map((sig) => (
-                  <div
-                    key={sig.id}
-                    className="inline-flex items-center gap-1.5 rounded bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 px-3 py-1.5 text-xs text-emerald-900 dark:text-emerald-200"
-                  >
-                    <CheckCircle size={15} />
-                    <span>
-                      <strong>{sig.signer_role}</strong>: {sig.signer_name} ({sig.signer_title})
-                    </span>
                   </div>
-                ))}
-              </div>
-              {isInspector && activeDetail.inspection.status === 'DRAF' && (
-                <form onSubmit={handleSaveSignature} className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select
-                      value={sigForm.signerRole}
-                      onChange={(e) => {
-                        const roleVal = e.target.value;
-                        setSigForm((prev) => ({
-                          ...prev,
-                          signerRole: roleVal,
-                          signerName:
-                            roleVal === 'AHLI_K3'
-                              ? user?.fullName || ''
-                              : activeDetail.inspection?.contact_name || '',
-                          signerTitle:
-                            roleVal === 'AHLI_K3'
-                              ? 'Ahli K3 Pemeriksa'
-                              : 'Pemilik Alat / Perwakilan Klien'
-                        }));
-                      }}
-                      className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs text-slate-800 dark:text-slate-200"
+
+                  {/* Tombol Navigasi Bawah Langkah 2 */}
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(1)}
+                      className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
                     >
-                      <option value="AHLI_K3">Inspector (Ahli K3)</option>
-                      <option value="PERWAKILAN_KLIEN">Pemilik Alat / Perwakilan Klien</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={sigForm.signerName}
-                      onChange={(e) =>
-                        setSigForm((prev) => ({ ...prev, signerName: e.target.value }))
-                      }
-                      placeholder="Nama penanda tangan..."
-                      className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
-                    />
-                    <input
-                      type="text"
-                      value={sigForm.signerTitle}
-                      onChange={(e) =>
-                        setSigForm((prev) => ({ ...prev, signerTitle: e.target.value }))
-                      }
-                      placeholder="Jabatan..."
-                      className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="space-y-1">
-                      <span className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                        Bubuhkan tanda tangan di kotak kanvas (wajib digoreskan):
-                      </span>
-                      <canvas
-                        ref={sigCanvasRef}
-                        width={280}
-                        height={90}
-                        onPointerDown={handleCanvasPointerDown}
-                        onPointerMove={handleCanvasPointerMove}
-                        onPointerUp={handleCanvasPointerUp}
-                        onPointerLeave={handleCanvasPointerUp}
-                        className="rounded border border-slate-300 dark:border-slate-700 bg-white cursor-crosshair touch-none"
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
+                      <ArrowLeft size={15} weight="bold" />
+                      <span>Kembali ke Checklist</span>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={handleSaveDraft}
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
+                        >
+                          <FloppyDisk size={15} />
+                          <span>Simpan Draf</span>
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={clearSignatureCanvas}
-                        className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        onClick={() => setFormStep(3)}
+                        className="min-h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
                       >
-                        Bersihkan Kanvas
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submitting}
-                        className="min-h-9 rounded bg-slate-800 dark:bg-slate-700 px-4 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50"
-                      >
-                        Simpan Tanda Tangan ({sigForm.signerRole === 'AHLI_K3' ? 'Inspector' : 'Klien'})
+                        <span>Lanjut: Foto &amp; Temuan</span>
+                        <ArrowRight size={15} weight="bold" />
                       </button>
                     </div>
                   </div>
-                </form>
-              )}
-            </div>
-
-            {/* Tombol Navigasi Bawah Langkah 3 */}
-            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setFormStep(2)}
-                className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <ArrowLeft size={15} weight="bold" />
-                <span>Kembali ke Kesimpulan</span>
-              </button>
-              <div className="flex items-center gap-2">
-                {isInspector && activeDetail.inspection.status === 'DRAF' && (
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={handleSaveDraft}
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    <FloppyDisk size={15} />
-                    <span>Simpan Draf</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setFormStep(4)}
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs"
-                >
-                  <span>Lanjut: Ringkasan &amp; Kirim</span>
-                  <ArrowRight size={15} weight="bold" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* LANGKAH 4: Ringkasan Verifikasi Pra-Kirim & Konfirmasi Kirim */}
-        {formStep === 4 && (
-          <div className="space-y-4">
-            {/* Status Kelengkapan Checklist */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  Kelengkapan Checklist Parameter Uji
-                </span>
-                <span className={`font-bold ${missingItems > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {evaluatedItems} dari {totalItems} butir terisi
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className={`h-full ${missingItems > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                  style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
-                />
-              </div>
-              {missingItems > 0 && (
-                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-                      Perhatian: Masih ada {missingItems} butir checklist yang belum terisi.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleAutoFillAllStandard}
-                      className="px-2.5 py-1 rounded bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 transition-colors"
-                    >
-                      Tandai Semua Sesuai Standar
-                    </button>
-                  </div>
-                  <div className="text-[11px] text-amber-900 dark:text-amber-200">
-                    Butir belum lengkap:
-                    <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
-                      {missingList.map((m) => (
-                        <li key={m.id}>
-                          <span className="font-semibold">[{m.section}]</span> {m.label} ({m.input_type})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
                 </div>
               )}
-              {nonConformingItems.length > 0 && (
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-rose-700 dark:text-rose-400 font-medium text-xs">
-                  Terdapat {nonConformingItems.length} butir dengan hasil TIDAK SESUAI:
-                  <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
-                    {nonConformingItems.map((ni) => (
-                      <li key={ni.id}>[{ni.section}] {ni.label}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
 
-            {/* Status Foto & Tanda Tangan */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                  <span>Foto Dokumentasi</span>
-                  <span className={photosCount > 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
-                    {photosCount} Foto
-                  </span>
-                </div>
-                {photosCount === 0 ? (
-                  <p className="text-[11px] text-rose-600 dark:text-rose-400">
-                    Disarankan melampirkan minimal 2 foto fisik alat &amp; nameplate sebelum submit.
-                  </p>
-                ) : (
-                  <div className="flex gap-1.5 overflow-x-auto py-1">
-                    {(activeDetail.photos || []).slice(0, 4).map((p) => (
-                      <img
-                        key={p.id}
-                        src={`/api/v1/dashboard/files/${p.id}`}
-                        alt="preview"
-                        className="h-12 w-12 rounded object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-                <div className="font-bold text-slate-900 dark:text-slate-100">
-                  Tanda Tangan Digital
-                </div>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="flex items-center justify-between">
-                    <span>Ahli K3 / Inspector:</span>
-                    {inspectorSig ? (
-                      <span className="text-emerald-600 font-bold flex items-center gap-1">
-                        <CheckCircle size={13} weight="bold" /> Sudah TTD
+              {/* LANGKAH 3: Foto Dokumentasi Lapangan & Temuan */}
+              {formStep === 3 && (
+                <div className="space-y-5">
+                  {/* Bagian 1: Foto Dokumentasi Hasil Riksa Uji */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3.5 shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center shrink-0">
+                          <Camera size={18} weight="bold" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            Lampiran Foto Lapangan ({(activeDetail.photos || []).length} Foto)
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Wajib melampirkan minimal 2 foto dokumentasi (Nameplate &amp; Fisik Alat)
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                        (activeDetail.photos || []).length >= 2
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                      }`}>
+                        {(activeDetail.photos || []).length >= 2 ? '✓ Kuota Foto Terpenuhi' : 'Kurang Foto Dokumentasi'}
                       </span>
+                    </div>
+
+                    {/* Grid Foto Responsif */}
+                    {(activeDetail.photos || []).length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {(activeDetail.photos || []).map((ph) => (
+                          <div
+                            key={ph.id}
+                            className="group relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 overflow-hidden shadow-2xs flex flex-col justify-between"
+                          >
+                            <div className="relative aspect-4/3 bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                              <img
+                                src={`/api/v1/dashboard/files/${ph.id}`}
+                                alt={ph.caption || ph.originalName}
+                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                loading="lazy"
+                              />
+                              {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteInspectionPhoto(ph.id)}
+                                  disabled={submitting}
+                                  title="Hapus foto ini"
+                                  className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-rose-600/90 text-white hover:bg-rose-700 transition-all shadow-xs cursor-pointer"
+                                >
+                                  <Trash size={13} weight="bold" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="p-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                              <p className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 line-clamp-2 leading-tight">
+                                {ph.caption || ph.originalName}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-rose-600 font-bold">Belum TTD</span>
+                      <div className="p-6 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-2 bg-slate-50/50 dark:bg-slate-800/30">
+                        <Camera size={32} className="mx-auto text-slate-400" />
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Belum ada foto dokumentasi terlampir.
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                          Gunakan form upload di bawah atau tombol kamera pada parameter checklist untuk mengambil foto nameplate &amp; unit.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Form Upload Foto */}
+                    {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                      <form
+                        onSubmit={handleUploadInspectionPhoto}
+                        className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800"
+                      >
+                        <div className="sm:col-span-5 flex flex-col gap-1.5">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                            className="min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+                          />
+                          <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden">
+                            <Camera size={14} />
+                            <span>{photoFile ? photoFile.name : 'Ambil Foto dari Kamera'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="sr-only"
+                              onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                            />
+                          </label>
+                        </div>
+                        <div className="sm:col-span-4">
+                          <input
+                            type="text"
+                            value={photoCaption}
+                            onChange={(e) => setPhotoCaption(e.target.value)}
+                            placeholder="Keterangan foto (mis: Nameplate & Kondisi Fisik)..."
+                            className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <button
+                            type="submit"
+                            disabled={submitting || !photoFile}
+                            className="w-full min-h-10 rounded-lg bg-slate-800 dark:bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600 disabled:opacity-50 cursor-pointer shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            <Plus size={14} weight="bold" />
+                            <span>Unggah Foto</span>
+                          </button>
+                        </div>
+                      </form>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span>Perwakilan Klien:</span>
-                    {clientSig ? (
-                      <span className="text-emerald-600 font-bold flex items-center gap-1">
-                        <CheckCircle size={13} weight="bold" /> Sudah TTD
-                      </span>
+
+                  {/* Bagian 2: Temuan Lapangan & Rekomendasi Perbaikan */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3.5 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                          <Warning size={18} weight="bold" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            Daftar Temuan Lapangan ({(activeDetail.findings || []).length} Temuan)
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Catat ketidaksesuaian teknis dan rekomendasi tindakan perbaikan bagi klien
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* List Temuan */}
+                    {(activeDetail.findings || []).length > 0 ? (
+                      <div className="space-y-2">
+                        {(activeDetail.findings || []).map((f) => (
+                          <div
+                            key={f.id}
+                            className="rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 p-3 text-xs space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`font-bold px-2 py-0.5 rounded text-[10px] uppercase ${
+                                f.severity === 'KRITIS'
+                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                  : f.severity === 'MAYOR'
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                              }`}>
+                                {f.severity}
+                              </span>
+                            </div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">{f.description}</p>
+                            {f.recommendation && (
+                              <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+                                <strong className="text-slate-700 dark:text-slate-300">Rekomendasi:</strong> {f.recommendation}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-amber-600 font-semibold">Belum TTD (Bisa di BAP)</span>
+                      <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50/40 dark:bg-slate-800/20">
+                        Tidak ada temuan ketidaksesuaian khusus. Unit berada dalam kondisi sesuai spesifikasi teknis K3.
+                      </div>
+                    )}
+
+                    {/* Form Tambah Temuan */}
+                    {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                      <form onSubmit={handleAddFinding} className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <div className="sm:col-span-3">
+                          <select
+                            value={findingForm.severity}
+                            onChange={(e) =>
+                              setFindingForm((prev) => ({ ...prev, severity: e.target.value }))
+                            }
+                            className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
+                          >
+                            <option value="MINOR">MINOR (Ringan)</option>
+                            <option value="MAYOR">MAYOR (Sedang)</option>
+                            <option value="KRITIS">KRITIS (Bahaya)</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-4">
+                          <input
+                            type="text"
+                            value={findingForm.description}
+                            onChange={(e) =>
+                              setFindingForm((prev) => ({ ...prev, description: e.target.value }))
+                            }
+                            placeholder="Uraian temuan teknis..."
+                            className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <input
+                            type="text"
+                            value={findingForm.recommendation}
+                            onChange={(e) =>
+                              setFindingForm((prev) => ({ ...prev, recommendation: e.target.value }))
+                            }
+                            placeholder="Rekomendasi tindakan..."
+                            className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <button
+                            type="submit"
+                            disabled={submitting || !findingForm.description.trim()}
+                            className="w-full min-h-10 rounded-lg bg-slate-800 dark:bg-slate-700 px-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600 disabled:opacity-50 cursor-pointer shadow-xs transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Plus size={14} weight="bold" />
+                            <span>Tambah</span>
+                          </button>
+                        </div>
+                      </form>
                     )}
                   </div>
-                </div>
-                {!inspectorSig && (
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
-                      TTD Ahli K3 wajib diisi sebelum mengirim.
-                    </span>
+
+                  {/* Tombol Navigasi Bawah Langkah 3 */}
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                     <button
                       type="button"
-                      onClick={() => setFormStep(3)}
-                      className="px-2.5 py-1 rounded bg-slate-800 dark:bg-slate-700 text-white font-bold text-[11px] shrink-0 hover:bg-slate-900"
+                      onClick={() => setFormStep(2)}
+                      className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
                     >
-                      Bubuhkan TTD
+                      <ArrowLeft size={15} weight="bold" />
+                      <span>Kembali ke Kesimpulan</span>
                     </button>
+                    <div className="flex items-center gap-2">
+                      {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={handleSaveDraft}
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
+                        >
+                          <FloppyDisk size={15} />
+                          <span>Simpan Draf</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setFormStep(4)}
+                        className="min-h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                      >
+                        <span>Lanjut: Tanda Tangan &amp; Selesai</span>
+                        <ArrowRight size={15} weight="bold" />
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Kesimpulan Akhir */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 space-y-1">
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Kesimpulan Akhir yang Akan Diterbitkan:
-              </span>
-              <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
-              </div>
-              {draftConclusionNotes && (
-                <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                  Catatan: {draftConclusionNotes}
-                </p>
-              )}
-            </div>
-
-            {/* Tombol Aksi Akhir */}
-            {activeDetail.inspection.status === 'TERKIRIM' ? (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle size={16} weight="fill" />
-                  <span>Formulir riksa uji telah selesai dikirim dan dikunci secara resmi.</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setDetailModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717]"
-                >
-                  Tutup Form
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setFormStep(1)}
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 px-3.5 py-2"
-                >
-                  <ArrowLeft size={15} weight="bold" />
-                  <span>Periksa Kembali Isian</span>
-                </button>
+              )}
 
-                <button
-                  type="button"
-                  disabled={!canSubmit}
-                  onClick={handleSubmitFinalInspection}
-                  title={
-                    missingItems > 0
-                      ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
-                      : !inspectorSig
-                      ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
-                      : 'Kirim dan terbitkan dokumen'
-                  }
-                  className="min-h-10 px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting ? (
-                    <CircleNotch size={15} weight="bold" className="animate-spin" />
+              {/* LANGKAH 4: Dua Kolom Tanda Tangan Digital & Terbitkan Dokumen */}
+              {formStep === 4 && (
+                <div className="space-y-5">
+                  {/* Bagian 1: Kolom Dua Tanda Tangan Digital (Inspector & PIC Klien) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* TTD 1: Ahli K3 / Inspector */}
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-2xs flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <Signature size={16} weight="bold" className="text-[#C81E1E]" />
+                            <span>1. Ahli K3 / Inspector (Wajib)</span>
+                          </h4>
+                          {inspectorSig ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1">
+                              <CheckCircle size={12} weight="bold" /> Sudah TTD
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                              Wajib Ditandatangani
+                            </span>
+                          )}
+                        </div>
+
+                        {inspectorSig && !reSigningInspector ? (
+                          <div className="space-y-3 pt-2">
+                            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-center space-y-2">
+                              <div className="h-24 flex items-center justify-center bg-white dark:bg-slate-900 rounded border border-dashed border-slate-200 dark:border-slate-700 p-2">
+                                <img
+                                  src={`/api/v1/dashboard/files/${inspectorSig.file_id}`}
+                                  alt="Tanda Tangan Inspector"
+                                  className="h-full max-h-20 object-contain mx-auto"
+                                />
+                              </div>
+                              <div className="text-xs font-bold text-slate-900 dark:text-white">
+                                {inspectorSig.signer_name}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {inspectorSig.signer_title || 'Ahli K3 Spesialis'}
+                              </div>
+                            </div>
+                            {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                              <button
+                                type="button"
+                                onClick={() => setReSigningInspector(true)}
+                                className="w-full py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                              >
+                                Tanda Tangan Ulang
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5 pt-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  Nama Ahli K3 *
+                                </label>
+                                <input
+                                  type="text"
+                                  disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
+                                  value={inspectorSigName}
+                                  onChange={(e) => setInspectorSigName(e.target.value)}
+                                  placeholder="Nama lengkap Ahli K3..."
+                                  className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  Jabatan
+                                </label>
+                                <input
+                                  type="text"
+                                  disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
+                                  value={inspectorSigTitle}
+                                  onChange={(e) => setInspectorSigTitle(e.target.value)}
+                                  placeholder="Jabatan..."
+                                  className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                Goreskan Tanda Tangan di Kotak:
+                              </span>
+                              <div className="rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center">
+                                <canvas
+                                  ref={inspectorCanvasRef}
+                                  width={300}
+                                  height={110}
+                                  onPointerDown={handleInspectorPointerDown}
+                                  onPointerMove={handleInspectorPointerMove}
+                                  onPointerUp={handleInspectorPointerUp}
+                                  onPointerLeave={handleInspectorPointerUp}
+                                  className="cursor-crosshair touch-none w-full max-w-[300px] h-[110px]"
+                                />
+                              </div>
+                            </div>
+
+                            {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                              <div className="flex items-center justify-between gap-2 pt-1">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={clearInspectorCanvas}
+                                    className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                  >
+                                    Bersihkan
+                                  </button>
+                                  {reSigningInspector && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setReSigningInspector(false)}
+                                      className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                    >
+                                      Batal
+                                    </button>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={submitting}
+                                  onClick={handleSaveInspectorSignature}
+                                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 text-white font-bold text-xs hover:bg-slate-900 cursor-pointer shadow-xs"
+                                >
+                                  Simpan TTD Ahli K3
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* TTD 2: Perwakilan Perusahaan / PIC Klien */}
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-2xs flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <Signature size={16} weight="bold" className="text-blue-600" />
+                            <span>2. Perwakilan Perusahaan / PIC Klien</span>
+                          </h4>
+                          {clientSig ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1">
+                              <CheckCircle size={12} weight="bold" /> Sudah TTD
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              Dapat Dilengkapi di Lapangan
+                            </span>
+                          )}
+                        </div>
+
+                        {clientSig && !reSigningClient ? (
+                          <div className="space-y-3 pt-2">
+                            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-center space-y-2">
+                              <div className="h-24 flex items-center justify-center bg-white dark:bg-slate-900 rounded border border-dashed border-slate-200 dark:border-slate-700 p-2">
+                                <img
+                                  src={`/api/v1/dashboard/files/${clientSig.file_id}`}
+                                  alt="Tanda Tangan PIC Klien"
+                                  className="h-full max-h-20 object-contain mx-auto"
+                                />
+                              </div>
+                              <div className="text-xs font-bold text-slate-900 dark:text-white">
+                                {clientSig.signer_name}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {clientSig.signer_title || 'Perwakilan Klien / Pemilik Alat'}
+                              </div>
+                            </div>
+                            {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                              <button
+                                type="button"
+                                onClick={() => setReSigningClient(true)}
+                                className="w-full py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                              >
+                                Tanda Tangan Ulang
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5 pt-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  Nama PIC Klien
+                                </label>
+                                <input
+                                  type="text"
+                                  disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
+                                  value={clientSigName}
+                                  onChange={(e) => setClientSigName(e.target.value)}
+                                  placeholder="Nama penanggung jawab..."
+                                  className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  Jabatan
+                                </label>
+                                <input
+                                  type="text"
+                                  disabled={!isInspector || activeDetail.inspection.status !== 'DRAF'}
+                                  value={clientSigTitle}
+                                  onChange={(e) => setClientSigTitle(e.target.value)}
+                                  placeholder="Jabatan..."
+                                  className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                Goreskan Tanda Tangan PIC Klien di Kotak:
+                              </span>
+                              <div className="rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center">
+                                <canvas
+                                  ref={clientCanvasRef}
+                                  width={300}
+                                  height={110}
+                                  onPointerDown={handleClientPointerDown}
+                                  onPointerMove={handleClientPointerMove}
+                                  onPointerUp={handleClientPointerUp}
+                                  onPointerLeave={handleClientPointerUp}
+                                  className="cursor-crosshair touch-none w-full max-w-[300px] h-[110px]"
+                                />
+                              </div>
+                            </div>
+
+                            {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                              <div className="flex items-center justify-between gap-2 pt-1">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={clearClientCanvas}
+                                    className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                  >
+                                    Bersihkan
+                                  </button>
+                                  {reSigningClient && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setReSigningClient(false)}
+                                      className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                    >
+                                      Batal
+                                    </button>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={submitting}
+                                  onClick={handleSaveClientSignature}
+                                  className="px-3.5 py-1.5 rounded-lg bg-blue-700 text-white font-bold text-xs hover:bg-blue-800 cursor-pointer shadow-xs"
+                                >
+                                  Simpan TTD Klien
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bagian 2: Ringkasan Kesiapan Penerbitan Dokumen Resmi */}
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        Status Kesiapan Penerbitan Dokumen (BAP &amp; LHPP)
+                      </span>
+                      <span className={`text-xs font-bold ${canSubmit ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {canSubmit ? '✓ Siap Diterbitkan' : 'Memerlukan Kelengkapan'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Checklist Uji</span>
+                        <span className={`font-bold ${missingItems === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {evaluatedItems}/{totalItems} Butir Terisi
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Foto Dokumentasi</span>
+                        <span className={`font-bold ${photosCount >= 2 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {photosCount} Foto Terlampir
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">TTD Ahli K3</span>
+                        <span className={`font-bold ${inspectorSig ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {inspectorSig ? 'Sudah TTD' : 'Belum TTD (Wajib)'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Kesimpulan Akhir</span>
+                        <span className="font-bold text-slate-900 dark:text-white truncate block">
+                          {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
+                        </span>
+                      </div>
+                    </div>
+
+                    {missingItems > 0 && (
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                          Perhatian: Masih ada {missingItems} butir checklist yang belum terisi di Langkah 1.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleAutoFillAllStandard}
+                          className="px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 shadow-xs cursor-pointer transition-colors"
+                        >
+                          Tandai Semua Sesuai Standar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tombol Aksi Akhir */}
+                  {activeDetail.inspection.status === 'TERKIRIM' ? (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle size={18} weight="fill" />
+                        <span>Formulir riksa uji selesai dikirim. Dokumen BAP &amp; LHPP telah diterbitkan secara resmi.</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {activeDetail.inspection.bap_id && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handlePreviewPdf(
+                                `/bap/${activeDetail.inspection.bap_id}/pdf`,
+                                `Pratinjau Berita Acara Pemeriksaan (BAP) - ${activeDetail.inspection.bap_no || 'BAP'}`,
+                                `${(activeDetail.inspection.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] shadow-xs cursor-pointer"
+                          >
+                            <Eye size={14} weight="bold" />
+                            <span>Review BAP (PDF)</span>
+                          </button>
+                        )}
+                        {activeDetail.inspection.lhpp_id && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handlePreviewPdf(
+                                `/lhpp/${activeDetail.inspection.lhpp_id}/pdf`,
+                                `Pratinjau Laporan Hasil Pemeriksaan (LHPP) - ${activeDetail.inspection.lhpp_no || 'LHPP'}`,
+                                `${(activeDetail.inspection.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-900 shadow-xs cursor-pointer"
+                          >
+                            <Eye size={14} weight="bold" />
+                            <span>Review LHPP (PDF)</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDetailModalOpen(false)}
+                          className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                        >
+                          Tutup Formulir
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <PaperPlaneTilt size={15} weight="bold" />
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setFormStep(3)}
+                        className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-4 py-2 cursor-pointer shadow-2xs"
+                      >
+                        <ArrowLeft size={15} weight="bold" />
+                        <span>Kembali ke Foto &amp; Temuan</span>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        {isInspector && (
+                          <button
+                            type="button"
+                            disabled={submitting}
+                            onClick={handleSaveDraft}
+                            className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
+                          >
+                            <FloppyDisk size={15} />
+                            <span>Simpan Draf</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={!canSubmit || submitting}
+                          onClick={handleSubmitFinalInspection}
+                          title={
+                            missingItems > 0
+                              ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
+                              : !inspectorSig
+                              ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
+                              : 'Kirim dan terbitkan dokumen resmi BAP & LHPP'
+                          }
+                          className="min-h-10 px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          {submitting ? (
+                            <CircleNotch size={15} weight="bold" className="animate-spin" />
+                          ) : (
+                            <PaperPlaneTilt size={15} weight="bold" />
+                          )}
+                          <span>
+                            {submitting
+                              ? 'Memproses Penerbitan BAP & LHPP...'
+                              : missingItems > 0
+                              ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
+                              : !inspectorSig
+                              ? 'Tanda Tangan Ahli K3 Diperlukan'
+                              : 'Konfirmasi & Terbitkan BAP dan LHPP'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                   )}
-                  <span>
-                    {submitting
-                      ? 'Memproses Penerbitan...'
-                      : missingItems > 0
-                      ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
-                      : !inspectorSig
-                      ? 'Tanda Tangan Diperlukan'
-                      : 'Konfirmasi & Kirim Riksa Uji'}
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                </div>
+              )}
+
       </div>
     );
   })()}
-      </Modal>
-
-      {/* Modal Ringkasan Pra-Kirim Riksa Uji (Pre-Submit Summary Gate) */}
-      <Modal
-        open={reviewModalOpen}
-        onClose={() => setReviewModalOpen(false)}
-        title="Ringkasan Verifikasi Pra-Kirim Riksa Uji K3"
-        size="lg"
-      >
-        {activeDetail?.inspection && (() => {
-          const totalItems = (activeDetail.items || []).length;
-          const evaluatedItems = (activeDetail.items || []).filter((item) => {
-            const res = draftResults[item.id];
-            if (!res) return false;
-            if (item.input_type === 'CHOICE') return !!res.choiceValue;
-            if (item.input_type === 'NUMBER')
-              return res.numberValue !== '' && res.numberValue !== null && res.numberValue !== undefined;
-            if (item.input_type === 'TEXT') return !!res.textValue;
-            return true;
-          }).length;
-          const missingItems = totalItems - evaluatedItems;
-          const missingList = (activeDetail.items || []).filter((item) => {
-            const res = draftResults[item.id];
-            if (!res) return true;
-            if (item.input_type === 'CHOICE') return !res.choiceValue;
-            if (item.input_type === 'NUMBER')
-              return res.numberValue === '' || res.numberValue === null || res.numberValue === undefined;
-            if (item.input_type === 'TEXT') return !res.textValue;
-            return false;
-          });
-          const nonConformingItems = (activeDetail.items || []).filter(
-            (item) => draftResults[item.id]?.choiceValue === 'TIDAK_SESUAI'
-          );
-          const photosCount = (activeDetail.photos || []).length;
-
-          const inspectorSig = (activeDetail.signatures || []).find((s) =>
-            ['AHLI_K3', 'INSPECTOR'].includes(s.signer_role)
-          );
-          const clientSig = (activeDetail.signatures || []).find((s) =>
-            ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role)
-          );
-
-          const canSubmit = missingItems === 0 && Boolean(inspectorSig) && !submitting;
-
-          const handleAutoFillAllStandard = () => {
-            const updated = { ...draftResults };
-            for (const it of activeDetail.items || []) {
-              const cur = updated[it.id] || {};
-              updated[it.id] = {
-                itemId: it.id,
-                choiceValue: it.input_type === 'CHOICE' ? (cur.choiceValue || 'SESUAI') : null,
-                numberValue:
-                  it.input_type === 'NUMBER'
-                    ? (cur.numberValue !== '' && cur.numberValue !== null && cur.numberValue !== undefined
-                        ? cur.numberValue
-                        : String(it.min_value ?? 0))
-                    : '',
-                textValue: it.input_type === 'TEXT' ? (cur.textValue || 'Sesuai Spesifikasi Teknis') : '',
-                note: cur.note || ''
-              };
-            }
-            setDraftResults(updated);
-            setFeedback('Seluruh parameter checklist berhasil diisi otomatis sesuai standar teknis.');
-          };
-
-          return (
-            <div className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
-              {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
-
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-1.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400 text-sm">
-                    {activeDetail.inspection.po_number || activeDetail.inspection.order_no}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-rose-100 text-[#C81E1E] dark:bg-rose-950/60 dark:text-rose-300">
-                    {activeDetail.inspection.category_code}
-                  </span>
-                </div>
-                <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                  {activeDetail.inspection.object_name}
-                </div>
-                <div className="text-slate-500 dark:text-slate-400">
-                  SN: {activeDetail.inspection.serial_number} · Klien: {activeDetail.inspection.client_name}
-                </div>
-              </div>
-
-              {/* Status Kelengkapan Checklist */}
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 dark:text-slate-100">
-                    Kelengkapan Checklist Parameter Uji
-                  </span>
-                  <span className={`font-bold ${missingItems > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {evaluatedItems} dari {totalItems} butir terisi
-                  </span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                  <div
-                    className={`h-full ${missingItems > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                    style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
-                  />
-                </div>
-                {missingItems > 0 && (
-                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-                        Perhatian: Masih ada {missingItems} butir checklist yang belum terisi.
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleAutoFillAllStandard}
-                        className="px-2.5 py-1 rounded bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 transition-colors"
-                      >
-                        Tandai Semua Sesuai Standar
-                      </button>
-                    </div>
-                    <div className="text-[11px] text-amber-900 dark:text-amber-200">
-                      Butir belum lengkap:
-                      <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
-                        {missingList.map((m) => (
-                          <li key={m.id}>
-                            <span className="font-semibold">[{m.section}]</span> {m.label} ({m.input_type})
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-                {nonConformingItems.length > 0 && (
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-rose-700 dark:text-rose-400 font-medium">
-                    Terdapat {nonConformingItems.length} butir dengan hasil TIDAK SESUAI:
-                    <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
-                      {nonConformingItems.map((ni) => (
-                        <li key={ni.id}>[{ni.section}] {ni.label}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              {/* Status Foto & Tanda Tangan */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                    <span>Foto Dokumentasi</span>
-                    <span className={photosCount > 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
-                      {photosCount} Foto
-                    </span>
-                  </div>
-                  {photosCount === 0 ? (
-                    <p className="text-[11px] text-rose-600 dark:text-rose-400">
-                      Disarankan melampirkan minimal 2 foto fisik alat &amp; nameplate sebelum submit.
-                    </p>
-                  ) : (
-                    <div className="flex gap-1.5 overflow-x-auto py-1">
-                      {(activeDetail.photos || []).slice(0, 4).map((p) => (
-                        <img
-                          key={p.id}
-                          src={`/api/v1/dashboard/files/${p.id}`}
-                          alt="preview"
-                          className="h-12 w-12 rounded object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-                  <div className="font-bold text-slate-900 dark:text-slate-100">
-                    Tanda Tangan Digital
-                  </div>
-                  <div className="space-y-1.5 text-[11px]">
-                    <div className="flex items-center justify-between">
-                      <span>Ahli K3 / Inspector:</span>
-                      {inspectorSig ? (
-                        <span className="text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle size={13} weight="bold" /> Sudah TTD
-                        </span>
-                      ) : (
-                        <span className="text-rose-600 font-bold">Belum TTD</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Perwakilan Klien:</span>
-                      {clientSig ? (
-                        <span className="text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle size={13} weight="bold" /> Sudah TTD
-                        </span>
-                      ) : (
-                        <span className="text-amber-600 font-semibold">Belum TTD (Bisa di BAP)</span>
-                      )}
-                    </div>
-                  </div>
-                  {!inspectorSig && (
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
-                        TTD Ahli K3 wajib diisi sebelum mengirim.
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReviewModalOpen(false);
-                          setTimeout(() => {
-                            document.getElementById('ttd-digital-section')?.scrollIntoView({ behavior: 'smooth' });
-                          }, 100);
-                        }}
-                        className="px-2 py-1 rounded bg-slate-800 dark:bg-slate-700 text-white font-bold text-[11px] shrink-0 hover:bg-slate-900"
-                      >
-                        Bubuhkan TTD
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Kesimpulan Akhir */}
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  Kesimpulan Akhir yang Akan Diterbitkan:
-                </span>
-                <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                  {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
-                </div>
-                {draftConclusionNotes && (
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                    Catatan: {draftConclusionNotes}
-                  </p>
-                )}
-              </div>
-
-              {/* Tombol Aksi */}
-              {activeDetail.inspection.status === 'TERKIRIM' ? (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle size={16} weight="fill" />
-                    <span>Formulir riksa uji telah selesai dikirim dan dikunci secara resmi.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReviewModalOpen(false)}
-                    className="px-4 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717]"
-                  >
-                    Tutup Ringkasan
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => setReviewModalOpen(false)}
-                    className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50"
-                  >
-                    Periksa Kembali
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canSubmit}
-                    onClick={handleSubmitFinalInspection}
-                    title={
-                      missingItems > 0
-                        ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
-                        : !inspectorSig
-                        ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
-                        : 'Kirim dan terbitkan dokumen'
-                    }
-                    className="px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (
-                      <CircleNotch size={15} weight="bold" className="animate-spin" />
-                    ) : (
-                      <PaperPlaneTilt size={15} weight="bold" />
-                    )}
-                    <span>
-                      {submitting
-                        ? 'Memproses Penerbitan...'
-                        : missingItems > 0
-                        ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
-                        : !inspectorSig
-                        ? 'Tanda Tangan Diperlukan'
-                        : 'Konfirmasi & Kirim Riksa Uji'}
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })()}
       </Modal>
 
       {/* Modal Pratinjau Dokumen BAP & LHPP Sebelum Cetak / Unduh */}

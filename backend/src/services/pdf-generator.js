@@ -405,10 +405,6 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .text(`(   ${inspDisplayName}   )`, 55, sigTop + 75, { align: 'center', width: 220 })
     .text(`(   ${clientDisplayName}   )`, 315, sigTop + 75, { align: 'center', width: 220 });
 
-  if (qrBuffer) {
-    doc.image(qrBuffer, 279, sigTop + 26, { width: 36 });
-  }
-
   // 8. Kalimat Penutup & Alamat Kantor Resmi Sesuai Template
   const closingTop = sigTop + sigHeight + 7;
   doc
