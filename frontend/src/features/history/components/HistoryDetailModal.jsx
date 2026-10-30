@@ -153,3 +153,4 @@ export function HistoryDetailModal({ selectedRecord, onClose }) {
     </Modal>
   );
 }
+

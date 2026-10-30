@@ -195,3 +195,4 @@ export function HistoryTable({ items, downloadPdf, onSelectRecord }) {
     </div>
   );
 }
+

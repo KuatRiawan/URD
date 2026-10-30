@@ -191,3 +191,4 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     handleSaveClientSignature
   };
 }
+

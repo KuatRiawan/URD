@@ -328,3 +328,4 @@ export function ManagementDashboardView({
     </div>
   );
 }
+

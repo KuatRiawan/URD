@@ -296,3 +296,4 @@ export function getVisibleNav(role) {
     return item.roles.includes(role) || (alias && item.roles.includes(alias));
   });
 }
+

@@ -166,3 +166,4 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
     </nav>
   );
 }
+

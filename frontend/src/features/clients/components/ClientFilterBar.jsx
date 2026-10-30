@@ -21,3 +21,4 @@ export function ClientFilterBar({ q, onSearchChange }) {
     </div>
   );
 }
+

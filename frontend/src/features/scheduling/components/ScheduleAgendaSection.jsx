@@ -185,3 +185,4 @@ export function ScheduleAgendaSection({ schedules }) {
     </section>
   );
 }
+

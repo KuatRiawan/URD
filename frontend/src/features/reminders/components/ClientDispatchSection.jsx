@@ -104,3 +104,4 @@ export function ClientDispatchSection({ channels, clientLog }) {
     </section>
   );
 }
+

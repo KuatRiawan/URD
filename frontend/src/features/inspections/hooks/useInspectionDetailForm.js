@@ -496,3 +496,4 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     canSubmit
   };
 }
+

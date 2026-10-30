@@ -128,3 +128,4 @@ export function AppearanceTab({ theme, setTheme }) {
     </div>
   );
 }
+

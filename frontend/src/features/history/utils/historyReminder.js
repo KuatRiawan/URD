@@ -48,3 +48,4 @@ export function buildEmailUrl(item) {
   const body = encodeURIComponent(buildReminderMessage(item));
   return `mailto:${email}?subject=${subject}&body=${body}`;
 }
+

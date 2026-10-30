@@ -97,3 +97,4 @@ export function SuketTable({ items, onOpenDetail }) {
     </div>
   );
 }
+

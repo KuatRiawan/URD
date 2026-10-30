@@ -68,3 +68,4 @@ export function UserTable({ users, onEditUser, onToggleActive }) {
     </div>
   );
 }
+

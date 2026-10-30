@@ -6,3 +6,4 @@ export const STATUS_TONE = {
   FINAL: 'success',
   TERBIT: 'success'
 };
+
