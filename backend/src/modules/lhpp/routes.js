@@ -51,7 +51,7 @@ async function fetchFullLhppContext(db, id) {
             i.order_id, i.object_id, i.inspector_id, i.conclusion, i.conclusion_notes,
             i.inspected_at, i.submitted_at, i.template_version_id,
             o.order_no, o.po_number, o.po_date,
-            b.bap_no, b.status AS bap_status, b.finalized_at AS bap_finalized_at,
+            b.id AS bap_id, b.bap_no, b.status AS bap_status, b.finalized_at AS bap_finalized_at,
             c.name AS client_name, c.address AS client_address,
             t.name AS object_name, t.brand, t.manufacturer, t.model, t.serial_number,
             t.manufacture_year, t.capacity, t.capacity_unit, t.install_location, t.previous_permit_no,

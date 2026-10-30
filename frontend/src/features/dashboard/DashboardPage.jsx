@@ -1078,54 +1078,38 @@ function renderInspectorUnitCard(u, handleDownloadPdf) {
         )}
       </div>
 
-      {/* Action Strip: Kerjakan Uji Lapangan / Unduh Berkas */}
-      <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+      {/* Action Strip: 1 Aksi Utama yang Jelas dan Terarah Sesuai Status */}
+      <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
         <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-          {u.start_at ? `Jadwal: ${formatDate(u.start_at)}` : 'Jadwal fleksibel'}
+          {u.start_at ? `Jadwal: ${formatDate(u.start_at)}` : 'Jadwal operasional'}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {u.bap_id && (
-            <button
-              type="button"
-              onClick={() =>
-                handleDownloadPdf(
-                  `/bap/${u.bap_id}/pdf`,
-                  `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                )
-              }
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold"
+        <div className="flex items-center gap-2">
+          {isCompleted ? (
+            <Link
+              to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all text-xs font-bold shadow-2xs"
             >
-              <DownloadSimple size={13} weight="bold" />
-              <span>BAP</span>
-            </button>
-          )}
-
-          {u.lhpp_id && (
-            <button
-              type="button"
-              onClick={() =>
-                handleDownloadPdf(
-                  `/lhpp/${u.lhpp_id}/pdf`,
-                  `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                )
-              }
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold"
+              <CheckCircle size={15} weight="bold" className="text-emerald-600" />
+              <span>Lihat Hasil Pemeriksaan</span>
+            </Link>
+          ) : isInProgress ? (
+            <Link
+              to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all text-xs font-bold shadow-2xs"
             >
-              <DownloadSimple size={13} weight="bold" />
-              <span>LHPP</span>
-            </button>
+              <ClipboardText size={15} weight="bold" />
+              <span>Lanjutkan Pemeriksaan</span>
+            </Link>
+          ) : (
+            <Link
+              to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] transition-all text-xs font-bold shadow-2xs"
+            >
+              <ClipboardText size={15} weight="bold" />
+              <span>Mulai Pemeriksaan</span>
+            </Link>
           )}
-
-          <Link
-            to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] transition-all text-xs font-bold shadow-2xs"
-          >
-            <ClipboardText size={14} weight="bold" />
-            <span>
-              {isCompleted ? 'Lihat Form Uji' : isInProgress ? 'Lanjutkan Uji' : 'Kerjakan Uji Lapangan'}
-            </span>
-          </Link>
         </div>
       </div>
     </div>
@@ -1189,43 +1173,35 @@ function renderInspectorUnitTable(units, handleDownloadPdf) {
               )}
             </TableCell>
             <TableCell className="text-right">
-              <div className="inline-flex flex-wrap justify-end gap-1.5">
+              <div className="inline-flex items-center justify-end gap-1.5">
                 <Link
                   to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-                  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold hover:bg-[#a61717] text-xs shadow-2xs"
+                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs ${
+                    [
+                      'LHPP_FINAL',
+                      'LHPP_TERBIT',
+                      'BAP_FINAL',
+                      'SIAP_DISTRIBUSI',
+                      'SELESAI'
+                    ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM'
+                      ? 'border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
+                      : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
+                  }`}
                 >
-                  {u.inspection_status === 'TERKIRIM' ? 'Lihat Form Uji' : 'Kerjakan Uji'}
+                  {[
+                    'LHPP_FINAL',
+                    'LHPP_TERBIT',
+                    'BAP_FINAL',
+                    'SIAP_DISTRIBUSI',
+                    'SELESAI'
+                  ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM'
+                    ? 'Lihat Hasil'
+                    : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status)
+                    ? 'Lanjutkan Uji'
+                    : 'Mulai Pemeriksaan'}
                 </Link>
-                {u.bap_id && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownloadPdf(
-                        `/bap/${u.bap_id}/pdf`,
-                        `${(u.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
-                      )
-                    }
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                  >
-                    <DownloadSimple size={13} weight="bold" />
-                    <span>BAP</span>
-                  </button>
-                )}
-                {u.lhpp_id && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownloadPdf(
-                        `/lhpp/${u.lhpp_id}/pdf`,
-                        `${(u.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
-                      )
-                    }
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                  >
-                    <DownloadSimple size={13} weight="bold" />
-                    <span>LHPP</span>
-                  </button>
-                )}
               </div>
             </TableCell>
           </TableRow>

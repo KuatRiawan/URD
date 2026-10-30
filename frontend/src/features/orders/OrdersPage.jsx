@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ArrowLeft,
+  ArrowRight,
   CalendarPlus,
   CheckCircle,
   ClipboardText,
@@ -69,6 +71,14 @@ const ALLOWED_NEXT_STATUS = {
   DIBATALKAN: []
 };
 
+const PO_WIZARD_STEPS = [
+  'Info PO & Layanan',
+  'Data Klien & PIC',
+  'Unit Alat K3',
+  'Jadwal & Ahli K3',
+  'Review & Simpan'
+];
+
 export function OrdersPage() {
   const confirm = useConfirm();
   const toast = useToast();
@@ -87,6 +97,7 @@ export function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [poWizardStep, setPoWizardStep] = useState(1);
   const [clientMode, setClientMode] = useState('EXISTING');
   const [clientObjects, setClientObjects] = useState([]);
   const [createForm, setCreateForm] = useState({
@@ -240,8 +251,52 @@ export function OrdersPage() {
     }));
   };
 
+  const handleWizardNext = () => {
+    setError('');
+    if (poWizardStep === 1) {
+      if (!createForm.poDate) {
+        setError('Tanggal PO wajib diisi.');
+        return;
+      }
+      setPoWizardStep(2);
+      return;
+    }
+    if (poWizardStep === 2) {
+      const hasClient =
+        (clientMode === 'EXISTING' && Boolean(createForm.clientId)) ||
+        (clientMode === 'NEW' && Boolean(createForm.newClientName?.trim()));
+      if (!hasClient) {
+        setError('Pilih perusahaan klien terdaftar atau ketik nama perusahaan klien baru.');
+        return;
+      }
+      setPoWizardStep(3);
+      return;
+    }
+    if (poWizardStep === 3) {
+      if (newUnitRow.name?.trim()) {
+        handleAddInlineUnit();
+      }
+      const totalUnits =
+        createForm.objectIds.length +
+        createForm.units.length +
+        (newUnitRow.name?.trim() ? 1 : 0);
+      if (totalUnits === 0) {
+        setError(
+          'Daftarkan minimal 1 unit alat K3 (pilih dari unit terdaftar, tambahkan unit baru, atau impor CSV).'
+        );
+        return;
+      }
+      setPoWizardStep(4);
+      return;
+    }
+    if (poWizardStep === 4) {
+      setPoWizardStep(5);
+      return;
+    }
+  };
+
   const handleCreateOrder = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const pendingUnits = [...createForm.units];
     if (newUnitRow.name?.trim()) {
       pendingUnits.push({
@@ -313,6 +368,7 @@ export function OrdersPage() {
         inspectorIds: createForm.inspectorIds
       });
       setCreateOpen(false);
+      setPoWizardStep(1);
       setClientMode('EXISTING');
       setCreateForm({
         poNumber: '',
@@ -687,7 +743,11 @@ export function OrdersPage() {
           canManage && (
             <button
               type="button"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                setError('');
+                setPoWizardStep(1);
+                setCreateOpen(true);
+              }}
               className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616]"
             >
               <Plus size={16} weight="bold" />
@@ -834,489 +894,649 @@ export function OrdersPage() {
         </div>
       )}
 
-      {/* Modal Buat PO & Order Multi-Unit */}
+      {/* Modal Buat PO & Order Multi-Unit (Guided 5-Step Wizard) */}
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Buat Purchase Order (PO) & Daftarkan Unit Alat K3"
         size="xl"
       >
-        <form onSubmit={handleCreateOrder} className="space-y-5 text-slate-800 dark:text-slate-200">
+        <div className="space-y-5 text-slate-800 dark:text-slate-200">
+          {/* Stepper Progress Bar */}
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="font-bold text-slate-900 dark:text-white">
+                Langkah {poWizardStep} dari 5: {PO_WIZARD_STEPS[poWizardStep - 1]}
+              </span>
+              <span className="font-semibold text-[#C81E1E]">
+                {Math.round((poWizardStep / 5) * 100)}% Selesai
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-[#C81E1E] h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(poWizardStep / 5) * 100}%` }}
+              />
+            </div>
+          </div>
+
           {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                Nomor PO Pelanggan
-              </label>
-              <input
-                type="text"
-                value={createForm.poNumber}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, poNumber: e.target.value }))}
-                placeholder="Contoh: PO-URD-2026-001"
-                className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono text-slate-900 dark:text-slate-100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                Tanggal PO *
-              </label>
-              <input
-                type="date"
-                required
-                value={createForm.poDate}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, poDate: e.target.value }))}
-                className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Perusahaan Klien *
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setClientMode((prev) => (prev === 'EXISTING' ? 'NEW' : 'EXISTING'));
-                    setError('');
-                  }}
-                  className="text-[11px] font-bold text-[#C81E1E] dark:text-red-400 hover:underline"
-                >
-                  {clientMode === 'EXISTING'
-                    ? '+ Input Klien Baru Sekaligus'
-                    : 'Pilih dari Klien Terdaftar'}
-                </button>
-              </div>
-              {clientMode === 'EXISTING' ? (
-                <select
-                  value={createForm.clientId}
-                  onChange={(e) => handleClientChange(e.target.value)}
-                  className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                >
-                  <option value="">Pilih Klien Terdaftar...</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={createForm.newClientName}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, newClientName: e.target.value }))
-                  }
-                  placeholder="Ketik Nama Perusahaan Klien Baru *"
-                  className="w-full min-h-11 rounded-md border border-[#C81E1E] bg-red-50/20 dark:bg-red-950/20 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100"
-                />
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                Jenis Layanan Riksa Uji *
-              </label>
-              <select
-                value={createForm.serviceType}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({ ...prev, serviceType: e.target.value }))
-                }
-                className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-              >
-                {Object.entries(SERVICE_TYPE_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                Sumber Permohonan *
-              </label>
-              <select
-                value={createForm.source}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, source: e.target.value }))}
-                className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-              >
-                <option value="DOKUMEN_PO">Dokumen PO Resmi</option>
-                <option value="EMAIL">Email Resmi</option>
-                <option value="WHATSAPP">WhatsApp</option>
-                <option value="TELEPON">Telepon Kantor</option>
-                <option value="LANGSUNG">Kunjungan Langsung</option>
-                <option value="LAINNYA">Lainnya</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-[#0F172A] mb-1">
-                Target Tanggal Pemeriksaan
-              </label>
-              <input
-                type="date"
-                value={createForm.requestedDate}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({ ...prev, requestedDate: e.target.value }))
-                }
-                className="w-full min-h-11 rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
 
-          {/* Bagian Terpadu: Data Klien Baru, Lokasi Pabrik/Site & Kontak PIC (Seamless All-in-One) */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-bold text-[#475569] uppercase tracking-wider">
-                Data Lokasi Pelaksanaan & Kontak PIC Klien (Untuk Jadwal & Reminder WA/Email)
-              </span>
-              <span className="text-[11px] text-slate-500">
-                Isi langsung di sini tanpa perlu pindah halaman
-              </span>
-            </div>
-
-            {clientMode === 'NEW' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-2 border-b border-slate-200">
+          {/* LANGKAH 1: IDENTITAS PO & LAYANAN */}
+          {poWizardStep === 1 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                    Bidang Industri Klien Baru
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    Nomor PO Pelanggan (Opsional)
                   </label>
                   <input
                     type="text"
-                    value={createForm.newClientIndustry}
-                    onChange={(e) =>
-                      setCreateForm((prev) => ({ ...prev, newClientIndustry: e.target.value }))
-                    }
-                    placeholder="Contoh: Manufaktur, Konstruksi, Logistik..."
-                    className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                    value={createForm.poNumber}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, poNumber: e.target.value }))}
+                    placeholder="Contoh: PO-URD-2026-001"
+                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono text-slate-900 dark:text-slate-100"
                   />
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    Bila dikosongkan, nomor order internal akan digunakan sebagai referensi.
+                  </p>
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                    Alamat Kantor / Perusahaan Klien
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    Tanggal PO *
                   </label>
                   <input
-                    type="text"
-                    value={createForm.newClientAddress}
-                    onChange={(e) =>
-                      setCreateForm((prev) => ({ ...prev, newClientAddress: e.target.value }))
-                    }
-                    placeholder="Alamat lengkap perusahaan..."
-                    className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                    type="date"
+                    required
+                    value={createForm.poDate}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, poDate: e.target.value }))}
+                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
                   />
                 </div>
-              </div>
-            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                  Nama Lokasi / Pabrik / Site
-                </label>
-                <input
-                  type="text"
-                  value={createForm.locationName}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, locationName: e.target.value }))
-                  }
-                  placeholder="Mis: Plant Cikarang / Workshop A"
-                  className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                  Alamat Lokasi Pemeriksaan
-                </label>
-                <input
-                  type="text"
-                  value={createForm.locationAddress}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, locationAddress: e.target.value }))
-                  }
-                  placeholder="Jl. Industri Raya No..."
-                  className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                  Kota / Kabupaten Lokasi
-                </label>
-                <input
-                  type="text"
-                  value={createForm.locationCity}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, locationCity: e.target.value }))
-                  }
-                  placeholder="Mis: Bekasi / Karawang"
-                  className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                  Nama Kontak PIC Klien
-                </label>
-                <input
-                  type="text"
-                  value={createForm.contactName}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, contactName: e.target.value }))
-                  }
-                  placeholder="Mis: Bpk. Hendra (HSE)"
-                  className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                  No. WhatsApp / Telepon PIC
-                </label>
-                <input
-                  type="text"
-                  value={createForm.contactPhone}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, contactPhone: e.target.value }))
-                  }
-                  placeholder="Mis: 081234567890"
-                  className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
-                  Email PIC / Perusahaan
-                </label>
-                <input
-                  type="email"
-                  value={createForm.contactEmail}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, contactEmail: e.target.value }))
-                  }
-                  placeholder="Mis: hse@perusahaan.co.id"
-                  className="w-full min-h-10 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Opsi 1: Pilih dari Unit Klien yang Sudah Terdaftar */}
-          <div>
-            <label className="block text-xs font-bold text-[#0F172A] mb-1">
-              1. Pilih dari Unit Alat Klien yang Sudah Terdaftar ({createForm.objectIds.length} dipilih)
-            </label>
-            {!createForm.clientId ? (
-              <p className="text-xs text-slate-500 border border-dashed border-slate-300 rounded-md p-3">
-                Pilih perusahaan klien terlebih dahulu untuk menampilkan daftar unit yang sudah terdaftar.
-              </p>
-            ) : clientObjects.length === 0 ? (
-              <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-md p-3">
-                Klien ini belum memiliki unit terdaftar sebelumnya. Anda dapat langsung menambahkan unit baru di bawah.
-              </p>
-            ) : (
-              <div className="max-h-40 overflow-y-auto border border-slate-300 rounded-md divide-y divide-slate-200">
-                {clientObjects.map((obj) => (
-                  <label
-                    key={obj.id}
-                    className="flex items-center gap-3 px-3 py-2 text-xs hover:bg-slate-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={createForm.objectIds.includes(obj.id)}
-                      onChange={() => toggleObjectSelection(obj.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-[#C81E1E]"
-                    />
-                    <div className="flex-1">
-                      <span className="font-bold text-[#0F172A]">{obj.name}</span>
-                      <span className="ml-2 text-slate-500 font-mono">({obj.serial_number})</span>
-                      <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-semibold">
-                        {obj.category_code}
-                      </span>
-                    </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    Jenis Layanan Riksa Uji *
                   </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Opsi 2: Tambah Unit Baru Langsung di dalam PO (Mendukung Multi-Unit & Kuantitas > 1) */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="text-xs font-bold text-[#0F172A]">
-                2. Tambah Unit Alat Baru Langsung ke dalam PO (Kuantitas &gt; 1 otomatis dipecah per unit)
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleOpenCsvImport(null)}
-                  className="min-h-8 inline-flex items-center gap-1 rounded bg-slate-200 hover:bg-slate-300 px-2.5 py-1 text-[11px] font-bold text-[#0F172A]"
-                >
-                  <FileCsv size={14} weight="bold" />
-                  <span>Impor CSV Unit</span>
-                </button>
-                <span className="text-xs font-semibold text-[#C81E1E]">
-                  {createForm.units.length} baris unit baru
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
-              <select
-                value={newUnitRow.categoryId}
-                onChange={(e) => setNewUnitRow({ ...newUnitRow, categoryId: Number(e.target.value) })}
-                className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.code} - {cat.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newUnitRow.name}
-                onChange={(e) => setNewUnitRow({ ...newUnitRow, name: e.target.value })}
-                placeholder="Nama Alat (mis. Overhead Crane)"
-                className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-              <input
-                type="text"
-                value={newUnitRow.serialNumber}
-                onChange={(e) => setNewUnitRow({ ...newUnitRow, serialNumber: e.target.value })}
-                placeholder="Nomor Seri (opsional)"
-                className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-              />
-              <input
-                type="text"
-                value={newUnitRow.capacity}
-                onChange={(e) => setNewUnitRow({ ...newUnitRow, capacity: e.target.value })}
-                placeholder="Kapasitas (mis. 10 Ton)"
-                className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-              <input
-                type="text"
-                value={newUnitRow.installLocation}
-                onChange={(e) => setNewUnitRow({ ...newUnitRow, installLocation: e.target.value })}
-                placeholder="Lokasi Area Pabrik"
-                className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-              <div className="flex gap-1.5">
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={newUnitRow.quantity}
-                  onChange={(e) => setNewUnitRow({ ...newUnitRow, quantity: Number(e.target.value) })}
-                  title="Jumlah Unit"
-                  className="w-16 px-2 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-bold"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddInlineUnit}
-                  className="flex-1 px-3 py-2 text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded"
-                >
-                  + Unit
-                </button>
-              </div>
-            </div>
-
-            {createForm.units.length > 0 && (
-              <div className="space-y-1.5 pt-2">
-                {createForm.units.map((u, idx) => (
-                  <div
-                    key={`${u.serialNumber}-${idx}`}
-                    className="flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200"
+                  <select
+                    value={createForm.serviceType}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({ ...prev, serviceType: e.target.value }))
+                    }
+                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
                   >
-                    <div>
-                      <span className="font-bold text-slate-900 dark:text-white">{u.name}</span> · SN:{' '}
-                      <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{u.serialNumber}</span> · Kapasitas:{' '}
-                      {u.capacity || '-'} · Lokasi: {u.installLocation || '-'} ·{' '}
-                      <strong className="text-[#C81E1E]">{u.quantity} Unit</strong>
-                    </div>
+                    {Object.entries(SERVICE_TYPE_LABELS).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    Sumber Permohonan *
+                  </label>
+                  <select
+                    value={createForm.source}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, source: e.target.value }))}
+                    className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="DOKUMEN_PO">Dokumen PO Resmi</option>
+                    <option value="EMAIL">Email Resmi</option>
+                    <option value="WHATSAPP">WhatsApp</option>
+                    <option value="TELEPON">Telepon Kantor</option>
+                    <option value="LANGSUNG">Kunjungan Langsung</option>
+                    <option value="LAINNYA">Lainnya</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* LANGKAH 2: DATA KLIEN & KONTAK PIC */}
+          {poWizardStep === 2 && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Perusahaan Klien *
+                    </label>
                     <button
                       type="button"
-                      onClick={() => removeInlineUnit(idx)}
-                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                      onClick={() => {
+                        setClientMode((prev) => (prev === 'EXISTING' ? 'NEW' : 'EXISTING'));
+                        setError('');
+                      }}
+                      className="text-xs font-bold text-[#C81E1E] dark:text-red-400 hover:underline cursor-pointer"
                     >
-                      <Trash size={15} />
+                      {clientMode === 'EXISTING'
+                        ? '+ Input Klien Baru Sekaligus'
+                        : 'Pilih dari Klien Terdaftar'}
                     </button>
                   </div>
-                ))}
+                  {clientMode === 'EXISTING' ? (
+                    <select
+                      value={createForm.clientId}
+                      onChange={(e) => handleClientChange(e.target.value)}
+                      className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                    >
+                      <option value="">Pilih Klien Terdaftar...</option>
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={createForm.newClientName}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({ ...prev, newClientName: e.target.value }))
+                      }
+                      placeholder="Ketik Nama Perusahaan Klien Baru *"
+                      className="w-full min-h-11 rounded-md border border-[#C81E1E] bg-red-50/20 dark:bg-red-950/20 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100"
+                    />
+                  )}
+                </div>
+
+                {clientMode === 'NEW' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                        Bidang Industri Klien Baru
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.newClientIndustry}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, newClientIndustry: e.target.value }))
+                        }
+                        placeholder="Contoh: Manufaktur, Konstruksi, Logistik..."
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                        Alamat Kantor / Perusahaan Klien
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.newClientAddress}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, newClientAddress: e.target.value }))
+                        }
+                        placeholder="Alamat lengkap perusahaan..."
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Lokasi Pabrik / Site Pelaksanaan Pemeriksaan
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Nama Lokasi / Site
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.locationName}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, locationName: e.target.value }))
+                        }
+                        placeholder="Mis: Plant Cikarang / Workshop A"
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Alamat Lokasi Pemeriksaan
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.locationAddress}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, locationAddress: e.target.value }))
+                        }
+                        placeholder="Jl. Industri Raya No..."
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Kota / Kabupaten Lokasi
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.locationCity}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, locationCity: e.target.value }))
+                        }
+                        placeholder="Mis: Bekasi / Karawang"
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Kontak PIC K3 / HSE Klien
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Nama Kontak PIC
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.contactName}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, contactName: e.target.value }))
+                        }
+                        placeholder="Mis: Bpk. Hendra"
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        No. WhatsApp / Telepon PIC
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.contactPhone}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, contactPhone: e.target.value }))
+                        }
+                        placeholder="Mis: 081234567890"
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-mono text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Email PIC Klien
+                      </label>
+                      <input
+                        type="email"
+                        value={createForm.contactEmail}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({ ...prev, contactEmail: e.target.value }))
+                        }
+                        placeholder="Mis: hse@klien.co.id"
+                        className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* LANGKAH 3: UNIT ALAT K3 */}
+          {poWizardStep === 3 && (
+            <div className="space-y-4">
+              {/* Opsi 1: Pilih dari unit terdaftar */}
+              {clientMode === 'EXISTING' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    A. Pilih dari Unit Alat Klien yang Sudah Terdaftar ({createForm.objectIds.length} dipilih)
+                  </label>
+                  {!createForm.clientId ? (
+                    <p className="text-xs text-slate-500 border border-dashed border-slate-300 rounded-md p-3">
+                      Pilih perusahaan klien terlebih dahulu pada Langkah 2 untuk menampilkan unit terdaftar.
+                    </p>
+                  ) : clientObjects.length === 0 ? (
+                    <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-md p-3">
+                      Klien ini belum memiliki unit terdaftar sebelumnya. Silakan tambahkan unit baru di bawah.
+                    </p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto border border-slate-300 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-800">
+                      {clientObjects.map((obj) => (
+                        <label
+                          key={obj.id}
+                          className="flex items-center gap-3 px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={createForm.objectIds.includes(obj.id)}
+                            onChange={() => toggleObjectSelection(obj.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-[#C81E1E]"
+                          />
+                          <div className="flex-1">
+                            <span className="font-bold text-slate-900 dark:text-white">{obj.name}</span>
+                            <span className="ml-2 text-slate-500 font-mono">({obj.serial_number})</span>
+                            <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
+                              {obj.category_code}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Opsi 2: Tambah unit baru langsung */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white">
+                    B. Tambah Unit Alat Baru Langsung ke PO
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCsvImport(null)}
+                      className="min-h-8 inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-2.5 py-1 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
+                    >
+                      <FileCsv size={15} weight="bold" />
+                      <span>Impor CSV Unit</span>
+                    </button>
+                    <span className="text-xs font-bold text-[#C81E1E]">
+                      {createForm.units.length} unit baru ditambahkan
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
+                  <select
+                    value={newUnitRow.categoryId}
+                    onChange={(e) => setNewUnitRow({ ...newUnitRow, categoryId: Number(e.target.value) })}
+                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.code} - {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={newUnitRow.name}
+                    onChange={(e) => setNewUnitRow({ ...newUnitRow, name: e.target.value })}
+                    placeholder="Nama Alat (mis. Overhead Crane)"
+                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                  <input
+                    type="text"
+                    value={newUnitRow.serialNumber}
+                    onChange={(e) => setNewUnitRow({ ...newUnitRow, serialNumber: e.target.value })}
+                    placeholder="Nomor Seri (opsional)"
+                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+                  />
+                  <input
+                    type="text"
+                    value={newUnitRow.capacity}
+                    onChange={(e) => setNewUnitRow({ ...newUnitRow, capacity: e.target.value })}
+                    placeholder="Kapasitas (mis. 10 Ton)"
+                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                  <input
+                    type="text"
+                    value={newUnitRow.installLocation}
+                    onChange={(e) => setNewUnitRow({ ...newUnitRow, installLocation: e.target.value })}
+                    placeholder="Lokasi Area Pabrik"
+                    className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={newUnitRow.quantity}
+                      onChange={(e) => setNewUnitRow({ ...newUnitRow, quantity: Number(e.target.value) })}
+                      title="Jumlah Unit"
+                      className="w-16 px-2 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddInlineUnit}
+                      className="flex-1 px-3 py-2 text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded cursor-pointer"
+                    >
+                      + Unit
+                    </button>
+                  </div>
+                </div>
+
+                {createForm.units.length > 0 && (
+                  <div className="space-y-1.5 pt-2">
+                    {createForm.units.map((u, idx) => (
+                      <div
+                        key={`${u.serialNumber}-${idx}`}
+                        className="flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 dark:text-white">{u.name}</span> · SN:{' '}
+                          <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                            {u.serialNumber}
+                          </span>{' '}
+                          · Kapasitas: {u.capacity || '-'} · Lokasi: {u.installLocation || '-'} ·{' '}
+                          <strong className="text-[#C81E1E]">{u.quantity} Unit</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeInlineUnit(idx)}
+                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 cursor-pointer"
+                        >
+                          <Trash size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* LANGKAH 4: JADWAL & AHLI K3 */}
+          {poWizardStep === 4 && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Target Tanggal Pemeriksaan Lapangan
+                </label>
+                <input
+                  type="date"
+                  value={createForm.requestedDate}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({ ...prev, requestedDate: e.target.value }))
+                  }
+                  className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Tugaskan Inspector / Tim Ahli K3 (Dapat Ditugaskan Nanti)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {inspectors.map((insp) => {
+                    const checked = createForm.inspectorIds.includes(insp.id);
+                    const validCodes = (insp.competencies || [])
+                      .filter((c) => c.isValid)
+                      .map((c) => c.categoryCode)
+                      .join(', ');
+                    return (
+                      <label
+                        key={insp.id}
+                        className={`flex items-start gap-2 p-2.5 rounded border text-xs cursor-pointer ${
+                          checked
+                            ? 'border-[#C81E1E] bg-red-50/40 dark:bg-red-950/40'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setCreateForm((prev) => ({
+                              ...prev,
+                              inspectorIds: checked
+                                ? prev.inspectorIds.filter((id) => id !== insp.id)
+                                : [...prev.inspectorIds, insp.id]
+                            }))
+                          }
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#C81E1E]"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-white">{insp.fullName}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            SKP: {validCodes || 'Aktif'}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Catatan Khusus PO / Instruksi Pelaksanaan Riksa Uji
+                </label>
+                <textarea
+                  rows={3}
+                  value={createForm.notes}
+                  onChange={(e) => setCreateForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Instruksi khusus terkait APD, jam operasional pabrik, akses crane, dsb..."
+                  className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* LANGKAH 5: REVIEW & SIMPAN */}
+          {poWizardStep === 5 && (
+            <div className="space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Ringkasan Data Purchase Order (PO)
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Identitas PO</div>
+                    <div className="font-mono font-bold text-slate-900 dark:text-white">
+                      {createForm.poNumber || 'Nomor PO Otomatis'}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-300">
+                      Tanggal PO: {createForm.poDate || '-'}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-300">
+                      Layanan: {SERVICE_TYPE_LABELS[createForm.serviceType] || createForm.serviceType}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Perusahaan Klien & Lokasi</div>
+                    <div className="font-bold text-slate-900 dark:text-white">
+                      {clientMode === 'NEW'
+                        ? `${createForm.newClientName} (Klien Baru)`
+                        : clients.find((c) => c.id === createForm.clientId)?.name || '-'}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-300">
+                      Lokasi: {createForm.locationName || createForm.locationAddress || '-'}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-300">
+                      PIC: {createForm.contactName || '-'} ({createForm.contactPhone || '-'})
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+                  <div className="text-slate-400 text-[11px] mb-1.5 font-semibold uppercase">
+                    Daftar Unit Alat K3 yang Didaftarkan ({createForm.objectIds.length + createForm.units.length} Unit)
+                  </div>
+                  <div className="space-y-1">
+                    {createForm.objectIds.length > 0 && (
+                      <div className="text-slate-700 dark:text-slate-300">
+                        • {createForm.objectIds.length} Unit dipilih dari unit terdaftar klien
+                      </div>
+                    )}
+                    {createForm.units.map((u, i) => (
+                      <div key={i} className="text-slate-700 dark:text-slate-300">
+                        • <strong>{u.name}</strong> (SN: {u.serialNumber}) · Kapasitas: {u.capacity || '-'} · Jumlah: {u.quantity} unit
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Tim Ahli K3</div>
+                    <div className="text-slate-700 dark:text-slate-300">
+                      {createForm.inspectorIds.length > 0
+                        ? createForm.inspectorIds
+                            .map((id) => inspectors.find((i) => i.id === id)?.fullName)
+                            .filter(Boolean)
+                            .join(', ')
+                        : 'Belum ditentukan (dapat dijadwalkan kemudian)'}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Target Pelaksanaan</div>
+                    <div className="text-slate-700 dark:text-slate-300">
+                      {createForm.requestedDate ? formatDate(createForm.requestedDate) : 'Sesuai kesepakatan'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tombol Navigasi Wizard */}
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            {poWizardStep > 1 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setPoWizardStep((prev) => prev - 1);
+                }}
+                className="min-h-11 inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                <ArrowLeft size={16} weight="bold" />
+                <span>Kembali ke Langkah {poWizardStep - 1}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Batal
+              </button>
+            )}
+
+            {poWizardStep < 5 ? (
+              <button
+                type="button"
+                onClick={handleWizardNext}
+                className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+              >
+                <span>Lanjut: {PO_WIZARD_STEPS[poWizardStep]}</span>
+                <ArrowRight size={16} weight="bold" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleCreateOrder}
+                className="min-h-11 inline-flex items-center gap-2 rounded-md bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                <CheckCircle size={17} weight="bold" />
+                <span>{submitting ? 'Menyimpan PO...' : 'Konfirmasi & Simpan Purchase Order'}</span>
+              </button>
             )}
           </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-              3. Tugaskan Inspector / Ahli K3 Langsung (Opsional)
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {inspectors.map((insp) => {
-                const checked = createForm.inspectorIds.includes(insp.id);
-                const validCodes = (insp.competencies || [])
-                  .filter((c) => c.isValid)
-                  .map((c) => c.categoryCode)
-                  .join(', ');
-                return (
-                  <label
-                    key={insp.id}
-                    className={`flex items-start gap-2 p-2.5 rounded border text-xs cursor-pointer ${
-                      checked
-                        ? 'border-[#C81E1E] bg-red-50/40 dark:bg-red-950/40'
-                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() =>
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          inspectorIds: checked
-                            ? prev.inspectorIds.filter((id) => id !== insp.id)
-                            : [...prev.inspectorIds, insp.id]
-                        }))
-                      }
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#C81E1E]"
-                    />
-                    <div>
-                      <div className="font-bold text-slate-900 dark:text-white">{insp.fullName}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        SKP: {validCodes || 'Aktif'}
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-              Catatan PO / Detail Pekerjaan & Instruksi Pelaksanaan
-            </label>
-            <textarea
-              rows={2}
-              value={createForm.notes}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, notes: e.target.value }))}
-              placeholder="Catatan ruang lingkup pemeriksaan atau instruksi lokasi..."
-              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setCreateOpen(false)}
-              className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="min-h-11 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50"
-            >
-              {submitting ? 'Menyimpan PO...' : 'Simpan PO & Daftar Unit'}
-            </button>
-          </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Modal Detail & Pengelolaan PO */}

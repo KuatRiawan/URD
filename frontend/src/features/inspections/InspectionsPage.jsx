@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import {
+  ArrowLeft,
+  ArrowRight,
   Camera,
   Check,
   CheckCircle,
@@ -68,6 +70,7 @@ export function InspectionsPage() {
   const [activeDetail, setActiveDetail] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [formStep, setFormStep] = useState(1);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [isAutosaving, setIsAutosaving] = useState(false);
   const [draftConclusion, setDraftConclusion] = useState('MEMENUHI_SYARAT');
@@ -226,6 +229,7 @@ export function InspectionsPage() {
         signerTitle: 'Ahli K3 Spesialis'
       });
       setHasDrawnSig(false);
+      setFormStep(data.inspection?.status === 'TERKIRIM' ? 4 : 1);
       setDetailModalOpen(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memuat detail form inspeksi.');
@@ -980,8 +984,64 @@ export function InspectionsPage() {
         }
         size="xl"
       >
-        {activeDetail?.inspection && (
-          <div className="space-y-6 text-sm">
+        {activeDetail?.inspection && (() => {
+          const totalItems = (activeDetail.items || []).length;
+          const evaluatedItems = (activeDetail.items || []).filter((item) => {
+            const res = draftResults[item.id];
+            if (!res) return false;
+            if (item.input_type === 'CHOICE') return !!res.choiceValue;
+            if (item.input_type === 'NUMBER')
+              return res.numberValue !== '' && res.numberValue !== null && res.numberValue !== undefined;
+            if (item.input_type === 'TEXT') return !!res.textValue;
+            return true;
+          }).length;
+          const missingItems = totalItems - evaluatedItems;
+          const missingList = (activeDetail.items || []).filter((item) => {
+            const res = draftResults[item.id];
+            if (!res) return true;
+            if (item.input_type === 'CHOICE') return !res.choiceValue;
+            if (item.input_type === 'NUMBER')
+              return res.numberValue === '' || res.numberValue === null || res.numberValue === undefined;
+            if (item.input_type === 'TEXT') return !res.textValue;
+            return false;
+          });
+          const nonConformingItems = (activeDetail.items || []).filter(
+            (item) => draftResults[item.id]?.choiceValue === 'TIDAK_SESUAI'
+          );
+          const photosCount = (activeDetail.photos || []).length;
+
+          const inspectorSig = (activeDetail.signatures || []).find((s) =>
+            ['AHLI_K3', 'INSPECTOR'].includes(s.signer_role)
+          );
+          const clientSig = (activeDetail.signatures || []).find((s) =>
+            ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role)
+          );
+
+          const canSubmit = missingItems === 0 && Boolean(inspectorSig) && !submitting;
+
+          const handleAutoFillAllStandard = () => {
+            const updated = { ...draftResults };
+            for (const it of activeDetail.items || []) {
+              const cur = updated[it.id] || {};
+              updated[it.id] = {
+                itemId: it.id,
+                choiceValue: it.input_type === 'CHOICE' ? (cur.choiceValue || 'SESUAI') : null,
+                numberValue:
+                  it.input_type === 'NUMBER'
+                    ? (cur.numberValue !== '' && cur.numberValue !== null && cur.numberValue !== undefined
+                        ? cur.numberValue
+                        : String(it.min_value ?? 0))
+                    : '',
+                textValue: it.input_type === 'TEXT' ? (cur.textValue || 'Sesuai Spesifikasi Teknis') : '',
+                note: cur.note || ''
+              };
+            }
+            setDraftResults(updated);
+            setFeedback('Seluruh parameter checklist berhasil diisi otomatis sesuai standar teknis.');
+          };
+
+          return (
+            <div className="space-y-5 text-sm">
             {/* Header Status & Indikator Autosave */}
             <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-1">
               <span className="font-bold text-slate-700 dark:text-slate-300">
@@ -1149,12 +1209,114 @@ export function InspectionsPage() {
               </div>
             </div>
 
-            {/* Parameter Checklist */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
-                1. Parameter Pemeriksaan &amp; Pengukuran Teknis
-              </h4>
-              <div className="border border-slate-200 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+            {/* Stepper Wizard Navigasi 4 Langkah Alur Riksa Uji Lapangan */}
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setFormStep(1)}
+                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  formStep === 1
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                  missingItems === 0
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                    : 'bg-slate-200 dark:bg-slate-700'
+                }`}>
+                  {missingItems === 0 ? '✓' : '1'}
+                </span>
+                <span className="hidden sm:inline">1. Checklist ({evaluatedItems}/{totalItems})</span>
+                <span className="sm:hidden text-[10px]">1. Checklist</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormStep(2)}
+                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  formStep === 2
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-extrabold">
+                  2
+                </span>
+                <span className="hidden sm:inline">2. Kesimpulan &amp; Temuan</span>
+                <span className="sm:hidden text-[10px]">2. Kesimpulan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormStep(3)}
+                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  formStep === 3
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                  inspectorSig
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                    : 'bg-slate-200 dark:bg-slate-700'
+                }`}>
+                  {inspectorSig ? '✓' : '3'}
+                </span>
+                <span className="hidden sm:inline">3. Tanda Tangan Digital</span>
+                <span className="sm:hidden text-[10px]">3. TTD</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormStep(4)}
+                className={`py-2 px-1 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  formStep === 4
+                    ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-extrabold">
+                  4
+                </span>
+                <span className="hidden sm:inline">4. Ringkasan &amp; Kirim</span>
+                <span className="sm:hidden text-[10px]">4. Kirim</span>
+              </button>
+            </div>
+
+            {/* LANGKAH 1: Parameter Checklist & Pengukuran Teknis */}
+            {formStep === 1 && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">
+                        1. Parameter Pemeriksaan &amp; Pengukuran Teknis
+                      </span>
+                      <span className={`text-xs font-bold ${missingItems === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        ({evaluatedItems} dari {totalItems} terisi)
+                      </span>
+                    </div>
+                    <div className="w-48 sm:w-64 h-2 rounded-full bg-slate-200 dark:bg-slate-800 mt-2 overflow-hidden">
+                      <div
+                        className={`h-full ${missingItems === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                        style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {isInspector && activeDetail.inspection.status === 'DRAF' && missingItems > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAutoFillAllStandard}
+                      className="px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] font-bold text-xs shrink-0 shadow-xs transition-colors"
+                    >
+                      Tandai Semua Sesuai Standar
+                    </button>
+                  )}
+                </div>
+
+                <div className="border border-slate-200 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
                 {(activeDetail.items || []).map((item) => {
                   const row = draftResults[item.id] || {};
                   const readOnly = !isInspector || activeDetail.inspection.status !== 'DRAF';
@@ -1275,10 +1437,39 @@ export function InspectionsPage() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
+                  </div>
 
-            {/* Kesimpulan Teknis */}
+                  {/* Tombol Navigasi Bawah Langkah 1 */}
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <div>
+                      {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={handleSaveDraft}
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        >
+                          <FloppyDisk size={15} />
+                          <span>Simpan Draf</span>
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(2)}
+                      className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs"
+                    >
+                      <span>Lanjut: Kesimpulan &amp; Temuan</span>
+                      <ArrowRight size={15} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* LANGKAH 2: Kesimpulan, Lingkup BAP, Foto & Temuan */}
+              {formStep === 2 && (
+                <div className="space-y-4">
+                  {/* Kesimpulan Teknis */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-md border border-slate-200 dark:border-slate-700">
               <div>
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
@@ -1507,6 +1698,44 @@ export function InspectionsPage() {
               )}
             </div>
 
+            {/* Tombol Navigasi Bawah Langkah 2 */}
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setFormStep(1)}
+                className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                <ArrowLeft size={15} weight="bold" />
+                <span>Kembali ke Checklist</span>
+              </button>
+              <div className="flex items-center gap-2">
+                {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={handleSaveDraft}
+                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <FloppyDisk size={15} />
+                    <span>Simpan Draf</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFormStep(3)}
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs"
+                >
+                  <span>Lanjut: Tanda Tangan</span>
+                  <ArrowRight size={15} weight="bold" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LANGKAH 3: Tanda Tangan Digital Touchscreen */}
+        {formStep === 3 && (
+          <div className="space-y-4">
             {/* Tanda Tangan Berita Acara (Kanvas Interaktif) */}
             <div id="ttd-digital-section" className="border border-slate-200 dark:border-slate-800 rounded-md p-4 space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
@@ -1610,31 +1839,244 @@ export function InspectionsPage() {
               )}
             </div>
 
-            {/* Tombol Simpan Draf & Selesaikan Riksa Uji (BAP + LHPP) */}
-            {isInspector && activeDetail.inspection.status === 'DRAF' && (
-              <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            {/* Tombol Navigasi Bawah Langkah 3 */}
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setFormStep(2)}
+                className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                <ArrowLeft size={15} weight="bold" />
+                <span>Kembali ke Kesimpulan</span>
+              </button>
+              <div className="flex items-center gap-2">
+                {isInspector && activeDetail.inspection.status === 'DRAF' && (
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={handleSaveDraft}
+                    className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <FloppyDisk size={15} />
+                    <span>Simpan Draf</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  disabled={submitting}
-                  onClick={handleSaveDraft}
-                  className="min-h-11 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  onClick={() => setFormStep(4)}
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs"
                 >
-                  <FloppyDisk size={16} />
-                  <span>Simpan Draf</span>
+                  <span>Lanjut: Ringkasan &amp; Kirim</span>
+                  <ArrowRight size={15} weight="bold" />
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LANGKAH 4: Ringkasan Verifikasi Pra-Kirim & Konfirmasi Kirim */}
+        {formStep === 4 && (
+          <div className="space-y-4">
+            {/* Status Kelengkapan Checklist */}
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  Kelengkapan Checklist Parameter Uji
+                </span>
+                <span className={`font-bold ${missingItems > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {evaluatedItems} dari {totalItems} butir terisi
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className={`h-full ${missingItems > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${totalItems ? Math.round((evaluatedItems / totalItems) * 100) : 100}%` }}
+                />
+              </div>
+              {missingItems > 0 && (
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                      Perhatian: Masih ada {missingItems} butir checklist yang belum terisi.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAutoFillAllStandard}
+                      className="px-2.5 py-1 rounded bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 transition-colors"
+                    >
+                      Tandai Semua Sesuai Standar
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-amber-900 dark:text-amber-200">
+                    Butir belum lengkap:
+                    <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                      {missingList.map((m) => (
+                        <li key={m.id}>
+                          <span className="font-semibold">[{m.section}]</span> {m.label} ({m.input_type})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {nonConformingItems.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-rose-700 dark:text-rose-400 font-medium text-xs">
+                  Terdapat {nonConformingItems.length} butir dengan hasil TIDAK SESUAI:
+                  <ul className="list-disc pl-4 mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                    {nonConformingItems.map((ni) => (
+                      <li key={ni.id}>[{ni.section}] {ni.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Status Foto & Tanda Tangan */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                  <span>Foto Dokumentasi</span>
+                  <span className={photosCount > 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                    {photosCount} Foto
+                  </span>
+                </div>
+                {photosCount === 0 ? (
+                  <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                    Disarankan melampirkan minimal 2 foto fisik alat &amp; nameplate sebelum submit.
+                  </p>
+                ) : (
+                  <div className="flex gap-1.5 overflow-x-auto py-1">
+                    {(activeDetail.photos || []).slice(0, 4).map((p) => (
+                      <img
+                        key={p.id}
+                        src={`/api/v1/dashboard/files/${p.id}`}
+                        alt="preview"
+                        className="h-12 w-12 rounded object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="font-bold text-slate-900 dark:text-slate-100">
+                  Tanda Tangan Digital
+                </div>
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span>Ahli K3 / Inspector:</span>
+                    {inspectorSig ? (
+                      <span className="text-emerald-600 font-bold flex items-center gap-1">
+                        <CheckCircle size={13} weight="bold" /> Sudah TTD
+                      </span>
+                    ) : (
+                      <span className="text-rose-600 font-bold">Belum TTD</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Perwakilan Klien:</span>
+                    {clientSig ? (
+                      <span className="text-emerald-600 font-bold flex items-center gap-1">
+                        <CheckCircle size={13} weight="bold" /> Sudah TTD
+                      </span>
+                    ) : (
+                      <span className="text-amber-600 font-semibold">Belum TTD (Bisa di BAP)</span>
+                    )}
+                  </div>
+                </div>
+                {!inspectorSig && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
+                      TTD Ahli K3 wajib diisi sebelum mengirim.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(3)}
+                      className="px-2.5 py-1 rounded bg-slate-800 dark:bg-slate-700 text-white font-bold text-[11px] shrink-0 hover:bg-slate-900"
+                    >
+                      Bubuhkan TTD
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Kesimpulan Akhir */}
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 space-y-1">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                Kesimpulan Akhir yang Akan Diterbitkan:
+              </span>
+              <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
+              </div>
+              {draftConclusionNotes && (
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Catatan: {draftConclusionNotes}
+                </p>
+              )}
+            </div>
+
+            {/* Tombol Aksi Akhir */}
+            {activeDetail.inspection.status === 'TERKIRIM' ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle size={16} weight="fill" />
+                  <span>Formulir riksa uji telah selesai dikirim dan dikunci secara resmi.</span>
+                </div>
                 <button
                   type="button"
-                  disabled={submitting}
-                  onClick={() => setReviewModalOpen(true)}
-                  className="min-h-11 inline-flex items-center gap-1.5 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616]"
+                  onClick={() => setDetailModalOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717]"
                 >
-                  <PaperPlaneTilt size={16} />
-                  <span>Selesaikan &amp; Verifikasi Pra-Kirim</span>
+                  Tutup Form
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setFormStep(1)}
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 px-3.5 py-2"
+                >
+                  <ArrowLeft size={15} weight="bold" />
+                  <span>Periksa Kembali Isian</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!canSubmit}
+                  onClick={handleSubmitFinalInspection}
+                  title={
+                    missingItems > 0
+                      ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
+                      : !inspectorSig
+                      ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
+                      : 'Kirim dan terbitkan dokumen'
+                  }
+                  className="min-h-10 px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <CircleNotch size={15} weight="bold" className="animate-spin" />
+                  ) : (
+                    <PaperPlaneTilt size={15} weight="bold" />
+                  )}
+                  <span>
+                    {submitting
+                      ? 'Memproses Penerbitan...'
+                      : missingItems > 0
+                      ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
+                      : !inspectorSig
+                      ? 'Tanda Tangan Diperlukan'
+                      : 'Konfirmasi & Kirim Riksa Uji'}
+                  </span>
                 </button>
               </div>
             )}
           </div>
         )}
+      </div>
+    );
+  })()}
       </Modal>
 
       {/* Modal Ringkasan Pra-Kirim Riksa Uji (Pre-Submit Summary Gate) */}
