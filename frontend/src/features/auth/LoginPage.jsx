@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import {
   Eye,
@@ -10,46 +10,6 @@ import { Notice } from '../../components/ui/Notice.jsx';
 import { ThemeToggle } from '../../components/ui/ThemeToggle.jsx';
 import logoUrd from '../../assets/logo-urd.png';
 import { extractErrorMessage } from '../../lib/utils/format.js';
-
-function TypewriterText({ text, speed = 50, pause = 2000 }) {
-  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-  const [displayed, setDisplayed] = useState(isTest ? text : '');
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (isTest) return;
-
-    let timeout;
-    if (!isDeleting && index <= text.length) {
-      setDisplayed(text.slice(0, index));
-      if (index === text.length) {
-        timeout = setTimeout(() => setIsDeleting(true), pause);
-      } else {
-        timeout = setTimeout(() => setIndex((prev) => prev + 1), speed);
-      }
-    } else if (isDeleting && index >= 0) {
-      setDisplayed(text.slice(0, index));
-      if (index === 0) {
-        timeout = setTimeout(() => setIsDeleting(false), 600);
-      } else {
-        timeout = setTimeout(() => setIndex((prev) => prev - 1), speed / 1.5);
-      }
-    }
-
-    return () => clearTimeout(timeout);
-  }, [index, isDeleting, text, speed, pause, isTest]);
-
-  return (
-    <span className="inline-flex items-center">
-      <span>{displayed}</span>
-      <span
-        className="inline-block w-[2.5px] h-[1.1em] ml-1 bg-[#C81E1E] animate-pulse rounded-full align-middle"
-        aria-hidden="true"
-      />
-    </span>
-  );
-}
 
 export function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -125,19 +85,19 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Tagline Terpadu dengan Animasi Ketik */}
+        {/* Ringkasan fungsi portal */}
         <div className="relative z-10 max-w-lg my-auto py-8">
           <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
             Portal Resmi Riksa Uji K3
           </p>
-          <div className="text-3xl xl:text-4xl font-black leading-snug tracking-tight text-white min-h-[5.5rem] flex items-center">
-            <TypewriterText text="Better safety partner. Riksa Uji, URD pasti!" />
-          </div>
+          <p className="text-3xl xl:text-4xl font-black leading-tight tracking-tight text-white">
+            Proses riksa uji dan dokumentasi K3 dalam satu portal.
+          </p>
         </div>
 
         {/* Footer Panel Kiri */}
         <p className="relative z-10 text-xs text-slate-500">
-          (C) {new Date().getFullYear()} PT Upaya Riksa Daya · urd@upayariksadaya.com · (021) 489 1409
+          &copy; {new Date().getFullYear()} PT Upaya Riksa Daya
         </p>
       </aside>
 
@@ -269,7 +229,7 @@ export function LoginPage() {
 
         {/* Footer Mobile */}
         <footer className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-          (C) {new Date().getFullYear()} PT Upaya Riksa Daya · urd@upayariksadaya.com · (021) 489 1409
+          &copy; {new Date().getFullYear()} PT Upaya Riksa Daya · urd@upayariksadaya.com · (021) 489 1409
         </footer>
       </main>
     </div>

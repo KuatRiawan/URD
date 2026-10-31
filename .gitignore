@@ -26,6 +26,8 @@ build/
 
 # Local Database & Storage
 .local/
+backend/storage/*
+!backend/storage/uploads/
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 *.sqlite
@@ -62,9 +64,23 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
+# Microsoft Office & Editor Temporary / Lock Files
+~$*
+.~lock.*
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
 # Local / Draft Uploads & Ad-hoc Test PDF Exports
 IMG_*.jpg
 IMG_*.jpeg
 IMG_*.png
 BAP-URD-*.pdf
 Draf-*.pdf
+LHPP-*.pdf
+test_output_*.pdf
+test_*.pdf
+sample_*.pdf
+*.test.pdf

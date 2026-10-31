@@ -1,4 +1,6 @@
 import {
+  Alarm,
+  Bell,
   Buildings,
   CalendarCheck,
   ClipboardText,
@@ -10,6 +12,7 @@ import {
   Scroll,
   ShareNetwork,
   ShieldCheck,
+  SquaresFour,
   Users,
   WarningOctagon
 } from '@phosphor-icons/react';
@@ -109,6 +112,13 @@ export const NAV_ITEMS = [
     roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
+    to: '/app/issues',
+    group: 'Pemantauan',
+    label: 'Kendala Operasional',
+    icon: WarningOctagon,
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
+  },
+  {
     to: '/app/users',
     group: 'Administrasi',
     label: 'Manajemen Pengguna',
@@ -134,7 +144,7 @@ export const NAV_ITEMS = [
 export function getVisibleNav(role) {
   if (!role) return [];
 
-  // 1. Menu khusus Inspector / Ahli K3: Ultra-sederhana 4 menu utama lapangan
+  // 1. Menu khusus Inspector / Ahli K3: Fokus alur riksa uji lapangan dan pelaporan
   if (['AHLI_K3', 'INSPECTOR'].includes(role)) {
     return [
       {
@@ -146,8 +156,20 @@ export function getVisibleNav(role) {
       {
         to: '/app/inspections',
         group: 'Tugas Utama',
-        label: 'Form Pengujian',
+        label: 'Form Pengujian Lapangan',
         icon: FileText
+      },
+      {
+        to: '/app/issues',
+        group: 'Pelaksanaan',
+        label: 'Kendala Lapangan',
+        icon: WarningOctagon
+      },
+      {
+        to: '/app/objects',
+        group: 'Pelaksanaan',
+        label: 'Objek Uji K3',
+        icon: Cube
       },
       {
         to: '/app/history',
@@ -186,10 +208,34 @@ export function getVisibleNav(role) {
         icon: CalendarCheck
       },
       {
+        to: '/app/issues',
+        group: 'Pelaksanaan',
+        label: 'Kendala Operasional',
+        icon: WarningOctagon
+      },
+      {
+        to: '/app/objects',
+        group: 'Monitoring Operasional',
+        label: 'Objek Uji K3',
+        icon: Cube
+      },
+      {
+        to: '/app/clients',
+        group: 'Monitoring Operasional',
+        label: 'Data Klien',
+        icon: Buildings
+      },
+      {
         to: '/app/lhpp',
         group: 'Dokumen & Kepatuhan',
         label: 'Dokumen LHPP & BAP',
         icon: Scroll
+      },
+      {
+        to: '/app/bap',
+        group: 'Dokumen & Kepatuhan',
+        label: 'Berita Acara (BAP)',
+        icon: ClipboardText
       },
       {
         to: '/app/suket',
@@ -202,6 +248,12 @@ export function getVisibleNav(role) {
         group: 'Dokumen & Kepatuhan',
         label: 'Pengingat Masa Berlaku',
         icon: ShieldCheck
+      },
+      {
+        to: '/app/distributions',
+        group: 'Dokumen & Kepatuhan',
+        label: 'Distribusi Dokumen',
+        icon: ShareNetwork
       },
       {
         to: '/app/audit-logs',
@@ -252,6 +304,12 @@ export function getVisibleNav(role) {
         icon: CalendarCheck
       },
       {
+        to: '/app/issues',
+        group: 'Pelaksanaan',
+        label: 'Kendala Operasional',
+        icon: WarningOctagon
+      },
+      {
         to: '/app/lhpp',
         group: 'Penerbitan Dokumen',
         label: 'Penerbitan Dokumen (LHPP)',
@@ -282,6 +340,12 @@ export function getVisibleNav(role) {
         icon: ShieldCheck
       },
       {
+        to: '/app/history',
+        group: 'Pemantauan',
+        label: 'Riwayat Pengujian',
+        icon: ClockCounterClockwise
+      },
+      {
         to: '/app/settings',
         group: 'Akun',
         label: 'Pengaturan Akun',
@@ -295,5 +359,174 @@ export function getVisibleNav(role) {
     const alias = ROLE_ALIASES[role];
     return item.roles.includes(role) || (alias && item.roles.includes(alias));
   });
+}
+
+/**
+ * Konfigurasi navigasi mobile adaptif per peran:
+ * Menyediakan 4 item navigasi primer untuk bottom bar,
+ * serta menu sekunder yang dikelompokkan secara terstruktur untuk lembar "Lainnya".
+ */
+export function getMobileNavConfig(role) {
+  if (['AHLI_K3', 'INSPECTOR'].includes(role)) {
+    return {
+      primary: [
+        { to: '/app/dashboard', label: 'Tugas Saya', icon: Gauge },
+        { to: '/app/inspections', label: 'Pengujian', icon: FileText },
+        { to: '/app/issues', label: 'Kendala', icon: WarningOctagon },
+        { to: '/app/history', label: 'Riwayat', icon: ClockCounterClockwise }
+      ],
+      moreGroups: [
+        {
+          title: 'Pelaksanaan Lapangan',
+          items: [
+            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
+            { to: '/app/orders', label: 'PO & Order Riksa', icon: ClipboardText },
+            { to: '/app/schedule', label: 'Jadwal & Agenda', icon: CalendarCheck }
+          ]
+        },
+        {
+          title: 'Dokumen Teknis',
+          items: [
+            { to: '/app/lhpp', label: 'Dokumen LHPP', icon: Scroll },
+            { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText }
+          ]
+        },
+        {
+          title: 'Akun & Notifikasi',
+          items: [
+            { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
+            { to: '/app/settings', label: 'Pengaturan Akun & SKP', icon: Gear }
+          ]
+        }
+      ]
+    };
+  }
+
+  if (['PIMPINAN', 'MANAGER'].includes(role)) {
+    return {
+      primary: [
+        { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
+        { to: '/app/orders', label: 'Monitoring PO', icon: ClipboardText },
+        { to: '/app/schedule', label: 'Jadwal Tim', icon: CalendarCheck },
+        { to: '/app/lhpp', label: 'Dokumen', icon: Scroll }
+      ],
+      moreGroups: [
+        {
+          title: 'Monitoring Operasional',
+          items: [
+            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
+            { to: '/app/clients', label: 'Data Klien', icon: Buildings },
+            { to: '/app/issues', label: 'Kendala Operasional', icon: WarningOctagon }
+          ]
+        },
+        {
+          title: 'Dokumen & Kepatuhan',
+          items: [
+            { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText },
+            { to: '/app/suket', label: 'Registri Suket K3', icon: ShieldCheck },
+            { to: '/app/reminders', label: 'Pengingat Masa Berlaku', icon: Alarm },
+            { to: '/app/distributions', label: 'Distribusi Dokumen', icon: ShareNetwork },
+            { to: '/app/history', label: 'Riwayat Pekerjaan', icon: ClockCounterClockwise }
+          ]
+        },
+        {
+          title: 'Pengawasan & Akun',
+          items: [
+            { to: '/app/audit-logs', label: 'Log Audit Operasional', icon: ClockCounterClockwise },
+            { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
+            { to: '/app/settings', label: 'Pengaturan Akun', icon: Gear }
+          ]
+        }
+      ]
+    };
+  }
+
+  if (['ADMIN_SISTEM'].includes(role)) {
+    return {
+      primary: [
+        { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
+        { to: '/app/users', label: 'Pengguna', icon: Users },
+        { to: '/app/orders', label: 'PO & Order', icon: ClipboardText },
+        { to: '/app/audit-logs', label: 'Log Audit', icon: ClockCounterClockwise }
+      ],
+      moreGroups: [
+        {
+          title: 'Master Data & Klien',
+          items: [
+            { to: '/app/clients', label: 'Data Klien', icon: Buildings },
+            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube }
+          ]
+        },
+        {
+          title: 'Operasional Lapangan',
+          items: [
+            { to: '/app/schedule', label: 'Jadwal & Penugasan', icon: CalendarCheck },
+            { to: '/app/inspections', label: 'Form Pengujian', icon: FileText }
+          ]
+        },
+        {
+          title: 'Dokumen & Distribusi',
+          items: [
+            { to: '/app/lhpp', label: 'Dokumen LHPP', icon: Scroll },
+            { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText },
+            { to: '/app/distributions', label: 'Distribusi Dokumen', icon: ShareNetwork },
+            { to: '/app/history', label: 'Riwayat Pengujian', icon: ClockCounterClockwise }
+          ]
+        },
+        {
+          title: 'Kepatuhan & Pengaturan',
+          items: [
+            { to: '/app/suket', label: 'Registri Suket K3', icon: ShieldCheck },
+            { to: '/app/reminders', label: 'Pengingat Perpanjangan', icon: Alarm },
+            { to: '/app/issues', label: 'Kendala Operasional', icon: WarningOctagon },
+            { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
+            { to: '/app/settings', label: 'Pengaturan Sistem', icon: Gear }
+          ]
+        }
+      ]
+    };
+  }
+
+  // Default: Marketing / Admin Kantor
+  return {
+    primary: [
+      { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
+      { to: '/app/orders', label: 'Purchase Order', icon: ClipboardText },
+      { to: '/app/schedule', label: 'Jadwal', icon: CalendarCheck },
+      { to: '/app/lhpp', label: 'Dokumen', icon: Scroll }
+    ],
+    moreGroups: [
+      {
+        title: 'Data Klien & Alat K3',
+        items: [
+          { to: '/app/clients', label: 'Data Klien', icon: Buildings },
+          { to: '/app/objects', label: 'Objek Uji K3', icon: Cube }
+        ]
+      },
+      {
+        title: 'Dokumen & Distribusi',
+        items: [
+          { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText },
+          { to: '/app/distributions', label: 'Distribusi Dokumen', icon: ShareNetwork },
+          { to: '/app/history', label: 'Riwayat Pengujian', icon: ClockCounterClockwise }
+        ]
+      },
+      {
+        title: 'Pemantauan & Kepatuhan',
+        items: [
+          { to: '/app/issues', label: 'Kendala Operasional', icon: WarningOctagon },
+          { to: '/app/suket', label: 'Registri Suket K3', icon: ShieldCheck },
+          { to: '/app/reminders', label: 'Pengingat Perpanjangan', icon: Alarm }
+        ]
+      },
+      {
+        title: 'Akun & Notifikasi',
+        items: [
+          { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
+          { to: '/app/settings', label: 'Pengaturan Akun', icon: Gear }
+        ]
+      }
+    ]
+  };
 }
 

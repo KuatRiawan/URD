@@ -176,31 +176,39 @@ export function CreateObjectModal({
           </div>
         </div>
 
-        {/* Atribut khusus per jenis objek */}
+        {/* Atribut khusus per jenis objek (Standar LHPP K3) */}
         {selectedCatMeta?.attribute_schema?.length > 0 && (
-          <div className="rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3 space-y-2">
-            <p className="font-bold text-slate-900 dark:text-white">
-              Atribut Teknis Khusus ({selectedCatMeta.name})
-            </p>
-            {selectedCatMeta.attribute_schema.map((attr) => (
-              <div key={attr.key}>
-                <label htmlFor={`attr-${attr.key}`} className="block font-semibold mb-1">
-                  {attr.label} ({attr.unit})
-                </label>
-                <input
-                  id={`attr-${attr.key}`}
-                  type="text"
-                  value={formData.attributes[attr.key] || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attributes: { ...formData.attributes, [attr.key]: e.target.value }
-                    })
-                  }
-                  className="w-full min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-            ))}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white">
+                Spesifikasi Teknis Tambahan ({selectedCatMeta.name})
+              </p>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Sesuai Template LHPP K3
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {selectedCatMeta.attribute_schema.map((attr) => (
+                <div key={attr.key}>
+                  <label htmlFor={`attr-${attr.key}`} className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {attr.label} {attr.unit ? `(${attr.unit})` : ''}
+                  </label>
+                  <input
+                    id={`attr-${attr.key}`}
+                    type="text"
+                    placeholder={attr.placeholder || `Isi ${attr.label.toLowerCase()}...`}
+                    value={formData.attributes[attr.key] || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        attributes: { ...formData.attributes, [attr.key]: e.target.value }
+                      })
+                    }
+                    className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

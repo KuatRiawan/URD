@@ -1,9 +1,15 @@
-import { ArrowRight, Camera, Check, CheckCircle, X } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { ArrowRight, Camera, CaretDown, CaretUp, Check, CheckCircle, SlidersHorizontal, X } from '@phosphor-icons/react';
 
 export function StepChecklist({
   items = [],
   draftResults = {},
   setDraftResults,
+  draftObjectAttributes = {},
+  setDraftObjectAttributes,
+  attributeSchema = [],
+  categoryCode = '',
+  categoryName = '',
   onUploadInlinePhoto,
   readOnly,
   missingItems,
@@ -15,6 +21,7 @@ export function StepChecklist({
   photos = [],
   onNext
 }) {
+  const [showTechSpecs, setShowTechSpecs] = useState(true);
   const sections = [];
   const sectionMap = new Map();
   for (const item of items) {
@@ -28,6 +35,61 @@ export function StepChecklist({
 
   return (
     <div className="space-y-4">
+      {/* Parameter Spesifikasi Teknis & Pengukuran Fisik Unit (Bab II LHPP) */}
+      {attributeSchema.length > 0 && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-md bg-slate-800 dark:bg-slate-700 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                <SlidersHorizontal size={13} weight="bold" />
+              </span>
+              <div>
+                <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                  Data Teknis & Pengukuran Fisik Alat ({categoryCode})
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                  Diverifikasi dan diukur langsung oleh Ahli K3 untuk Bab II LHPP
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTechSpecs((prev) => !prev)}
+              className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer px-2 py-1 rounded"
+            >
+              <span>{showTechSpecs ? 'Tutup' : 'Buka Parameter'}</span>
+              {showTechSpecs ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
+            </button>
+          </div>
+
+          {showTechSpecs && (
+            <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {attributeSchema.map((attr) => (
+                <div key={attr.key} className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate" title={attr.label}>
+                    {attr.label} {attr.unit ? `(${attr.unit})` : ''}
+                  </label>
+                  <input
+                    type="text"
+                    disabled={readOnly}
+                    placeholder={attr.placeholder || ''}
+                    value={draftObjectAttributes[attr.key] || ''}
+                    onChange={(e) =>
+                      setDraftObjectAttributes &&
+                      setDraftObjectAttributes((prev) => ({
+                        ...prev,
+                        [attr.key]: e.target.value
+                      }))
+                    }
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Status Bar Kelengkapan Checklist & Tombol Tandai Semua */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
         <div className="space-y-1.5">
@@ -54,7 +116,7 @@ export function StepChecklist({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] font-bold text-xs shrink-0 shadow-xs transition-colors cursor-pointer"
           >
             <CheckCircle size={15} weight="bold" />
-            <span>Tandai Semua Sesuai Standar</span>
+            <span>Tandai Item Pilihan Sesuai</span>
           </button>
         )}
       </div>
@@ -152,9 +214,9 @@ export function StepChecklist({
                       </div>
 
                       {/* Kontrol Input Lapangan */}
-                      <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
+                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
                         {item.input_type === 'CHOICE' && (
-                          <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700">
+                          <div className="w-full md:w-auto grid grid-cols-3 md:inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
                             <button
                               type="button"
                               disabled={readOnly}
@@ -164,13 +226,13 @@ export function StepChecklist({
                                   [item.id]: { ...(prev[item.id] || {}), itemId: item.id, choiceValue: 'SESUAI' }
                                 }))
                               }
-                              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                              className={`min-h-[44px] md:min-h-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                                 row.choiceValue === 'SESUAI'
                                   ? 'bg-emerald-600 text-white shadow-xs'
                                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                               }`}
                             >
-                              <Check size={13} weight="bold" />
+                              <Check size={14} weight="bold" />
                               <span>Sesuai</span>
                             </button>
                             <button
@@ -182,14 +244,14 @@ export function StepChecklist({
                                   [item.id]: { ...(prev[item.id] || {}), itemId: item.id, choiceValue: 'TIDAK_SESUAI' }
                                 }))
                               }
-                              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                              className={`min-h-[44px] md:min-h-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                                 row.choiceValue === 'TIDAK_SESUAI'
                                   ? 'bg-rose-600 text-white shadow-xs'
                                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                               }`}
                             >
-                              <X size={13} weight="bold" />
-                              <span>Tidak Sesuai</span>
+                              <X size={14} weight="bold" />
+                              <span className="truncate">Tidak</span>
                             </button>
                             <button
                               type="button"
@@ -200,9 +262,9 @@ export function StepChecklist({
                                   [item.id]: { ...(prev[item.id] || {}), itemId: item.id, choiceValue: 'TIDAK_BERLAKU' }
                                 }))
                               }
-                              className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                              className={`min-h-[44px] md:min-h-0 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
                                 row.choiceValue === 'TIDAK_BERLAKU'
-                                  ? 'bg-slate-600 text-white shadow-xs'
+                                  ? 'bg-slate-700 text-white shadow-xs'
                                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                               }`}
                             >
@@ -251,21 +313,23 @@ export function StepChecklist({
                           />
                         )}
 
-                        {/* Tombol Kamera Lapangan Cepat */}
+                        {/* Tombol Kamera Lapangan Cepat (Bisa Kamera Langsung atau Galeri HP) */}
                         {isInspector && status === 'DRAF' && (
                           <label
-                            title="Ambil / Lampirkan Foto untuk butir ini"
-                            className="min-h-9 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-center transition-colors shadow-2xs"
+                            title="Ambil Foto dari Kamera atau Pilih dari Galeri"
+                            className="min-h-[44px] md:min-h-9 px-3 rounded-xl md:rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-center transition-colors shadow-2xs shrink-0"
                           >
-                            <Camera size={15} weight="bold" />
+                            <Camera size={16} weight="bold" />
                             <input
                               type="file"
                               accept="image/*"
-                              capture="environment"
                               className="sr-only"
                               onChange={(e) => {
                                 const f = e.target.files?.[0];
-                                if (f) onUploadInlinePhoto(item, f);
+                                if (f) {
+                                  onUploadInlinePhoto(item, f);
+                                  e.target.value = '';
+                                }
                               }}
                             />
                           </label>
@@ -280,17 +344,19 @@ export function StepChecklist({
         })}
       </div>
 
-      {/* Tombol Lanjut ke Langkah 2 */}
-      <div className="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
-        <button
-          type="button"
-          onClick={onNext}
-          className="min-h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-xs cursor-pointer"
-        >
-          <span>Lanjut: Kesimpulan &amp; Lingkup</span>
-          <ArrowRight size={15} weight="bold" />
-        </button>
-      </div>
+      {/* Tombol Lanjut ke Langkah Berikutnya (jika dipassing) */}
+      {onNext && (
+        <div className="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={onNext}
+            className="min-h-11 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#C81E1E] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-xs cursor-pointer"
+          >
+            <span>Lanjut: Kesimpulan &amp; Tanda Tangan</span>
+            <ArrowRight size={16} weight="bold" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

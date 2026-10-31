@@ -16,7 +16,7 @@ const createUserSchema = Joi.object({
   email: Joi.string().email().required(),
   fullName: Joi.string().min(2).max(120).required(),
   role: Joi.string()
-    .valid('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'PIMPINAN', 'ADMIN_KANTOR', 'AHLI_K3')
+    .valid('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'PIMPINAN')
     .required(),
   phone: Joi.string().allow('', null),
   password: Joi.string().min(8).max(128).required(),
@@ -44,8 +44,14 @@ router.get('/', async (req, res, next) => {
       conds.push(`(lower(full_name) LIKE $${params.length} OR lower(email::text) LIKE $${params.length})`);
     }
     if (role) {
-      params.push(role);
-      conds.push(`role = $${params.length}`);
+      const roleGroup = {
+        MARKETING: ['MARKETING', 'ADMIN_KANTOR'],
+        INSPECTOR: ['INSPECTOR', 'AHLI_K3'],
+        PIMPINAN: ['PIMPINAN', 'MANAGER'],
+        ADMIN_SISTEM: ['ADMIN_SISTEM']
+      }[role] || [role];
+      params.push(roleGroup);
+      conds.push(`role = ANY($${params.length}::text[])`);
     }
     const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
@@ -85,7 +91,7 @@ router.post('/', validate(createUserSchema), async (req, res, next) => {
         [email.trim(), fullName.trim(), role, phone || null, passwordHash]
       );
       const user = rows[0];
-      if (role === 'AHLI_K3') {
+      if (['AHLI_K3', 'INSPECTOR'].includes(role)) {
         await client.query(
           `INSERT INTO inspectors (user_id, employee_no)
            VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING`,
@@ -146,7 +152,7 @@ router.patch('/:id', validate(updateUserSchema), async (req, res, next) => {
         ]
       );
 
-      if (nextRole === 'AHLI_K3') {
+      if (['AHLI_K3', 'INSPECTOR'].includes(nextRole)) {
         await client.query(
           'INSERT INTO inspectors (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
           [id]

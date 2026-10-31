@@ -118,7 +118,7 @@ export function ManagementDashboardView({
           </div>
         </div>
 
-        {/* Card 3: LHPP Menunggu Review */}
+        {/* Card 3: LHPP Siap Finalisasi */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center">
             <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
@@ -126,7 +126,7 @@ export function ManagementDashboardView({
             </div>
             <div className="flex-1 min-w-0 ms-3.5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-                Review LHPP
+                LHPP Siap Finalisasi
               </p>
               <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums leading-none tracking-tight">
                 {m.lhppWaitingReview}
@@ -236,7 +236,7 @@ export function ManagementDashboardView({
                 </div>
                 <div className="p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/80">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Review LHPP
+                    Siap Finalisasi
                   </p>
                   <p className="text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5">{m.lhppWaitingReview || 0}</p>
                 </div>

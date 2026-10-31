@@ -42,11 +42,6 @@ export function statusTone(status) {
     case 'MENOLAK':
     case 'TIDAK_DIPERPANJANG':
       return 'danger';
-    case 'MENUNGGU_REVIEW':
-    case 'MENUNGGU_REVIEW_TEKNIS':
-    case 'MENUNGGU_APPROVAL_PIMPINAN':
-    case 'REVIEW_TEKNIS':
-    case 'PERSETUJUAN_PIMPINAN':
     case 'MEMENUHI_SYARAT_DENGAN_CATATAN':
     case 'MAYOR':
     case 'SEGERA_HABIS':

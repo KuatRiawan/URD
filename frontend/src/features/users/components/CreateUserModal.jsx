@@ -1,5 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { ROLE_LABELS } from '../../../lib/utils/format.js';
+import { ROLE_OPTIONS } from '../../../lib/utils/format.js';
 
 export function CreateUserModal({
   open,
@@ -51,9 +51,9 @@ export function CreateUserModal({
               onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value }))}
               className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
             >
-              {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
+              {ROLE_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -70,7 +70,7 @@ export function CreateUserModal({
             />
           </div>
         </div>
-        {createForm.role === 'AHLI_K3' && (
+        {['INSPECTOR', 'AHLI_K3'].includes(createForm.role) && (
           <div>
             <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
               Nomor Induk Pegawai (NIP) Ahli K3

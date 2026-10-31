@@ -59,9 +59,7 @@ export function computePoUnitProgress(units = []) {
         'BAP_DRAF',
         'BAP_DIPROSES',
         'BAP_SIAP_PREVIEW',
-        'MENUNGGU_REVIEW',
-        'PERLU_REVISI',
-        'DISETUJUI'
+        'PERLU_REVISI'
       ].includes(st)
     ) {
       waitingBapLhppUnits += 1;
@@ -145,8 +143,6 @@ export async function syncOrderUnitStatus(
 
   if (progress.canCompletePo) {
     nextOrderStatus = 'SELESAI';
-  } else if (unitRows.some((u) => u.unit_status === 'MENUNGGU_REVIEW')) {
-    nextOrderStatus = 'MENUNGGU_REVIEW';
   } else if (progress.waitingBapLhppUnits > 0 || progress.completedUnits > 0) {
     nextOrderStatus = 'MENUNGGU_LAPORAN';
   } else if (progress.inProgressUnits > 0) {

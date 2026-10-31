@@ -8,6 +8,7 @@ import { env } from '../config/env.js';
 describe('Search and Work Queue API Modules', () => {
   const adminId = '11111111-1111-1111-1111-111111111111';
   const inspectorId = '22222222-2222-2222-2222-222222222222';
+  const managerId = '33333333-3333-4333-8333-333333333333';
 
   const adminToken = jwt.sign(
     { sub: adminId, role: 'ADMIN_KANTOR', fullName: 'Admin URD' },
@@ -21,13 +22,19 @@ describe('Search and Work Queue API Modules', () => {
     { expiresIn: '1h' }
   );
 
+  const managerToken = jwt.sign(
+    { sub: managerId, role: 'PIMPINAN', fullName: 'Pimpinan URD' },
+    env.jwtSecret,
+    { expiresIn: '1h' }
+  );
+
   it('menolak akses global search tanpa autentikasi (401)', async () => {
     const res = await request(app).get('/api/v1/search?q=Crane');
     expect(res.status).toBe(401);
   });
 
   it('mengembalikan array kosong jika query kurang dari 2 karakter', async () => {
-    const querySpy = vi.spyOn(poolModule, 'query').mockImplementation(async (sql, params) => {
+  const querySpy = vi.spyOn(poolModule, 'query').mockImplementation(async (sql, _params) => {
       if (sql.includes('FROM users WHERE id = $1')) {
         return {
           rows: [
@@ -216,13 +223,13 @@ describe('Search and Work Queue API Modules', () => {
           ]
         };
       }
-      if (sql.includes("l.status IN ('REVIEW_TEKNIS', 'PERSETUJUAN_PIMPINAN')")) {
+      if (sql.includes("l.status = 'SIAP_PREVIEW'")) {
         return {
           rows: [
             {
               id: 'lhpp-rev-1',
               lhpp_no: 'LHPP-DRAF',
-              status: 'PERSETUJUAN_PIMPINAN',
+              status: 'SIAP_PREVIEW',
               created_at: new Date().toISOString(),
               object_name: 'Boiler',
               client_name: 'PT Klien A',
@@ -329,7 +336,7 @@ describe('Search and Work Queue API Modules', () => {
           rows: [
             {
               total: 4,
-              waiting_review: 2,
+              ready_finalize: 2,
               published: 2,
               returned: 0
             }
@@ -396,4 +403,90 @@ describe('Search and Work Queue API Modules', () => {
 
     querySpy.mockRestore();
   });
+
+  it('membatasi aktivitas terbaru dashboard Inspector ke audit log miliknya sendiri', async () => {
+    let recentActivityQuery;
+    let recentActivityParams;
+    const querySpy = vi.spyOn(poolModule, 'query').mockImplementation(async (sql, params) => {
+      if (sql.includes('FROM users WHERE id = $1')) {
+        return {
+          rows: [{
+            id: inspectorId,
+            email: 'inspector@upayariksadaya.com',
+            full_name: 'Inspector URD',
+            role: 'AHLI_K3',
+            is_active: true
+          }]
+        };
+      }
+      if (sql.includes('FROM audit_logs a')) {
+        recentActivityQuery = sql;
+        recentActivityParams = params;
+        return { rows: [] };
+      }
+      if (sql.includes('FROM inspections WHERE inspector_id')) {
+        return { rows: [{ draft_count: 0, submitted_count: 0 }] };
+      }
+      if (sql.includes('FROM lhpp_documents l')) {
+        return { rows: [{ returned_count: 0, published_count: 0 }] };
+      }
+      if (sql.includes('FROM bap_documents b')) {
+        return { rows: [{ draft_bap_count: 0, final_bap_count: 0 }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app)
+      .get('/api/v1/dashboard/summary')
+      .set('Authorization', `Bearer ${inspectorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(recentActivityQuery).toMatch(/WHERE a\.user_id = \$1/);
+    expect(recentActivityParams).toEqual([inspectorId]);
+    expect(res.body.recentActivities).toEqual([]);
+
+    querySpy.mockRestore();
+  });
+
+  it('menampilkan antrean LHPP sebagai pemantauan untuk Pimpinan tanpa aksi review', async () => {
+    const querySpy = vi.spyOn(poolModule, 'query').mockImplementation(async (sql) => {
+      if (sql.includes('FROM users WHERE id = $1')) {
+        return {
+          rows: [{
+            id: managerId,
+            email: 'pimpinan@upayariksadaya.com',
+            full_name: 'Pimpinan URD',
+            role: 'PIMPINAN',
+            is_active: true
+          }]
+        };
+      }
+      if (sql.includes('FROM lhpp_documents l') && sql.includes("l.status = 'SIAP_PREVIEW'")) {
+        return {
+          rows: [{
+            id: '55555555-5555-4555-8555-555555555555',
+            status: 'SIAP_PREVIEW',
+            created_at: new Date().toISOString(),
+            object_name: 'Overhead Crane',
+            client_name: 'PT Klien A',
+            inspector_name: 'Inspector URD'
+          }]
+        };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app)
+      .get('/api/v1/dashboard/work-queue')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    const lhpp = res.body.items.find((item) => item.type === 'LHPP_REVIEW');
+    expect(lhpp.actionLabel).toBe('Pantau Status');
+    expect(lhpp.title).toContain('LHPP Siap Finalisasi');
+    expect(lhpp.title).not.toContain('Persetujuan Pimpinan');
+
+    querySpy.mockRestore();
+  });
+
 });

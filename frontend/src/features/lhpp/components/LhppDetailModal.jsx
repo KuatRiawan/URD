@@ -76,7 +76,7 @@ export function LhppDetailModal({
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {['DRAF', 'SIAP_PREVIEW', 'REVIEW_TEKNIS', 'DIKEMBALIKAN'].includes(detailLhpp.status) && canManage && (
+              {['SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(detailLhpp.status) && canManage && (
                 <button
                   type="button"
                   disabled={submitting}

@@ -198,38 +198,46 @@ export function StepConclusion({
         </div>
       </div>
 
-      {/* Tombol Navigasi Bawah Langkah 2 */}
-      <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
-        >
-          <ArrowLeft size={15} weight="bold" />
-          <span>Kembali ke Checklist</span>
-        </button>
-        <div className="flex items-center gap-2">
-          {isInspector && status === 'DRAF' && (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={onSaveDraft}
-              className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
-            >
-              <FloppyDisk size={15} />
-              <span>Simpan Draf</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onNext}
-            className="min-h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
-          >
-            <span>Lanjut: Foto &amp; Temuan</span>
-            <ArrowRight size={15} weight="bold" />
-          </button>
+      {/* Tombol Navigasi Bawah (hanya jika onBack atau onNext diberikan) */}
+      {(onBack || onNext) && (
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div>
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="min-h-11 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+              >
+                <ArrowLeft size={16} weight="bold" />
+                <span>Kembali</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {isInspector && status === 'DRAF' && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={onSaveDraft}
+                className="min-h-11 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+              >
+                <FloppyDisk size={16} />
+                <span>Simpan Draf</span>
+              </button>
+            )}
+            {onNext && (
+              <button
+                type="button"
+                onClick={onNext}
+                className="min-h-11 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] hover:bg-[#a61717] px-5 py-2.5 text-xs font-bold text-white shadow-xs cursor-pointer active:scale-[0.98] transition-all"
+              >
+                <span>Tanda Tangan &amp; Selesai</span>
+                <ArrowRight size={16} weight="bold" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

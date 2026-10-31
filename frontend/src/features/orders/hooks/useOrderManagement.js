@@ -46,7 +46,8 @@ export function useOrderManagement({ user, confirm, toast }) {
     serialNumber: '',
     capacity: '',
     installLocation: '',
-    quantity: 1
+    quantity: 1,
+    attributes: {}
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -71,8 +72,10 @@ export function useOrderManagement({ user, confirm, toast }) {
   // State Peringatan Konflik Jadwal
   const [scheduleConflicts, setScheduleConflicts] = useState([]);
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
+  const loadOrders = useCallback(async (isSilent = false) => {
+    if (!isSilent) {
+      setLoading(true);
+    }
     setError('');
     try {
       const [ordersRes, clientsRes, inspectorsRes, catsRes] = await Promise.all([
@@ -94,7 +97,9 @@ export function useOrderManagement({ user, confirm, toast }) {
           'Gagal memuat daftar PO & order pemeriksaan.'
       );
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   }, [q, statusFilter]);
 
@@ -147,7 +152,8 @@ export function useOrderManagement({ user, confirm, toast }) {
           serialNumber: resolvedSerial,
           capacity: newUnitRow.capacity?.trim() || '',
           installLocation: newUnitRow.installLocation?.trim() || '',
-          quantity: Math.max(1, Number(newUnitRow.quantity || 1))
+          quantity: Math.max(1, Number(newUnitRow.quantity || 1)),
+          attributes: newUnitRow.attributes || {}
         }
       ]
     }));
@@ -158,7 +164,8 @@ export function useOrderManagement({ user, confirm, toast }) {
       serialNumber: '',
       capacity: '',
       installLocation: '',
-      quantity: 1
+      quantity: 1,
+      attributes: {}
     });
   };
 
@@ -229,7 +236,8 @@ export function useOrderManagement({ user, confirm, toast }) {
           createForm.locationName?.trim() ||
           createForm.locationAddress?.trim() ||
           '',
-        quantity: Math.max(1, Number(newUnitRow.quantity || 1))
+        quantity: Math.max(1, Number(newUnitRow.quantity || 1)),
+        attributes: newUnitRow.attributes || {}
       });
     }
     const hasClient =

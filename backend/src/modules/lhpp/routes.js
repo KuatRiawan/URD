@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { Router } from 'express';
 import Joi from 'joi';
 import { query, withTransaction } from '../../database/pool.js';
@@ -6,10 +7,10 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
-import { createNotification, notifyRoles } from '../../services/notify.js';
+import { notifyRoles } from '../../services/notify.js';
 import { generateLhppPdfBuffer } from '../../services/pdf-generator.js';
 import { syncOrderUnitStatus } from '../../services/workflow.js';
-import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
+import { resolveAttachmentPath, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
 
 const router = Router();
@@ -25,14 +26,9 @@ const updateDraftSchema = Joi.object({
   recommendedValidUntil: Joi.date().iso().allow('', null)
 });
 
-const reviewActionSchema = Joi.object({
-  decision: Joi.string().valid('APPROVE_TECHNICAL', 'APPROVE_FINAL', 'RETURN').required(),
-  note: Joi.string().max(1500).when('decision', {
-    is: 'RETURN',
-    then: Joi.string().min(3).required(),
-    otherwise: Joi.string().allow('', null)
-  })
-});
+const finalizeLhppSchema = Joi.object({
+  note: Joi.string().max(1500).allow('', null)
+}).default({});
 
 const deliverySchema = Joi.object({
   deliveredAt: Joi.date().iso().required(),
@@ -55,6 +51,7 @@ async function fetchFullLhppContext(db, id) {
             c.name AS client_name, c.address AS client_address,
             t.name AS object_name, t.brand, t.manufacturer, t.model, t.serial_number,
             t.manufacture_year, t.capacity, t.capacity_unit, t.install_location, t.previous_permit_no,
+            t.attributes AS object_attributes,
             oc.code AS category_code, oc.name AS category_name, oc.lhpp_schema,
             u_insp.full_name AS inspector_name,
             u_rev.full_name AS reviewer_name,
@@ -77,9 +74,13 @@ async function fetchFullLhppContext(db, id) {
 
   const results = await runner(
     `SELECT r.*, it.seq, it.section, it.label, it.input_type, it.unit
-     FROM inspection_results r
-     JOIN inspection_template_items it ON it.id = r.item_id
-     WHERE r.inspection_id = $1
+     FROM inspection_template_items it
+     LEFT JOIN inspection_results r
+       ON r.item_id = it.id
+      AND r.inspection_id = $1
+     WHERE it.version_id = (
+       SELECT i.template_version_id FROM inspections i WHERE i.id = $1
+     )
      ORDER BY it.seq ASC`,
     [base.inspection_id]
   );
@@ -118,6 +119,10 @@ async function fetchFullLhppContext(db, id) {
 
   return {
     ...base,
+    technical_data: {
+      ...(typeof base.object_attributes === 'object' && base.object_attributes !== null ? base.object_attributes : {}),
+      ...(typeof base.technical_data === 'object' && base.technical_data !== null ? base.technical_data : {})
+    },
     results: results.rows,
     findings: findings.rows,
     revisions: revisions.rows,
@@ -133,10 +138,10 @@ export async function canAccessLhpp(db, lhpp, user) {
   if (lhpp.inspector_id === user.id) return true;
   const runner = typeof db === 'function' ? db : (db?.query ? db.query.bind(db) : query);
   const { rows } = await runner(
-    `SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')
-     UNION
-     SELECT 1 FROM users u1, users u2 WHERE u1.id = $2 AND u2.id = $3 AND (u1.full_name = u2.full_name OR u1.phone = u2.phone OR split_part(u1.email, '@', 1) = split_part(u2.email, '@', 1))`,
-    [lhpp.order_id, user.id, lhpp.inspector_id]
+    `SELECT 1 FROM assignments
+     WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')
+     LIMIT 1`,
+    [lhpp.order_id, user.id]
   );
   return Boolean(rows[0]);
 }
@@ -282,7 +287,7 @@ router.put(
 // Unggah foto dokumentasi hasil riksa uji untuk lampiran LHPP
 router.post(
   '/:id/photos',
-  authorize('AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   uploadMiddleware.single('photo'),
   async (req, res, next) => {
     try {
@@ -316,7 +321,7 @@ router.post(
 // Hapus foto dokumentasi dari LHPP
 router.delete(
   '/:id/photos/:photoId',
-  authorize('AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   async (req, res, next) => {
     try {
       const { id, photoId } = req.params;
@@ -348,8 +353,8 @@ router.delete(
   }
 );
 
-// Ahli K3 mengajukan draf ke Review Teknis
-router.post('/:id/submit-review', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), async (req, res, next) => {
+// Inspector mengirim draf LHPP kepada Marketing untuk pratinjau dan finalisasi.
+router.post('/:id/submit-finalization', authorize('INSPECTOR'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const submitted = await withTransaction(async (db) => {
@@ -360,13 +365,13 @@ router.post('/:id/submit-review', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTE
         throw new AppError(403, 'FORBIDDEN', 'Hanya Ahli K3 / Inspector penyusun yang dapat mengajukan LHPP ini.');
       }
       if (!['DRAF', 'SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(cur.status)) {
-        throw new AppError(400, 'INVALID_STATE', 'LHPP sudah berada dalam antrean review atau telah terbit.');
+        throw new AppError(400, 'INVALID_STATE', 'LHPP tidak berada pada status yang dapat dikirim untuk finalisasi.');
       }
 
       const nextVer = cur.status === 'DIKEMBALIKAN' ? cur.version + 1 : cur.version;
       const { rows } = await db.query(
         `UPDATE lhpp_documents
-         SET status = 'REVIEW_TEKNIS', version = $1, updated_at = now()
+         SET status = 'SIAP_PREVIEW', version = $1, updated_at = now()
          WHERE id = $2
          RETURNING *`,
         [nextVer, id]
@@ -374,7 +379,7 @@ router.post('/:id/submit-review', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTE
 
       await db.query(
         `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
-         VALUES ($1, $2, 'SUBMIT_REVIEW', 'Diajukan untuk review teknis dan persetujuan', $3, $4)`,
+         VALUES ($1, $2, 'SUBMIT_FINALIZATION', 'Diajukan ke Marketing untuk pratinjau dan finalisasi', $3, $4)`,
         [
           id,
           nextVer,
@@ -391,21 +396,21 @@ router.post('/:id/submit-review', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTE
       await syncOrderUnitStatus(db, {
         orderId: cur.order_id,
         objectId: cur.object_id,
-        unitStatus: 'MENUNGGU_REVIEW',
+        unitStatus: 'LHPP_SIAP_PREVIEW',
         actorId: req.user.id
       });
 
       await db.query(
-        "UPDATE orders SET status = 'MENUNGGU_REVIEW', updated_at = now() WHERE id = $1 AND status <> 'SELESAI'",
+        "UPDATE orders SET status = 'MENUNGGU_DOKUMEN', updated_at = now() WHERE id = $1 AND status <> 'SELESAI'",
         [cur.order_id]
       );
 
       await notifyRoles(
         {
-          roles: ['PIMPINAN'],
-          type: 'LHPP_WAIT_REVIEW',
-          title: `LHPP Menunggu Review: ${cur.object_name}`,
-          body: `Order ${cur.order_no} (${cur.client_name}) siap direview.`,
+          roles: ['MARKETING'],
+          type: 'LHPP_READY_TO_FINALIZE',
+          title: `LHPP Siap Difinalisasi: ${cur.object_name}`,
+          body: `Order ${cur.order_no} (${cur.client_name}) siap dipratinjau dan difinalisasi.`,
           link: `/app/lhpp`
         },
         db
@@ -432,10 +437,11 @@ router.post('/:id/submit-review', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTE
   }
 });
 
-// Finalisasi LHPP langsung oleh Inspector / Marketing tanpa alur verifikasi Pimpinan
+// Marketing mempratinjau dan memfinalisasi LHPP setelah Inspector mengirim hasil pemeriksaan.
 router.post(
   '/:id/finalize',
-  authorize('INSPECTOR', 'AHLI_K3', 'MARKETING', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('MARKETING', 'ADMIN_SISTEM'),
+  validate(finalizeLhppSchema),
   async (req, res, next) => {
     try {
       const { id } = req.params;
@@ -446,6 +452,9 @@ router.post(
         if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
         if (cur.status === 'TERBIT' || cur.status === 'FINAL') {
           return { lhpp: cur, bap: null, message: 'LHPP sudah dalam status final.' };
+        }
+        if (cur.status !== 'SIAP_PREVIEW') {
+          throw new AppError(409, 'LHPP_NOT_READY', 'LHPP harus berada pada status Siap Pratinjau sebelum finalisasi.');
         }
 
         const seqRes = await db.query("SELECT nextval('lhpp_no_seq') AS seq");
@@ -618,245 +627,13 @@ router.post(
   }
 );
 
-// Review teknis & persetujuan (backward-compatibility untuk endpoint eksisting)
-router.post(
-  '/:id/review',
-  authorize('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'ADMIN_KANTOR', 'AHLI_K3'),
-  validate(reviewActionSchema),
-  async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const { decision, note } = req.body;
-
-      const updated = await withTransaction(async (db) => {
-        const cur = await fetchFullLhppContext(db, id);
-        if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
-        if (cur.status === 'TERBIT') {
-          throw new AppError(
-            409,
-            'LHPP_IMMUTABLE',
-            'Dokumen LHPP yang telah terbit terkunci dan tidak dapat diubah.'
-          );
-        }
-        if (cur.status !== 'REVIEW_TEKNIS' && cur.status !== 'PERSETUJUAN_PIMPINAN') {
-          throw new AppError(
-            400,
-            'LHPP_NOT_IN_REVIEW',
-            'Dokumen harus diajukan ke antrean review terlebih dahulu oleh Ahli K3.'
-          );
-        }
-
-        if (decision === 'RETURN') {
-          const { rows } = await db.query(
-            `UPDATE lhpp_documents
-             SET status = 'DIKEMBALIKAN', review_notes = $1, reviewed_by = $2, reviewed_at = now(), updated_at = now()
-             WHERE id = $3
-             RETURNING *`,
-            [note.trim(), req.user.id, id]
-          );
-          await db.query(
-            `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
-             VALUES ($1, $2, 'RETURNED', $3, $4, $5)`,
-            [id, cur.version, note.trim(), { status: 'DIKEMBALIKAN' }, req.user.id]
-          );
-          await syncOrderUnitStatus(db, {
-            orderId: cur.order_id,
-            objectId: cur.object_id,
-            unitStatus: 'PERLU_REVISI',
-            actorId: req.user.id
-          });
-          await db.query(
-            "UPDATE orders SET status = 'MENUNGGU_LAPORAN', updated_at = now() WHERE id = $1",
-            [cur.order_id]
-          );
-          await createNotification(
-            {
-              userId: cur.inspector_id,
-              type: 'LHPP_RETURNED',
-              title: `LHPP Dikembalikan: ${cur.object_name}`,
-              body: `Catatan Reviewer: ${note.trim()}`,
-              link: `/app/lhpp`
-            },
-            db
-          );
-          await recordAudit(
-            {
-              userId: req.user.id,
-              action: 'LHPP_RETURN',
-              entity: 'lhpp_documents',
-              entityId: id,
-              summary: { note: note.trim() },
-              ip: req.ip
-            },
-            db
-          );
-          return rows[0];
-        }
-
-        if (decision === 'APPROVE_TECHNICAL') {
-          const { rows } = await db.query(
-            `UPDATE lhpp_documents
-             SET status = 'PERSETUJUAN_PIMPINAN',
-                 review_notes = COALESCE($1, review_notes),
-                 reviewed_by = $2,
-                 reviewed_at = now(),
-                 updated_at = now()
-             WHERE id = $3
-             RETURNING *`,
-            [note || null, req.user.id, id]
-          );
-          await db.query(
-            `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
-             VALUES ($1, $2, 'TECHNICAL_APPROVED', $3, $4, $5)`,
-            [id, cur.version, note || 'Review teknis disetujui', { status: 'PERSETUJUAN_PIMPINAN' }, req.user.id]
-          );
-          await syncOrderUnitStatus(db, {
-            orderId: cur.order_id,
-            objectId: cur.object_id,
-            unitStatus: 'DISETUJUI',
-            actorId: req.user.id
-          });
-          await recordAudit(
-            {
-              userId: req.user.id,
-              action: 'LHPP_APPROVE_TECHNICAL',
-              entity: 'lhpp_documents',
-              entityId: id,
-              summary: { version: cur.version },
-              ip: req.ip
-            },
-            db
-          );
-          return rows[0];
-        }
-
-        // APPROVE_FINAL -> Terbitkan LHPP dengan nomor unik & kode verifikasi
-        const seqRes = await db.query("SELECT nextval('lhpp_no_seq') AS seq");
-        const now = new Date();
-        const romanMonth = ROMAN_MONTHS[now.getMonth()];
-        const year = now.getFullYear();
-        const seqStr = String(seqRes.rows[0].seq).padStart(4, '0');
-        const lhppNo = `${seqStr}/INSP-${cur.category_code}/PJK3-URD/${romanMonth}/${year}`;
-        const verificationCode = `URD-${crypto
-          .randomBytes(5)
-          .toString('hex')
-          .toUpperCase()}`;
-
-        const fullForPdf = {
-          ...cur,
-          lhpp_no: lhppNo,
-          status: 'TERBIT',
-          verification_code: verificationCode,
-          reviewer_name: cur.reviewer_name || req.user.fullName,
-          approver_name: req.user.fullName,
-          published_at: now.toISOString()
-        };
-
-        const pdfBuffer = await generateLhppPdfBuffer(fullForPdf);
-        const docHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
-        const savedPdf = await saveUploadedFile(
-          {
-            buffer: pdfBuffer,
-            originalName: `${lhppNo.replace(/\//g, '-')}.pdf`,
-            mimeType: 'application/pdf',
-            ownerType: 'LHPP_PDF',
-            ownerId: id,
-            caption: `Dokumen Resmi ${lhppNo}`,
-            uploadedBy: req.user.id
-          },
-          db
-        );
-
-        const { rows } = await db.query(
-          `UPDATE lhpp_documents
-           SET lhpp_no = $1,
-               status = 'TERBIT',
-               verification_code = $2,
-               document_hash = $3,
-               review_notes = COALESCE($4, review_notes),
-               reviewed_by = COALESCE(reviewed_by, $5),
-               reviewed_at = COALESCE(reviewed_at, now()),
-               approved_by = $5,
-               approved_at = now(),
-               published_at = now(),
-               pdf_file_id = $6,
-               updated_at = now()
-           WHERE id = $7
-           RETURNING *`,
-          [lhppNo, verificationCode, docHash, note || null, req.user.id, savedPdf.id, id]
-        );
-
-        await db.query(
-          `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
-           VALUES ($1, $2, 'PUBLISHED', $3, $4, $5)`,
-          [
-            id,
-            cur.version,
-            note || 'Disetujui dan diterbitkan oleh Pimpinan',
-            { lhpp_no: lhppNo, verification_code: verificationCode },
-            req.user.id
-          ]
-        );
-
-        if (cur.recommended_valid_until) {
-          await db.query(
-            `UPDATE test_objects
-             SET next_inspection_date = COALESCE(next_inspection_date, $1), updated_at = now()
-             WHERE id = $2`,
-            [cur.recommended_valid_until, cur.object_id]
-          );
-        }
-
-        // Sinkronisasi status unit dan periksa apakah seluruh unit aktif pada PO sudah selesai
-        await syncOrderUnitStatus(db, {
-          orderId: cur.order_id,
-          objectId: cur.object_id,
-          unitStatus: 'LHPP_TERBIT',
-          actorId: req.user.id
-        });
-
-        await createNotification(
-          {
-            userId: cur.inspector_id,
-            type: 'LHPP_PUBLISHED',
-            title: `LHPP Terbit: ${lhppNo}`,
-            body: `LHPP untuk ${cur.object_name} telah disetujui Pimpinan.`,
-            link: `/app/lhpp`
-          },
-          db
-        );
-        await notifyRoles(
-          {
-            roles: ['ADMIN_KANTOR'],
-            type: 'LHPP_PUBLISHED',
-            title: `LHPP Siap Diserahkan: ${lhppNo}`,
-            body: `Unduh PDF dan catat penyerahan ke ${cur.client_name}.`,
-            link: `/app/lhpp`
-          },
-          db
-        );
-
-        await recordAudit(
-          {
-            userId: req.user.id,
-            action: 'LHPP_PUBLISH',
-            entity: 'lhpp_documents',
-            entityId: id,
-            summary: { lhppNo, verificationCode },
-            ip: req.ip
-          },
-          db
-        );
-
-        return rows[0];
-      });
-
-      return res.json({ lhpp: updated });
-    } catch (err) {
-      return next(err);
-    }
-  }
-);
+// Endpoint approval lama dinonaktifkan agar keputusan review/reject tidak dapat dipicu lewat API.
+router.post('/:id/review', authorize('ADMIN_SISTEM', 'MARKETING'), (_req, _res, next) => {
+  next(new AppError(410, 'LEGACY_REVIEW_REMOVED', 'Alur review dan approval LHPP telah dihapus. Gunakan pratinjau dan finalisasi Marketing.'));
+});
+router.post('/:id/submit-review', authorize('INSPECTOR'), (_req, _res, next) => {
+  next(new AppError(410, 'LEGACY_REVIEW_REMOVED', 'Gunakan alur kirim finalisasi LHPP yang baru.'));
+});
 
 // M4-05: Unduh LHPP PDF
 router.get('/:id/pdf', async (req, res, next) => {
@@ -868,7 +645,18 @@ router.get('/:id/pdf', async (req, res, next) => {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengunduh LHPP milik sendiri.');
     }
 
-    const pdfBuffer = await generateLhppPdfBuffer(cur);
+    let pdfBuffer;
+    if (cur.pdf_file_id) {
+      const { rows } = await query(
+        `SELECT storage_key FROM file_attachments
+         WHERE id = $1 AND owner_type = 'LHPP_PDF' AND owner_id = $2 AND deleted_at IS NULL`,
+        [cur.pdf_file_id, cur.id]
+      );
+      if (!rows[0]) throw new AppError(404, 'LHPP_PDF_NOT_FOUND', 'Berkas LHPP final tidak ditemukan.');
+      pdfBuffer = await readFile(resolveAttachmentPath(rows[0].storage_key));
+    } else {
+      pdfBuffer = await generateLhppPdfBuffer(cur);
+    }
     await recordAudit({
       userId: req.user.id,
       action: 'LHPP_DOWNLOAD_PDF',

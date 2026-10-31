@@ -1,13 +1,43 @@
 import { useRef, useState } from 'react';
 import { api } from '../../../lib/api/axios.js';
 
-export function useInspectionSignatures({ activeDetail, user, setError, setFeedback, openDetail }) {
+function hasCanvasDrawing(canvas) {
+  if (!canvas) return false;
+  try {
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 20) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+export function useInspectionSignatures({
+  activeDetail,
+  user,
+  setError,
+  setFeedback,
+  openDetail,
+  setSubmitting: externalSetSubmitting
+}) {
   const [inspectorSigName, setInspectorSigName] = useState(user?.fullName || 'Ir. Budi Santoso');
   const [inspectorSigTitle, setInspectorSigTitle] = useState('Ahli K3 Spesialis');
   const [clientSigName, setClientSigName] = useState('');
   const [clientSigTitle, setClientSigTitle] = useState('Pemilik Alat / PIC Klien');
   const [reSigningInspector, setReSigningInspector] = useState(false);
   const [reSigningClient, setReSigningClient] = useState(false);
+
+  // Status loading dan notifikasi lokal per tanda tangan
+  const [savingInspector, setSavingInspector] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+  const [sigErrorInspector, setSigErrorInspector] = useState('');
+  const [sigErrorClient, setSigErrorClient] = useState('');
+  const [sigFeedbackInspector, setSigFeedbackInspector] = useState('');
+  const [sigFeedbackClient, setSigFeedbackClient] = useState('');
 
   const inspectorCanvasRef = useRef(null);
   const clientCanvasRef = useRef(null);
@@ -25,6 +55,10 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     setHasDrawnClientSig(false);
     setReSigningInspector(false);
     setReSigningClient(false);
+    setSigErrorInspector('');
+    setSigErrorClient('');
+    setSigFeedbackInspector('');
+    setSigFeedbackClient('');
   };
 
   const clearInspectorCanvas = () => {
@@ -33,20 +67,30 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasDrawnInspectorSig(false);
+    setSigErrorInspector('');
   };
 
   const handleInspectorPointerDown = (e) => {
     const canvas = inspectorCanvasRef.current;
     if (!canvas) return;
+    try {
+      e.target.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
     const ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#0F172A';
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2.4;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
     isDrawingInspectorRef.current = true;
     setHasDrawnInspectorSig(true);
+    setSigErrorInspector('');
   };
 
   const handleInspectorPointerMove = (e) => {
@@ -54,27 +98,51 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     const canvas = inspectorCanvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
     const ctx = canvas.getContext('2d');
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
     ctx.stroke();
   };
 
-  const handleInspectorPointerUp = () => {
-    isDrawingInspectorRef.current = false;
+  const handleInspectorPointerUp = (e) => {
+    if (isDrawingInspectorRef.current) {
+      isDrawingInspectorRef.current = false;
+      try {
+        if (e.target.hasPointerCapture?.(e.pointerId)) {
+          e.target.releasePointerCapture?.(e.pointerId);
+        }
+      } catch {
+        // ignore
+      }
+      const canvas = inspectorCanvasRef.current;
+      if (canvas && hasCanvasDrawing(canvas)) {
+        setHasDrawnInspectorSig(true);
+      }
+    }
   };
 
-  const handleSaveInspectorSignature = async (setSubmitting) => {
-    if (!activeDetail?.inspection || !inspectorSigName.trim()) {
-      setError('Nama Ahli K3 / Inspector wajib diisi.');
+  const handleSaveInspectorSignature = async () => {
+    setSigErrorInspector('');
+    setSigFeedbackInspector('');
+
+    if (!activeDetail?.inspection) {
+      setSigErrorInspector('Data inspeksi tidak ditemukan.');
+      return;
+    }
+    if (!inspectorSigName.trim()) {
+      setSigErrorInspector('Nama Ahli K3 / Inspector wajib diisi.');
       return;
     }
     const canvas = inspectorCanvasRef.current;
-    if (!canvas || !hasDrawnInspectorSig) {
-      setError('Silakan goreskan tanda tangan Ahli K3 pada kotak kanvas terlebih dahulu.');
+    const hasDrawing = canvas && (hasCanvasDrawing(canvas) || hasDrawnInspectorSig);
+    if (!canvas || !hasDrawing) {
+      setSigErrorInspector('Silakan goreskan tanda tangan Ahli K3 pada kotak kanvas di atas.');
       return;
     }
-    setSubmitting(true);
-    setError('');
+
+    setSavingInspector(true);
+    if (externalSetSubmitting) externalSetSubmitting(true);
     try {
       const dataUrl = canvas.toDataURL('image/png');
       await api.post(`/inspections/${activeDetail.inspection.id}/signatures`, {
@@ -85,12 +153,19 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
       });
       clearInspectorCanvas();
       setReSigningInspector(false);
-      setFeedback('Tanda tangan digital Ahli K3 / Inspector berhasil disimpan.');
+      setSigFeedbackInspector('Tanda tangan digital Ahli K3 berhasil disimpan.');
+      if (setFeedback) setFeedback('Tanda tangan digital Ahli K3 berhasil disimpan.');
       await openDetail(activeDetail.inspection.id);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan tanda tangan digital Ahli K3.');
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Gagal menyimpan tanda tangan digital Ahli K3.';
+      setSigErrorInspector(msg);
+      if (setError) setError(msg);
     } finally {
-      setSubmitting(false);
+      setSavingInspector(false);
+      if (externalSetSubmitting) externalSetSubmitting(false);
     }
   };
 
@@ -100,20 +175,30 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasDrawnClientSig(false);
+    setSigErrorClient('');
   };
 
   const handleClientPointerDown = (e) => {
     const canvas = clientCanvasRef.current;
     if (!canvas) return;
+    try {
+      e.target.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
     const ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#0F172A';
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2.4;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
     isDrawingClientRef.current = true;
     setHasDrawnClientSig(true);
+    setSigErrorClient('');
   };
 
   const handleClientPointerMove = (e) => {
@@ -121,27 +206,51 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     const canvas = clientCanvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
     const ctx = canvas.getContext('2d');
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
     ctx.stroke();
   };
 
-  const handleClientPointerUp = () => {
-    isDrawingClientRef.current = false;
+  const handleClientPointerUp = (e) => {
+    if (isDrawingClientRef.current) {
+      isDrawingClientRef.current = false;
+      try {
+        if (e.target.hasPointerCapture?.(e.pointerId)) {
+          e.target.releasePointerCapture?.(e.pointerId);
+        }
+      } catch {
+        // ignore
+      }
+      const canvas = clientCanvasRef.current;
+      if (canvas && hasCanvasDrawing(canvas)) {
+        setHasDrawnClientSig(true);
+      }
+    }
   };
 
-  const handleSaveClientSignature = async (setSubmitting) => {
-    if (!activeDetail?.inspection || !clientSigName.trim()) {
-      setError('Nama PIC Perusahaan / Klien wajib diisi.');
+  const handleSaveClientSignature = async () => {
+    setSigErrorClient('');
+    setSigFeedbackClient('');
+
+    if (!activeDetail?.inspection) {
+      setSigErrorClient('Data inspeksi tidak ditemukan.');
+      return;
+    }
+    if (!clientSigName.trim()) {
+      setSigErrorClient('Nama PIC Perusahaan / Klien wajib diisi.');
       return;
     }
     const canvas = clientCanvasRef.current;
-    if (!canvas || !hasDrawnClientSig) {
-      setError('Silakan goreskan tanda tangan PIC Klien pada kotak kanvas terlebih dahulu.');
+    const hasDrawing = canvas && (hasCanvasDrawing(canvas) || hasDrawnClientSig);
+    if (!canvas || !hasDrawing) {
+      setSigErrorClient('Silakan goreskan tanda tangan PIC Klien pada kotak kanvas di atas.');
       return;
     }
-    setSubmitting(true);
-    setError('');
+
+    setSavingClient(true);
+    if (externalSetSubmitting) externalSetSubmitting(true);
     try {
       const dataUrl = canvas.toDataURL('image/png');
       await api.post(`/inspections/${activeDetail.inspection.id}/signatures`, {
@@ -152,12 +261,19 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
       });
       clearClientCanvas();
       setReSigningClient(false);
-      setFeedback('Tanda tangan digital PIC Klien / Pemilik Alat berhasil disimpan.');
+      setSigFeedbackClient('Tanda tangan digital PIC Klien berhasil disimpan.');
+      if (setFeedback) setFeedback('Tanda tangan digital PIC Klien berhasil disimpan.');
       await openDetail(activeDetail.inspection.id);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan tanda tangan digital PIC Klien.');
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Gagal menyimpan tanda tangan digital PIC Klien.';
+      setSigErrorClient(msg);
+      if (setError) setError(msg);
     } finally {
-      setSubmitting(false);
+      setSavingClient(false);
+      if (externalSetSubmitting) externalSetSubmitting(false);
     }
   };
 
@@ -174,6 +290,12 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     setReSigningInspector,
     reSigningClient,
     setReSigningClient,
+    savingInspector,
+    savingClient,
+    sigErrorInspector,
+    sigErrorClient,
+    sigFeedbackInspector,
+    sigFeedbackClient,
     inspectorCanvasRef,
     clientCanvasRef,
     hasDrawnInspectorSig,
@@ -191,4 +313,3 @@ export function useInspectionSignatures({ activeDetail, user, setError, setFeedb
     handleSaveClientSignature
   };
 }
-

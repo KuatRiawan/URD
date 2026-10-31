@@ -43,8 +43,40 @@ export function DashboardPage() {
     }
   }, []);
 
+  // Sinkronisasi data awal dan otomatis di latar belakang secara realtime (tanpa perlu tombol refresh manual)
   useEffect(() => {
     loadSummary();
+
+    // Polling periodik otomatis setiap 5 detik agar data selalu realtime
+    const interval = setInterval(() => {
+      loadSummary(true);
+    }, 5000);
+
+    // Sinkronisasi instan saat pengguna kembali membuka tab atau aplikasi dari latar belakang
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSummary(true);
+      }
+    };
+
+    const handleFocus = () => {
+      loadSummary(true);
+    };
+
+    const handleOnline = () => {
+      loadSummary(true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+    };
   }, [loadSummary]);
 
   const assignedUnits = useMemo(() => data?.assignedUnits || [], [data]);
@@ -169,6 +201,7 @@ export function DashboardPage() {
   if (isInspector) {
     return (
       <InspectorDashboardView
+        user={user}
         refreshing={refreshing}
         loadSummary={loadSummary}
         categorizedUnits={categorizedUnits}

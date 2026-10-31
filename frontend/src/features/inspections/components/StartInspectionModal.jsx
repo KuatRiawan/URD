@@ -80,18 +80,18 @@ export function StartInspectionModal({
           </select>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            className="min-h-11 w-full sm:w-auto rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="min-h-11 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-xs"
+            className="min-h-11 w-full sm:w-auto rounded-xl bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-xs active:scale-[0.98] transition-all"
           >
             {submitting ? 'Memproses...' : 'Buka Form Inspeksi'}
           </button>

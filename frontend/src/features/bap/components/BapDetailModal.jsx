@@ -19,6 +19,7 @@ export function BapDetailModal({
   detailLoading,
   feedback,
   canManage,
+  canFinalize,
   draftForm,
   setDraftForm,
   toggleScopeItem,
@@ -226,7 +227,7 @@ export function BapDetailModal({
                 />
               </div>
 
-              {selectedBap.status === 'DRAF' && canManage && (
+              {selectedBap.status === 'DRAF' && canFinalize && (
                 <div className="flex justify-end">
                   <button
                     type="submit"

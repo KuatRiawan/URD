@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase } from '../../seeds/seed.js';
@@ -6,6 +7,21 @@ import { runMigrations } from '../database/migrate.js';
 import { pool, query } from '../database/pool.js';
 
 const TEST_PW = 'TestPassURD2026!';
+const TEST_SIGNATURE_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgWJ9awAAAABJRU5ErkJggg==';
+
+async function addInspectionTestSignatures(inspectionId, token) {
+  for (const signature of [
+    { signerRole: 'AHLI_K3', signerName: 'Inspector Simulasi' },
+    { signerRole: 'PERWAKILAN_KLIEN', signerName: 'PIC Simulasi' }
+  ]) {
+    const response = await request(app)
+      .post(`/api/v1/inspections/${inspectionId}/signatures`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...signature, signerTitle: 'Simulasi', dataUrl: TEST_SIGNATURE_PNG });
+    expect(response.status).toBe(201);
+  }
+}
 
 describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
   const tokens = {};
@@ -133,6 +149,44 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .set('Authorization', `Bearer ${tokens.ADMIN_SISTEM}`);
       expect(allowedRes.status).toBe(200);
       expect(allowedRes.body.items.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('membuat role Inspector kanonis dengan profil inspector dan memfilter alias historis', async () => {
+      const aliasRes = await request(app)
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${tokens.ADMIN_SISTEM}`)
+        .send({
+          email: 'legacy-role@urd.test',
+          fullName: 'Akun Role Lama',
+          role: 'ADMIN_KANTOR',
+          password: TEST_PW
+        });
+      expect(aliasRes.status).toBe(400);
+
+      const created = await request(app)
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${tokens.ADMIN_SISTEM}`)
+        .send({
+          email: 'inspector.created@example.com',
+          fullName: 'Inspector Baru',
+          role: 'INSPECTOR',
+          password: TEST_PW,
+          employeeNo: 'URD-TEST-NEW'
+        });
+      expect(created.status).toBe(201);
+      expect(created.body.user.role).toBe('INSPECTOR');
+      const inspectorProfile = await query(
+        'SELECT employee_no FROM inspectors WHERE user_id = $1',
+        [created.body.user.id]
+      );
+      expect(inspectorProfile.rows[0].employee_no).toBe('URD-TEST-NEW');
+
+      const marketing = await request(app)
+        .get('/api/v1/users?role=MARKETING')
+        .set('Authorization', `Bearer ${tokens.ADMIN_SISTEM}`);
+      expect(marketing.status).toBe(200);
+      expect(marketing.body.items.map((u) => u.email)).toContain('admin.kantor@upayariksadaya.com');
+      expect(marketing.body.items.map((u) => u.email)).toContain('marketing@upayariksadaya.com');
     });
 
     it('menolak AHLI_K3 membuat klien baru (403)', async () => {
@@ -286,6 +340,12 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(ordRes.status).toBe(201);
       orderId = ordRes.body.order.id;
       expect(['ORDER_BARU', 'TERDAFTAR']).toContain(ordRes.body.order.status);
+      const orderDetail = await request(app)
+        .get(`/api/v1/orders/${orderId}`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(orderDetail.status).toBe(200);
+      expect(orderDetail.body.revisions).toHaveLength(1);
+      expect(orderDetail.body.revisions[0].snapshot.units).toHaveLength(1);
 
       const schedRes = await request(app)
         .post(`/api/v1/orders/${orderId}/schedule`)
@@ -340,6 +400,18 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .send({ inspectorIds: [userIds.AHLI_K3_PAA] });
       expect(conflictRes.status).toBe(409);
       expect(conflictRes.body.error.code).toBe('SCHEDULE_CONFLICT');
+
+      const addedUnit = await request(app)
+        .post(`/api/v1/orders/${order2Id}/units`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ units: [{ categoryId: 4, name: 'Panel tambahan untuk revisi', serialNumber: 'REV-UNIT-2026-01' }] });
+      expect(addedUnit.status).toBe(201);
+      const revisedOrder = await request(app)
+        .get(`/api/v1/orders/${order2Id}`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(revisedOrder.body.revisions).toHaveLength(2);
+      expect(revisedOrder.body.revisions[0].version).toBe(2);
+      expect(revisedOrder.body.revisions[0].snapshot.units).toHaveLength(2);
     });
 
     it('Ahli K3 menerima penugasan & dapat mengunduh PDF Surat Tugas', async () => {
@@ -355,6 +427,98 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
       expect(pdfRes.status).toBe(200);
       expect(pdfRes.headers['content-type']).toContain('application/pdf');
+
+      const rescheduled = await request(app)
+        .post(`/api/v1/orders/${orderId}/schedule`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({
+          startAt: '2026-11-06T08:00:00.000Z',
+          endAt: '2026-11-06T16:00:00.000Z',
+          reason: 'Klien meminta perubahan tanggal.',
+          notes: 'Jadwal yang telah dikonfirmasi klien.'
+        });
+      expect(rescheduled.status).toBe(200);
+      const scheduleDetail = await request(app)
+        .get(`/api/v1/orders/${orderId}`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(scheduleDetail.body.scheduleChanges).toHaveLength(1);
+      const scheduleNotification = await query(
+        "SELECT count(*)::int AS total FROM notifications WHERE user_id = $1 AND type = 'SCHEDULE_CHANGED'",
+        [userIds.AHLI_K3_PAA]
+      );
+      expect(scheduleNotification.rows[0].total).toBe(1);
+    });
+
+    it('Inspector melaporkan kendala, Pimpinan memantau, Marketing menindaklanjuti dengan histori', async () => {
+      const create = await request(app)
+        .post('/api/v1/issues')
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .send({
+          orderId,
+          objectId: objectPaaId,
+          issueType: 'UNIT_MISMATCH',
+          title: 'Nomor seri unit berbeda',
+          description: 'Nomor seri di lapangan berbeda dari dokumen PO.'
+        });
+      expect(create.status).toBe(201);
+      expect(create.body.issue.status).toBe('DILAPORKAN');
+      const issueId = create.body.issue.id;
+
+      const evidence = await request(app)
+        .post(`/api/v1/issues/${issueId}/evidence`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .attach('file', Buffer.from(TEST_SIGNATURE_PNG.split(',')[1], 'base64'), {
+          filename: 'bukti-kendala.png',
+          contentType: 'image/png'
+        });
+      expect(evidence.status).toBe(201);
+      const evidenceAccess = await request(app)
+        .get(`/api/v1/dashboard/files/${evidence.body.evidence.id}`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(evidenceAccess.status).toBe(200);
+
+      const globalSearch = await request(app)
+        .get(`/api/v1/search?q=${create.body.issue.issue_no}`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(globalSearch.status).toBe(200);
+      expect(globalSearch.body.results.some((result) => result.type === 'ISSUE' && result.id === issueId)).toBe(true);
+
+      const otherInspector = await request(app)
+        .post('/api/v1/issues')
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_LIS}`)
+        .send({ orderId, issueType: 'OTHER', title: 'Akses tidak ditugaskan', description: 'Inspector ini tidak memiliki assignment PO.' });
+      expect(otherInspector.status).toBe(403);
+
+      const managerList = await request(app)
+        .get('/api/v1/issues')
+        .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+      expect(managerList.status).toBe(200);
+      expect(managerList.body.items.some((issue) => issue.id === issueId)).toBe(true);
+
+      const forbiddenUpdate = await request(app)
+        .patch(`/api/v1/issues/${issueId}`)
+        .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
+        .send({ status: 'SEDANG_DITANGANI', actionNote: 'Monitoring saja.' });
+      expect(forbiddenUpdate.status).toBe(403);
+
+      const update = await request(app)
+        .patch(`/api/v1/issues/${issueId}`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ status: 'SEDANG_DITANGANI', assignedTo: userIds.ADMIN_KANTOR, actionNote: 'Saya tindak lanjuti dengan klien.' });
+      expect(update.status).toBe(200);
+      expect(update.body.issue.assigned_to).toBe(userIds.ADMIN_KANTOR);
+
+      const detail = await request(app)
+        .get(`/api/v1/issues/${issueId}`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(detail.status).toBe(200);
+      expect(detail.body.events).toHaveLength(3);
+      expect(detail.body.evidence).toHaveLength(1);
+      const audited = await query(
+        "SELECT count(*)::int AS total FROM audit_logs WHERE entity = 'operational_issues' AND entity_id = $1",
+        [issueId]
+      );
+      expect(audited.rows[0].total).toBe(3);
     });
 
     it('mencegah Ahli K3 lain yang tidak ditugaskan mengakses order ini (ID manipulation check)', async () => {
@@ -426,6 +590,23 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         });
       expect(sigRes.status).toBe(201);
 
+      const missingInspectorSignature = await request(app)
+        .post(`/api/v1/inspections/${inspectionId}/submit`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(missingInspectorSignature.status).toBe(400);
+      expect(missingInspectorSignature.body.error.code).toBe('SIGNATURES_REQUIRED');
+
+      const inspectorSigRes = await request(app)
+        .post(`/api/v1/inspections/${inspectionId}/signatures`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .send({
+          signerRole: 'AHLI_K3',
+          signerName: 'Inspector Simulasi',
+          signerTitle: 'Ahli K3',
+          dataUrl: onePxPng
+        });
+      expect(inspectorSigRes.status).toBe(201);
+
       // Kirim form inspeksi -> mengunci form & membuat draf LHPP otomatis
       const subRes = await request(app)
         .post(`/api/v1/inspections/${inspectionId}/submit`)
@@ -434,6 +615,12 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(subRes.body.inspection.status).toBe('TERKIRIM');
       expect(subRes.body.lhpp.id).toBeTruthy();
       lhppId = subRes.body.lhpp.id;
+
+      const foreignResubmit = await request(app)
+        .post(`/api/v1/inspections/${inspectionId}/submit`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_LIS}`);
+      expect(foreignResubmit.status).toBe(403);
+      expect(foreignResubmit.body.error.code).toBe('FORBIDDEN');
 
       // Pastikan form yang sudah terkirim terlindungi dari perubahan langsung (M3-11)
       const lockedEdit = await request(app)
@@ -444,7 +631,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(lockedEdit.body.error.code).toBe('INSPECTION_LOCKED');
     });
 
-    it('finalisasi LHPP langsung menghasilkan dokumen final dan BAP draf, sementara Pimpinan strictly read-only (403)', async () => {
+    it('Inspector mengirim LHPP untuk finalisasi Marketing dan Pimpinan tetap read-only', async () => {
       // Pimpinan mencoba memfinalisasi atau mengubah LHPP -> harus ditolak 403 (MANAGER_READ_ONLY)
       const pimpinanMutation = await request(app)
         .post(`/api/v1/lhpp/${lhppId}/finalize`)
@@ -453,11 +640,36 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(pimpinanMutation.status).toBe(403);
       expect(pimpinanMutation.body.error.code).toBe('MANAGER_READ_ONLY');
 
-      // Ahli K3 / Inspector memfinalisasi LHPP -> berhasil dan otomatis menerbitkan BAP
-      const finRes = await request(app)
+      // Jalur review/approval lama tidak dapat memutasi LHPP.
+      const legacyReview = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/review`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ decision: 'APPROVE_FINAL', note: 'Tidak boleh memakai alur legacy' });
+      expect(legacyReview.status).toBe(410);
+      expect(legacyReview.body.error.code).toBe('LEGACY_REVIEW_REMOVED');
+
+      const legacySubmitReview = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/submit-review`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(legacySubmitReview.status).toBe(410);
+
+      const submitForFinalization = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/submit-finalization`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(submitForFinalization.status).toBe(200);
+      expect(submitForFinalization.body.lhpp.status).toBe('SIAP_PREVIEW');
+
+      const inspectorFinalize = await request(app)
         .post(`/api/v1/lhpp/${lhppId}/finalize`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-        .send({ note: 'LHPP difinalisasi oleh Inspector' });
+        .send({ note: 'Inspector tidak dapat menerbitkan LHPP' });
+      expect(inspectorFinalize.status).toBe(403);
+
+      // Marketing mempratinjau dan memfinalisasi LHPP, lalu sistem membuat BAP.
+      const finRes = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/finalize`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ note: 'LHPP difinalisasi Marketing' });
       expect(finRes.status).toBe(200);
       expect(finRes.body.lhpp.status).toBe('FINAL');
       expect(finRes.body.lhpp.lhpp_no).toMatch(/^\d{4}\/INSP-PAA\/PJK3-URD\/[IVX]+\/\d{4}$/);
@@ -471,6 +683,8 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(pdfRes.status).toBe(200);
       expect(pdfRes.headers['content-type']).toContain('application/pdf');
       expect(pdfRes.body.length).toBeGreaterThan(1000);
+      expect(crypto.createHash('sha256').update(pdfRes.body).digest('hex'))
+        .toBe(finRes.body.lhpp.document_hash);
 
       // Pimpinan dapat memonitor (Monitoring read-only)
       const pimpinanView = await request(app)
@@ -729,6 +943,8 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
           recommendation: 'Pasang stiker penanda arah tombol pendant yang baru.'
         });
 
+      await addInspectionTestSignatures(u1InspId, tokens.AHLI_K3_PAA);
+
       const subRes = await request(app)
         .post(`/api/v1/inspections/${u1InspId}/submit`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
@@ -751,6 +967,15 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
           contentType: 'image/png'
         });
       expect(ownPhoto.status).toBe(201);
+
+      const marketingPhoto = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/photos`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .attach('photo', Buffer.from('marketing cannot change technical evidence'), {
+          filename: 'marketing-photo.png',
+          contentType: 'image/png'
+        });
+      expect(marketingPhoto.status).toBe(403);
 
       const unauthorizedUpload = await request(app)
         .post(`/api/v1/lhpp/${unit1LhppId}/photos`)
@@ -793,7 +1018,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(draftLhpp.status).toBe(200);
       expect(draftLhpp.body.lhpp.technical_data.swlCapacity).toBe('15 Ton');
 
-      // Pimpinan mencoba mutasi finalisasi -> harus ditolak 403 (MANAGER_READ_ONLY)
+      // Pimpinan dan Inspector tidak memiliki izin finalisasi LHPP.
       const pimpinanMutation = await request(app)
         .post(`/api/v1/lhpp/${unit1LhppId}/finalize`)
         .set('Authorization', `Bearer ${tokens.PIMPINAN}`)
@@ -801,11 +1026,17 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(pimpinanMutation.status).toBe(403);
       expect(pimpinanMutation.body.error.code).toBe('MANAGER_READ_ONLY');
 
-      // Ahli K3 / Inspector memfinalisasi LHPP -> status FINAL dan BAP otomatis diterbitkan
-      const finRes = await request(app)
+      const inspectorFinalize = await request(app)
         .post(`/api/v1/lhpp/${unit1LhppId}/finalize`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-        .send({ note: 'LHPP Unit 1 difinalisasi oleh Inspector' });
+        .send({ note: 'Inspector tidak dapat menerbitkan LHPP' });
+      expect(inspectorFinalize.status).toBe(403);
+
+      // Marketing memfinalisasi LHPP -> status FINAL dan BAP draf otomatis tersedia.
+      const finRes = await request(app)
+        .post(`/api/v1/lhpp/${unit1LhppId}/finalize`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ note: 'LHPP Unit 1 difinalisasi oleh Marketing' });
       expect(finRes.status).toBe(200);
       expect(finRes.body.lhpp.status).toBe('FINAL');
       expect(finRes.body.lhpp.lhpp_no).toMatch(/^\d{4}\/INSP-PAA\/PJK3-URD\/[IVX]+\/\d{4}$/);
@@ -841,6 +1072,12 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
       expect(bapGet.status).toBe(200);
       expect(bapGet.body.scopeCatalog.length).toBe(28);
+
+      const marketingEdit = await request(app)
+        .put(`/api/v1/bap/${unit1BapId}/draft`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ scopeItems: ['HOIST_CRANE'], conclusion: 'TIDAK_MEMENUHI_SYARAT' });
+      expect(marketingEdit.status).toBe(403);
 
       // Update draf BAP dengan ruang lingkup HOIST_CRANE
       const bapDraft = await request(app)
@@ -882,10 +1119,15 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         });
       expect(sigClient.status).toBe(201);
 
-      // Finalisasi BAP -> mengunci dokumen BAP & otomatis menambahkan antrean distribusi
-      const finRes = await request(app)
+      const inspectorFinalizeBap = await request(app)
         .post(`/api/v1/bap/${unit1BapId}/finalize`)
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(inspectorFinalizeBap.status).toBe(403);
+
+      // Marketing memfinalisasi BAP -> mengunci dokumen dan menambahkan antrean distribusi
+      const finRes = await request(app)
+        .post(`/api/v1/bap/${unit1BapId}/finalize`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
       expect(finRes.status).toBe(200);
       expect(finRes.body.bap.status).toBe('FINAL');
       expect(finRes.body.bap.bap_no).toMatch(/^BAP\/URD\/[IVX]+\/\d{4}\/\d{4}$/);
@@ -897,6 +1139,10 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(pdfSingle.status).toBe(200);
       expect(pdfSingle.headers['content-type']).toContain('application/pdf');
       expect(pdfSingle.body.length).toBeGreaterThan(1000);
+      expect(crypto.createHash('sha256').update(pdfSingle.body).digest('hex'))
+        .toBe(finRes.body.bap.document_hash);
+      expect((pdfSingle.body.toString('latin1').match(/\/Subtype \/Image/g) || []).length)
+        .toBeGreaterThanOrEqual(2);
 
       // Unduh PDF BAP gabungan per PO
       const pdfBatch = await request(app)
@@ -1040,6 +1286,8 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
             }))
           });
 
+        await addInspectionTestSignatures(inspId, tokens.AHLI_K3_PAA);
+
         const subRes = await request(app)
           .post(`/api/v1/inspections/${inspId}/submit`)
           .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
@@ -1058,10 +1306,16 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
             technicalData: { regulationRef: 'Standar K3 Nasional' }
           });
 
-        const finLhppRes = await request(app)
+        const inspectorFinalize = await request(app)
           .post(`/api/v1/lhpp/${lId}/finalize`)
           .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
-          .send({ note: 'LHPP unit difinalisasi oleh Inspector' });
+          .send({ note: 'Inspector tidak dapat menerbitkan LHPP' });
+        expect(inspectorFinalize.status).toBe(403);
+
+        const finLhppRes = await request(app)
+          .post(`/api/v1/lhpp/${lId}/finalize`)
+          .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+          .send({ note: 'LHPP unit difinalisasi oleh Marketing' });
         expect(finLhppRes.status).toBe(200);
 
         const bId = finLhppRes.body.bap.id;
@@ -1087,7 +1341,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
           });
         const finBapRes = await request(app)
           .post(`/api/v1/bap/${bId}/finalize`)
-          .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+          .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
         expect(finBapRes.status).toBe(200);
       }
 

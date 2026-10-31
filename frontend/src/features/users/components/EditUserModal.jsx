@@ -1,5 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { ROLE_LABELS } from '../../../lib/utils/format.js';
+import { ROLE_LABELS, ROLE_OPTIONS } from '../../../lib/utils/format.js';
 
 export function EditUserModal({
   editUser,
@@ -9,6 +9,10 @@ export function EditUserModal({
   submitting,
   onSubmit
 }) {
+  const roleOptions = ROLE_OPTIONS.some(({ value }) => value === editForm.role)
+    ? ROLE_OPTIONS
+    : [...ROLE_OPTIONS, { value: editForm.role, label: `${ROLE_LABELS[editForm.role] || editForm.role} (historis)` }];
+
   return (
     <Modal
       open={Boolean(editUser)}
@@ -38,9 +42,9 @@ export function EditUserModal({
               onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
               className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
             >
-              {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
+              {roleOptions.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>

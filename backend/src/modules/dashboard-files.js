@@ -51,6 +51,11 @@ async function inspectorCanAccessAttachment(file, inspectorId) {
       SELECT 1 FROM lhpp_documents l
       JOIN inspections i ON i.id = l.inspection_id
       WHERE l.id = $1 AND i.inspector_id = $2
+    ) AS allowed`,
+    OPERATIONAL_ISSUE: `SELECT EXISTS (
+      SELECT 1 FROM operational_issues oi
+      LEFT JOIN assignments a ON a.order_id = oi.order_id AND a.inspector_id = $2 AND a.status IN ('MENUNGGU', 'DITERIMA')
+      WHERE oi.id = $1 AND (oi.reported_by = $2 OR a.id IS NOT NULL)
     ) AS allowed`
   };
   const sql = accessQueries[file.owner_type];
@@ -146,8 +151,10 @@ router.get('/summary', async (req, res, next) => {
                   u.full_name AS user_name, u.role AS user_role
            FROM audit_logs a
            LEFT JOIN users u ON u.id = a.user_id
+           WHERE a.user_id = $1
            ORDER BY a.created_at DESC
-           LIMIT 8`
+           LIMIT 8`,
+          [req.user.id]
         )
       ]);
 
@@ -186,14 +193,14 @@ router.get('/summary', async (req, res, next) => {
       query(`
         SELECT count(*)::int AS total,
                count(*) FILTER (WHERE status = 'ORDER_BARU')::int AS new_orders,
-               count(*) FILTER (WHERE status IN ('TERJADWAL','DITUGASKAN','SEDANG_DIPERIKSA','MENUNGGU_LAPORAN','MENUNGGU_REVIEW'))::int AS active_orders,
+               count(*) FILTER (WHERE status IN ('TERJADWAL','DITUGASKAN','SEDANG_DIPERIKSA','MENUNGGU_LAPORAN','MENUNGGU_DOKUMEN'))::int AS active_orders,
                count(*) FILTER (WHERE status = 'SELESAI')::int AS completed_orders,
                round(avg(EXTRACT(EPOCH FROM (completed_at - created_at)) / 3600)::numeric, 1) AS avg_completion_hours
         FROM orders
       `),
       query(`
         SELECT count(*)::int AS total,
-               count(*) FILTER (WHERE status IN ('REVIEW_TEKNIS','PERSETUJUAN_PIMPINAN'))::int AS waiting_review,
+               count(*) FILTER (WHERE status = 'SIAP_PREVIEW')::int AS ready_finalize,
                count(*) FILTER (WHERE status = 'TERBIT')::int AS published,
                count(*) FILTER (WHERE status = 'DIKEMBALIKAN')::int AS returned
         FROM lhpp_documents
@@ -294,7 +301,7 @@ router.get('/summary', async (req, res, next) => {
         avgCompletionHours: orderCounts.rows[0].avg_completion_hours
           ? Number(orderCounts.rows[0].avg_completion_hours)
           : null,
-        lhppWaitingReview: lhppCounts.rows[0].waiting_review,
+        lhppWaitingReview: lhppCounts.rows[0].ready_finalize,
         lhppPublished: lhppCounts.rows[0].published,
         lhppReturned: lhppCounts.rows[0].returned,
         suketExpiring30d: expiringCounts.rows[0].within_30_days,
@@ -433,7 +440,7 @@ router.get('/work-queue', async (req, res, next) => {
       });
     }
 
-    // 4. LHPP menunggu review teknis atau persetujuan pimpinan
+    // 4. LHPP siap dipratinjau dan difinalisasi Marketing
     const lhppReviewSql = isInspector
       ? `SELECT l.id, l.lhpp_no, l.status, l.created_at, t.name AS object_name, c.name AS client_name
          FROM lhpp_documents l
@@ -441,7 +448,7 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN orders o ON o.id = i.order_id
          JOIN clients c ON c.id = o.client_id
          JOIN test_objects t ON t.id = i.object_id
-         WHERE i.inspector_id = $1 AND l.status IN ('REVIEW_TEKNIS', 'PERSETUJUAN_PIMPINAN')
+         WHERE i.inspector_id = $1 AND l.status = 'SIAP_PREVIEW'
          ORDER BY l.created_at ASC`
       : `SELECT l.id, l.lhpp_no, l.status, l.created_at, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name
          FROM lhpp_documents l
@@ -450,7 +457,7 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN clients c ON c.id = o.client_id
          JOIN test_objects t ON t.id = i.object_id
          JOIN users u ON u.id = i.inspector_id
-         WHERE l.status IN ('REVIEW_TEKNIS', 'PERSETUJUAN_PIMPINAN')
+         WHERE l.status = 'SIAP_PREVIEW'
          ORDER BY l.created_at ASC
          LIMIT 10`;
 
@@ -459,17 +466,14 @@ router.get('/work-queue', async (req, res, next) => {
       isInspector ? [userId] : []
     );
     for (const r of waitingLhpp) {
-      const isApproval = r.status === 'PERSETUJUAN_PIMPINAN';
       queue.push({
         id: `lhpp-rev-${r.id}`,
         type: 'LHPP_REVIEW',
         urgency: 'TINGGI',
-        title: isApproval
-          ? `Menunggu Persetujuan Pimpinan: ${r.object_name}`
-          : `Menunggu Review Teknis: ${r.object_name}`,
+        title: `LHPP Siap Finalisasi: ${r.object_name}`,
         description: `Klien: ${r.client_name}${!isInspector ? ` - Ahli K3: ${r.inspector_name}` : ''}`,
         createdAt: r.created_at,
-        actionLabel: role === 'PIMPINAN' || role === 'ADMIN_KANTOR' ? 'Review & Terbitkan' : 'Pantau Status',
+        actionLabel: ['ADMIN_KANTOR', 'MARKETING'].includes(role) ? 'Pratinjau & Finalisasi' : 'Pantau Status',
         link: '/app/lhpp'
       });
     }

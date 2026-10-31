@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { Router } from 'express';
 import Joi from 'joi';
 import { query, withTransaction } from '../../database/pool.js';
@@ -99,10 +100,10 @@ export async function canAccessBap(db, bap, user) {
   if (!['AHLI_K3', 'INSPECTOR'].includes(user.role)) return false;
   if (bap.inspector_id === user.id) return true;
   const { rows } = await db.query(
-    `SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')
-     UNION
-     SELECT 1 FROM users u1, users u2 WHERE u1.id = $2 AND u2.id = $3 AND (u1.full_name = u2.full_name OR u1.phone = u2.phone OR split_part(u1.email, '@', 1) = split_part(u2.email, '@', 1))`,
-    [bap.order_id, user.id, bap.inspector_id]
+    `SELECT 1 FROM assignments
+     WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')
+     LIMIT 1`,
+    [bap.order_id, user.id]
   );
   return Boolean(rows[0]);
 }
@@ -212,7 +213,7 @@ router.get('/:id', async (req, res, next) => {
 
 router.put(
   '/:id/draft',
-  authorize('AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   validate(updateBapDraftSchema),
   async (req, res, next) => {
     try {
@@ -286,7 +287,7 @@ router.put(
 
 router.post(
   '/:id/signatures',
-  authorize('AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
   validate(bapSignatureSchema),
   async (req, res, next) => {
     try {
@@ -381,7 +382,7 @@ router.post(
 
 router.post(
   '/:id/finalize',
-  authorize('AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('MARKETING', 'ADMIN_SISTEM'),
   async (req, res, next) => {
     try {
       const { id } = req.params;
@@ -630,7 +631,18 @@ router.get('/:id/pdf', async (req, res, next) => {
     if (!hasAccess) {
       throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
     }
-    const buf = await generateBapPdfBuffer(bap);
+    let buf;
+    if (bap.pdf_file_id) {
+      const { rows } = await query(
+        `SELECT storage_key FROM file_attachments
+         WHERE id = $1 AND owner_type = 'BAP_PDF' AND owner_id = $2 AND deleted_at IS NULL`,
+        [bap.pdf_file_id, bap.id]
+      );
+      if (!rows[0]) throw new AppError(404, 'BAP_PDF_NOT_FOUND', 'Berkas BAP final tidak ditemukan.');
+      buf = await readFile(resolveAttachmentPath(rows[0].storage_key));
+    } else {
+      buf = await generateBapPdfBuffer(bap);
+    }
     const filename = `${(bap.bap_no || 'BAP-DRAF').replace(/\//g, '-')}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);

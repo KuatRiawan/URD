@@ -62,18 +62,26 @@ describe('LHPP PDF template output', () => {
     expect(report.sectionTitles).toEqual([
       'I. DATA UMUM',
       'II. DATA TEKNIS',
-      'III. PEMERIKSAAN VISUAL DAN PENGUJIAN',
+      'III. PEMERIKSAAN VISUAL',
       'IV. TEMUAN & REKOMENDASI',
       'VI. KESIMPULAN'
     ]);
-    expect(report.identityRows).toContainEqual(['Nomor Seri', 'SN-123']);
+    expect(report.identityRows).toContainEqual(['Nomor Seri Unit', 'SN-123']);
     expect(report.resultRows).toContainEqual({
       label: 'Pemeriksaan Visual - Kondisi nameplate',
       value: 'SESUAI (Catatan: Terbaca jelas)'
     });
+    expect(report.checklistRows).toContainEqual({
+      section: 'Pemeriksaan Visual',
+      label: 'Kondisi nameplate',
+      choice: 'SESUAI',
+      inputType: 'CHOICE',
+      value: 'SESUAI',
+      note: 'Terbaca jelas'
+    });
     expect(report.resultRows).toContainEqual({ label: 'Pengujian - Beban uji', value: '10 ton' });
     expect(report.technicalRows).toContainEqual({
-      label: 'Kondisi konstruksi utama',
+      label: 'Kondisi Konstruksi & Struktur Utama',
       value: 'Baik'
     });
     expect(report.conclusion).toBe('MEMENUHI SYARAT DENGAN CATATAN');
@@ -99,6 +107,19 @@ describe('LHPP PDF template output', () => {
     expect(report.technicalRows.every(({ value }) => value === 'Belum diisi')).toBe(true);
     expect(report.resultRows).toEqual([]);
     expect(report.noFindings).toBe(true);
+  });
+
+  it('keeps the PO number out of the template Item No field when the unit tag is missing', () => {
+    const report = buildLhppReportContent({
+      category_code: 'PAA',
+      po_number: 'PO-URD-0091',
+      technical_data: {},
+      results: []
+    });
+
+    expect(report.coverInfoRows).toContainEqual(['Item No', '-']);
+    expect(report.coverInfoRows).not.toContainEqual(['Item No', 'PO-URD-0091']);
+    expect(report.metadata.join(' ')).toContain('PO-URD-0091');
   });
 
   it('treats legacy auto-filled boilerplate as missing inspection data', () => {
@@ -127,11 +148,11 @@ describe('LHPP PDF template output', () => {
 
   it('includes sample-based technical fields for every supplied equipment category', () => {
     const categories = {
-      PAA: { section: 'III. PEMERIKSAAN VISUAL DAN PENGUJIAN', fields: /defleksi|wire rope/i },
+      PAA: { section: 'III. PEMERIKSAAN VISUAL', fields: /defleksi|wire rope/i },
       PUBT: { section: 'VII. KESIMPULAN', fields: /ketebalan dinding|hydrotest/i },
       PTP: { section: 'A. SPESIFIKASI MESIN', fields: /kebisingan|pencahayaan/i },
       IPP: { section: 'III. HASIL INSPEKSI VISUAL & PENGUJIAN', fields: /air terminal|pembumian/i },
-      LIS: { section: 'III. HASIL PEMERIKSAAN & PENGUKURAN', fields: /termografi|tahanan isolasi/i },
+      LIS: { section: 'III. HASIL PEMERIKSAAN & PENGUKURAN', fields: /sumber tenaga listrik|daya penerangan/i },
       IPK: { section: 'PEMERIKSAAN DAN PENGUJIAN INSTALASI FIRE ALARM', fields: /MCFA|sprinkler/i }
     };
 
@@ -150,8 +171,10 @@ describe('LHPP PDF template output', () => {
     const pageCount = (pdfText.match(/\/Type \/Page\b/g) || []).length;
 
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
-    expect(pdfText).toMatch(/\/MediaBox \[0 0 595\.28 935\.43\]/);
+    expect(pdfText).toMatch(/\/MediaBox \[0 0 615\.24 921\.36\]/);
     expect(pageCount).toBeGreaterThan(1);
+    expect(pageCount).toBeGreaterThanOrEqual(4);
+    expect(pdfText.match(/\/Subtype \/Image/g)?.length || 0).toBeGreaterThanOrEqual(3);
     expect(pdfText).not.toContain('Tidak ditemukan ketidaksesuaian');
   });
 
@@ -169,5 +192,22 @@ describe('LHPP PDF template output', () => {
     const pageCount = (pdf.toString('latin1').match(/\/Type \/Page\b/g) || []).length;
 
     expect(pageCount).toBeGreaterThan(1);
+  });
+
+  it('appends field-specific company and Ahli K3 SKP pages for every supplied template', async () => {
+    for (const categoryCode of ['PAA', 'PUBT', 'PTP', 'IPP', 'LIS', 'IPK']) {
+      const pdf = await generateLhppPdfBuffer({
+        category_code: categoryCode,
+        results: [],
+        findings: [],
+        photos: []
+      });
+      const pdfText = pdf.toString('latin1');
+      const pageCount = (pdfText.match(/\/Type \/Page\b/g) || []).length;
+      const imageCount = (pdfText.match(/\/Subtype \/Image/g) || []).length;
+
+      expect(pageCount, `${categoryCode} page count`).toBeGreaterThanOrEqual(4);
+      expect(imageCount, `${categoryCode} image count`).toBeGreaterThanOrEqual(3);
+    }
   });
 });

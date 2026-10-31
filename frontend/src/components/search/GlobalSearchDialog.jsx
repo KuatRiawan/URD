@@ -6,6 +6,7 @@ import {
   Cube,
   MagnifyingGlass,
   Scroll,
+  WarningOctagon,
   X
 } from '@phosphor-icons/react';
 import { api } from '../../lib/api/axios.js';
@@ -15,7 +16,8 @@ const TYPE_ICONS = {
   CLIENT: Buildings,
   OBJECT: Cube,
   BAP: ClipboardText,
-  LHPP: Scroll
+  LHPP: Scroll,
+  ISSUE: WarningOctagon
 };
 
 const TYPE_COLORS = {
@@ -23,7 +25,8 @@ const TYPE_COLORS = {
   CLIENT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   OBJECT: 'bg-amber-50 text-amber-700 border-amber-200',
   BAP: 'bg-purple-50 text-purple-700 border-purple-200',
-  LHPP: 'bg-rose-50 text-rose-700 border-rose-200'
+  LHPP: 'bg-rose-50 text-rose-700 border-rose-200',
+  ISSUE: 'bg-amber-50 text-amber-800 border-amber-200'
 };
 
 export function GlobalSearchDialog({ isOpen, onClose }) {

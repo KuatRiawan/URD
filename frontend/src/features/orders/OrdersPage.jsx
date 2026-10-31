@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router';
 import { FileCsv, Plus } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
+import { api } from '../../lib/api/axios.js';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
 import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
@@ -81,6 +84,119 @@ export function OrdersPage() {
     handleDownloadUnitPdf
   } = useOrderManagement({ user, confirm, toast });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramOrderNo = searchParams.get('orderNo') || searchParams.get('orderId') || searchParams.get('q');
+  const openedParamRef = useRef(null);
+  const userClosedRef = useRef(false);
+
+  // Otomatis deteksi parameter URL dari notifikasi untuk membuka detail PO secara instan
+  useEffect(() => {
+    if (!paramOrderNo) {
+      userClosedRef.current = false;
+      openedParamRef.current = null;
+      return;
+    }
+    // Jika pengguna sudah sengaja menutup modal, jangan buka kembali secara otomatis
+    if (userClosedRef.current) return;
+    if (openedParamRef.current === paramOrderNo && detailOpen) return;
+
+    setQ(paramOrderNo);
+
+    // Cek apakah parameter berupa UUID orderId
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramOrderNo);
+    if (isUuid) {
+      openedParamRef.current = paramOrderNo;
+      openOrderDetail(paramOrderNo);
+      return;
+    }
+
+    // Cari dari list lokal
+    const matched = orders.find(
+      (o) =>
+        o.id === paramOrderNo ||
+        o.order_no?.toLowerCase() === paramOrderNo.toLowerCase() ||
+        o.po_number?.toLowerCase() === paramOrderNo.toLowerCase()
+    );
+
+    if (matched) {
+      openedParamRef.current = paramOrderNo;
+      openOrderDetail(matched.id);
+      return;
+    }
+
+    // Jika belum ditemukan di list lokal, lakukan fetch langsung ke endpoint
+    let isCurrent = true;
+    api
+      .get('/orders', { params: { q: paramOrderNo, limit: 1 } })
+      .then((res) => {
+        const found = res.data?.items?.[0];
+        if (isCurrent && found && !userClosedRef.current) {
+          openedParamRef.current = paramOrderNo;
+          openOrderDetail(found.id);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [paramOrderNo, orders, detailOpen, openOrderDetail, setQ]);
+
+  // Listener event global ketika notifikasi diklik saat pengguna sudah berada di halaman PO
+  useEffect(() => {
+    const handleCustomOpen = (e) => {
+      const targetIdOrNo = e.detail?.identifier;
+      if (!targetIdOrNo) return;
+      userClosedRef.current = false;
+      openedParamRef.current = null;
+      setQ(targetIdOrNo);
+
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetIdOrNo);
+      if (isUuid) {
+        openOrderDetail(targetIdOrNo);
+        return;
+      }
+
+      const local = orders.find(
+        (o) =>
+          o.order_no?.toLowerCase() === targetIdOrNo.toLowerCase() ||
+          o.po_number?.toLowerCase() === targetIdOrNo.toLowerCase()
+      );
+      if (local) {
+        openOrderDetail(local.id);
+        return;
+      }
+
+      api
+        .get('/orders', { params: { q: targetIdOrNo, limit: 1 } })
+        .then((res) => {
+          const found = res.data?.items?.[0];
+          if (found) {
+            openOrderDetail(found.id);
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener('urd:open-order-detail', handleCustomOpen);
+    return () => window.removeEventListener('urd:open-order-detail', handleCustomOpen);
+  }, [orders, openOrderDetail, setQ]);
+
+  // Realtime sinkronisasi berkala daftar order di latar belakang
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadOrders(true);
+    }, 6000);
+
+    const handleFocus = () => loadOrders(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadOrders]);
+
   const activeOrder = detailData?.order;
   const unitProgress = detailData?.unitProgress || activeOrder?.unitProgress || {
     totalUnits: 0,
@@ -151,7 +267,10 @@ export function OrdersPage() {
       ) : (
         <OrderTable
           orders={orders}
-          openOrderDetail={openOrderDetail}
+          openOrderDetail={(id) => {
+            userClosedRef.current = false;
+            openOrderDetail(id);
+          }}
           handleDownloadAssignmentPdf={handleDownloadAssignmentPdf}
         />
       )}
@@ -187,7 +306,17 @@ export function OrdersPage() {
       {/* Modal Detail & Pengelolaan PO */}
       <OrderDetailModal
         open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={() => {
+          userClosedRef.current = true;
+          setDetailOpen(false);
+          openedParamRef.current = null;
+          if (searchParams.has('orderNo') || searchParams.has('orderId')) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete('orderNo');
+            nextParams.delete('orderId');
+            setSearchParams(nextParams, { replace: true });
+          }
+        }}
         activeOrder={activeOrder}
         detailData={detailData}
         unitProgress={unitProgress}

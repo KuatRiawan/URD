@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../../lib/api/axios.js';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '../../../lib/utils/draft-storage.js';
 import { compressImage } from '../../../lib/utils/image.js';
@@ -19,9 +19,10 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
 
   // Form State
   const [draftResults, setDraftResults] = useState({});
-  const [draftConclusion, setDraftConclusion] = useState('MEMENUHI_SYARAT');
+  const [draftConclusion, setDraftConclusion] = useState('');
   const [draftConclusionNotes, setDraftConclusionNotes] = useState('');
   const [draftScopes, setDraftScopes] = useState([]);
+  const [draftObjectAttributes, setDraftObjectAttributes] = useState({});
   const [formStep, setFormStep] = useState(1);
   const [lastSavedAt, setLastSavedAt] = useState(null);
 
@@ -41,8 +42,12 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     user,
     setError,
     setFeedback,
+    setSubmitting,
     openDetail: (id) => openDetail(id)
   });
+
+  const initSignaturesRef = useRef(signatures.initSignatures);
+  initSignaturesRef.current = signatures.initSignatures;
 
   const openDetail = useCallback(async (id) => {
     if (!id) {
@@ -54,8 +59,13 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     try {
       const { data } = await api.get(`/inspections/${id}`);
       setActiveDetail(data);
-      setDraftConclusion(data.inspection?.conclusion || 'MEMENUHI_SYARAT');
+      setDraftConclusion(data.inspection?.conclusion || '');
       setDraftConclusionNotes(data.inspection?.conclusion_notes || '');
+      setDraftObjectAttributes(
+        typeof data.inspection?.object_attributes === 'object' && data.inspection?.object_attributes !== null
+          ? data.inspection.object_attributes
+          : {}
+      );
       setLastSavedAt(data.inspection?.updated_at ? new Date(data.inspection.updated_at) : null);
 
       const map = {};
@@ -67,14 +77,20 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           numberValue:
             existing?.number_value !== null && existing?.number_value !== undefined
               ? String(existing.number_value)
-              : item.min_value !== null && item.min_value !== undefined
-                ? String(item.min_value)
-                : '',
-          textValue: existing?.text_value || 'Sesuai standar K3',
+              : '',
+          textValue: existing?.text_value || '',
           note: existing?.note || ''
         };
       }
-      setDraftResults(map);
+      setDraftResults((prev) => {
+        const merged = { ...map };
+        for (const [k, v] of Object.entries(prev || {})) {
+          if (v && (v.choiceValue || v.numberValue || v.textValue || v.note)) {
+            merged[k] = { ...merged[k], ...v };
+          }
+        }
+        return merged;
+      });
 
       const local = loadLocalDraft(id);
       const serverTime = data.inspection?.updated_at ? new Date(data.inspection.updated_at).getTime() : 0;
@@ -96,14 +112,14 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
       setDraftScopes(initialScopes);
 
-      signatures.initSignatures(data);
-      setFormStep(data.inspection?.status === 'TERKIRIM' ? 4 : 1);
+      initSignaturesRef.current?.(data);
+      setFormStep((prev) => (data.inspection?.status === 'TERKIRIM' ? 2 : (prev || 1)));
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memuat detail form inspeksi.');
     } finally {
       setLoading(false);
     }
-  }, [signatures]);
+  }, []);
 
   useEffect(() => {
     if (inspectionId) {
@@ -179,7 +195,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       }
 
       try {
-        await api.put(`/inspections/${activeDetail.inspection.id}`, {
+        await api.put(`/inspections/${activeDetail.inspection.id}/draft`, {
           conclusion: draftConclusion,
           conclusionNotes: draftConclusionNotes,
           results: payloadResults,
@@ -233,11 +249,12 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         return;
       }
 
-      await api.put(`/inspections/${activeDetail.inspection.id}`, {
+      await api.put(`/inspections/${activeDetail.inspection.id}/draft`, {
         conclusion: draftConclusion,
         conclusionNotes: draftConclusionNotes,
         results: payloadResults,
-        scopeItems: draftScopes
+        scopeItems: draftScopes,
+        objectAttributes: draftObjectAttributes
       });
 
       setFeedback('Draf riksa uji dan lingkup pemeriksaan berhasil disimpan.');
@@ -361,7 +378,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   };
 
   const handleSubmitFinal = async () => {
-    if (!activeDetail?.inspection) return;
+    if (!activeDetail?.inspection || !canSubmit) return;
     setSubmitting(true);
     setError('');
     try {
@@ -369,12 +386,12 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         const row = draftResults[item.id] || {};
         return {
           itemId: item.id,
-          choiceValue: item.input_type === 'CHOICE' ? row.choiceValue || 'SESUAI' : null,
+          choiceValue: item.input_type === 'CHOICE' ? row.choiceValue || null : null,
           numberValue:
             item.input_type === 'NUMBER' && row.numberValue !== '' && row.numberValue !== null && row.numberValue !== undefined
               ? Number(row.numberValue)
               : null,
-          textValue: item.input_type === 'TEXT' ? row.textValue || 'Baik' : null,
+          textValue: item.input_type === 'TEXT' ? row.textValue || null : null,
           note: row.note || ''
         };
       });
@@ -383,7 +400,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         conclusion: draftConclusion,
         conclusionNotes: draftConclusionNotes,
         results: payloadResults,
-        scopeItems: draftScopes
+        scopeItems: draftScopes,
+        objectAttributes: draftObjectAttributes
       });
 
       clearLocalDraft(activeDetail.inspection.id);
@@ -418,14 +436,14 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           it.input_type === 'NUMBER'
             ? (cur.numberValue !== '' && cur.numberValue !== null && cur.numberValue !== undefined
                 ? cur.numberValue
-                : String(it.min_value ?? 0))
+                : '')
             : '',
-        textValue: it.input_type === 'TEXT' ? (cur.textValue || 'Sesuai Spesifikasi Teknis') : '',
+        textValue: it.input_type === 'TEXT' ? (cur.textValue || '') : '',
         note: cur.note || ''
       };
     }
     setDraftResults(updated);
-    setFeedback('Seluruh parameter checklist berhasil diisi otomatis sesuai standar teknis.');
+    setFeedback('Item pilihan ditandai Sesuai. Isi hasil ukur dan catatan teknis berdasarkan pemeriksaan lapangan.');
   };
 
   // Metrics
@@ -449,7 +467,12 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role)
   );
 
-  const canSubmit = missingItems === 0 && Boolean(inspectorSig) && !submitting;
+  const canSubmit =
+    missingItems === 0 &&
+    Boolean(draftConclusion) &&
+    Boolean(inspectorSig) &&
+    Boolean(clientSig) &&
+    !submitting;
 
   return {
     activeDetail,
@@ -467,6 +490,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     setDraftConclusionNotes,
     draftScopes,
     setDraftScopes,
+    draftObjectAttributes,
+    setDraftObjectAttributes,
     formStep,
     setFormStep,
     lastSavedAt,

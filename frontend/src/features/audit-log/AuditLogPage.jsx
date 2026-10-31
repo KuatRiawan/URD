@@ -92,49 +92,83 @@ export function AuditLogPage() {
           description="Aktivitas operasional yang tercatat akan ditampilkan secara kronologis di halaman ini."
         />
       ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <th className="py-3 px-4">Waktu Kejadian</th>
-                  <th className="py-3 px-4">Pelaku / Pengguna</th>
-                  <th className="py-3 px-4">Aksi & Entitas</th>
-                  <th className="py-3 px-4">Ringkasan Aktivitas</th>
-                  <th className="py-3 px-4">Alamat IP</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                {items.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 text-xs font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1.5">
-                        <ClockCounterClockwise size={14} className="text-slate-500 dark:text-slate-400" />
-                        <span>{formatDateTime(log.created_at)}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">
-                        {log.user_name || 'Sistem Otomatis'}
-                      </div>
-                      <div className="text-slate-500 dark:text-slate-400">
-                        {log.user_email || '-'} · {ROLE_LABELS[log.user_role] || log.user_role || '-'}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <Badge tone="info">{log.action}</Badge>
-                      <div className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                        {log.entity}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-900 dark:text-slate-100">{log.summary}</td>
-                    <td className="py-3.5 px-4 text-xs font-mono text-slate-500 dark:text-slate-400">
-                      {log.ip_address || '-'}
-                    </td>
+        <div className="space-y-4">
+          {/* Tampilan Mobile: Kartu Riwayat Jejak Audit */}
+          <div className="sm:hidden space-y-3">
+            {items.map((log) => (
+              <div
+                key={log.id}
+                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <Badge tone="info">{log.action}</Badge>
+                  <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                    {formatDateTime(log.created_at)}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {log.summary}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Pelaku: <strong className="text-slate-700 dark:text-slate-300">{log.user_name || 'Sistem'}</strong> ({ROLE_LABELS[log.user_role] || log.user_role || '-'})
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span>Entitas: {log.entity}</span>
+                  <span>IP: {log.ip_address || '-'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tampilan Desktop & Tablet: Tabel Lengkap */}
+          <div className="hidden sm:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="py-3 px-4">Waktu Kejadian</th>
+                    <th className="py-3 px-4">Pelaku / Pengguna</th>
+                    <th className="py-3 px-4">Aksi &amp; Entitas</th>
+                    <th className="py-3 px-4">Ringkasan Aktivitas</th>
+                    <th className="py-3 px-4">Alamat IP</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+                  {items.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3.5 px-4 text-xs font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <ClockCounterClockwise size={14} className="text-slate-500 dark:text-slate-400" />
+                          <span>{formatDateTime(log.created_at)}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-xs">
+                        <div className="font-bold text-slate-900 dark:text-slate-100">
+                          {log.user_name || 'Sistem Otomatis'}
+                        </div>
+                        <div className="text-slate-500 dark:text-slate-400">
+                          {log.user_email || '-'} · {ROLE_LABELS[log.user_role] || log.user_role || '-'}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-xs">
+                        <Badge tone="info">{log.action}</Badge>
+                        <div className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                          {log.entity}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-xs text-slate-900 dark:text-slate-100">{log.summary}</td>
+                      <td className="py-3.5 px-4 text-xs font-mono text-slate-500 dark:text-slate-400">
+                        {log.ip_address || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

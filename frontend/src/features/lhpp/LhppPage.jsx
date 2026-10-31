@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
@@ -15,7 +16,7 @@ export function LhppPage() {
   const { user } = useAuth();
   const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
   const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [items, setItems] = useState([]);
@@ -74,6 +75,27 @@ export function LhppPage() {
     loadData();
   }, [loadData]);
 
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get('search') || searchParams.get('id');
+  const openedLhppRef = useRef(null);
+
+  useEffect(() => {
+    if (!searchParam || !items.length) return;
+    if (openedLhppRef.current === searchParam && detailOpen) return;
+
+    const matched = items.find(
+      (item) =>
+        item.id === searchParam ||
+        item.lhpp_no?.toLowerCase().includes(searchParam.toLowerCase()) ||
+        item.order_no?.toLowerCase().includes(searchParam.toLowerCase())
+    );
+
+    if (matched) {
+      openedLhppRef.current = searchParam;
+      openDetail(matched.id);
+    }
+  }, [searchParam, items, detailOpen]);
+
   const openDetail = async (id) => {
     setError('');
     try {
@@ -121,21 +143,21 @@ export function LhppPage() {
   const handleSubmitReview = async () => {
     if (!detailLhpp) return;
     const ok = await confirm({
-      title: 'Ajukan Review Teknis',
-      message: 'Pastikan seluruh parameter uji dan narasi teknis sudah lengkap sebelum diajukan.',
-      confirmLabel: 'Ya, Ajukan Review'
+      title: 'Kirim LHPP ke Marketing',
+      message: 'Pastikan hasil pemeriksaan dan narasi teknis sudah lengkap sebelum dikirim untuk pratinjau dan finalisasi.',
+      confirmLabel: 'Kirim ke Marketing'
     });
     if (!ok) return;
 
     setSubmitting(true);
     setError('');
     try {
-      await api.post(`/lhpp/${detailLhpp.id}/submit-review`);
-      setFeedback('LHPP berhasil diajukan untuk review teknis.');
+      await api.post(`/lhpp/${detailLhpp.id}/submit-finalization`);
+      setFeedback('LHPP berhasil dikirim ke Marketing untuk pratinjau dan finalisasi.');
       await openDetail(detailLhpp.id);
       await loadData();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal mengajukan review teknis LHPP.');
+      setError(err.response?.data?.message || 'Gagal mengirim LHPP ke Marketing.');
     } finally {
       setSubmitting(false);
     }

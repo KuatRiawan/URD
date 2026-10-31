@@ -55,7 +55,8 @@ const saveDraftSchema = Joi.object({
         note: Joi.string().max(1000).allow('', null)
       })
     )
-    .default([])
+    .default([]),
+  objectAttributes: Joi.object().unknown(true).optional()
 });
 
 const findingSchema = Joi.object({
@@ -403,7 +404,8 @@ router.get('/:id', async (req, res, next) => {
               cc.name AS contact_name, cc.phone AS contact_phone, cc.email AS contact_email,
               s.start_at AS schedule_start_at, s.end_at AS schedule_end_at, s.notes AS schedule_notes,
               t.name AS object_name, t.serial_number, t.brand, t.manufacturer, t.model, t.capacity, t.install_location,
-              oc.code AS category_code, oc.name AS category_name, oc.default_bap_scopes,
+              t.attributes AS object_attributes,
+              oc.code AS category_code, oc.name AS category_name, oc.attribute_schema, oc.default_bap_scopes,
               oo.scope_items AS unit_scope_items,
               u.full_name AS inspector_name,
               tv.version AS template_version, tv.is_validated AS template_is_validated,
@@ -496,6 +498,9 @@ async function assertEditableInspection(db, id, user) {
   const { rows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
   const insp = rows[0];
   if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
+
+  await assertInspectionOwnership(db, insp, user);
+
   if (insp.status === 'TERKIRIM') {
     throw new AppError(
       409,
@@ -504,12 +509,11 @@ async function assertEditableInspection(db, id, user) {
     );
   }
 
-  // 1. Admin sistem selalu diizinkan untuk perbaikan atau pengawalan operasional
-  if (user.role === 'ADMIN_SISTEM') {
-    return insp;
-  }
+  return insp;
+}
 
-  // 2. Pastikan perannya adalah Ahli K3 atau Inspector
+async function assertInspectionOwnership(db, insp, user) {
+  if (user.role === 'ADMIN_SISTEM') return;
   if (!['AHLI_K3', 'INSPECTOR'].includes(user.role)) {
     throw new AppError(
       403,
@@ -517,37 +521,15 @@ async function assertEditableInspection(db, id, user) {
       'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan yang dapat mengisi form ini.'
     );
   }
+  if (insp.inspector_id === user.id) return;
 
-  // 3. Jika ID cocok langsung
-  if (insp.inspector_id === user.id) {
-    return insp;
-  }
-
-  // 4. Periksa penugasan tim pada order (co-assigned)
+  // Inspector lain hanya dapat mengakses jika tercatat sebagai anggota penugasan order.
   const { rows: coAssigned } = await db.query(
     `SELECT 1 FROM assignments
      WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')`,
     [insp.order_id, user.id]
   );
-  if (coAssigned[0]) {
-    return insp;
-  }
-
-  // 5. Periksa kesamaan identitas akun (nama atau nomor HP yang sama)
-  const { rows: aliasCheck } = await db.query(
-    `SELECT 1 FROM users u1, users u2
-     WHERE u1.id = $1 AND u2.id = $2 AND (
-       u1.full_name = u2.full_name OR
-       u1.phone = u2.phone OR
-       split_part(u1.email, '@', 1) = split_part(u2.email, '@', 1)
-     )`,
-    [user.id, insp.inspector_id]
-  );
-  if (aliasCheck[0]) {
-    await db.query('UPDATE inspections SET inspector_id = $1 WHERE id = $2', [user.id, id]);
-    insp.inspector_id = user.id;
-    return insp;
-  }
+  if (coAssigned[0]) return;
 
   throw new AppError(
     403,
@@ -606,6 +588,16 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
             r.note || null,
             outOfRange
           ]
+        );
+      }
+
+      if (req.body?.objectAttributes && typeof req.body.objectAttributes === 'object') {
+        await db.query(
+          `UPDATE test_objects
+           SET attributes = COALESCE(attributes, '{}'::jsonb) || $1::jsonb,
+               updated_at = now()
+           WHERE id = $2`,
+          [JSON.stringify(req.body.objectAttributes), insp.object_id]
         );
       }
 
@@ -814,6 +806,7 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
       if (!existingRows[0]) {
         throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
       }
+      await assertInspectionOwnership(db, existingRows[0], req.user);
       if (existingRows[0].status === 'TERKIRIM') {
         const { rows: lhppRows } = await db.query(
           'SELECT * FROM lhpp_documents WHERE inspection_id = $1',
@@ -845,6 +838,17 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         );
         insp.conclusion = req.body.conclusion;
         if (req.body.conclusionNotes) insp.conclusion_notes = req.body.conclusionNotes;
+      }
+
+      // Simpan pembaruan parameter spesifikasi teknis objek uji (Bab II LHPP)
+      if (req.body?.objectAttributes && typeof req.body.objectAttributes === 'object') {
+        await db.query(
+          `UPDATE test_objects
+           SET attributes = COALESCE(attributes, '{}'::jsonb) || $1::jsonb,
+               updated_at = now()
+           WHERE id = $2`,
+          [JSON.stringify(req.body.objectAttributes), insp.object_id]
+        );
       }
 
       // Simpan hasil butir checklist jika disertakan langsung pada payload kirim
@@ -910,6 +914,20 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         }
       }
 
+      const { rows: sigRows } = await db.query(
+        'SELECT * FROM inspection_signatures WHERE inspection_id = $1',
+        [id]
+      );
+      const hasInspectorSignature = sigRows.some((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
+      const hasClientSignature = sigRows.some((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
+      if (!hasInspectorSignature || !hasClientSignature) {
+        throw new AppError(
+          400,
+          'SIGNATURES_REQUIRED',
+          'Tanda tangan Ahli K3 dan perwakilan klien wajib tersimpan sebelum pemeriksaan dikirim.'
+        );
+      }
+
       const { rows: lockedRows } = await db.query(
         `UPDATE inspections
          SET status = 'TERKIRIM', submitted_at = now(), updated_at = now()
@@ -949,10 +967,6 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         'Pemeriksaan dan pengujian di lapangan telah dilaksanakan sesuai prosedur K3.';
 
       // Periksa tanda tangan digital yang sudah ada pada form inspeksi
-      const { rows: sigRows } = await db.query(
-        'SELECT * FROM inspection_signatures WHERE inspection_id = $1',
-        [id]
-      );
       const inspSig = sigRows.find((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
       const clientSig = sigRows.find((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
 

@@ -3,7 +3,7 @@ import Joi from 'joi';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
-import { pool, query, withTransaction } from '../../database/pool.js';
+import { query, withTransaction } from '../../database/pool.js';
 import { recordAudit } from '../../services/audit.js';
 import { AppError } from '../../utils/http.js';
 

@@ -5,6 +5,7 @@
   "description": "Aplikasi web internal operasional Riksa Uji K3 PT Upaya Riksa Daya",
   "scripts": {
     "setup": "npm --prefix backend install && npm --prefix frontend install",
+    "dev": "./scripts/dev",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",

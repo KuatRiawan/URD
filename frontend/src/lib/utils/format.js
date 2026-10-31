@@ -8,6 +8,13 @@ export const ROLE_LABELS = {
   MANAGER: 'Pimpinan / Manager'
 };
 
+export const ROLE_OPTIONS = [
+  { value: 'MARKETING', label: 'Marketing' },
+  { value: 'INSPECTOR', label: 'Inspector' },
+  { value: 'PIMPINAN', label: 'Pimpinan / Manager' },
+  { value: 'ADMIN_SISTEM', label: 'Admin Sistem' }
+];
+
 export const ORDER_STATUS_LABELS = {
   ORDER_BARU: 'Order Baru',
   TERDAFTAR: 'PO Terdaftar',
@@ -19,7 +26,6 @@ export const ORDER_STATUS_LABELS = {
   SEBAGIAN_SELESAI: 'Sebagian Selesai',
   MENUNGGU_DOKUMEN: 'Menunggu Dokumen',
   MENUNGGU_LAPORAN: 'Menunggu Laporan',
-  MENUNGGU_REVIEW: 'Menunggu Review',
   SELESAI: 'Selesai',
   DIBATALKAN: 'Dibatalkan'
 };
@@ -71,7 +77,6 @@ export const LHPP_STATUS_LABELS = {
   SIAP_PREVIEW: 'Siap Preview',
   FINAL: 'Final (Terkunci)',
   TERBIT: 'Terbit (Terkunci)',
-  REVIEW_TEKNIS: 'Review Teknis',
   DIKEMBALIKAN: 'Dikembalikan (Perlu Revisi)',
   DIBATALKAN: 'Dibatalkan'
 };

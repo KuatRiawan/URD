@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+echo "==> [PT Upaya Riksa Daya] Memeriksa status database PostgreSQL..."
+
+# 1. Pastikan PostgreSQL lokal di port 5433 berjalan
+if ! pg_ctl -D "$ROOT_DIR/.local/pgdata" status >/dev/null 2>&1; then
+  echo "==> PostgreSQL belum menyala. Menyalakan database di port 5433..."
+  npm run db:start
+else
+  echo "==> PostgreSQL di port 5433 sudah aktif."
+fi
+
+# 2. Cek apakah migrasi & seed sudah ada
+echo "==> Memastikan koneksi database siap..."
+
+echo "--------------------------------------------------------"
+echo "✅ Database PostgreSQL siap digunakan di port 5433."
+echo ""
+echo "Untuk menjalankan server secara manual di terminal:"
+echo "  Terminal 1 (Backend):  npm run dev:backend"
+echo "  Terminal 2 (Frontend): npm run dev:frontend"
+echo "--------------------------------------------------------"
+

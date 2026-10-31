@@ -36,6 +36,12 @@ export function StepSignatures({
   setReSigningInspector,
   reSigningClient,
   setReSigningClient,
+  savingInspector = false,
+  savingClient = false,
+  sigErrorInspector = '',
+  sigErrorClient = '',
+  sigFeedbackInspector = '',
+  sigFeedbackClient = '',
   isInspector,
   status,
   submitting,
@@ -155,13 +161,27 @@ export function StepSignatures({
                   </div>
                 </div>
 
+                {/* Inline Error & Feedback Ahli K3 */}
+                {sigErrorInspector && (
+                  <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                    {sigErrorInspector}
+                  </div>
+                )}
+                {sigFeedbackInspector && (
+                  <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+                    <CheckCircle size={14} weight="bold" />
+                    <span>{sigFeedbackInspector}</span>
+                  </div>
+                )}
+
                 {isInspector && status === 'DRAF' && (
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={onClearInspectorCanvas}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                        disabled={savingInspector || submitting}
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
                       >
                         Bersihkan
                       </button>
@@ -169,7 +189,8 @@ export function StepSignatures({
                         <button
                           type="button"
                           onClick={() => setReSigningInspector(false)}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          disabled={savingInspector || submitting}
+                          className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -177,11 +198,12 @@ export function StepSignatures({
                     </div>
                     <button
                       type="button"
-                      disabled={submitting}
+                      disabled={savingInspector || submitting}
                       onClick={onSaveInspectorSignature}
-                      className="px-3.5 py-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 text-white font-bold text-xs hover:bg-slate-900 cursor-pointer shadow-xs"
+                      className="px-3.5 py-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 text-white font-bold text-xs hover:bg-slate-900 cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-60"
                     >
-                      Simpan TTD Ahli K3
+                      {savingInspector && <CircleNotch size={14} weight="bold" className="animate-spin" />}
+                      <span>{savingInspector ? 'Menyimpan...' : 'Simpan TTD Ahli K3'}</span>
                     </button>
                   </div>
                 )}
@@ -285,13 +307,27 @@ export function StepSignatures({
                   </div>
                 </div>
 
+                {/* Inline Error & Feedback PIC Klien */}
+                {sigErrorClient && (
+                  <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                    {sigErrorClient}
+                  </div>
+                )}
+                {sigFeedbackClient && (
+                  <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+                    <CheckCircle size={14} weight="bold" />
+                    <span>{sigFeedbackClient}</span>
+                  </div>
+                )}
+
                 {isInspector && status === 'DRAF' && (
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={onClearClientCanvas}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                        disabled={savingClient || submitting}
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
                       >
                         Bersihkan
                       </button>
@@ -299,7 +335,8 @@ export function StepSignatures({
                         <button
                           type="button"
                           onClick={() => setReSigningClient(false)}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          disabled={savingClient || submitting}
+                          className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -307,11 +344,12 @@ export function StepSignatures({
                     </div>
                     <button
                       type="button"
-                      disabled={submitting}
+                      disabled={savingClient || submitting}
                       onClick={onSaveClientSignature}
-                      className="px-3.5 py-1.5 rounded-lg bg-blue-700 text-white font-bold text-xs hover:bg-blue-800 cursor-pointer shadow-xs"
+                      className="px-3.5 py-1.5 rounded-lg bg-blue-700 text-white font-bold text-xs hover:bg-blue-800 cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-60"
                     >
-                      Simpan TTD Klien
+                      {savingClient && <CircleNotch size={14} weight="bold" className="animate-spin" />}
+                      <span>{savingClient ? 'Menyimpan...' : 'Simpan TTD Klien'}</span>
                     </button>
                   </div>
                 )}
@@ -321,108 +359,99 @@ export function StepSignatures({
         </div>
       </div>
 
-      {/* Bagian 2: Ringkasan Kesiapan Penerbitan Dokumen Resmi */}
-      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="font-extrabold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
-            Status Kesiapan Penerbitan Dokumen (BAP &amp; LHPP)
-          </span>
-          <span className={`text-xs font-bold ${canSubmit ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-            {canSubmit ? '✓ Siap Diterbitkan' : 'Memerlukan Kelengkapan'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-          <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Checklist Uji</span>
-            <span className={`font-bold ${missingItems === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
-              {evaluatedItems}/{totalItems} Butir Terisi
+      {/* Bagian 2: Ringkasan Kesiapan Penerbitan Dokumen (Hanya saat pengisian form sebelum kirim) */}
+      {status !== 'TERKIRIM' && (
+        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="font-extrabold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
+              Kesiapan Penerbitan Dokumen (BAP &amp; LHPP)
             </span>
-          </div>
-          <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Foto Dokumentasi</span>
-            <span className={`font-bold ${photosCount >= 2 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {photosCount} Foto Terlampir
-            </span>
-          </div>
-          <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">TTD Ahli K3</span>
-            <span className={`font-bold ${inspectorSig ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {inspectorSig ? 'Sudah TTD' : 'Belum TTD (Wajib)'}
-            </span>
-          </div>
-          <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Kesimpulan Akhir</span>
-            <span className="font-bold text-slate-900 dark:text-white truncate block">
-              {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
-            </span>
-          </div>
-        </div>
-
-        {missingItems > 0 && (
-          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
-              Perhatian: Masih ada {missingItems} butir checklist yang belum terisi di Langkah 1.
-            </span>
-            <button
-              type="button"
-              onClick={onAutoFillStandard}
-              className="px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 shadow-xs cursor-pointer transition-colors"
+            <span
+              className={`text-xs font-bold ${
+                canSubmit
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-600 dark:text-amber-400'
+              }`}
             >
-              Tandai Semua Sesuai Standar
-            </button>
+              {canSubmit ? '✓ Siap Diterbitkan' : 'Memerlukan Kelengkapan'}
+            </span>
           </div>
-        )}
-      </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Checklist Uji</span>
+              <span
+                className={`font-bold ${
+                  missingItems === 0 ? 'text-emerald-600' : 'text-amber-600'
+                }`}
+              >
+                {evaluatedItems}/{totalItems} Butir Terisi
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Foto Dokumentasi</span>
+              <span
+                className={`font-bold ${
+                  photosCount >= 2 ? 'text-emerald-600' : 'text-rose-600'
+                }`}
+              >
+                {photosCount} Foto Terlampir
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">TTD Ahli K3</span>
+              <span
+                className={`font-bold ${
+                  inspectorSig ? 'text-emerald-600' : 'text-rose-600'
+                }`}
+              >
+                {inspectorSig ? 'Sudah TTD' : 'Belum TTD (Wajib)'}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Kesimpulan Akhir</span>
+              <span className="font-bold text-slate-900 dark:text-white truncate block">
+                {CONCLUSION_LABELS[draftConclusion] || draftConclusion}
+              </span>
+            </div>
+          </div>
+
+          {missingItems > 0 && (
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                Perhatian: Masih ada {missingItems} butir checklist yang belum terisi di Langkah 1.
+              </span>
+              <button
+                type="button"
+                onClick={onAutoFillStandard}
+                className="px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 shadow-xs cursor-pointer transition-colors"
+              >
+                Tandai Semua Sesuai Standar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tombol Aksi Akhir */}
       {status === 'TERKIRIM' ? (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-            <CheckCircle size={18} weight="fill" />
-            <span>Formulir riksa uji selesai dikirim. Dokumen BAP &amp; LHPP telah diterbitkan secara resmi.</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {bapId && (
-              <button
-                type="button"
-                onClick={() =>
-                  onPreviewPdf(
-                    `/bap/${bapId}/pdf`,
-                    `Pratinjau Berita Acara Pemeriksaan (BAP) - ${bapNo || 'BAP'}`,
-                    `${(bapNo || 'BAP').replace(/\//g, '-')}.pdf`
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] shadow-xs cursor-pointer"
-              >
-                <Eye size={14} weight="bold" />
-                <span>Review BAP (PDF)</span>
-              </button>
-            )}
-            {lhppId && (
-              <button
-                type="button"
-                onClick={() =>
-                  onPreviewPdf(
-                    `/lhpp/${lhppId}/pdf`,
-                    `Pratinjau Laporan Hasil Pemeriksaan (LHPP) - ${lhppNo || 'LHPP'}`,
-                    `${(lhppNo || 'LHPP').replace(/\//g, '-')}.pdf`
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-900 shadow-xs cursor-pointer"
-              >
-                <Eye size={14} weight="bold" />
-                <span>Review LHPP (PDF)</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onCloseModal}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-            >
-              Tutup Formulir
-            </button>
-          </div>
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={onBack}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-4 py-2 cursor-pointer shadow-2xs"
+          >
+            <ArrowLeft size={16} weight="bold" />
+            <span>Kembali ke Ceklist &amp; Foto</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onCloseModal}
+            className="min-h-11 px-6 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs hover:bg-slate-800 dark:hover:bg-slate-200 active:scale-[0.98] transition-all cursor-pointer shadow-xs"
+          >
+            Tutup Formulir
+          </button>
         </div>
       ) : (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
@@ -432,7 +461,7 @@ export function StepSignatures({
             className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-4 py-2 cursor-pointer shadow-2xs"
           >
             <ArrowLeft size={15} weight="bold" />
-            <span>Kembali ke Foto &amp; Temuan</span>
+            <span>Kembali ke Ceklist &amp; Foto</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -456,6 +485,10 @@ export function StepSignatures({
                   ? `Lengkapi ${missingItems} butir wajib terlebih dahulu`
                   : !inspectorSig
                   ? 'Bubuhkan tanda tangan Ahli K3 terlebih dahulu'
+                  : !clientSig
+                  ? 'Minta perwakilan klien membubuhkan tanda tangan terlebih dahulu'
+                  : !draftConclusion
+                  ? 'Pilih kesimpulan pemeriksaan terlebih dahulu'
                   : 'Kirim dan terbitkan dokumen resmi BAP & LHPP'
               }
               className="min-h-10 px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"

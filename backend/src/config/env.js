@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,8 +56,11 @@ export const env = {
 };
 
 if (!env.jwtSecret || env.jwtSecret.length < 24) {
-  if (env.isProd) {
-    throw new Error('JWT_SECRET wajib disetel minimal 24 karakter pada environment produksi');
+  if (env.isTest) {
+    env.jwtSecret = 'test-only-jwt-secret-minimum-32-chars-long';
+  } else if (env.nodeEnv === 'development') {
+    env.jwtSecret = crypto.randomBytes(32).toString('hex');
+  } else {
+    throw new Error('JWT_SECRET wajib disetel minimal 24 karakter pada environment non-development');
   }
-  env.jwtSecret = 'dev-ephemeral-jwt-secret-pt-upaya-riksa-daya-2026';
 }

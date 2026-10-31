@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MagnifyingGlass } from '@phosphor-icons/react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { LoadingState, ErrorState, EmptyState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
@@ -37,7 +37,8 @@ export function BapPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const canFinalize = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [bapList, setBapList] = useState([]);
   const [scopeCatalog, setScopeCatalog] = useState([]);
@@ -92,6 +93,27 @@ export function BapPage() {
   useEffect(() => {
     fetchBapList();
   }, [fetchBapList]);
+
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get('search') || searchParams.get('bapId') || searchParams.get('id');
+  const openedBapRef = useRef(null);
+
+  useEffect(() => {
+    if (!searchParam || !bapList.length) return;
+    if (openedBapRef.current === searchParam && selectedBap) return;
+
+    const matched = bapList.find(
+      (b) =>
+        b.id === searchParam ||
+        b.bap_no?.toLowerCase().includes(searchParam.toLowerCase()) ||
+        b.order_no?.toLowerCase().includes(searchParam.toLowerCase())
+    );
+
+    if (matched) {
+      openedBapRef.current = searchParam;
+      openBapDetail(matched.id);
+    }
+  }, [searchParam, bapList, selectedBap]);
 
   const openBapDetail = async (id) => {
     setDetailLoading(true);
@@ -378,6 +400,7 @@ export function BapPage() {
         detailLoading={detailLoading}
         feedback={feedback}
         canManage={canManage}
+        canFinalize={canFinalize}
         draftForm={draftForm}
         setDraftForm={setDraftForm}
         toggleScopeItem={toggleScopeItem}

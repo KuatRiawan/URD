@@ -13,7 +13,8 @@ import { formatDateTime, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.j
 export function InspectorUnitTable({
   units,
   onRespondAssignment,
-  onOpenRejectModal
+  onOpenRejectModal,
+  onOpenInspection
 }) {
   return (
     <TableWrapper containerClassName="border-0 shadow-none rounded-none">
@@ -97,9 +98,10 @@ export function InspectorUnitTable({
                 </div>
               ) : (
                 <div className="inline-flex items-center justify-end gap-1.5">
-                  <Link
-                    to={`/app/inspections?orderId=${u.order_id}&objectId=${u.object_id}`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-all ${
+                  <button
+                    type="button"
+                    onClick={() => onOpenInspection ? onOpenInspection(u) : null}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer ${
                       [
                         'LHPP_FINAL',
                         'LHPP_TERBIT',
@@ -122,20 +124,20 @@ export function InspectorUnitTable({
                     ].includes(u.unit_status) || u.inspection_status === 'TERKIRIM' ? (
                       <>
                         <Eye size={14} weight="bold" />
-                        <span>Review Hasil</span>
+                        <span>Lihat Hasil</span>
                       </>
                     ) : ['SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP'].includes(u.unit_status) || u.inspection_id ? (
                       <>
                         <ClipboardText size={14} weight="bold" />
-                        <span>Lanjutkan Form</span>
+                        <span>Lanjutkan Pemeriksaan</span>
                       </>
                     ) : (
                       <>
                         <Play size={13} weight="fill" />
-                        <span>Mulai Kerjakan</span>
+                        <span>Mulai Pemeriksaan</span>
                       </>
                     )}
-                  </Link>
+                  </button>
                   {!u.inspection_id && (
                     <button
                       type="button"

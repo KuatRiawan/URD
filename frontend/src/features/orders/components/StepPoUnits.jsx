@@ -77,63 +77,99 @@ export function StepPoUnits({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
-          <select
-            value={newUnitRow.categoryId}
-            onChange={(e) => setNewUnitRow({ ...newUnitRow, categoryId: Number(e.target.value) })}
-            className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-          >
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.code} - {cat.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            value={newUnitRow.name}
-            onChange={(e) => setNewUnitRow({ ...newUnitRow, name: e.target.value })}
-            placeholder="Nama Alat (mis. Overhead Crane)"
-            className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-          />
-          <input
-            type="text"
-            value={newUnitRow.serialNumber}
-            onChange={(e) => setNewUnitRow({ ...newUnitRow, serialNumber: e.target.value })}
-            placeholder="Nomor Seri (opsional)"
-            className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-          />
-          <input
-            type="text"
-            value={newUnitRow.capacity}
-            onChange={(e) => setNewUnitRow({ ...newUnitRow, capacity: e.target.value })}
-            placeholder="Kapasitas (mis. 10 Ton)"
-            className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-          />
-          <input
-            type="text"
-            value={newUnitRow.installLocation}
-            onChange={(e) => setNewUnitRow({ ...newUnitRow, installLocation: e.target.value })}
-            placeholder="Lokasi Area Pabrik"
-            className="px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-          />
-          <div className="flex gap-1.5">
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={newUnitRow.quantity}
-              onChange={(e) => setNewUnitRow({ ...newUnitRow, quantity: Number(e.target.value) })}
-              title="Jumlah Unit"
-              className="w-16 px-2 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-bold"
-            />
-            <button
-              type="button"
-              onClick={handleAddInlineUnit}
-              className="flex-1 px-3 py-2 text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded cursor-pointer"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Kategori K3
+            </label>
+            <select
+              value={newUnitRow.categoryId}
+              onChange={(e) => setNewUnitRow({ ...newUnitRow, categoryId: Number(e.target.value) })}
+              className="w-full min-h-[40px] px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             >
-              + Unit
-            </button>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.code} - {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Nama Objek Alat
+            </label>
+            <input
+              type="text"
+              value={newUnitRow.name}
+              onChange={(e) => setNewUnitRow({ ...newUnitRow, name: e.target.value })}
+              placeholder="Contoh: Overhead Crane 10 Ton"
+              className="w-full min-h-[40px] px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+            </input>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Nomor Seri / Tag Unit (Opsional)
+            </label>
+            <input
+              type="text"
+              value={newUnitRow.serialNumber}
+              onChange={(e) => setNewUnitRow({ ...newUnitRow, serialNumber: e.target.value })}
+              placeholder="Contoh: CR-2024-001"
+              className="w-full min-h-[40px] px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Kapasitas / Beban Maksimal (SWL)
+            </label>
+            <input
+              type="text"
+              value={newUnitRow.capacity}
+              onChange={(e) => setNewUnitRow({ ...newUnitRow, capacity: e.target.value })}
+              placeholder="Contoh: 10 Ton / 10.000 kg"
+              className="w-full min-h-[40px] px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Lokasi Area Kerja / Pabrik
+            </label>
+            <input
+              type="text"
+              value={newUnitRow.installLocation}
+              onChange={(e) => setNewUnitRow({ ...newUnitRow, installLocation: e.target.value })}
+              placeholder="Contoh: Workshop Bay 2"
+              className="w-full min-h-[40px] px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Jumlah &amp; Tambahkan
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={newUnitRow.quantity}
+                onChange={(e) => setNewUnitRow({ ...newUnitRow, quantity: Number(e.target.value) })}
+                title="Jumlah Unit"
+                className="w-20 min-h-[40px] px-2 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-bold"
+              />
+              <button
+                type="button"
+                onClick={handleAddInlineUnit}
+                className="flex-1 min-h-[40px] px-3 py-2 text-xs font-bold text-white bg-[#C81E1E] hover:bg-[#a11616] rounded-lg transition-colors cursor-pointer shadow-2xs"
+              >
+                + Tambah Unit
+              </button>
+            </div>
           </div>
         </div>
 

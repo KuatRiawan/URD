@@ -125,7 +125,7 @@ export function LhppTechnicalForm({
             className="min-h-10 inline-flex items-center gap-1.5 rounded bg-[#C81E1E] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-red-800 cursor-pointer"
           >
             <PaperPlaneTilt size={15} />
-            <span>Ajukan ke Review Teknis</span>
+            <span>Kirim ke Marketing</span>
           </button>
         </div>
       )}

@@ -8,7 +8,7 @@ import { GlobalSearchDialog } from '../search/GlobalSearchDialog.jsx';
 import { getVisibleNav } from './navConfig.js';
 import { BrandBlock, SidebarNav, UserCard } from './SidebarNav.jsx';
 import { TopHeader } from './TopHeader.jsx';
-import { MobileNavDrawer } from './MobileNavDrawer.jsx';
+import { MobileBottomNav } from './MobileBottomNav.jsx';
 
 function LayoutShell() {
   const { user, logout } = useAuth();
@@ -25,7 +25,6 @@ function LayoutShell() {
     }
   });
 
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -67,20 +66,37 @@ function LayoutShell() {
   const currentNav = visibleNav.find((item) => location.pathname.startsWith(item.to));
 
   useEffect(() => {
-    setMobileOpen(false);
     setUserMenuOpen(false);
   }, [location.pathname]);
 
+  // Polling notifikasi berkala secara realtime (setiap 4 detik dan saat tab aktif)
   useEffect(() => {
     let active = true;
-    api
-      .get('/notifications?limit=5')
-      .then(({ data }) => {
-        if (active) setUnreadCount(data.unreadCount || 0);
-      })
-      .catch(() => {});
+    const checkNotifications = () => {
+      api
+        .get('/notifications?limit=30')
+        .then(({ data }) => {
+          if (active) setUnreadCount(data.unreadCount || 0);
+        })
+        .catch(() => {});
+    };
+
+    checkNotifications();
+    const interval = setInterval(checkNotifications, 4000);
+
+    const handleFocus = () => checkNotifications();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') checkNotifications();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       active = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [location.pathname]);
 
@@ -121,9 +137,9 @@ function LayoutShell() {
         <TopHeader
           collapsed={collapsed}
           toggleSidebar={toggleSidebar}
-          setMobileOpen={setMobileOpen}
           setSearchOpen={setSearchOpen}
           unreadCount={unreadCount}
+          setUnreadCount={setUnreadCount}
           userMenuOpen={userMenuOpen}
           setUserMenuOpen={setUserMenuOpen}
           userMenuRef={userMenuRef}
@@ -132,23 +148,15 @@ function LayoutShell() {
           currentNav={currentNav}
         />
 
-        <MobileNavDrawer
-          mobileOpen={mobileOpen}
-          setMobileOpen={setMobileOpen}
-          visibleNav={visibleNav}
-          user={user}
-          handleLogout={handleLogout}
-        />
-
         {/* Konten Halaman Utama */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-7 max-w-[92rem] w-full mx-auto">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-24 lg:pb-7 max-w-[92rem] w-full mx-auto">
           <ErrorBoundary resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>
         </main>
 
         {/* Footer Aplikasi Bergaya Enterprise */}
-        <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors">
+        <footer className="hidden lg:flex border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 text-xs text-slate-500 dark:text-slate-400 items-center justify-between gap-2 transition-colors">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-700 dark:text-slate-300">PT Upaya Riksa Daya</span>
             <span className="text-slate-300 dark:text-slate-600">·</span>
@@ -162,6 +170,12 @@ function LayoutShell() {
         </footer>
 
         <GlobalSearchDialog isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+        {/* Bar Navigasi Bawah Mobile */}
+        <MobileBottomNav
+          onOpenSearch={() => setSearchOpen(true)}
+          onLogout={handleLogout}
+        />
       </div>
     </div>
   );

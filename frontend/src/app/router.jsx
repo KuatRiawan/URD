@@ -1,29 +1,34 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router';
 import { useAuth } from './providers/AuthProvider.jsx';
 import { AppLayout } from '../components/layout/AppLayout.jsx';
 import { LoadingState } from '../components/feedback/StateViews.jsx';
 
 import { LoginPage } from '../features/auth/LoginPage.jsx';
-import { VerificationPage } from '../features/public/VerificationPage.jsx';
-import { ClientPortalPage } from '../features/public/ClientPortalPage.jsx';
-import { ForbiddenPage } from '../features/auth/ForbiddenPage.jsx';
-import { DashboardPage } from '../features/dashboard/DashboardPage.jsx';
-import { ClientsPage } from '../features/clients/ClientsPage.jsx';
-import { ObjectsPage } from '../features/objects/ObjectsPage.jsx';
-import { OrdersPage } from '../features/orders/OrdersPage.jsx';
-import { SchedulePage } from '../features/scheduling/SchedulePage.jsx';
-import { InspectionsPage } from '../features/inspections/InspectionsPage.jsx';
-import { BapPage } from '../features/bap/BapPage.jsx';
-import { LhppPage } from '../features/lhpp/LhppPage.jsx';
-import { HistoryPage } from '../features/history/HistoryPage.jsx';
-import { SuketPage } from '../features/suket/SuketPage.jsx';
-import { RemindersPage } from '../features/reminders/RemindersPage.jsx';
-import { UsersPage } from '../features/users/UsersPage.jsx';
-import { NotificationsPage } from '../features/notifications/NotificationsPage.jsx';
-import { AuditLogPage } from '../features/audit-log/AuditLogPage.jsx';
-import { SettingsPage } from '../features/settings/SettingsPage.jsx';
-import { DocumentDistributionPage } from '../features/distributions/DocumentDistributionPage.jsx';
+
+const loadPage = (importPage, exportName) =>
+  lazy(() => importPage().then((module) => ({ default: module[exportName] })));
+
+const VerificationPage = loadPage(() => import('../features/public/VerificationPage.jsx'), 'VerificationPage');
+const ClientPortalPage = loadPage(() => import('../features/public/ClientPortalPage.jsx'), 'ClientPortalPage');
+const ForbiddenPage = loadPage(() => import('../features/auth/ForbiddenPage.jsx'), 'ForbiddenPage');
+const DashboardPage = loadPage(() => import('../features/dashboard/DashboardPage.jsx'), 'DashboardPage');
+const ClientsPage = loadPage(() => import('../features/clients/ClientsPage.jsx'), 'ClientsPage');
+const ObjectsPage = loadPage(() => import('../features/objects/ObjectsPage.jsx'), 'ObjectsPage');
+const OrdersPage = loadPage(() => import('../features/orders/OrdersPage.jsx'), 'OrdersPage');
+const SchedulePage = loadPage(() => import('../features/scheduling/SchedulePage.jsx'), 'SchedulePage');
+const InspectionsPage = loadPage(() => import('../features/inspections/InspectionsPage.jsx'), 'InspectionsPage');
+const BapPage = loadPage(() => import('../features/bap/BapPage.jsx'), 'BapPage');
+const LhppPage = loadPage(() => import('../features/lhpp/LhppPage.jsx'), 'LhppPage');
+const HistoryPage = loadPage(() => import('../features/history/HistoryPage.jsx'), 'HistoryPage');
+const SuketPage = loadPage(() => import('../features/suket/SuketPage.jsx'), 'SuketPage');
+const RemindersPage = loadPage(() => import('../features/reminders/RemindersPage.jsx'), 'RemindersPage');
+const UsersPage = loadPage(() => import('../features/users/UsersPage.jsx'), 'UsersPage');
+const NotificationsPage = loadPage(() => import('../features/notifications/NotificationsPage.jsx'), 'NotificationsPage');
+const AuditLogPage = loadPage(() => import('../features/audit-log/AuditLogPage.jsx'), 'AuditLogPage');
+const SettingsPage = loadPage(() => import('../features/settings/SettingsPage.jsx'), 'SettingsPage');
+const DocumentDistributionPage = loadPage(() => import('../features/distributions/DocumentDistributionPage.jsx'), 'DocumentDistributionPage');
+const IssuesPage = loadPage(() => import('../features/issues/IssuesPage.jsx'), 'IssuesPage');
 
 const ROLE_ALIASES = {
   ADMIN_KANTOR: 'MARKETING',
@@ -86,6 +91,7 @@ export function RequireRole({ allowedRoles, children }) {
 
 export function AppRoutes() {
   return (
+    <Suspense fallback={<LoadingState message="Memuat halaman PT Upaya Riksa Daya..." />}>
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
@@ -200,6 +206,14 @@ export function AppRoutes() {
         />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route
+          path="issues"
+          element={
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']}>
+              <IssuesPage />
+            </RequireRole>
+          }
+        />
+        <Route
           path="users"
           element={
             <RequireRole allowedRoles={['ADMIN_SISTEM']}>
@@ -228,5 +242,6 @@ export function AppRoutes() {
 
       <Route path="*" element={<RootRedirect />} />
     </Routes>
+    </Suspense>
   );
 }

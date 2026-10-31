@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { query } from '../../database/pool.js';
 import { authenticate } from '../../middleware/authenticate.js';
-import { AppError } from '../../utils/http.js';
 
 const router = Router();
 router.use(authenticate);
@@ -114,14 +113,37 @@ router.get('/', async (req, res, next) => {
          ORDER BY l.created_at DESC
          LIMIT 6`;
 
+    const issueSql = isInspector
+      ? `SELECT oi.id, oi.issue_no, oi.issue_type, oi.title, oi.status, oi.priority,
+                o.po_number, o.order_no, c.name AS client_name, t.serial_number
+         FROM operational_issues oi
+         JOIN orders o ON o.id = oi.order_id JOIN clients c ON c.id = o.client_id
+         LEFT JOIN test_objects t ON t.id = oi.object_id
+         WHERE (oi.reported_by = $2 OR EXISTS (
+           SELECT 1 FROM assignments ax WHERE ax.order_id = oi.order_id AND ax.inspector_id = $2
+             AND ax.status IN ('MENUNGGU','DITERIMA')
+         ))
+           AND (lower(oi.issue_no) LIKE $1 OR lower(oi.title) LIKE $1 OR lower(o.po_number) LIKE $1
+             OR lower(coalesce(t.serial_number, '')) LIKE $1)
+         ORDER BY oi.updated_at DESC LIMIT 6`
+      : `SELECT oi.id, oi.issue_no, oi.issue_type, oi.title, oi.status, oi.priority,
+                o.po_number, o.order_no, c.name AS client_name, t.serial_number
+         FROM operational_issues oi
+         JOIN orders o ON o.id = oi.order_id JOIN clients c ON c.id = o.client_id
+         LEFT JOIN test_objects t ON t.id = oi.object_id
+         WHERE lower(oi.issue_no) LIKE $1 OR lower(oi.title) LIKE $1 OR lower(o.po_number) LIKE $1
+           OR lower(coalesce(t.serial_number, '')) LIKE $1
+         ORDER BY oi.updated_at DESC LIMIT 6`;
+
     const params = isInspector ? [searchTerm, userId] : [searchTerm];
 
-    const [ordersRes, clientsRes, objectsRes, bapRes, lhppRes] = await Promise.all([
+    const [ordersRes, clientsRes, objectsRes, bapRes, lhppRes, issuesRes] = await Promise.all([
       query(orderSql, params),
       query(clientSql, params),
       query(objectSql, params),
       query(bapSql, params),
-      query(lhppSql, params)
+      query(lhppSql, params),
+      query(issueSql, params)
     ]);
 
     const results = [];
@@ -183,6 +205,18 @@ router.get('/', async (req, res, next) => {
         subtitle: `Objek: ${r.object_name} - Klien: ${r.client_name}`,
         status: r.status,
         link: '/app/lhpp'
+      });
+    }
+
+    for (const r of issuesRes.rows) {
+      results.push({
+        category: 'Kendala Operasional',
+        type: 'ISSUE',
+        id: r.id,
+        title: `${r.issue_no}: ${r.title}`,
+        subtitle: `${r.po_number || r.order_no} · ${r.client_name}${r.serial_number ? ` · ${r.serial_number}` : ''}`,
+        status: r.status,
+        link: `/app/issues?issueId=${r.id}`
       });
     }
 

@@ -5,6 +5,7 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
+import { recordOrderRevision } from '../../services/order-revisions.js';
 import { createNotification, notifyRoles } from '../../services/notify.js';
 import { generateAssignmentLetterPdfBuffer } from '../../services/pdf-generator.js';
 import { computePoUnitProgress, syncOrderUnitStatus } from '../../services/workflow.js';
@@ -19,8 +20,7 @@ const ALLOWED_TRANSITIONS = {
   TERJADWAL: ['DITUGASKAN', 'DIBATALKAN'],
   DITUGASKAN: ['SEDANG_DIPERIKSA', 'TERJADWAL', 'DIBATALKAN'],
   SEDANG_DIPERIKSA: ['MENUNGGU_LAPORAN', 'DIBATALKAN'],
-  MENUNGGU_LAPORAN: ['MENUNGGU_REVIEW', 'SEDANG_DIPERIKSA'],
-  MENUNGGU_REVIEW: ['SELESAI', 'MENUNGGU_LAPORAN'],
+  MENUNGGU_LAPORAN: ['SEDANG_DIPERIKSA', 'MENUNGGU_DOKUMEN'],
   SELESAI: [],
   DIBATALKAN: []
 };
@@ -102,9 +102,8 @@ const updateUnitSchema = Joi.object({
     'BAP_DRAF',
     'BAP_FINAL',
     'LHPP_DRAF',
-    'MENUNGGU_REVIEW',
+    'LHPP_SIAP_PREVIEW',
     'PERLU_REVISI',
-    'DISETUJUI',
     'LHPP_TERBIT',
     'SELESAI',
     'DIBATALKAN'
@@ -120,7 +119,7 @@ const statusUpdateSchema = Joi.object({
       'DITUGASKAN',
       'SEDANG_DIPERIKSA',
       'MENUNGGU_LAPORAN',
-      'MENUNGGU_REVIEW',
+      'MENUNGGU_DOKUMEN',
       'SELESAI',
       'DIBATALKAN'
     )
@@ -399,7 +398,7 @@ router.get('/:id', async (req, res, next) => {
     );
     if (!rows[0]) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order tidak ditemukan.');
 
-    const [objects, schedule, assignments, history, inspections] = await Promise.all([
+    const [objects, schedule, assignments, history, inspections, revisions] = await Promise.all([
       query(
         `SELECT t.*,
                 oc.code AS category_code, oc.name AS category_name, oc.default_bap_scopes,
@@ -446,6 +445,12 @@ router.get('/:id', async (req, res, next) => {
          LEFT JOIN lhpp_documents l ON l.inspection_id = i.id
          WHERE i.order_id = $1`,
         [id]
+      ),
+      query(
+        `SELECT r.id, r.version, r.reason, r.snapshot, r.created_at, u.full_name AS actor_name
+         FROM order_revisions r LEFT JOIN users u ON u.id = r.actor_id
+         WHERE r.order_id = $1 ORDER BY r.version DESC`,
+        [id]
       )
     ]);
 
@@ -475,7 +480,8 @@ router.get('/:id', async (req, res, next) => {
       scheduleChanges,
       assignments: assignments.rows,
       history: history.rows,
-      inspections: inspections.rows
+      inspections: inspections.rows,
+      revisions: revisions.rows
     });
   } catch (err) {
     return next(err);
@@ -689,7 +695,7 @@ router.post(
                 type: 'ASSIGNMENT_NEW',
                 title: 'Penugasan Baru Riksa Uji',
                 body: `Anda ditugaskan pada order ${order.order_no} (PO: ${poNo}). Silakan periksa detailnya.`,
-                link: '/app/orders'
+                link: `/app/orders?orderNo=${encodeURIComponent(order.order_no)}`
               },
               db
             );
@@ -704,6 +710,13 @@ router.post(
             order.id
           ]);
         }
+
+        await recordOrderRevision(db, {
+          orderId: order.id,
+          actorId: req.user.id,
+          version: order.po_revision_no,
+          reason: 'PO dicatat pertama kali'
+        });
 
         await recordAudit(
           {
@@ -761,10 +774,16 @@ router.post(
           userId: req.user.id
         });
 
-        await db.query(
-          'UPDATE orders SET po_revision_no = po_revision_no + 1, updated_at = now() WHERE id = $1',
+        const { rows: versionRows } = await db.query(
+          'UPDATE orders SET po_revision_no = po_revision_no + 1, updated_at = now() WHERE id = $1 RETURNING po_revision_no',
           [id]
         );
+        await recordOrderRevision(db, {
+          orderId: id,
+          actorId: req.user.id,
+          version: versionRows[0].po_revision_no,
+          reason: `Penambahan ${insertedIds.length} unit pada PO`
+        });
 
         await recordAudit(
           {
@@ -954,13 +973,28 @@ router.post(
       }
 
       const insertedIds = await withTransaction(async (db) => {
-        return resolveAndInsertOrderUnits(db, {
+        const createdIds = await resolveAndInsertOrderUnits(db, {
           orderId: id,
           clientId: order.client_id,
           locationId: order.location_id,
           units: parsedUnits,
           userId: req.user.id
         });
+        const { rows: versionRows } = await db.query(
+          'UPDATE orders SET po_revision_no = po_revision_no + 1, updated_at = now() WHERE id = $1 RETURNING po_revision_no',
+          [id]
+        );
+        await recordOrderRevision(db, {
+          orderId: id,
+          actorId: req.user.id,
+          version: versionRows[0].po_revision_no,
+          reason: `Impor CSV menambahkan ${createdIds.length} unit pada PO`
+        });
+        await recordAudit({
+          userId: req.user.id, action: 'ORDER_IMPORT_UNITS', entity: 'orders', entityId: id,
+          summary: { importedCount: createdIds.length, revision: versionRows[0].po_revision_no }, ip: req.ip
+        }, db);
+        return createdIds;
       });
 
       return res.status(201).json({
@@ -1042,6 +1076,22 @@ router.post(
              VALUES ($1, 'ORDER_BARU', 'TERJADWAL', 'Jadwal pemeriksaan ditetapkan', $2)`,
             [id, req.user.id]
           );
+        }
+
+        if (existing[0]) {
+          const { rows: recipients } = await db.query(
+            "SELECT inspector_id FROM assignments WHERE order_id = $1 AND status IN ('MENUNGGU','DITERIMA')",
+            [id]
+          );
+          for (const recipient of recipients) {
+            await createNotification({
+              userId: recipient.inspector_id,
+              type: 'SCHEDULE_CHANGED',
+              title: `Perubahan jadwal ${order.po_number || order.order_no}`,
+              body: `${reason.trim()} Jadwal baru: ${new Date(startAt).toLocaleString('id-ID')}.`,
+              link: `/app/orders?orderNo=${encodeURIComponent(order.order_no)}`
+            }, db);
+          }
         }
 
         await recordAudit(
@@ -1179,7 +1229,7 @@ router.post(
               type: 'ASSIGNMENT_NEW',
               title: `Penugasan Baru: ${order.order_no}`,
               body: 'Silakan tinjau dan konfirmasi penugasan pemeriksaan K3 Anda.',
-              link: `/app/orders`
+              link: `/app/orders?orderNo=${encodeURIComponent(order.order_no)}`
             },
             db
           );
@@ -1300,7 +1350,7 @@ router.post(
               decision === 'DITOLAK'
                 ? `${req.user.fullName} menolak penugasan: ${rejectReason}`
                 : `${req.user.fullName} menerima penugasan.`,
-            link: `/app/orders`
+            link: `/app/orders?orderNo=${encodeURIComponent(ord[0]?.order_no || '')}`
           },
           db
         );

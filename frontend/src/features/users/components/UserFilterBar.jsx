@@ -1,5 +1,5 @@
 import { MagnifyingGlass } from '@phosphor-icons/react';
-import { ROLE_LABELS } from '../../../lib/utils/format.js';
+import { ROLE_OPTIONS } from '../../../lib/utils/format.js';
 
 export function UserFilterBar({ q, setQ, roleFilter, setRoleFilter }) {
   return (
@@ -24,9 +24,9 @@ export function UserFilterBar({ q, setQ, roleFilter, setRoleFilter }) {
         className="min-h-11 px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
       >
         <option value="">Semua Peran RBAC</option>
-        {Object.entries(ROLE_LABELS).map(([k, v]) => (
-          <option key={k} value={k}>
-            {v}
+        {ROLE_OPTIONS.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
           </option>
         ))}
       </select>

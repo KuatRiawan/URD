@@ -23,7 +23,7 @@ export function UsersPage() {
   const [createForm, setCreateForm] = useState({
     fullName: '',
     email: '',
-    role: 'ADMIN_KANTOR',
+    role: 'MARKETING',
     phone: '',
     employeeNo: '',
     password: ''
@@ -31,7 +31,7 @@ export function UsersPage() {
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({
     fullName: '',
-    role: 'ADMIN_KANTOR',
+    role: 'MARKETING',
     phone: '',
     isActive: true,
     password: ''
@@ -67,7 +67,7 @@ export function UsersPage() {
       setCreateForm({
         fullName: '',
         email: '',
-        role: 'ADMIN_KANTOR',
+        role: 'MARKETING',
         phone: '',
         employeeNo: '',
         password: ''
@@ -144,7 +144,7 @@ export function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Manajemen Pengguna Internal (RBAC)"
-        subtitle="Kelola akun personel PT Upaya Riksa Daya, hak akses berbasis peran (Admin Sistem, Admin Kantor, Ahli K3, Pimpinan), dan status keaktifan."
+        subtitle="Kelola akun Marketing, Inspector, Pimpinan, dan Admin Sistem beserta status keaktifannya."
         actions={
           <button
             type="button"
