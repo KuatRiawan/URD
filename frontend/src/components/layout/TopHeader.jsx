@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import {
   Bell,
@@ -55,7 +55,7 @@ export function TopHeader({
     setNotifMenuOpen(false);
   }, [location.pathname]);
 
-  const fetchNotifications = async (isSilent = false) => {
+  const fetchNotifications = useCallback(async (isSilent = false) => {
     if (!isSilent) setNotifLoading(true);
     try {
       const res = await api.get('/notifications?limit=50');
@@ -68,16 +68,16 @@ export function TopHeader({
     } finally {
       if (!isSilent) setNotifLoading(false);
     }
-  };
+  }, [setUnreadCount]);
 
-  // Realtime update notifikasi saat popover sedang terbuka
+  // Segarkan daftar notifikasi secara berkala selama popover terbuka.
   useEffect(() => {
     if (!notifMenuOpen) return;
     const interval = setInterval(() => {
       fetchNotifications(true);
-    }, 3000);
+    }, 30000);
     return () => clearInterval(interval);
-  }, [notifMenuOpen]);
+  }, [notifMenuOpen, fetchNotifications]);
 
   const toggleNotifMenu = () => {
     const next = !notifMenuOpen;

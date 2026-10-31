@@ -1861,8 +1861,8 @@ function drawChecklistTable(doc, report, contentLeft, contentWidth, ensureSpace)
       }
     }
 
-    section = section.replace(/^\d+[\.\)]\s*/, '');
-    label = label.replace(/^\d+[\.\)]\s*/, '');
+    section = section.replace(/^\d+[.)]\s*/, '');
+    label = label.replace(/^\d+[.)]\s*/, '');
 
     return {
       ...item,

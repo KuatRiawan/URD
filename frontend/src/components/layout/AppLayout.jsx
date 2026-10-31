@@ -35,7 +35,9 @@ function LayoutShell() {
       const next = !prev;
       try {
         localStorage.setItem('urd_sidebar_collapsed', String(next));
-      } catch {}
+      } catch {
+        // Preferensi sidebar hanya disimpan sebagai kenyamanan, bukan syarat fungsi.
+      }
       return next;
     });
   };
@@ -69,12 +71,14 @@ function LayoutShell() {
     setUserMenuOpen(false);
   }, [location.pathname]);
 
-  // Polling notifikasi berkala secara realtime (setiap 4 detik dan saat tab aktif)
+  // Ambil jumlah notifikasi secara berkala tanpa mengulang polling saat rute berubah.
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     const checkNotifications = () => {
+      if (document.visibilityState === 'hidden') return;
       api
-        .get('/notifications?limit=30')
+        .get('/notifications?limit=30', { signal: controller.signal })
         .then(({ data }) => {
           if (active) setUnreadCount(data.unreadCount || 0);
         })
@@ -82,7 +86,7 @@ function LayoutShell() {
     };
 
     checkNotifications();
-    const interval = setInterval(checkNotifications, 4000);
+    const interval = setInterval(checkNotifications, 30000);
 
     const handleFocus = () => checkNotifications();
     const handleVisibility = () => {
@@ -95,10 +99,11 @@ function LayoutShell() {
     return () => {
       active = false;
       clearInterval(interval);
+      controller.abort();
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [location.pathname]);
+  }, []);
 
   const handleLogout = async () => {
     setUserMenuOpen(false);
@@ -149,7 +154,7 @@ function LayoutShell() {
         />
 
         {/* Konten Halaman Utama */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-24 lg:pb-7 max-w-[92rem] w-full mx-auto">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-7 max-w-[92rem] w-full mx-auto">
           <ErrorBoundary resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>

@@ -24,11 +24,11 @@ export function DistributionFilterBar({
           className="w-full min-h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 min-w-0">
         <select
           value={targetFilter}
           onChange={(e) => setTargetFilter(e.target.value)}
-          className="min-h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
+          className="w-full sm:flex-1 min-w-0 min-h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
         >
           <option value="">Semua Target Penerima</option>
           <option value="KLIEN">Target: Klien</option>
@@ -37,7 +37,7 @@ export function DistributionFilterBar({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="min-h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
+          className="w-full sm:flex-1 min-w-0 min-h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
         >
           <option value="">Semua Status Pengiriman</option>
           <option value="SIAP_DIKIRIM">Siap Dikirim</option>

@@ -56,11 +56,6 @@ export function StepSignatures({
   onBack,
   onSaveDraft,
   onCloseModal,
-  onPreviewPdf,
-  bapId,
-  bapNo,
-  lhppId,
-  lhppNo
 }) {
   return (
     <div className="space-y-5">

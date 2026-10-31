@@ -1,77 +1,65 @@
-# Audit Kondisi Existing UI/UX & Responsive Design
-PT Upaya Riksa Daya
+# Audit UI/UX Aplikasi PT Upaya Riksa Daya
 
-Tanggal Audit: 31 Oktober 2026
-Auditor: Senior UI/UX Designer & Frontend Engineer
+**Tanggal:** 31 Oktober 2026  
+**Cakupan:** pemeriksaan statis route, konfigurasi menu, layout bersama, token CSS, tabel, dan halaman fitur React. Pemeriksaan visual langsung dilakukan pada halaman masuk dengan browser pada 360 × 800. Halaman terautentikasi belum diperiksa secara visual karena sesi uji per role tidak tersedia.
 
-## 1. Ringkasan Eksekutif
+## Ringkasan
 
-Audit komprehensif dilakukan terhadap seluruh antarmuka aplikasi internal PT Upaya Riksa Daya (URD) yang dibangun dengan React + Vite + Tailwind CSS v4. Pemeriksaan mencakup struktur kode antarmuka desktop, tablet (768px - 1024px), dan smartphone (360px - 430px) pada seluruh peran operasional (Marketing / Admin Kantor, Ahli K3 / Inspector, Pimpinan / Manager, dan Admin Sistem).
+Frontend menggunakan React 19, Vite, React Router, Tailwind CSS v4, Plus Jakarta Sans Variable, dan Phosphor Icons. Route utama berada di `frontend/src/app/router.jsx`; navigasi dan pembagian menu mobile berada di `frontend/src/components/layout/navConfig.js`. Layout menampilkan sidebar di desktop dan navigasi bawah hingga breakpoint `lg`; menu sekunder dimuat di drawer Lainnya.
 
-## 2. Klasifikasi Temuan Berdasarkan Prioritas
+Banyak tabel operasional sudah menyediakan kartu mobile tersendiri pada lebar di bawah `sm`, sementara tabel desktop berada dalam kontainer `overflow-x-auto`. Ini telah diverifikasi di kode, belum melalui uji visual di seluruh ukuran layar. Belum ada dasar untuk menyatakan seluruh halaman bebas overflow atau seluruh workflow per role telah lulus uji.
 
-### A. Prioritas Critical (Mengganggu Fungsi / Fitur Tidak Dapat Diakses)
+## Inventaris halaman dan pemeriksaan kode
 
-1. **Ketiadaan Akses Navigasi Menu Sekunder di Mobile (Navigation Lockout)**
-   - **Lokasi**: `frontend/src/components/layout/MobileBottomNav.jsx`
-   - **Deskripsi**: Navigasi bawah mobile dibatasi kaku hanya memotong 4 item teratas (`getVisibleNav(role).slice(0, 4)`). Akibatnya, menu penting seperti Data Klien, Objek Uji, Berita Acara BAP, Distribusi Dokumen, Registri Suket K3, Pengingat Perpanjangan, Manajemen Pengguna, dan Pengaturan Akun sama sekali tidak dapat diakses saat pengguna membuka aplikasi melalui ponsel pintar.
-   - **Dampak**: Pengguna mobile terkunci dari lebih dari 60% fungsionalitas sistem.
+| Modul / route | Role berdasarkan route | Pemeriksaan kode |
+|---|---|---|
+| Dasbor `/app/dashboard` | Semua role login | Variasi tampilan Inspector, Pimpinan, dan operasional diperiksa di `DashboardPage.jsx` dan komponen dashboard. |
+| PO & Order `/app/orders` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Wizard PO, detail PO, tabel dan kartu mobile ditelusuri. |
+| Klien `/app/clients` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Tabel/kartu mobile dan route diperiksa. |
+| Objek Uji `/app/objects` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Tabel/kartu mobile dan route diperiksa. |
+| Jadwal `/app/schedule`, alias `/app/scheduling` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Route dan menu per role ditelusuri. |
+| Pengujian `/app/inspections` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Daftar responsif dan tahapan form inspeksi ditinjau secara statis. |
+| BAP `/app/bap` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Route, tabel, detail, dan parameter pencarian notifikasi ditelusuri. |
+| LHPP `/app/lhpp` | Admin Sistem, Admin Kantor, Inspector, Pimpinan | Route dan kartu/tabel daftar diperiksa. Renderer PDF berada di luar cakupan visual UI ini. |
+| Riwayat `/app/history` | Semua role utama | Tampilan kartu dan tabel desktop ditinjau. |
+| Distribusi `/app/distributions` | Admin Sistem, Marketing/Admin Kantor, Pimpinan | Tabel/kartu dan hak akses route ditinjau. |
+| Suket `/app/suket` | Admin Sistem, Admin Kantor, Pimpinan | State pembuka modal detail ditemukan tidak digunakan; diperbaiki agar tombol tutup benar-benar menutup modal. |
+| Pengingat `/app/reminders` | Admin Sistem, Admin Kantor, Pimpinan | Route dan akses menu ditinjau. |
+| Kendala `/app/issues` | Semua role utama | Route dan konfigurasi menu ditinjau. |
+| Notifikasi `/app/notifications` | Semua pengguna terautentikasi | Route tanpa pembatas role eksplisit; tetap berada di dalam layout terautentikasi. |
+| Pengguna `/app/users` | Admin Sistem | Route dibatasi untuk Admin Sistem. |
+| Audit `/app/audit-logs`, alias `/app/audit-log` | Admin Sistem, Pimpinan | Route dibatasi dan alias diperiksa. |
+| Pengaturan `/app/settings` | Semua role utama | Route ada di dalam layout terautentikasi. |
+| Login, verifikasi publik, portal klien | Publik / pengguna terkait | Login dilihat langsung pada 360 × 800; halaman publik lainnya hanya ditinjau secara statis. |
 
-2. **Hilangnya Komponen Drawer Navigasi Mobile ("Lainnya")**
-   - **Lokasi**: `frontend/src/components/layout/`
-   - **Deskripsi**: File `MobileNavDrawer.jsx` terhapus dalam refaktorisasi sebelumnya, tanpa adanya mekanisme pengganti drawer atau bottom sheet untuk menampilkan sisa menu peran.
-   - **Dampak**: Tidak ada sarana penjelajahan modul sekunder pada layar ponsel pintar.
+Inventaris tersebut memeriksa keberadaan route dan sumber komponennya. Ini bukan klaim bahwa setiap tombol, state API, atau semua role telah dijalankan lewat browser.
 
-### B. Prioritas High (Mengganggu Navigasi & Aktivitas Utama)
+## Temuan dan perubahan
 
-1. **Horizontal Table Overflow & Cramped Controls pada Tampilan Mobile**
-   - **Lokasi**:
-     - `frontend/src/features/clients/components/ClientTable.jsx`
-     - `frontend/src/features/objects/components/ObjectTable.jsx`
-     - `frontend/src/features/lhpp/components/LhppTable.jsx`
-     - `frontend/src/features/bap/components/BapTable.jsx`
-     - `frontend/src/features/distributions/components/DistributionTable.jsx`
-     - `frontend/src/features/suket/components/SuketTable.jsx`
-     - `frontend/src/features/users/components/UserTable.jsx`
-     - `frontend/src/features/audit-log/AuditLogPage.jsx`
-   - **Deskripsi**: Tabel data tabular ditampilkan mentah dengan `overflow-x-auto` pada viewport smartphone (360px - 430px). Pengguna terpaksa menggeser tabel ke samping berkali-kali untuk melihat data dasar dan menemukan tombol aksi (Kelola, Detail, Ubah, PDF). Tombol-tombol berjejer terlalu kecil dan rapat sehingga rentan salah tekan (fat-finger issue).
-   - **Solusi**: Transformasi ke pola kartu responsif mobile (`sm:hidden`) dengan target sentuh minimal 40px - 44px, di samping tabel penuh untuk tablet/desktop (`hidden sm:block`).
+| Prioritas | Temuan | Dampak | Perubahan |
+|---|---|---|---|
+| Tinggi | Drawer navigasi dan modal belum memindahkan fokus, membatasi Tab, atau mengembalikan fokus pemicu. | Pengguna keyboard dapat kehilangan konteks dan fokus masuk ke halaman latar. | Menambahkan hook `useDialogFocus` dan menggunakannya pada drawer serta Modal bersama. |
+| Sedang | Polling penghitung notifikasi layout berjalan sangat sering dan berulang saat navigasi. | Permintaan jaringan berulang ketika pengguna berpindah route. | Polling layout menjadi 30 detik, berhenti saat tab tersembunyi, refresh saat tab aktif, dan membatalkan request saat unmount. |
+| Sedang | Bottom nav dan ruang konten tidak memperhitungkan safe area perangkat. | Kontrol dapat terlalu dekat dengan area gesture perangkat. | Menambahkan inset safe-area pada posisi navigasi dan padding bawah konten. |
+| Sedang | Tombol Mulai Pemeriksaan tidak memberi state proses yang jelas. | Inspector dapat mengira aksi tidak berjalan dan menekan berulang. | Tombol menunjukkan status membuka, memiliki `aria-busy`, dinonaktifkan selama request, dan target sentuh minimal 44px. |
+| Sedang | Modal detail Suket menampilkan berdasarkan isi data meski state `detailOpen` ditutup. | Aksi tutup tidak menutup modal. | State pembuka kini diteruskan sebagai kondisi `open`. |
+| Rendah | Aksi drawer dan tombol tema terlalu kecil pada layar sentuh. | Lebih sulit digunakan dengan jari. | Target tombol yang diperiksa dinaikkan ke 44px. |
+| Rendah | Lint menemukan catch kosong, assignment berulang yang tidak perlu, dan nilai/props tak digunakan. | Mengurangi keterbacaan dan menyembunyikan alasan fallback. | Catch diberi alasan; variabel/props mati dibersihkan; lint kini tanpa error dan warning. |
 
-2. **Akses Pencarian Global (Cmd+K) & Pengalih Tema Tersembunyi di Mobile Header**
-   - **Lokasi**: `frontend/src/components/layout/TopHeader.jsx`
-   - **Deskripsi**: Tombol pencarian cepat dan pengalih tema (`ThemeToggle`) disembunyikan menggunakan kelas `hidden sm:inline-flex`. Pada mobile, pengguna tidak memiliki cara untuk memicu pencarian cepat nomor PO, klien, atau nomor seri alat.
-   - **Solusi**: Sertakan pintasan pencarian cepat dan pengaturan tema di dalam lembar navigasi "Lainnya" serta sediakan ikon pencarian yang proporsional di header mobile.
+## Responsif yang ditemukan dalam kode
 
-3. **Form Input Grid Cramped pada Modal Tambah Unit PO**
-   - **Lokasi**: `frontend/src/features/orders/components/StepPoUnits.jsx`
-   - **Deskripsi**: Form penambahan unit alat baru langsung ke PO menggunakan `grid grid-cols-1 sm:grid-cols-6 gap-2`. Pada ukuran tablet (768px), membagi 6 kolom input dalam satu baris modal menghasilkan lebar input kurang dari 100px sehingga teks placeholder dan isi input terpotong.
-   - **Solusi**: Sesuaikan breakpoint grid menjadi `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5` dengan label yang jelas.
+- Banyak tabel utama memiliki alternatif kartu untuk layar di bawah `sm`: klien, objek, PO, BAP, LHPP, distribusi, Suket, pengguna, audit log, riwayat, dan daftar inspeksi.
+- Tabel desktop dibungkus dengan `overflow-x-auto`; pada tablet 640px ke atas pola tersebut kembali ke tabel. Keterbacaan setiap tabel pada tablet belum disahkan melalui screenshot.
+- Navigasi bawah tampil sampai breakpoint `lg`; sidebar tampil pada ukuran `lg` ke atas. Tablet portrait menggunakan navigasi bawah.
+- Drawer mempunyai batas tinggi berbasis `dvh`, konten drawer dapat di-scroll, dan body scroll dikunci saat terbuka.
+- Pengujian ukuran 390, 430, 768, 1024, 1366, 1440, dan 1920px belum dilakukan melalui browser.
 
-### C. Prioritas Medium (Inkonsistensi Visual & Kenyamanan Penggunaan)
+## Belum terverifikasi / pekerjaan lanjutan
 
-1. **Variasi Radius dan Ukuran Tombol**
-   - **Lokasi**: Berbagai halaman fitur (`rounded`, `rounded-md`, `rounded-lg`, `rounded-xl`, `rounded-2xl`).
-   - **Deskripsi**: Beberapa halaman menggunakan border radius tidak seragam untuk tombol dan badge status.
-   - **Solusi**: Standarisasi token radius: `rounded-lg` (8px) untuk tombol dan kontrol form, `rounded-full` untuk badge status dan avatar, serta `rounded-xl` / `rounded-2xl` untuk card kontainer.
+1. Visual seluruh halaman pada delapan viewport yang diminta.
+2. Alur interaktif setiap role dengan akun uji terpisah, termasuk permission dan error API.
+3. Console, network, dan status gambar pada halaman terautentikasi.
+4. Keterbacaan semua tabel pada tablet portrait dan landscape.
+5. Lighthouse/aksesibilitas otomatis, kontras aktual, zoom 200%, dan penggunaan keyboard lintas halaman.
 
-2. **Inkonsistensi Tinggi Kontrol Input dan Tombol Aksi**
-   - **Lokasi**: Filter bar dan form modal.
-   - **Deskripsi**: Beberapa input memiliki tinggi 36px (`py-1.5`), sementara yang lain 44px (`min-h-11`). Standar sentuh mobile yang ramah pengguna memerlukan tinggi sentuh minimal 44px.
-   - **Solusi**: Terapkan standar tinggi kontrol terpadu (`min-h-[44px]` untuk mobile primary controls, `min-h-9` untuk compact table actions).
-
-3. **Status Navigasi Aktif pada Tombol "Lainnya"**
-   - **Lokasi**: `MobileBottomNav.jsx`
-   - **Deskripsi**: Ketika pengguna berada di halaman sub-menu (misal `/app/clients` atau `/app/settings`), bottom navigation tidak memberikan indikasi visual bahwa halaman aktif berada di dalam grup "Lainnya".
-   - **Solusi**: Tambahkan penanda aktif dinamis pada tombol "Lainnya" jika rute aktif saat ini cocok dengan salah satu menu di dalam drawer.
-
-### D. Prioritas Low (Detail Visual & Polish)
-
-1. **Scrollbar Tampilan Modal Panjang**
-   - **Lokasi**: Modal inspeksi dan modal detail PO.
-   - **Deskripsi**: Scrollbar pada beberapa browser desktop tampak kaku dan kurang menyatu dengan palet tema gelap.
-   - **Solusi**: Pastikan utility `scrollbar-thin` dan warna scrollbar CSS diterapkan konsisten di seluruh modal dialog.
-
-2. **Feedback Umpan Balik Tombol Aksi**
-   - **Lokasi**: Tombol tabel di desktop.
-   - **Deskripsi**: Perlu penegasan visual hover/active state dengan transition yang seragam (150ms).
-
+Akun uji tidak tersedia pada sesi ini. Keterbatasan tersebut dicatat agar hasil tidak disalahartikan sebagai audit visual menyeluruh.

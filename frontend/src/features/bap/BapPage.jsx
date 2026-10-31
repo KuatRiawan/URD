@@ -98,24 +98,7 @@ export function BapPage() {
   const searchParam = searchParams.get('search') || searchParams.get('bapId') || searchParams.get('id');
   const openedBapRef = useRef(null);
 
-  useEffect(() => {
-    if (!searchParam || !bapList.length) return;
-    if (openedBapRef.current === searchParam && selectedBap) return;
-
-    const matched = bapList.find(
-      (b) =>
-        b.id === searchParam ||
-        b.bap_no?.toLowerCase().includes(searchParam.toLowerCase()) ||
-        b.order_no?.toLowerCase().includes(searchParam.toLowerCase())
-    );
-
-    if (matched) {
-      openedBapRef.current = searchParam;
-      openBapDetail(matched.id);
-    }
-  }, [searchParam, bapList, selectedBap]);
-
-  const openBapDetail = async (id) => {
+  const openBapDetail = useCallback(async (id) => {
     setDetailLoading(true);
     setFeedback(null);
     try {
@@ -145,7 +128,24 @@ export function BapPage() {
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, [user?.fullName]);
+
+  useEffect(() => {
+    if (!searchParam || !bapList.length) return;
+    if (openedBapRef.current === searchParam && selectedBap) return;
+
+    const matched = bapList.find(
+      (b) =>
+        b.id === searchParam ||
+        b.bap_no?.toLowerCase().includes(searchParam.toLowerCase()) ||
+        b.order_no?.toLowerCase().includes(searchParam.toLowerCase())
+    );
+
+    if (matched) {
+      openedBapRef.current = searchParam;
+      openBapDetail(matched.id);
+    }
+  }, [searchParam, bapList, selectedBap, openBapDetail]);
 
   const toggleScopeItem = (scopeName) => {
     setDraftForm((prev) => {

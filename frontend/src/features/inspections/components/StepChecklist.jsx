@@ -9,7 +9,6 @@ export function StepChecklist({
   setDraftObjectAttributes,
   attributeSchema = [],
   categoryCode = '',
-  categoryName = '',
   onUploadInlinePhoto,
   readOnly,
   missingItems,

@@ -7,6 +7,7 @@ import {
 } from '@phosphor-icons/react';
 import { ROLE_LABELS } from '../../lib/utils/format.js';
 import { ThemeToggle } from '../ui/ThemeToggle.jsx';
+import { useDialogFocus } from '../ui/useDialogFocus.js';
 import { getInitials } from './SidebarNav.jsx';
 
 export function MobileNavDrawer({
@@ -20,23 +21,18 @@ export function MobileNavDrawer({
   const location = useLocation();
   const drawerRef = useRef(null);
   const lastPathnameRef = useRef(location.pathname);
+  useDialogFocus(open, drawerRef, onClose);
 
-  // Kunci scroll latar belakang saat drawer terbuka
+  // Kunci scroll latar belakang saat drawer terbuka.
   useEffect(() => {
     if (!open) return undefined;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   // Tutup drawer secara otomatis hanya jika rute berpindah saat drawer sedang terbuka
   useEffect(() => {
@@ -97,7 +93,7 @@ export function MobileNavDrawer({
                   onOpenSearch();
                 }}
                 aria-label="Pencarian Cepat Data"
-                className="h-8.5 w-8.5 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                className="h-11 w-11 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
               >
                 <MagnifyingGlass size={16} />
               </button>
@@ -109,7 +105,7 @@ export function MobileNavDrawer({
               type="button"
               onClick={onClose}
               aria-label="Tutup menu"
-              className="h-8.5 w-8.5 inline-flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               <X size={17} weight="bold" />
             </button>

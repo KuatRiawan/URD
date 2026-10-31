@@ -6,6 +6,19 @@ import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
 import { formatDateTime, ROLE_LABELS } from '../../lib/utils/format.js';
 
+function displayValue(value, fallback = '-') {
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  if (value && typeof value === 'object') {
+    return value.full_name || value.name || value.email || value.role || value.label || fallback;
+  }
+  return fallback;
+}
+
+function getRoleLabel(value) {
+  const role = displayValue(typeof value === 'object' ? value?.role : value);
+  return ROLE_LABELS[role] || role;
+}
+
 export function AuditLogPage() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -101,7 +114,7 @@ export function AuditLogPage() {
                 className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-2.5"
               >
                 <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <Badge tone="info">{log.action}</Badge>
+                  <Badge tone="info">{displayValue(log.action)}</Badge>
                   <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                     {formatDateTime(log.created_at)}
                   </span>
@@ -109,16 +122,16 @@ export function AuditLogPage() {
 
                 <div className="space-y-1">
                   <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                    {log.summary}
+                    {displayValue(log.summary)}
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Pelaku: <strong className="text-slate-700 dark:text-slate-300">{log.user_name || 'Sistem'}</strong> ({ROLE_LABELS[log.user_role] || log.user_role || '-'})
+                    Pelaku: <strong className="text-slate-700 dark:text-slate-300">{displayValue(log.user_name, 'Sistem')}</strong> ({getRoleLabel(log.user_role)})
                   </p>
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                  <span>Entitas: {log.entity}</span>
-                  <span>IP: {log.ip_address || '-'}</span>
+                  <span>Entitas: {displayValue(log.entity)}</span>
+                  <span>IP: {displayValue(log.ip_address)}</span>
                 </div>
               </div>
             ))}
@@ -148,21 +161,21 @@ export function AuditLogPage() {
                       </td>
                       <td className="py-3.5 px-4 text-xs">
                         <div className="font-bold text-slate-900 dark:text-slate-100">
-                          {log.user_name || 'Sistem Otomatis'}
+                          {displayValue(log.user_name, 'Sistem Otomatis')}
                         </div>
                         <div className="text-slate-500 dark:text-slate-400">
-                          {log.user_email || '-'} · {ROLE_LABELS[log.user_role] || log.user_role || '-'}
+                          {displayValue(log.user_email)} · {getRoleLabel(log.user_role)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-xs">
-                        <Badge tone="info">{log.action}</Badge>
+                        <Badge tone="info">{displayValue(log.action)}</Badge>
                         <div className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                          {log.entity}
+                          {displayValue(log.entity)}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-900 dark:text-slate-100">{log.summary}</td>
+                      <td className="py-3.5 px-4 text-xs text-slate-900 dark:text-slate-100">{displayValue(log.summary)}</td>
                       <td className="py-3.5 px-4 text-xs font-mono text-slate-500 dark:text-slate-400">
-                        {log.ip_address || '-'}
+                        {displayValue(log.ip_address)}
                       </td>
                     </tr>
                   ))}

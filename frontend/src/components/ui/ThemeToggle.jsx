@@ -33,7 +33,7 @@ export function ThemeToggle({ showLabel = false, className = '' }) {
         aria-label={`Ubah tema tampilan. Tema saat ini: ${theme}`}
         aria-expanded={open}
         aria-haspopup="true"
-        className="h-9 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs"
+        className="min-h-11 sm:min-h-9 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs"
       >
         <CurrentIcon size={17} weight="bold" className="text-amber-500 dark:text-amber-400" aria-hidden="true" />
         {showLabel && (

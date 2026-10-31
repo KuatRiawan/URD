@@ -20,7 +20,6 @@ import { api } from '../../../lib/api/axios.js';
 
 export function InspectorDashboardView({
   user,
-  refreshing,
   loadSummary,
   categorizedUnits,
   assignedUnits,
@@ -266,9 +265,11 @@ export function InspectorDashboardView({
                 <button
                   type="button"
                   onClick={() => handleOpenInspection(activeTodayUnit)}
-                  className="inline-flex items-center gap-1.5 px-4 min-h-[38px] rounded-xl bg-[#C81E1E] text-white text-xs font-bold shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
+                  disabled={openingInspection}
+                  aria-busy={openingInspection}
+                  className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-[#C81E1E] text-white text-xs font-bold shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                 >
-                  <span>Mulai Pemeriksaan</span>
+                  <span>{openingInspection ? 'Membuka pemeriksaan...' : 'Mulai Pemeriksaan'}</span>
                   <ArrowRight size={14} weight="bold" />
                 </button>
               </div>

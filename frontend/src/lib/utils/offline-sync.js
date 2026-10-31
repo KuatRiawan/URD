@@ -15,7 +15,7 @@ function openSyncDb() {
       return;
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_PHOTOS)) {
         db.createObjectStore(STORE_PHOTOS, { keyPath: 'id', autoIncrement: true });
@@ -73,7 +73,9 @@ export async function enqueueOfflineDraft(inspectionId, payload) {
         `urd_offline_draft_${inspectionId}`,
         JSON.stringify({ inspectionId, payload, updatedAt: Date.now() })
       );
-    } catch {}
+    } catch {
+      // Tidak ada draft lokal yang dapat dibaca dari penyimpanan fallback.
+    }
   }
 }
 
@@ -92,7 +94,9 @@ export async function listOfflineDrafts() {
           if (raw) items.push(JSON.parse(raw));
         }
       }
-    } catch {}
+    } catch {
+      // Penghapusan IndexedDB sudah dicoba; fallback lokal mungkin tidak tersedia.
+    }
     return items;
   }
 }
@@ -100,10 +104,14 @@ export async function listOfflineDrafts() {
 export async function removeOfflineDraft(inspectionId) {
   try {
     await runDb(STORE_DRAFTS, 'readwrite', (store) => store.delete(inspectionId));
-  } catch {}
+  } catch {
+    // Penghapusan locale best-effort setelah lajur IndexedDB.
+  }
   try {
     localStorage.removeItem(`urd_offline_draft_${inspectionId}`);
-  } catch {}
+  } catch {
+    // Foto offline tidak tersedia jika IndexedDB tidak dapat dibuka.
+  }
 }
 
 // -----------------------------------------------------------------------------

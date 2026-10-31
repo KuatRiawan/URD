@@ -5,7 +5,6 @@ import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { api } from '../../lib/api/axios.js';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
-import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { ALLOWED_NEXT_STATUS } from './orderConstants.js';
 import { OrderFilterBar } from './components/OrderFilterBar.jsx';
@@ -16,8 +15,6 @@ import { CsvImportModal } from './components/CsvImportModal.jsx';
 import { useOrderManagement } from './hooks/useOrderManagement.js';
 
 export function OrdersPage() {
-  const confirm = useConfirm();
-  const toast = useToast();
   const { user } = useAuth();
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
@@ -82,7 +79,7 @@ export function OrdersPage() {
     handleDownloadAssignmentPdf,
     handleDownloadBatchBapPdf,
     handleDownloadUnitPdf
-  } = useOrderManagement({ user, confirm, toast });
+  } = useOrderManagement();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const paramOrderNo = searchParams.get('orderNo') || searchParams.get('orderId') || searchParams.get('q');

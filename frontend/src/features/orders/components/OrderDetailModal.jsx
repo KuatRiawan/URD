@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import {
   CalendarPlus,
   CheckCircle,
@@ -44,7 +43,6 @@ export function OrderDetailModal({
   error,
   setError,
   handleOpenCsvImport,
-  handleDownloadBatchBapPdf,
   handleDownloadAssignmentPdf,
   handleDownloadUnitPdf,
   handleSaveSchedule,
@@ -53,7 +51,6 @@ export function OrderDetailModal({
   handleStatusChange,
   checkConflicts
 }) {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('UNITS');
 
   const totalUnits = unitProgress?.totalUnits || (detailData?.objects || []).length || 0;

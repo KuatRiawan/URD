@@ -277,6 +277,7 @@ export function SuketPage() {
 
       <SuketDetailModal
         detailData={detailData}
+        open={detailOpen}
         onClose={() => setDetailOpen(false)}
         canManage={canManage}
         editForm={editForm}

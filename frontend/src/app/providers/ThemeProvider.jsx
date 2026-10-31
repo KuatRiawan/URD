@@ -15,7 +15,9 @@ export function ThemeProvider({ children }) {
       if (stored === 'light' || stored === 'dark' || stored === 'system') {
         return stored;
       }
-    } catch {}
+    } catch {
+      // Preferensi tema kembali ke nilai sistem jika penyimpanan tidak tersedia.
+    }
     return 'system';
   });
 
@@ -72,7 +74,9 @@ export function ThemeProvider({ children }) {
     setThemeState(newTheme);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    } catch {}
+    } catch {
+      // Tema tetap diterapkan pada sesi ini meski tidak dapat disimpan.
+    }
   };
 
   return (

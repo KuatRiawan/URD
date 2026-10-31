@@ -18,8 +18,6 @@ export function HistoryTable({ items, downloadPdf, onSelectRecord }) {
             item.suket_valid_until ||
             item.next_inspection_date ||
             item.recommended_valid_until;
-          const delivered = Array.isArray(item.deliveries) && item.deliveries.length > 0;
-
           return (
             <div
               key={item.inspection_id}

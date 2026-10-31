@@ -1,116 +1,61 @@
-# Struktur Navigasi Desktop & Mobile Berdasarkan Peran Pengguna
-PT Upaya Riksa Daya
+# Struktur Navigasi Existing per Role
 
-## 1. Prinsip Navigasi Lintas Perangkat
+Sumber: `frontend/src/components/layout/navConfig.js`, `MobileBottomNav.jsx`, `MobileNavDrawer.jsx`, dan izin route dalam `frontend/src/app/router.jsx`.
 
-1. **Konsistensi Rute**: Rute URL `/app/*` tetap identik di seluruh ukuran layar; tidak ada pemotongan fitur saat pengguna membuka aplikasi melalui ponsel pintar.
-2. **Navigasi Desktop (>= 1024px)**: Menggunakan Sidebar Navigasi di sebelah kiri yang mendukung mode collapse / expand, dengan pengelompokan menu fungsional.
-3. **Navigasi Mobile (< 1024px)**: Menggunakan Floating Bottom Navigation Bar dengan maksimal 5 item (4 menu utama teratas + 1 tombol "Lainnya").
-4. **Mekanisme Tombol "Lainnya"**: Membuka Bottom Sheet Drawer elegan yang menampilkan menu tambahan sesuai hak akses peran pengguna, dikelompokkan secara terstruktur lengkap dengan ikon dan penanda halaman aktif.
+## Perilaku lintas perangkat
 
-## 2. Struktur Navigasi Setiap Peran
+- Sidebar desktop muncul mulai breakpoint `lg`; sidebar dapat collapse/expand.
+- Navigasi bawah digunakan sebelum `lg`, berisi empat tautan utama dan satu tombol Lainnya.
+- Lainnya membuka drawer berisi kelompok menu yang ditentukan oleh role.
+- Navigasi menutup drawer saat route berubah; Escape menutup drawer; fokus dipindah dan dikembalikan ke kontrol pemicu.
+- Menu yang ditampilkan tidak menggantikan pemeriksaan izin route. Route tetap melindungi modul melalui `RequireRole` dan aplikasi tetap memakai autentikasi.
 
-### A. Marketing / Admin Kantor (`MARKETING` / `ADMIN_KANTOR`)
+## Marketing / Admin Kantor
 
-#### Desktop Sidebar
-- **Utama**:
-  - Dasbor Operasional (`/app/dashboard`)
-- **Order & Klien**:
-  - PO & Order Pemeriksaan (`/app/orders`)
-  - Data Klien (`/app/clients`)
-  - Objek Uji K3 (`/app/objects`)
-- **Pelaksanaan**:
-  - Jadwal & Penugasan (`/app/schedule`)
-  - Kendala Operasional (`/app/issues`)
-- **Penerbitan Dokumen**:
-  - Dokumen LHPP (`/app/lhpp`)
-  - Berita Acara BAP (`/app/bap`)
-  - Distribusi Dokumen (`/app/distributions`)
-- **Pemantauan**:
-  - Registri Suket K3 (`/app/suket`)
-  - Pengingat Perpanjangan (`/app/reminders`)
-  - Riwayat Pengujian (`/app/history`)
-- **Akun**:
-  - Pengaturan Akun (`/app/settings`)
+Nama role implementasi: `MARKETING` dan alias lama `ADMIN_KANTOR`.
 
-#### Mobile Bottom Bar (5 Slot Utama)
-1. **Dasbor** (`/app/dashboard`)
-2. **Purchase Order** (`/app/orders`)
-3. **Jadwal** (`/app/schedule`)
-4. **Dokumen LHPP** (`/app/lhpp`)
-5. **Lainnya** (Memicu Sheet Drawer)
+**Desktop:** Dasbor Operasional; PO & Order Pemeriksaan; Data Klien; Objek Uji K3; Jadwal & Penugasan; Kendala Operasional; LHPP; BAP; Distribusi Dokumen; Suket; Pengingat; Riwayat; Pengaturan Akun.
 
-#### Isi Sheet Drawer "Lainnya" (Mobile Marketing)
-- **Data & Objek K3**: Data Klien (`/app/clients`), Objek Uji K3 (`/app/objects`)
-- **Dokumen & Distribusi**: Berita Acara BAP (`/app/bap`), Distribusi Dokumen (`/app/distributions`), Riwayat Pengujian (`/app/history`)
-- **Kepatuhan & Pemantauan**: Kendala Operasional (`/app/issues`), Registri Suket K3 (`/app/suket`), Pengingat Perpanjangan (`/app/reminders`)
-- **Pengaturan**: Pengaturan Akun (`/app/settings`)
+**Mobile utama:** Dasbor (`/app/dashboard`), Purchase Order (`/app/orders`), Jadwal (`/app/schedule`), Dokumen (`/app/lhpp`).
 
----
+**Lainnya:** Data Klien, Objek Uji; BAP, Distribusi, Riwayat; Kendala, Suket, Pengingat; Notifikasi, Pengaturan Akun.
 
-### B. Admin Sistem (`ADMIN_SISTEM`)
+## Inspector / Ahli K3
 
-#### Desktop Sidebar
-- **Utama**: Dasbor Operasional (`/app/dashboard`)
-- **Administrasi**: Manajemen Pengguna (`/app/users`), Log Audit Sistem (`/app/audit-logs`)
-- **Operasional**: PO & Order (`/app/orders`), Data Klien (`/app/clients`), Objek Uji K3 (`/app/objects`), Jadwal & Penugasan (`/app/schedule`), Form Pengujian (`/app/inspections`)
-- **Dokumen & Sertifikasi**: Dokumen LHPP (`/app/lhpp`), Berita Acara BAP (`/app/bap`), Distribusi Dokumen (`/app/distributions`), Riwayat Pengujian (`/app/history`), Registri Suket K3 (`/app/suket`)
-- **Pemantauan & Pengaturan**: Pengingat Perpanjangan (`/app/reminders`), Kendala Operasional (`/app/issues`), Pengaturan Sistem (`/app/settings`)
+Nama role implementasi: `INSPECTOR` dan alias lama `AHLI_K3`.
 
-#### Mobile Bottom Bar (5 Slot Utama)
-1. **Dasbor** (`/app/dashboard`)
-2. **Pengguna** (`/app/users`)
-3. **Purchase Order** (`/app/orders`)
-4. **Log Audit** (`/app/audit-logs`)
-5. **Lainnya** (Memicu Sheet Drawer)
+**Desktop:** Tugas Saya, Form Pengujian Lapangan, Kendala Lapangan, Objek Uji, Riwayat Pekerjaan, Pengaturan Akun.
 
-#### Isi Sheet Drawer "Lainnya" (Mobile Admin Sistem)
-- **Master Data**: Data Klien (`/app/clients`), Objek Uji K3 (`/app/objects`)
-- **Operasional Lapangan**: Jadwal & Penugasan (`/app/schedule`), Form Pengujian (`/app/inspections`)
-- **Dokumen**: Dokumen LHPP (`/app/lhpp`), Berita Acara BAP (`/app/bap`), Distribusi Dokumen (`/app/distributions`), Riwayat Pengujian (`/app/history`)
-- **Kepatuhan & Sistem**: Registri Suket K3 (`/app/suket`), Pengingat Perpanjangan (`/app/reminders`), Kendala Operasional (`/app/issues`), Pengaturan Sistem (`/app/settings`)
+**Mobile utama:** Tugas Saya, Pengujian, Kendala, Riwayat.
 
----
+**Lainnya:** Objek Uji, PO & Order Riksa, Jadwal & Agenda; LHPP, BAP; Notifikasi, Pengaturan Akun & SKP.
 
-### C. Pimpinan / Manager (`PIMPINAN` / `MANAGER`)
+## Pimpinan / Manager
 
-#### Desktop Sidebar
-- **Eksekutif**: Dasbor Eksekutif (`/app/dashboard`)
-- **Monitoring Operasional**: Monitoring PO & Status (`/app/orders`), Monitoring Jadwal Tim (`/app/schedule`), Kendala Operasional (`/app/issues`), Objek Uji K3 (`/app/objects`), Data Klien (`/app/clients`)
-- **Dokumen & Kepatuhan**: Dokumen LHPP & BAP (`/app/lhpp`), Berita Acara BAP (`/app/bap`), Registri Suket K3 (`/app/suket`), Pengingat Masa Berlaku (`/app/reminders`), Distribusi Dokumen (`/app/distributions`), Riwayat Pekerjaan (`/app/history`)
-- **Jejak Audit & Akun**: Log Audit Operasional (`/app/audit-logs`), Pengaturan Akun (`/app/settings`)
+Nama role implementasi: `PIMPINAN` dan alias lama `MANAGER`.
 
-#### Mobile Bottom Bar (5 Slot Utama)
-1. **Dasbor** (`/app/dashboard`)
-2. **Monitoring PO** (`/app/orders`)
-3. **Jadwal Tim** (`/app/schedule`)
-4. **Dokumen LHPP** (`/app/lhpp`)
-5. **Lainnya** (Memicu Sheet Drawer)
+**Desktop:** Dasbor Eksekutif, Monitoring PO & Status, Monitoring Jadwal Tim, Kendala Operasional, Objek Uji, Riwayat Pekerjaan, LHPP/BAP, Suket, Pengingat, Distribusi, Audit Log, Pengaturan.
 
-#### Isi Sheet Drawer "Lainnya" (Mobile Pimpinan)
-- **Monitoring Operasional**: Objek Uji K3 (`/app/objects`), Data Klien (`/app/clients`), Kendala Operasional (`/app/issues`)
-- **Dokumen & Kepatuhan**: Berita Acara BAP (`/app/bap`), Registri Suket K3 (`/app/suket`), Pengingat Masa Berlaku (`/app/reminders`), Distribusi Dokumen (`/app/distributions`), Riwayat Pekerjaan (`/app/history`)
-- **Audit & Akun**: Log Audit Operasional (`/app/audit-logs`), Pengaturan Akun (`/app/settings`)
+**Mobile utama:** Dasbor, Monitoring PO, Jadwal Tim, Dokumen LHPP.
 
----
+**Lainnya:** Objek Uji, Data Klien, Kendala; BAP, Suket, Pengingat, Distribusi, Riwayat; Audit Log, Notifikasi, Pengaturan.
 
-### D. Ahli K3 / Inspector (`AHLI_K3` / `INSPECTOR`)
+Route Pimpinan umumnya memberi akses baca dan pemantauan; route UI tidak memberikan fungsi approval teknis melalui navigasi. Hak setiap aksi harus tetap dinilai dari implementasi handler dan backend, bukan hanya label menu.
 
-#### Desktop Sidebar
-- **Tugas Utama**: Tugas Saya (`/app/dashboard`), Form Pengujian Lapangan (`/app/inspections`)
-- **Pelaksanaan**: Kendala Lapangan (`/app/issues`), Objek Uji K3 (`/app/objects`), Jadwal & Penugasan (`/app/schedule`)
-- **Arsip & Dokumen**: Riwayat Pekerjaan (`/app/history`), Dokumen LHPP (`/app/lhpp`), Berita Acara BAP (`/app/bap`)
-- **Akun**: Pengaturan Akun & SKP (`/app/settings`)
+## Admin Sistem / Super Admin
 
-#### Mobile Bottom Bar (5 Slot Utama)
-1. **Tugas Saya** (`/app/dashboard`)
-2. **Pengujian** (`/app/inspections`)
-3. **Kendala** (`/app/issues`)
-4. **Riwayat** (`/app/history`)
-5. **Lainnya** (Memicu Sheet Drawer)
+Nama role implementasi: `ADMIN_SISTEM`.
 
-#### Isi Sheet Drawer "Lainnya" (Mobile Inspector)
-- **Pelaksanaan & Objek**: Objek Uji K3 (`/app/objects`), PO & Order (`/app/orders`), Jadwal & Agenda (`/app/schedule`)
-- **Dokumen Teknis**: Dokumen LHPP (`/app/lhpp`), Berita Acara BAP (`/app/bap`)
-- **Akun**: Pengaturan Akun & SKP (`/app/settings`)
+**Desktop:** seluruh NAV_ITEMS yang diizinkan Admin Sistem.
 
+**Mobile utama:** Dasbor, Pengguna, PO & Order, Log Audit.
+
+**Lainnya:** Klien dan Objek Uji; Jadwal dan Form Pengujian; LHPP, BAP, Distribusi, Riwayat; Suket, Pengingat, Kendala, Notifikasi, Pengaturan Sistem.
+
+Route `/app/users` Admin Sistem saja. Route `/app/audit-logs` Admin Sistem dan Pimpinan. Alias `/app/audit-log` mengarah ke halaman sama.
+
+## Batasan yang dicatat
+
+- Notifikasi didefinisikan tanpa `RequireRole` spesifik, tetapi tetap berada di dalam layout `/app` yang memerlukan login.
+- Struktur navigasi ini memuat route yang ada sekarang, tidak mengklaim semua fungsi tiap route dapat digunakan oleh semua role.
+- Verifikasi klik semua item dan role belum dijalankan lewat browser dengan akun autentikasi per role.

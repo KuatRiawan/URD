@@ -12,6 +12,7 @@ import {
 } from '../../../lib/utils/format.js';
 
 export function SuketDetailModal({
+  open,
   detailData,
   onClose,
   canManage,
@@ -28,7 +29,7 @@ export function SuketDetailModal({
 
   return (
     <Modal
-      open={Boolean(detailData?.suket)}
+      open={open && Boolean(detailData?.suket)}
       onClose={onClose}
       title={`Detail Suket K3: ${detailData.suket.object_name} (${detailData.suket.client_name})`}
       size="xl"

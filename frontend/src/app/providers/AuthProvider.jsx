@@ -20,7 +20,9 @@ export function AuthProvider({ children }) {
     setUser(null);
     try {
       localStorage.removeItem(AUTH_USER_KEY);
-    } catch {}
+    } catch {
+      // Sesi tetap dibersihkan di memori jika penyimpanan browser tidak tersedia.
+    }
   }, []);
 
   useEffect(() => {
@@ -34,7 +36,9 @@ export function AuthProvider({ children }) {
           setUser(data.user);
           try {
             localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
-          } catch {}
+          } catch {
+            // Autentikasi aktif di memori meski cache lokal tidak dapat ditulis.
+          }
         }
       } catch {
         if (mounted) clearSession();
@@ -55,7 +59,9 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     try {
       localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
-    } catch {}
+    } catch {
+      // Login berhasil di memori; cache sesi lokal bersifat opsional.
+    }
     return data.user;
   };
 
@@ -72,7 +78,9 @@ export function AuthProvider({ children }) {
       const merged = { ...prev, ...updatedUserData };
       try {
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(merged));
-      } catch {}
+      } catch {
+        // Perubahan profil tetap berlaku pada sesi aktif.
+      }
       return merged;
     });
   }, []);

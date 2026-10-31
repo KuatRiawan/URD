@@ -1,67 +1,60 @@
-# Standar Design System & Token Desain
-PT Upaya Riksa Daya
+# Design System Existing URD
 
-## 1. Identitas Visual & Filosofi Desain
+Dokumen ini merangkum token dan pola yang ditemukan di `frontend/src/styles/index.css` serta komponen bersama. Ini mencatat standar yang sudah ada, bukan nilai baru yang dipaksakan di setiap halaman.
 
-Design system PT Upaya Riksa Daya dirancang dengan prinsip enterprise-grade K3: akurat, berintegritas, bersih, responsif, dan ergonomis untuk penggunaan lapangan maupun manajemen kantor.
+## Identitas dan teknologi
 
-### Karakteristik Utama:
-- Identitas Resmi: PT Upaya Riksa Daya (PJK3 Riksa Uji K3).
-- Palet Warna Korporat: Merah URD (`#C81E1E`) sebagai aksen identitas dipadukan dengan latar kanvas netral (`#F8FAFC` pada light mode, `#0B0F19` pada dark mode enterprise).
-- Ikonografi Tunggal: `@phosphor-icons/react` dengan konsistensi stroke dan fill.
-- Bebas Karakter Slop: Tidak menggunakan em dash (`—`) pada teks UI atau dokumentasi.
+- Nama: PT Upaya Riksa Daya.
+- Logo: aset resmi `frontend/src/assets/logo-urd.png`.
+- Font: Plus Jakarta Sans Variable, dengan fallback sistem.
+- Ikon: `@phosphor-icons/react`.
+- Framework gaya: Tailwind CSS v4, tema gelap melalui kelas `.dark`.
+- Aksen merek: merah URD.
 
-## 2. Sistem Warna (Color System)
+## Token warna aktual
 
-| Token Nama | Nilai Light Mode | Nilai Dark Mode | Penggunaan |
+| Token CSS | Light | Dark | Pemakaian |
 |---|---|---|---|
-| `--color-brand-primary` | `#C81E1E` | `#E02424` | Tombol primer, aksen aktif, identitas URD |
-| `--color-brand-hover` | `#A11616` | `#C81E1E` | Keadaan hover & active tombol primer |
-| `--color-brand-subtle` | `#FEF2F2` | `rgba(224, 36, 36, 0.15)` | Latar belakang badge / card beraksen merah |
-| `--color-canvas-bg` | `#F8FAFC` | `#0B0F19` | Latar belakang utama seluruh halaman |
-| `--color-surface` | `#FFFFFF` | `#111827` | Latar kartu (card), kontainer data, modal |
-| `--color-surface-subtle`| `#F1F5F9` | `#1F2937` | Latar input nonaktif, header tabel |
-| `--color-text-primary` | `#0F172A` | `#F8FAFC` | Judul, label utama, angka metrik |
-| `--color-text-secondary`| `#475569` | `#94A3B8` | Deskripsi, teks pendukung, breadcrumb |
-| `--color-border` | `#E2E8F0` | `#1F2937` | Garis pembatas kartu dan tabel |
-| `--color-status-success`| `#10B981` | `#34D399` | Status Selesai, Terbit, Memenuhi Syarat |
-| `--color-status-warning`| `#F59E0B` | `#FBBF24` | Status Dalam Proses, Menunggu Tindakan |
-| `--color-status-danger` | `#EF4444` | `#F87171` | Status Ditolak, Tidak Memenuhi Syarat |
-| `--color-status-info` | `#0EA5E9` | `#38BDF8` | Status Terjadwal, Terkonfirmasi, Ditugaskan |
+| `--urd-brand-red` | `#C81E1E` | `#E02424` | Aksen utama / tombol identitas |
+| `--urd-brand-red-hover` | `#A11616` | `#C81E1E` | Hover aksen |
+| `--urd-bg` | `#F8FAFC` | `#0B0F19` | Latar aplikasi |
+| `--urd-surface` | `#FFFFFF` | `#111827` | Permukaan komponen |
+| `--urd-surface-subtle` | `#F1F5F9` | `#1F2937` | Permukaan sekunder |
+| `--urd-text-primary` | `#0F172A` | `#F8FAFC` | Teks utama |
+| `--urd-text-secondary` | `#475569` | `#94A3B8` | Teks pendukung |
+| `--urd-border` | `#E2E8F0` | `#1F2937` | Garis batas |
 
-## 3. Tipografi & Skala Hierarki (Typography)
+Status success, warning, danger, dan info menggunakan kelas/utilitas warna di komponen, belum dipusatkan sebagai token CSS status khusus. Nilai warna status perlu dirasionalisasi sebelum komponen-komponen tersebut dimigrasikan.
 
-Font keluarga tunggal: **Plus Jakarta Sans** (Variable).
+## Tipografi
 
-| Tingkat Hierarki | Kelas Tailwind | Ukuran (px) | Berat (Weight) | Penggunaan |
-|---|---|---|---|---|
-| H1 (Page Title) | `text-xl sm:text-2xl` | 20px / 24px | Extrabold (800) | Judul halaman utama di PageHeader |
-| H2 (Section Title)| `text-sm sm:text-base` | 14px / 16px | Bold (700) | Judul bagian kartu atau modal |
-| H3 (Card Subhead)| `text-xs sm:text-sm` | 12px / 14px | Bold (700) | Sub-judul metrik, nama objek di kartu |
-| Body Text | `text-xs sm:text-sm` | 12px / 14px | Normal (400) / Medium (500) | Paragraf penjelasan, formulir |
-| Caption / Help | `text-[11px]` | 11px | Normal (400) | Keterangan tambahan di bawah input |
-| Monospace Text | `font-mono text-xs` | 12px | Bold (700) | Nomor PO, Order, Serial Number, Suket |
-| Badge Label | `text-[10px] sm:text-xs`| 10px / 12px | Bold (700) | Status operasional dan jenis alat |
+Font utama adalah Plus Jakarta Sans Variable. Skala yang lazim di komponen adalah judul halaman `text-xl` hingga `text-2xl`, heading bagian `text-sm` hingga `text-base`, body `text-xs` hingga `text-sm`, dan caption sekitar 10–12px. Sebagian halaman masih memakai skala lokal, sehingga konsistensi lintas semua fitur belum dinyatakan sempurna.
 
-## 4. Spacing, Radius & Elevasi
+## Layout dan komponen
 
-- **Padding Halaman**: `p-3.5 sm:p-6 lg:p-7 pb-24 lg:pb-7` (memastikan konten mobile tidak tertutup bottom bar).
-- **Radius Sistem**:
-  - Tombol Primer / Sekunder: `rounded-lg` (8px).
-  - Badge Status & Avatar: `rounded-full` (9999px).
-  - Kartu & Panel Kontainer: `rounded-xl` (12px) atau `rounded-2xl` (16px).
-  - Modal Bottom Sheet Mobile: `rounded-t-[28px]` atas di mobile, `rounded-2xl` di desktop.
-- **Elevasi / Bayangan**:
-  - Kartu standar: `shadow-2xs` atau `shadow-xs`.
-  - Floating Bottom Nav: `shadow-[0_12px_32px_rgba(0,0,0,0.12)]`.
-  - Popover & Drawer: `shadow-pop` (20px blur, penegasan kedalaman visual).
+- Sidebar dan header dipakai oleh `AppLayout`; sidebar dapat disimpan dalam keadaan collapse.
+- Mobile memakai empat tujuan utama dan tombol Lainnya; drawer menampilkan kelompok menu sesuai role.
+- Tabel dengan banyak kolom pada banyak fitur memakai kartu mobile di bawah `sm` dan tabel dengan overflow horizontal pada ukuran lebih besar.
+- Form kontrol global memiliki gaya light/dark, fokus, hover, disabled, dan checkbox/radio accent.
+- Modal bersama berada di `components/ui/Modal.jsx`; menu bawah menggunakan sheet/drawer.
+- Tombol dan kartu belum seluruhnya memakai satu komponen primitive; banyak halaman masih memakai utility class lokal.
 
-## 5. Breakpoint Standar Responsif
+## Breakpoint dan responsive behavior
 
-| Breakpoint | Target Layar | Perilaku Layout |
-|---|---|---|
-| `< 640px` (Default Mobile) | Ponsel pintar (360×800, 390×844, 430×932) | Mode kartu touch-friendly, Bottom bar 5-tab, full-width modal |
-| `640px - 767px` (`sm`) | Ponsel layar lebar / tablet mini | Transisi dari kartu ke tabel kompak, 2 kolom grid |
-| `768px - 1023px` (`md` / `lg`) | Tablet portrait & landscape (768×1024, 1024×768) | Tabel tabular lengkap, 3 kolom metrik |
-| `>= 1024px` (`lg` / `xl`) | Laptop & Desktop (1366×768, 1440×900, 1920×1080) | Sidebar navigasi samping tetap, top header breadcrumb |
+Breakpoint bersumber dari konfigurasi Tailwind standar yang dipakai proyek: `sm` 640px, `md` 768px, `lg` 1024px, `xl` 1280px, `2xl` 1536px. Perilaku navigasi memakai `lg`; pergantian kartu/tabel pada beberapa fitur memakai `sm`. Kesesuaian visual di tiap breakpoint belum semuanya dibuktikan dengan browser.
 
+## Aturan penggunaan
+
+1. Gunakan logo resmi tanpa mengubah proporsinya.
+2. Pertahankan merah URD untuk tindakan utama dan indikator identitas, bukan untuk semua elemen.
+3. Gunakan font dan ikon yang sudah dipakai proyek.
+4. Label status harus menyertakan teks, tidak hanya warna.
+5. Beri state fokus keyboard yang terlihat.
+6. Untuk tabel lebar, sediakan kartu atau strategi responsif yang terbaca.
+7. Pertimbangkan target sentuh 44px untuk aksi utama mobile.
+8. Pertahankan dukungan light dan dark mode.
+9. Hindari em dash pada teks UI dan copywriting.
+
+## Komponen yang belum memiliki standar tunggal penuh
+
+Audit kode menemukan banyak pola lokal untuk tombol, field, badge, dan card. Sebelum membuat primitive baru, cek `components/ui` dan standardisasi bertahap dengan visual regression lintas fitur. Pekerjaan ini belum diselesaikan secara menyeluruh dalam perubahan ini.

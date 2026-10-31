@@ -181,13 +181,13 @@ export function DashboardPage() {
   );
 
   const filteredUnitsForTab = useMemo(() => {
-    let list = [];
-    if (fieldTab === 'CONFIRMATION') list = categorizedUnits.confirmation;
-    else if (fieldTab === 'TODAY') list = categorizedUnits.today;
-    else if (fieldTab === 'PENDING') list = categorizedUnits.pending;
-    else if (fieldTab === 'UPCOMING') list = categorizedUnits.upcoming;
-    else if (fieldTab === 'COMPLETED') list = categorizedUnits.completed;
-    else list = assignedUnits;
+    const list = {
+      CONFIRMATION: categorizedUnits.confirmation,
+      TODAY: categorizedUnits.today,
+      PENDING: categorizedUnits.pending,
+      UPCOMING: categorizedUnits.upcoming,
+      COMPLETED: categorizedUnits.completed
+    }[fieldTab] || assignedUnits;
 
     return list.filter(matchesSearch);
   }, [fieldTab, categorizedUnits, assignedUnits, matchesSearch]);
@@ -202,7 +202,6 @@ export function DashboardPage() {
     return (
       <InspectorDashboardView
         user={user}
-        refreshing={refreshing}
         loadSummary={loadSummary}
         categorizedUnits={categorizedUnits}
         assignedUnits={assignedUnits}

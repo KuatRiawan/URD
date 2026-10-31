@@ -33,7 +33,7 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
     <>
       <nav
         aria-label="Navigasi bawah mobile"
-        className="lg:hidden fixed bottom-3 inset-x-3.5 max-w-md mx-auto z-40 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-[0_12px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.4)] px-2 py-1.5 transition-all"
+        className="lg:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] inset-x-3.5 max-w-md mx-auto z-40 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-[0_12px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.4)] px-2 py-1.5 transition-all"
       >
         <div className="grid grid-cols-5 items-center">
           {primary.map((item) => {

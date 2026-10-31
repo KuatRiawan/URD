@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { X } from '@phosphor-icons/react';
+import { useDialogFocus } from './useDialogFocus.js';
 
 const SIZE_CLASSES = {
   sm: 'max-w-md',
@@ -24,21 +25,14 @@ export function Modal({
 }) {
   const visible = Boolean(open ?? isOpen);
   const panelRef = useRef(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  const wasVisibleRef = useRef(false);
+  useDialogFocus(visible, panelRef, onClose);
 
   useEffect(() => {
     if (!visible) return undefined;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', onKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
   }, [visible]);
@@ -52,13 +46,13 @@ export function Modal({
       className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end sm:items-center sm:justify-center sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+        aria-label={title || 'Dialog'}
     >
       {/* Backdrop Gelap */}
       <div
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] transition-opacity animate-fade-in"
         onClick={() => {
-          if (closeOnBackdrop) onCloseRef.current?.();
+            if (closeOnBackdrop) onClose?.();
         }}
         aria-hidden="true"
       />
@@ -86,7 +80,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Tutup dialog"
-            className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 inline-flex items-center justify-center rounded-full sm:rounded-lg bg-slate-100 dark:bg-slate-800 sm:bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            className="h-11 w-11 sm:h-9 sm:w-9 shrink-0 inline-flex items-center justify-center rounded-full sm:rounded-lg bg-slate-100 dark:bg-slate-800 sm:bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} weight="bold" aria-hidden="true" />
           </button>

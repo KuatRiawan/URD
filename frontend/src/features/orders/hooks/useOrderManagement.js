@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api/axios.js';
 
-export function useOrderManagement({ user, confirm, toast }) {
+export function useOrderManagement() {
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [categories, setCategories] = useState([]);
