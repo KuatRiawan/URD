@@ -140,14 +140,7 @@ export function AppRoutes() {
             </RequireRole>
           }
         />
-        <Route
-          path="scheduling"
-          element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
-              <SchedulePage />
-            </RequireRole>
-          }
-        />
+        <Route path="scheduling" element={<Navigate to="/app/schedule" replace />} />
         <Route
           path="inspections"
           element={
@@ -229,14 +222,7 @@ export function AppRoutes() {
             </RequireRole>
           }
         />
-        <Route
-          path="audit-log"
-          element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'PIMPINAN']}>
-              <AuditLogPage />
-            </RequireRole>
-          }
-        />
+        <Route path="audit-log" element={<Navigate to="/app/audit-logs" replace />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

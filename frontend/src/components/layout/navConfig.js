@@ -1,5 +1,6 @@
 import {
   Alarm,
+  Article,
   Bell,
   Buildings,
   CalendarCheck,
@@ -12,7 +13,6 @@ import {
   Scroll,
   ShareNetwork,
   ShieldCheck,
-  SquaresFour,
   Users,
   WarningOctagon
 } from '@phosphor-icons/react';
@@ -101,7 +101,7 @@ export const NAV_ITEMS = [
     to: '/app/suket',
     group: 'Dokumen & Sertifikasi',
     label: 'Registri Suket K3',
-    icon: WarningOctagon,
+    icon: ShieldCheck,
     roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
@@ -129,7 +129,7 @@ export const NAV_ITEMS = [
     to: '/app/audit-logs',
     group: 'Administrasi',
     label: 'Log Audit',
-    icon: ClockCounterClockwise,
+    icon: Article,
     roles: ['ADMIN_SISTEM', 'PIMPINAN', 'MANAGER']
   },
   {
@@ -241,13 +241,13 @@ export function getVisibleNav(role) {
         to: '/app/suket',
         group: 'Dokumen & Kepatuhan',
         label: 'Registri Suket K3',
-        icon: WarningOctagon
+        icon: ShieldCheck
       },
       {
         to: '/app/reminders',
         group: 'Dokumen & Kepatuhan',
         label: 'Pengingat Masa Berlaku',
-        icon: ShieldCheck
+        icon: Alarm
       },
       {
         to: '/app/distributions',
@@ -259,7 +259,7 @@ export function getVisibleNav(role) {
         to: '/app/audit-logs',
         group: 'Jejak Audit',
         label: 'Log Audit Operasional',
-        icon: ClockCounterClockwise
+        icon: Article
       },
       {
         to: '/app/settings',
@@ -331,13 +331,13 @@ export function getVisibleNav(role) {
         to: '/app/suket',
         group: 'Pemantauan',
         label: 'Registri Suket K3',
-        icon: WarningOctagon
+        icon: ShieldCheck
       },
       {
         to: '/app/reminders',
         group: 'Pemantauan',
         label: 'Pengingat Perpanjangan',
-        icon: ShieldCheck
+        icon: Alarm
       },
       {
         to: '/app/history',
@@ -432,7 +432,7 @@ export function getMobileNavConfig(role) {
         {
           title: 'Pengawasan & Akun',
           items: [
-            { to: '/app/audit-logs', label: 'Log Audit Operasional', icon: ClockCounterClockwise },
+            { to: '/app/audit-logs', label: 'Log Audit Operasional', icon: Article },
             { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
             { to: '/app/settings', label: 'Pengaturan Akun', icon: Gear }
           ]
@@ -447,7 +447,7 @@ export function getMobileNavConfig(role) {
         { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
         { to: '/app/users', label: 'Pengguna', icon: Users },
         { to: '/app/orders', label: 'PO & Order', icon: ClipboardText },
-        { to: '/app/audit-logs', label: 'Log Audit', icon: ClockCounterClockwise }
+        { to: '/app/audit-logs', label: 'Log Audit', icon: Article }
       ],
       moreGroups: [
         {
