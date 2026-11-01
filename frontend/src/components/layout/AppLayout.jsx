@@ -111,7 +111,7 @@ function LayoutShell() {
       title: 'Keluar dari Sistem',
       message: 'Sesi Anda akan diakhiri dan Anda perlu masuk kembali untuk melanjutkan pekerjaan.',
       confirmLabel: 'Ya, Keluar',
-      tone: 'warning'
+      tone: 'danger'
     });
     if (!ok) return;
     await logout();

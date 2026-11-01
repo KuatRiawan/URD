@@ -60,7 +60,7 @@ export function Modal({
       {/* Panel Bottom Sheet Mobile & Centered Dialog Desktop */}
       <div
         ref={panelRef}
-        className={`relative w-full ${widthClass} rounded-t-[28px] sm:rounded-2xl bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[90vh] h-[90dvh] sm:h-auto overscroll-contain pb-safe z-10`}
+        className={`relative w-full ${widthClass} rounded-t-[28px] sm:rounded-2xl bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[90vh] overscroll-contain pb-safe z-10`}
       >
         {/* Indikator Handle Bar Lembar Bawah Mobile */}
         <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
