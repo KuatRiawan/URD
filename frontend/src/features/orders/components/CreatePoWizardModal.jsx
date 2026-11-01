@@ -142,7 +142,7 @@ export function CreatePoWizardModal({
             <button
               type="button"
               onClick={handleWizardNext}
-              className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+              className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
             >
               <span>Lanjut: {PO_WIZARD_STEPS[poWizardStep]}</span>
               <ArrowRight size={16} weight="bold" />

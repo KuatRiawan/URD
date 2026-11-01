@@ -47,10 +47,10 @@ export function DashboardPage() {
   useEffect(() => {
     loadSummary();
 
-    // Polling periodik otomatis setiap 5 detik agar data selalu realtime
+    // Polling periodik otomatis setiap 30 detik agar data tetap segar tanpa membebani server
     const interval = setInterval(() => {
       loadSummary(true);
-    }, 5000);
+    }, 30000);
 
     // Sinkronisasi instan saat pengguna kembali membuka tab atau aplikasi dari latar belakang
     const handleVisibilityChange = () => {

@@ -1,4 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Notice } from '../../../components/ui/Notice.jsx';
 import { ROLE_OPTIONS } from '../../../lib/utils/format.js';
 
 export function CreateUserModal({
@@ -7,7 +8,8 @@ export function CreateUserModal({
   createForm,
   setCreateForm,
   submitting,
-  onSubmit
+  onSubmit,
+  error
 }) {
   return (
     <Modal
@@ -16,6 +18,8 @@ export function CreateUserModal({
       title="Tambah Akun Pengguna Internal"
     >
       <form onSubmit={onSubmit} className="space-y-4">
+        {error && <Notice tone="error">{error}</Notice>}
+
         <div>
           <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
             Nama Lengkap *
@@ -25,7 +29,7 @@ export function CreateUserModal({
             required
             value={createForm.fullName}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, fullName: e.target.value }))}
-            className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
           />
         </div>
         <div>
@@ -38,7 +42,7 @@ export function CreateUserModal({
             value={createForm.email}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
             placeholder="nama@upayariksadaya.com"
-            className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -49,7 +53,7 @@ export function CreateUserModal({
             <select
               value={createForm.role}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value }))}
-              className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+              className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
             >
               {ROLE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>
@@ -66,7 +70,7 @@ export function CreateUserModal({
               type="text"
               value={createForm.phone}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, phone: e.target.value }))}
-              className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+              className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
             />
           </div>
         </div>
@@ -82,7 +86,7 @@ export function CreateUserModal({
                 setCreateForm((prev) => ({ ...prev, employeeNo: e.target.value }))
               }
               placeholder="Contoh: URD-AK3-009"
-              className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+              className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
             />
           </div>
         )}
@@ -96,27 +100,31 @@ export function CreateUserModal({
             minLength={8}
             value={createForm.password}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
-            className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
           />
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+            className="min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="min-h-11 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
+            className="min-h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
           >
-            {submitting ? 'Menyimpan...' : 'Buat Akun'}
+            {submitting ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
+                <span>Menyimpan...</span>
+              </>
+            ) : 'Buat Akun'}
           </button>
         </div>
       </form>
     </Modal>
   );
 }
-

@@ -88,7 +88,7 @@ export function AddCompetencyModal({
           <button
             type="submit"
             disabled={submitting}
-            className="min-h-11 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
+            className="min-h-11 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
           >
             {submitting ? 'Menyimpan...' : 'Simpan SKP'}
           </button>

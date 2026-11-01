@@ -162,7 +162,7 @@ export function RemindersPage() {
                 type="button"
                 disabled={submitting}
                 onClick={handleRunDispatch}
-                className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
+                className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
               >
                 <BellRinging size={16} weight="bold" />
                 <span>Jalankan Dispatch Pengingat</span>

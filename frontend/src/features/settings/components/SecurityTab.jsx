@@ -28,12 +28,12 @@ export function SecurityTab({
         <CardContent>
           {passwordSuccess && (
             <div className="mb-4">
-              <Notice variant="success">{passwordSuccess}</Notice>
+              <Notice tone="success">{passwordSuccess}</Notice>
             </div>
           )}
           {passwordError && (
             <div className="mb-4">
-              <Notice variant="error">{passwordError}</Notice>
+              <Notice tone="error">{passwordError}</Notice>
             </div>
           )}
 

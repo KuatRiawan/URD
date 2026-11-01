@@ -108,7 +108,7 @@ export const NAV_ITEMS = [
     to: '/app/reminders',
     group: 'Pemantauan',
     label: 'Pengingat Perpanjangan',
-    icon: ShieldCheck,
+    icon: Alarm,
     roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {

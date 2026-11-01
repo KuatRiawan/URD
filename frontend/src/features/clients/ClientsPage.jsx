@@ -194,7 +194,7 @@ export function ClientsPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#991B1B] shadow-xs cursor-pointer"
+              className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#991B1B] shadow-xs cursor-pointer"
             >
               <Plus size={16} weight="bold" aria-hidden="true" />
               <span>Tambah Klien Baru</span>

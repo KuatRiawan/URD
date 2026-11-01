@@ -79,12 +79,12 @@ export function ProfileTab({
         <CardContent>
           {profileSuccess && (
             <div className="mb-4">
-              <Notice variant="success">{profileSuccess}</Notice>
+              <Notice tone="success">{profileSuccess}</Notice>
             </div>
           )}
           {profileError && (
             <div className="mb-4">
-              <Notice variant="error">{profileError}</Notice>
+              <Notice tone="error">{profileError}</Notice>
             </div>
           )}
 

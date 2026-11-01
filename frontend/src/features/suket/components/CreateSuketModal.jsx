@@ -132,7 +132,7 @@ export function CreateSuketModal({
           <button
             type="submit"
             disabled={submitting}
-            className="min-h-11 rounded-md bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+            className="min-h-11 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
           >
             {submitting ? 'Menyimpan...' : 'Simpan Suket K3'}
           </button>
