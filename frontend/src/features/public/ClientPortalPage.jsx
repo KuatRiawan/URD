@@ -238,9 +238,8 @@ export function ClientPortalPage() {
       </main>
 
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-        © {new Date().getFullYear()} PT Upaya Riksa Daya · Kontak Layanan K3: (021) 489 1409 · urd@upayariksadaya.com
+        © {new Date().getFullYear()} PT Upaya Riksa Daya
       </footer>
     </div>
   );
 }
-

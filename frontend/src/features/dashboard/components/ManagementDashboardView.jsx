@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import {
   Alarm,
@@ -23,6 +24,10 @@ import { IndonesiaMapWidget } from '../IndonesiaMapWidget.jsx';
 import { WorkQueueWidget } from '../WorkQueueWidget.jsx';
 import { formatRelativeTime } from '../../../lib/utils/format.js';
 
+const DashboardPoCreator = lazy(() =>
+  import('./DashboardPoCreator.jsx').then((module) => ({ default: module.DashboardPoCreator }))
+);
+
 export function ManagementDashboardView({
   user,
   data,
@@ -32,6 +37,8 @@ export function ManagementDashboardView({
   setPeriod
 }) {
   const m = data?.metrics || {};
+  const [poCreatorOpen, setPoCreatorOpen] = useState(false);
+  const isMarketing = user?.role === 'MARKETING';
 
   return (
     <div className="space-y-6">
@@ -41,13 +48,14 @@ export function ManagementDashboardView({
         actions={
           <>
             {['ADMIN_KANTOR', 'ADMIN_SISTEM', 'MARKETING'].includes(user?.role) && (
-              <Link
-                to="/app/orders"
+              <button
+                type="button"
+                onClick={() => setPoCreatorOpen(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] transition-all shadow-xs"
               >
                 <Plus size={16} weight="bold" aria-hidden="true" />
                 <span>Catat PO Baru</span>
-              </Link>
+              </button>
             )}
             <button
               type="button"
@@ -255,7 +263,7 @@ export function ManagementDashboardView({
         </div>
 
         {/* Right Column (4-cols): Recent Activity Stream */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className={`lg:col-span-4 space-y-6 ${isMarketing ? 'hidden' : ''}`}>
           <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
             <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -323,9 +331,14 @@ export function ManagementDashboardView({
 
       {/* 4. Lower Section: Sebaran Geografis Objek Uji */}
       <section aria-label="Sebaran Geografis Objek Uji K3">
-        <IndonesiaMapWidget provinceDistribution={data?.analytics?.provinceDistribution || []} />
+        <IndonesiaMapWidget regions={data?.analytics?.regionalMapping || []} />
       </section>
+
+      {poCreatorOpen && (
+        <Suspense fallback={null}>
+          <DashboardPoCreator open={poCreatorOpen} onClose={() => setPoCreatorOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
-

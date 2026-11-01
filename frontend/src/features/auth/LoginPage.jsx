@@ -229,7 +229,7 @@ export function LoginPage() {
 
         {/* Footer Mobile */}
         <footer className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-          &copy; {new Date().getFullYear()} PT Upaya Riksa Daya · urd@upayariksadaya.com · (021) 489 1409
+          &copy; {new Date().getFullYear()} PT Upaya Riksa Daya
         </footer>
       </main>
     </div>

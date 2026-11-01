@@ -15,9 +15,9 @@ const LHPP_SKP_APPENDIX_FILES = JSON.parse(
 );
 
 function getLhppSkpAppendixPaths(categoryCode) {
-  return (LHPP_SKP_APPENDIX_FILES[categoryCode] || [])
-    .map((fileName) => path.resolve(__dirname, '../assets/lhpp/skp', categoryCode, fileName))
-    .filter((filePath) => fs.existsSync(filePath));
+  return (LHPP_SKP_APPENDIX_FILES[categoryCode] || []).map((fileName) =>
+    path.resolve(__dirname, '../assets/lhpp/skp', categoryCode, fileName)
+  ).filter((filePath) => fs.existsSync(filePath));
 }
 
 function drawCompanyHeader(doc, subtitle) {
@@ -26,10 +26,10 @@ function drawCompanyHeader(doc, subtitle) {
   }
   doc
     .fillColor('#1D1414')
-    .font('Times-Bold')
+    .font('Helvetica-Bold')
     .fontSize(14)
     .text('PT UPAYA RIKSA DAYA', 125, 40)
-    .font('Times-Roman')
+    .font('Helvetica')
     .fontSize(9)
     .fillColor('#324A6D')
     .text('Perusahaan Jasa K3 (PJK3) Bidang Pemeriksaan dan Pengujian', 125, 58)
@@ -47,7 +47,7 @@ function drawCompanyHeader(doc, subtitle) {
   if (subtitle) {
     doc
       .fillColor('#1D1414')
-      .font('Times-Bold')
+      .font('Helvetica-Bold')
       .fontSize(12)
       .text(subtitle, 45, 104, { align: 'center', width: 505 });
     doc.moveDown(0.5);
@@ -62,7 +62,7 @@ function drawCompanyFooter(doc, yPos = 770) {
     .strokeColor('#C8D5DC')
     .stroke();
   doc
-    .font('Times-Roman')
+    .font('Helvetica')
     .fontSize(7.5)
     .fillColor('#324A6D')
     .text(
@@ -127,6 +127,8 @@ const TEMPLATE_BAP_COLUMNS = [
 ];
 
 function renderSingleBapPage(doc, bap, qrBuffer) {
+  // 1. Kop sesuai template resmi Berita Acara Riksa Uji PT. UPAYA RIKSA DAYA
+  // Bar merah marun di sisi kiri + Nama PT. UPAYA RIKSA DAYA + Logo resmi di kanan atas
   doc.rect(45, 42, 260, 16).fillColor('#8B262B').fill();
 
   doc
@@ -146,6 +148,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     doc.image(officialLogoPath, 462, 32, { width: 82 });
   }
 
+  // Judul utama & nomor BAP di atas garis titik-titik
   doc
     .font('Times-Bold')
     .fontSize(14)
@@ -169,6 +172,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
       .text('Verifikasi', 500, 119, { align: 'center', width: 50 });
   }
 
+  // 2. Kalimat Pembuka (Hari, Tanggal, Bulan, Tahun)
   const dObj = bap.inspection_date ? new Date(bap.inspection_date) : new Date();
   const validDate = Number.isNaN(dObj.getTime()) ? new Date() : dObj;
   const dayName = INDONESIAN_DAYS[validDate.getDay()];
@@ -187,6 +191,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
       { width: 505, lineGap: 2 }
     );
 
+  // 3. Identitas Objek & Perusahaan (dengan garis titik-titik sesuai form asli)
   const identityRows = [
     ['Objek Periksa', `${bap.object_name || '-'} (${bap.category_code || '-'})`],
     ['Nama Perusahaan', bap.client_name || '-'],
@@ -214,6 +219,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
       .text(label, 45, rowY, { width: 118 })
       .text(':', 163, rowY);
 
+    // Garis titik-titik latar
     doc
       .font('Times-Roman')
       .fontSize(9)
@@ -234,6 +240,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     rowY += 16;
   }
 
+  // 4. Lingkup Riksa Uji (3 Kolom Checkbox persis sesuai template)
   const scopeTop = rowY + 2;
   doc
     .font('Times-Roman')
@@ -242,22 +249,59 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .text('Lingkup Riksa Uji', 45, scopeTop)
     .text(':', 163, scopeTop);
 
-  const colWidth = 160;
-  for (let c = 0; c < 3; c += 1) {
-    const colX = 45 + c * (colWidth + 12);
-    const items = TEMPLATE_BAP_COLUMNS[c] || [];
-    for (let r = 0; r < items.length; r += 1) {
-      const y = scopeTop + 14 + r * 12;
-      const label = items[r];
-      doc.rect(colX, y + 1.5, 7, 7).lineWidth(0.6).strokeColor('#1D1414').stroke();
+  const rawScopes = Array.isArray(bap.scope_items) ? bap.scope_items : [];
+  const normalizedSelected = new Set(rawScopes.map((s) => String(s).trim().toLowerCase()));
+  const flatStandard = TEMPLATE_BAP_COLUMNS.flat().map((s) => s.toLowerCase());
+  const customScopes = rawScopes.filter(
+    (s) => !flatStandard.includes(String(s).trim().toLowerCase())
+  );
+
+  const col3WithCustom = [
+    ...TEMPLATE_BAP_COLUMNS[2],
+    customScopes[0] || '...........................',
+    customScopes[1] || '...........................'
+  ];
+  const columns = [TEMPLATE_BAP_COLUMNS[0], TEMPLATE_BAP_COLUMNS[1], col3WithCustom];
+  const colXPositions = [172, 305, 434];
+  const colWidths = [130, 126, 118];
+
+  for (let cIdx = 0; cIdx < 3; cIdx += 1) {
+    const colItems = columns[cIdx];
+    const colX = colXPositions[cIdx];
+    const colW = colWidths[cIdx];
+    for (let rIdx = 0; rIdx < colItems.length; rIdx += 1) {
+      const label = colItems[rIdx];
+      const y = scopeTop + rIdx * 13.2;
+      const isCustomPlaceholder = label.startsWith('....');
+      const isChecked =
+        !isCustomPlaceholder &&
+        (normalizedSelected.has(label.toLowerCase()) ||
+          (label === 'Pemeriksaan Data & Gambar' &&
+            normalizedSelected.has('pemeriksaan dokumen')));
+
       doc
-        .font('Times-Roman')
-        .fontSize(7.5)
+        .rect(colX, y + 1.5, 7.5, 7.5)
+        .lineWidth(0.7)
+        .strokeColor(isChecked ? '#C81E1E' : '#1D1414')
+        .stroke();
+
+      if (isChecked) {
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(7)
+          .fillColor('#C81E1E')
+          .text('v', colX + 1.6, y + 1);
+      }
+
+      doc
+        .font(isChecked ? 'Times-Bold' : 'Times-Roman')
+        .fontSize(8.2)
         .fillColor('#1D1414')
-        .text(label, colX + 10.5, y + 0.5, { width: colWidth - 11, lineBreak: false });
+        .text(label, colX + 10.5, y + 0.5, { width: colW - 11, lineBreak: false });
     }
   }
 
+  // 5. Hasil Riksa Uji
   const resultTop = scopeTop + 138;
   doc
     .font('Times-Roman')
@@ -292,6 +336,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .fillColor('#1D1414')
     .text(' Persyaratan Keselamatan dan Kesehatan Kerja.', { strike: false });
 
+  // 6. Catatan (Kotak dengan baris titik-titik seperti pada template asli)
   const notesTop = resultBoxTop + 42;
   doc
     .font('Times-Roman')
@@ -330,6 +375,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
       { width: 485, height: notesBoxHeight - 16, lineGap: 4.5 }
     );
 
+  // 7. Kotak Tanda Tangan Terpadu (Inspector di kiri & Pemilik Alat / Unit di kanan)
   const sigTop = notesBoxTop + notesBoxHeight + 8;
   const sigHeight = 96;
   doc.rect(45, sigTop, 505, sigHeight).lineWidth(0.9).strokeColor('#1D1414').stroke();
@@ -341,6 +387,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .text('Inspector', 55, sigTop + 6, { align: 'center', width: 220 })
     .text('Pemilik Alat / Unit', 315, sigTop + 6, { align: 'center', width: 220 });
 
+  // Cap / Watermark Logo PT. UPAYA RIKSA DAYA pada area Inspector sesuai template
   if (fs.existsSync(officialLogoPath)) {
     doc.save();
     doc.opacity(0.22);
@@ -376,6 +423,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .text(`(   ${inspDisplayName}   )`, 55, sigTop + 75, { align: 'center', width: 220 })
     .text(`(   ${clientDisplayName}   )`, 315, sigTop + 75, { align: 'center', width: 220 });
 
+  // 8. Kalimat Penutup & Alamat Kantor Resmi Sesuai Template
   const closingTop = sigTop + sigHeight + 7;
   doc
     .font('Times-Roman')
@@ -659,19 +707,19 @@ const LHPP_CATEGORY_CONFIG = {
     ],
     technicalFields: [
       { key: 'item_no', label: 'Nomor Unit / Tag Klien (Item No)' },
-      { key: 'jenis_pesawat', label: 'Jenis Pesawat (Lift / Eskalator)' },
+      { key: 'jenis_pesawat', label: 'Jenis Pesawat (Passenger Lift / Bed Lift / Cargo / Eskalator)' },
       { key: 'merk_pabrik', label: 'Merk & Pabrik Pembuat' },
       { key: 'kapasitas_angkut', label: 'Kapasitas Angkut (Orang / kg)' },
       { key: 'kecepatan_nominal', label: 'Kecepatan Nominal Laju Kereta (m/s)' },
       { key: 'jumlah_lantai_layanan', label: 'Jumlah Lantai Layanan / Pintu' },
       { key: 'panjang_lintasan_travel', label: 'Panjang Lintasan / Travel Height (m)' },
-      { key: 'sistem_penggerak', label: 'Sistem Penggerak (Traksi / Hidrolik)' },
+      { key: 'sistem_penggerak', label: 'Sistem Penggerak (Traksi Geared / Gearless / Hidrolik)' },
       { key: 'tipe_mesin_traksi', label: 'Tipe & Spesifikasi Mesin Traksi' },
-      { key: 'tali_penggantung', label: 'Tali Kawat Baja Penggantung (Wire Rope)' },
+      { key: 'tali_penggantung', label: 'Spesifikasi Tali Kawat Baja Penggantung (Wire Rope)' },
       { key: 'tipe_pengaman_car', label: 'Tipe Rem Pengaman Sangkar (Safety Gear)' },
-      { key: 'tipe_governor', label: 'Tipe Governor & Setting Kecepatan' },
-      { key: 'interlock_pintu', label: 'Sistem Pengunci Daun Pintu (Interlock)' },
-      { key: 'catu_daya_darurat_ard', label: 'Automatic Rescue Device (ARD)' },
+      { key: 'tipe_governor', label: 'Tipe Governor Kecepatan Lebih & Setting Kecepatan' },
+      { key: 'interlock_pintu', label: 'Sistem Pengunci Daun Pintu (Interlock Switch)' },
+      { key: 'catu_daya_darurat_ard', label: 'Automatic Rescue Device (ARD) / Catu Daya Baterai' },
       { key: 'standard_ref', label: 'Standar Rujukan K3' }
     ],
     rules: [
@@ -734,48 +782,6 @@ function hasReportValue(value) {
   return value !== null && value !== undefined && String(value).trim() !== '';
 }
 
-const LHPP_CHECKLIST_LAYOUTS = {
-  PAA: {
-    columns: [64.3, 89.4, 198.0, 339.3, 395.2, 451.4, 550.3],
-    headings: ['No', 'Nama Bagian /\nKomponen', 'Pemeriksaan terhadap', 'Memenuhi\nSyarat K3', 'Tidak Memenuhi\nSyarat K3', 'Keterangan'],
-    status: ['SESUAI', 'TIDAK_SESUAI']
-  },
-  PUBT: {
-    columns: [64.3, 89.4, 198.0, 339.3, 395.2, 451.4, 550.3],
-    headings: ['No', 'Bagian-Bagian', 'Pemeriksaan terhadap', 'Memenuhi\nSyarat K3', 'Tidak Memenuhi\nSyarat K3', 'Keterangan'],
-    status: ['SESUAI', 'TIDAK_SESUAI']
-  },
-  PTP: {
-    columns: [64.3, 89.4, 204.0, 344.0, 404.0, 464.0, 550.3],
-    headings: ['No', 'Komponen', 'Pemeriksaan terhadap', 'Baik', 'Buruk', 'Keterangan'],
-    status: ['SESUAI', 'TIDAK_SESUAI']
-  },
-  IPP: {
-    columns: [64.3, 89.4, 218.0, 360.0, 410.0, 460.0, 505.0, 550.3],
-    headings: ['No', 'Items Pemeriksaan', 'Uraian Pemeriksaan', 'Baik', 'Buruk', 'N/A', 'Keterangan'],
-    status: ['BAIK', 'BURUK', 'TIDAK_BERLAKU']
-  },
-  LIS: {
-    columns: [64.3, 89.4, 320.0, 390.0, 460.0, 550.3],
-    headings: ['No', 'Item Pemeriksaan', 'Ada', 'Tidak Ada', 'Keterangan'],
-    status: ['ADA', 'TIDAK_ADA']
-  },
-  LE: {
-    columns: [64.3, 89.4, 198.0, 339.3, 395.2, 451.4, 550.3],
-    headings: ['No', 'Komponen', 'Pemeriksaan terhadap', 'Memenuhi\nSyarat K3', 'Tidak Memenuhi\nSyarat K3', 'Keterangan'],
-    status: ['SESUAI', 'TIDAK_SESUAI']
-  },
-  IPK: {
-    columns: [64.3, 89.4, 215.0, 360.0, 420.0, 480.0, 550.3],
-    headings: ['No', 'Jenis Dokumen / Komponen', 'Pemeriksaan terhadap', 'Memenuhi', 'Tidak Memenuhi', 'Keterangan'],
-    status: ['SESUAI', 'TIDAK_SESUAI']
-  }
-};
-
-function normalizedChoice(choice) {
-  return String(choice || '').trim().toUpperCase().replace(/[ -]+/g, '_');
-}
-
 const LEGACY_GENERATED_LHPP_VALUES = new Set([
   'sesuai hasil pemeriksaan dan pengujian lapangan',
   'hasil pemeriksaan teknis sesuai bap.',
@@ -812,7 +818,6 @@ export function buildLhppReportContent(data) {
     !Array.isArray(data.technical_data)
       ? data.technical_data
       : {};
-
   const readField = (...keys) => {
     for (const key of keys) {
       const value = technicalData[key] ?? data[key];
@@ -820,165 +825,83 @@ export function buildLhppReportContent(data) {
     }
     return '-';
   };
-
   const readDateField = (...keys) => {
     const value = readField(...keys);
     if (value === '-') return value;
     return formatIndoDate(value);
   };
-
   const templateIdentityRows = {
     PAA: [
-      ['Pemilik', readField('client_name')],
-      ['Alamat', readField('client_address')],
-      ['Pemakai', readField('pemakai', 'client_name')],
-      ['Pengurus / Penanggung jawab', readField('pengurus', 'contact_name')],
-      ['Lokasi Unit', readField('install_location')],
-      ['Jenis Pesawat', readField('jenis_pesawat', 'object_name')],
-      ['Item No', readField('item_no')],
-      ['Nomor Seri Unit', readField('serial_number')],
-      ['Merk / Model', readField('brand', 'model')],
-      ['Tahun', readField('manufacture_year')],
-      ['Kapasitas Angkat', readField('capacity', 'swl')],
-      ['Standar yang dipakai', readField('standard_ref')],
-      ['Digunakan untuk', readField('digunakan_untuk')],
-      ['Tanggal diperiksa', readDateField('inspection_date')],
-      ['Jenis Pemeriksaan', readField('inspection_type')],
-      ['No. Ijin Pemakaian', readField('previous_permit_no')],
+      ['Pemilik', readField('client_name')], ['Alamat', readField('client_address')],
+      ['Pemakai', readField('pemakai', 'client_name')], ['Pengurus / Penanggung jawab', readField('pengurus', 'contact_name')],
+      ['Lokasi Unit', readField('install_location')], ['Jenis Pesawat', readField('jenis_pesawat', 'object_name')],
+      ['Item No', readField('item_no')], ['Nomor Seri Unit', readField('serial_number')],
+      ['Merk / Model', readField('brand', 'model')], ['Tahun', readField('manufacture_year')],
+      ['Kapasitas Angkat', readField('capacity', 'swl')], ['Standar yang dipakai', readField('standard_ref')],
+      ['Digunakan untuk', readField('digunakan_untuk')], ['Tanggal diperiksa', readDateField('inspection_date')],
+      ['Jenis Pemeriksaan', readField('inspection_type')], ['No. Ijin Pemakaian', readField('previous_permit_no')],
       ['Diperiksa Oleh', readField('inspector_name')]
     ],
     PUBT: [
-      ['Pemilik', readField('client_name')],
-      ['Alamat', readField('client_address')],
-      ['Pemakai', readField('pemakai', 'client_name')],
-      ['Lokasi Unit', readField('install_location')],
-      ['Nama Operator', readField('operator_name')],
-      ['Jenis Bejana', readField('jenis_bejana', 'object_name')],
-      ['Pabrik Pembuat', readField('manufacturer')],
-      ['Merk / Type', readField('brand', 'model')],
-      ['Tahun Pembuatan', readField('manufacture_year')],
-      ['Item No', readField('item_no')],
-      ['No. Serie / No. Unit', readField('serial_number')],
-      ['Tekanan Design', readField('tekanan_desain', 'design_pressure')],
+      ['Pemilik', readField('client_name')], ['Alamat', readField('client_address')],
+      ['Pemakai', readField('pemakai', 'client_name')], ['Lokasi Unit', readField('install_location')],
+      ['Nama Operator', readField('operator_name')], ['Jenis Bejana', readField('jenis_bejana', 'object_name')],
+      ['Pabrik Pembuat', readField('manufacturer')], ['Merk / Type', readField('brand', 'model')],
+      ['Tahun Pembuatan', readField('manufacture_year')], ['Item No', readField('item_no')],
+      ['No. Serie / No. Unit', readField('serial_number')], ['Tekanan Design', readField('tekanan_desain', 'design_pressure')],
       ['Tekanan Kerja Maks. Yang Diperbolehkan', readField('tekanan_kerja', 'max_allowable_working_pressure')],
-      ['Kapasitas', readField('kapasitas_volume', 'volume_kapasitas')],
-      ['Dimensi', readField('dimensi_bejana')],
-      ['Media yang digunakan', readField('media_fluida', 'fluida_isinya')],
-      ['Temperatur Kerja', readField('temperatur_kerja')],
-      ['Pedoman Pemeriksaan', readField('standard_ref')],
-      ['Digunakan Untuk', readField('digunakan_untuk')],
-      ['Jenis Pemeriksaan', readField('inspection_type')],
-      ['No. Ijin Pemakaian', readField('previous_permit_no')],
-      ['Tanggal Pemeriksaan dan Pengujian', readDateField('inspection_date')],
-      ['Diperiksa Oleh', readField('inspector_name')]
-    ],
-    IPP: [
-      ['Nama Perusahaan', readField('client_name')],
-      ['Alamat Perusahaan', readField('client_address')],
-      ['Lokasi Unit', readField('install_location')],
-      ['Jenis Instalasi', 'Instalasi Penyalur Petir'],
-      ['Tipe / Merk Air Terminal', `${readField('brand')} / ${readField('model')}`],
-      ['Radius Proteksi', readField('radius_proteksi')],
-      ['Tinggi Bangunan', readField('tinggi_gedung')],
-      ['Tinggi Finial / Tiang', readField('tinggi_finial')],
-      ['Jumlah Hantaran Turun (Down Conductor)', readField('jumlah_down_conductor')],
-      ['Jenis & Penampang Hantaran', `${readField('jenis_hantaran')} / ${readField('penampang_kabel')}`],
-      ['Jumlah Titik Pembumian (Grounding)', readField('jumlah_elektroda', 'jumlah_bak_kontrol')],
-      ['Tanggal Pemeriksaan', readDateField('inspection_date')],
-      ['Diperiksa Oleh', readField('inspector_name')]
+      ['Kapasitas', readField('kapasitas_volume', 'volume_kapasitas')], ['Dimensi', readField('dimensi_bejana')],
+      ['Media yang digunakan', readField('media_fluida', 'fluida_isinya')], ['Temperatur Kerja', readField('temperatur_kerja')],
+      ['Pedoman Pemeriksaan', readField('standard_ref')], ['Digunakan Untuk', readField('digunakan_untuk')],
+      ['Jenis Pemeriksaan', readField('inspection_type')], ['No. Ijin Pemakaian', readField('previous_permit_no')],
+      ['Tanggal Pemeriksaan dan Pengujian', readDateField('inspection_date')], ['Diperiksa Oleh', readField('inspector_name')]
     ],
     LIS: [
-      ['Nama Perusahaan/Instansi', readField('client_name')],
-      ['Alamat', readField('client_address')],
-      ['Alamat Pemakai', readField('user_address', 'client_address')],
-      ['Jenis Unit', readField('object_name')],
-      ['Jenis Pemeriksaan', readField('inspection_type')],
-      ['Nomor Izin Pemakaian', readField('previous_permit_no')],
+      ['Nama Perusahaan/Instansi', readField('client_name')], ['Alamat', readField('client_address')],
+      ['Alamat Pemakai', readField('user_address', 'client_address')], ['Jenis Unit', readField('object_name')],
+      ['Jenis Pemeriksaan', readField('inspection_type')], ['Nomor Izin Pemakaian', readField('previous_permit_no')],
       ['Pelaksanaan riksa uji', readDateField('inspection_date')]
     ],
-    LE: [
-      ['Pemilik', readField('client_name')],
-      ['Alamat', readField('client_address')],
-      ['Lokasi Unit', readField('install_location')],
-      ['Jenis Pesawat', readField('jenis_pesawat', 'object_name')],
-      ['Merk / Pabrik Pembuat', `${readField('brand')} / ${readField('manufacturer')}`],
-      ['Nomor Seri Unit', readField('serial_number')],
-      ['Tahun Pembuatan', readField('manufacture_year')],
-      ['Kapasitas Angkut', `${readField('capacity')} ${readField('capacity_unit') || 'kg'}`.trim()],
-      ['Kecepatan Nominal', readField('kecepatan_nominal')],
-      ['Jumlah Lantai Layanan', readField('jumlah_lantai_layanan')],
-      ['Tanggal Pemeriksaan', readDateField('inspection_date')],
-      ['Diperiksa Oleh', readField('inspector_name')]
-    ],
     IPK: [
-      ['Nama Gedung / Bangunan', readField('building_name', 'object_name')],
-      ['Alamat Pemakai', readField('client_address')],
-      ['Alamat Pemakaian', readField('install_location')],
-      ['Penggunaan Bangunan', readField('building_use')],
-      ['Nama Pemilik/Pimpinan/Direktur', readField('owner_name')],
-      ['Instalatur', readField('installer_name')],
-      ['Alamat Instalatur', readField('installer_address')],
-      ['Status Riksa Uji', readField('inspection_type')],
-      ['Tanggal Riksa Uji', readDateField('inspection_date')],
-      ['No. Surat Keterangan', readField('previous_permit_no')]
+      ['Nama Gedung / Bangunan', readField('building_name', 'object_name')], ['Alamat Pemakai', readField('client_address')],
+      ['Alamat Pemakaian', readField('install_location')], ['Penggunaan Bangunan', readField('building_use')],
+      ['Nama Pemilik/Pimpinan/Direktur', readField('owner_name')], ['Instalatur', readField('installer_name')],
+      ['Alamat Instalatur', readField('installer_address')], ['Status Riksa Uji', readField('inspection_type')],
+      ['Tanggal Riksa Uji', readDateField('inspection_date')], ['No. Surat Keterangan', readField('previous_permit_no')]
     ]
   };
-
   const isDieselPtp = categoryCode === 'PTP' && /diesel|genset/i.test(`${data.object_name || ''} ${technicalData.jenis_pesawat || ''}`);
   if (categoryCode === 'PTP') {
     templateIdentityRows.PTP = isDieselPtp
       ? [
-          ['Perusahaan Pemilik', readField('client_name')],
-          ['Alamat', readField('client_address')],
-          ['Lokasi Pemakai', readField('install_location')],
-          ['Alamat Pemakai', readField('user_address', 'client_address')],
-          ['Pengurus / Penanggung Jawab', readField('pengurus')],
-          ['Lokasi Unit', readField('install_location')],
-          ['Jenis Pesawat / Type', readField('jenis_pesawat', 'object_name')],
-          ['Merk / Type', readField('brand', 'model')],
-          ['No. Seri / No. Unit', readField('serial_number')],
-          ['Lokasi / Tahun Pembuatan', readField('manufacture_year')],
-          ['Kapasitas', readField('kapasitas_daya', 'capacity')],
-          ['Digunakan Untuk', readField('digunakan_untuk')],
-          ['No. SKP PJK3 / Bidang', readField('skp_pjk3')],
-          ['No. SKP / Bidang AK3', readField('skp_ahli_k3')],
-          ['Klasifikasi', readField('klasifikasi')],
-          ['No Izin Pemakaian / Penerbit', readField('previous_permit_no')],
-          ['Nama Operator', readField('operator_name')],
-          ['Jenis Pemeriksaan', readField('inspection_type')],
-          ['Tanggal Riksa Uji', readDateField('inspection_date')],
-          ['Diperiksa Oleh', readField('inspector_name')]
+          ['Perusahaan Pemilik', readField('client_name')], ['Alamat', readField('client_address')],
+          ['Lokasi Pemakai', readField('install_location')], ['Alamat Pemakai', readField('user_address', 'client_address')],
+          ['Pengurus / Penanggung Jawab', readField('pengurus')], ['Lokasi Unit', readField('install_location')],
+          ['Jenis Pesawat / Type', readField('jenis_pesawat', 'object_name')], ['Merk / Type', readField('brand', 'model')],
+          ['No. Seri / No. Unit', readField('serial_number')], ['Lokasi / Tahun Pembuatan', readField('manufacture_year')],
+          ['Kapasitas', readField('kapasitas_daya', 'capacity')], ['Digunakan Untuk', readField('digunakan_untuk')],
+          ['No. SKP PJK3 / Bidang', readField('skp_pjk3')], ['No. SKP / Bidang AK3', readField('skp_ahli_k3')],
+          ['Klasifikasi', readField('klasifikasi')], ['No Izin Pemakaian / Penerbit', readField('previous_permit_no')],
+          ['Nama Operator', readField('operator_name')], ['Jenis Pemeriksaan', readField('inspection_type')],
+          ['Tanggal Riksa Uji', readDateField('inspection_date')], ['Diperiksa Oleh', readField('inspector_name')]
         ]
       : [
-          ['Perusahaan Pemilik', readField('client_name')],
-          ['Alamat', readField('client_address')],
-          ['Perusahaan Pemakai', readField('user_company', 'client_name')],
-          ['Alamat', readField('user_address', 'client_address')],
-          ['Pengurus / Penanggung Jawab', readField('pengurus')],
-          ['Lokasi Unit', readField('install_location')],
-          ['Jenis Pesawat / Type', readField('jenis_pesawat', 'object_name')],
-          ['Merk', readField('brand')],
-          ['No. Unit', readField('item_no')],
-          ['Perusahaan Pembuat / Pemasang', readField('manufacturer')],
+          ['Perusahaan Pemilik', readField('client_name')], ['Alamat', readField('client_address')],
+          ['Perusahaan Pemakai', readField('user_company', 'client_name')], ['Alamat', readField('user_address', 'client_address')],
+          ['Pengurus / Penanggung Jawab', readField('pengurus')], ['Lokasi Unit', readField('install_location')],
+          ['Jenis Pesawat / Type', readField('jenis_pesawat', 'object_name')], ['Merk', readField('brand')],
+          ['No. Unit', readField('item_no')], ['Perusahaan Pembuat / Pemasang', readField('manufacturer')],
           ['Lokasi / Tahun Pembuatan', readField('manufacture_location', 'manufacture_year')],
-          ['Kapasitas', readField('capacity', 'kapasitas_daya')],
-          ['Digunakan Untuk', readField('digunakan_untuk')],
-          ['No. SKP PJK3 / Bidang', readField('skp_pjk3')],
-          ['No. SKP / Bidang AK3', readField('skp_ahli_k3')],
-          ['Sertifikasi Standar', readField('standard_ref')],
-          ['No Izin Pemakaian / Penerbit', readField('previous_permit_no')],
-          ['Nama Operator', readField('operator_name')],
-          ['Jenis Pemeriksaan', readField('inspection_type')],
-          ['Tanggal Pemeriksaan', readDateField('inspection_date')],
-          ['Pemeriksa', readField('inspector_name')]
+          ['Kapasitas', readField('capacity', 'kapasitas_daya')], ['Digunakan Untuk', readField('digunakan_untuk')],
+          ['No. SKP PJK3 / Bidang', readField('skp_pjk3')], ['No. SKP / Bidang AK3', readField('skp_ahli_k3')],
+          ['Sertifikasi Standar', readField('standard_ref')], ['No Izin Pemakaian / Penerbit', readField('previous_permit_no')],
+          ['Nama Operator', readField('operator_name')], ['Jenis Pemeriksaan', readField('inspection_type')],
+          ['Tanggal Pemeriksaan', readDateField('inspection_date')], ['Pemeriksa', readField('inspector_name')]
         ];
   }
-
   const technicalSchema = [...(category.technicalFields || [])];
   if (categoryCode === 'LIS') {
-    technicalSchema.splice(
-      0,
-      technicalSchema.length,
+    technicalSchema.splice(0, technicalSchema.length,
       { key: 'sumber_listrik', label: 'Sumber Tenaga Listrik' },
       { key: 'tahun_instalasi', label: 'Tahun Instalasi' },
       { key: 'instalatir', label: 'Instalatir Pemasang' },
@@ -988,11 +911,9 @@ export function buildLhppReportContent(data) {
       { key: 'daya_penerangan', label: 'Jumlah Daya Penerangan' }
     );
   }
-
   for (const field of categoryCode === 'LIS' ? [] : (Array.isArray(data.lhpp_schema) ? data.lhpp_schema : [])) {
     if (!technicalSchema.some((item) => item.key === field.key)) technicalSchema.push(field);
   }
-
   const technicalLabelsByKey = new Map(technicalSchema.map((field) => [field.key, field.label]));
   const technicalKeys = new Set();
   const technicalLabels = new Set();
@@ -1010,7 +931,6 @@ export function buildLhppReportContent(data) {
     label: [result.section, result.label].filter(hasReportValue).join(' - '),
     value: getInspectionResultValue(result)
   }));
-
   const checklistRows = (Array.isArray(data.results) ? data.results : []).map((result) => ({
     section: hasReportValue(result.section) ? String(result.section) : 'Pemeriksaan',
     label: hasReportValue(result.label) ? String(result.label) : 'Butir pemeriksaan',
@@ -1019,7 +939,6 @@ export function buildLhppReportContent(data) {
     value: getInspectionResultValue({ ...result, note: null }),
     note: hasRecordedReportValue(result.note) ? String(result.note) : ''
   }));
-
   for (const [key, value] of Object.entries(technicalData)) {
     if (!hasRecordedReportValue(value) || technicalKeys.has(key) || technicalLabels.has(key)) continue;
     resultRows.push({
@@ -1037,6 +956,9 @@ export function buildLhppReportContent(data) {
 
   return {
     categoryCode,
+    technicalData,
+    isDiesel: isDieselPtp,
+    specialistTitle: category.specialistTitle,
     pageSize: category.pageSize || [615.24, 921.36],
     categoryName: data.category_name || category.fullName,
     title: `LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP) - BIDANG ${categoryCode}`,
@@ -1062,14 +984,10 @@ export function buildLhppReportContent(data) {
       ['Re-Inspection', hasReportValue(data.recommended_valid_until) ? formatIndoDate(data.recommended_valid_until) : '-']
     ],
     identityRows: templateIdentityRows[categoryCode] || [
-      ['Pemilik', readField('client_name')],
-      ['Alamat', readField('client_address')],
-      ['Lokasi Unit', readField('install_location')],
-      ['Jenis Pesawat', readField('object_name')],
-      ['Nomor Seri', readField('serial_number')],
-      ['Tahun Pembuatan', readField('manufacture_year')],
-      ['Kapasitas', readField('capacity')],
-      ['Tanggal Pemeriksaan', readField('inspection_date')],
+      ['Pemilik', readField('client_name')], ['Alamat', readField('client_address')],
+      ['Lokasi Unit', readField('install_location')], ['Jenis Pesawat', readField('object_name')],
+      ['Nomor Seri', readField('serial_number')], ['Tahun Pembuatan', readField('manufacture_year')],
+      ['Kapasitas', readField('capacity')], ['Tanggal Pemeriksaan', readField('inspection_date')],
       ['Diperiksa Oleh', readField('inspector_name')]
     ],
     methodSummary: hasReportValue(data.method_summary) ? data.method_summary : 'Belum diisi.',
@@ -1113,1802 +1031,1886 @@ export function buildLhppReportContent(data) {
 }
 
 // ============================================================================
-// HELPER LAYOUT & TABEL LHPP UNTUK MENIRU PERSIS TEMPLATE SUMBER PERUSAHAAN
+// LHPP RENDERER
+// Layout mengikuti dokumen rujukan PT Upaya Riksa Daya (hasil ukur koordinat
+// langsung dari 7 PDF contoh: ukuran halaman, margin, tinggi baris, font).
+//
+// Konvensi koordinat: semua nilai "top" pada helper teks adalah koordinat atas
+// glyph sebagaimana diukur pada PDF rujukan (pdfplumber `top`). Helper
+// mengonversinya ke koordinat PDFKit (REF_TOP_OFFSET).
 // ============================================================================
 
-function drawLhppCoverPage(doc, report, data) {
-  const pageW = doc.page.width;
-  const pageH = doc.page.height;
-  const coverLeft = 64;
-  const coverWidth = pageW - 128;
+const LHPP_INK = '#000000';
+const LHPP_BORDER = 0.5;
+const REF_TOP_OFFSET = 0.1; // y PDFKit = top rujukan + 0.1 * ukuran font (Times)
 
-  // 1. Blok Merah Atas & Bawah, serta Garis Abu-abu Samping
-  doc.rect(0, 0, pageW, 53.75).fillColor('#FF0000').fill();
-  doc.rect(0, pageH - 53.35, pageW, 53.35).fillColor('#FF0000').fill();
-  doc.rect(47.75, 0, 7.15, pageH).fillColor('#525252').fill();
-  doc.rect(pageW - 55.09, 0, 7.15, pageH).fillColor('#525252').fill();
+const COLOR_RED = '#FF0000';
+const COLOR_RED_SHADOW = '#843C0C';
+const COLOR_BAR = '#878787';
+const COLOR_BAR_SHADOW = '#525252';
 
-  // 2. Tahun Dokumen & Garis Bawah
-  const inspectionDate = new Date(data.inspection_date || data.published_at || Date.now());
-  const reportYear = Number.isNaN(inspectionDate.getTime())
-    ? new Date().getFullYear()
-    : inspectionDate.getFullYear();
+function pickTimes({ bold = false, italic = false } = {}) {
+  if (bold) return italic ? 'Times-BoldItalic' : 'Times-Bold';
+  return italic ? 'Times-Italic' : 'Times-Roman';
+}
 
-  const yearX = 64;
-  const yearY = 62;
-  doc
-    .font('Times-Bold')
-    .fontSize(28)
-    .fillColor('#000000')
-    .text(String(reportYear), yearX, yearY, { lineBreak: false });
-  doc.rect(yearX, yearY + 31, 56.04, 2.64).fillColor('#000000').fill();
-
-  // 3. Judul Sampul Laporan
-  const titleY = 136;
-  doc
-    .font('Times-Bold')
-    .fontSize(18)
-    .fillColor('#000000')
-    .text('LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN', coverLeft, titleY, {
-      width: coverWidth,
-      align: 'center',
-      lineGap: 3
-    })
-    .text('SERTIFIKASI', coverLeft, doc.y, {
-      width: coverWidth,
-      align: 'center',
-      lineGap: 3
-    })
-    .text((report.coverTitle || report.categoryName).toUpperCase(), coverLeft, doc.y, {
-      width: coverWidth,
-      align: 'center'
-    });
-
-  // 4. Baris Identitas Sampul (Cover Info Rows)
-  let infoY = 274.7;
-  const labelX = 85.2;
-  const colonX = 171.9;
-  const valX = 180.0;
-  const valWidth = pageW - valX - 60;
-
-  for (const [label, rawValue] of report.coverInfoRows) {
-    let displayVal = hasReportValue(rawValue) ? String(rawValue) : '-';
-    if (label === 'SN' && displayVal !== '-') {
-      const extraParts = [];
-      if (hasReportValue(data.capacity)) {
-        extraParts.push(`${data.capacity} ${data.capacity_unit || ''}`.trim());
-      }
-      if (hasReportValue(data.manufacture_year)) {
-        extraParts.push(String(data.manufacture_year));
-      }
-      if (extraParts.length > 0 && !displayVal.includes('/')) {
-        displayVal = `${displayVal} / ${extraParts.join(' / ')}`;
-      }
-    }
-
-    doc
-      .font('Times-Bold')
-      .fontSize(11)
-      .fillColor('#000000')
-      .text(label, labelX, infoY, { width: 80, lineBreak: false })
-      .text(':', colonX, infoY, { lineBreak: false })
-      .text(displayVal, valX, infoY, { width: valWidth, lineBreak: false });
-
-    infoY += 16.1;
-  }
-
-  // 5. Kotak Bingkai Foto Sampul
-  const photoFrame = {
-    x: 153,
-    y: 422,
-    width: 302,
-    height: 227
-  };
-  doc
-    .rect(photoFrame.x, photoFrame.y, photoFrame.width, photoFrame.height)
-    .lineWidth(0.6)
-    .strokeColor('#888888')
-    .stroke();
-
-  const coverPhoto = report.photos.find((p) =>
-    ['image/jpeg', 'image/png', 'image/webp'].includes(p.mimeType)
-  );
-
-  let photoRendered = false;
-  if (coverPhoto?.storageKey) {
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
     try {
-      const pPath = resolveAttachmentPath(coverPhoto.storageKey);
-      if (fs.existsSync(pPath)) {
-        doc.image(pPath, photoFrame.x + 2, photoFrame.y + 2, {
-          fit: [photoFrame.width - 4, photoFrame.height - 4],
-          align: 'center',
-          valign: 'center'
-        });
-        photoRendered = true;
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function asObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+const FOOTER_FONT_CANDIDATES = [
+  process.env.LHPP_FOOTER_FONT_PATH,
+  path.resolve(__dirname, '../assets/fonts/calibri-light.ttf'),
+  path.resolve(__dirname, '../assets/fonts/Carlito-Regular.ttf')
+].filter(Boolean);
+
+function registerFooterFont(doc) {
+  for (const candidate of FOOTER_FONT_CANDIDATES) {
+    try {
+      if (fs.existsSync(candidate)) {
+        doc.registerFont('LhppFooter', candidate);
+        return 'LhppFooter';
       }
     } catch {
-      photoRendered = false;
+      // lanjut ke kandidat berikutnya
+    }
+  }
+  return 'Helvetica';
+}
+
+// ----------------------------------------------------------------------------
+// KANVAS: primitif gambar + kontrol aliran halaman
+// ----------------------------------------------------------------------------
+class LhppCanvas {
+  constructor(doc, profile) {
+    this.doc = doc;
+    this.profile = profile;
+    this.y = profile.pageTop;
+    this.footerFont = registerFooterFont(doc);
+    this.bodyPages = new Set();
+  }
+
+  get left() { return this.profile.left; }
+  get right() { return this.profile.right; }
+  get width() { return this.profile.right - this.profile.left; }
+  get bottom() { return this.profile.bodyBottom; }
+
+  textWidth(str, size = 12, o = {}) {
+    return this.doc.font(pickTimes(o)).fontSize(size).widthOfString(String(str ?? ''));
+  }
+
+  /** Pecah teks menjadi baris sesuai lebar (menghormati \n). */
+  wrap(text, width, size = 12, o = {}) {
+    const doc = this.doc;
+    doc.font(pickTimes(o)).fontSize(size);
+    const out = [];
+    for (const paragraph of String(text ?? '').split('\n')) {
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      if (words.length === 0) { out.push(''); continue; }
+      let line = '';
+      for (const word of words) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (doc.widthOfString(candidate) <= width) { line = candidate; continue; }
+        if (line) out.push(line);
+        if (doc.widthOfString(word) <= width) { line = word; continue; }
+        let chunk = '';
+        for (const ch of word) {
+          if (doc.widthOfString(chunk + ch) > width && chunk) { out.push(chunk); chunk = ch; }
+          else chunk += ch;
+        }
+        line = chunk;
+      }
+      out.push(line);
+    }
+    return out;
+  }
+
+  /** Satu baris teks pada koordinat top rujukan. */
+  txt(str, x, top, o = {}) {
+    const size = o.size ?? 12;
+    const text = String(str ?? '');
+    const doc = this.doc;
+    doc.font(pickTimes(o)).fontSize(size).fillColor(o.color ?? LHPP_INK);
+    let px = x;
+    if (o.width && o.align === 'center') px = x + (o.width - doc.widthOfString(text)) / 2;
+    else if (o.width && o.align === 'right') px = x + o.width - doc.widthOfString(text);
+    doc.text(text, px, top + REF_TOP_OFFSET * size, { lineBreak: false });
+  }
+
+  /** Beberapa baris dengan jarak (pitch) tetap. Mengembalikan jumlah baris. */
+  block(lines, x, top, pitch, o = {}) {
+    lines.forEach((line, i) => this.txt(line, x, top + i * pitch, o));
+    return lines.length;
+  }
+
+  rect(x, y, w, h, o = {}) {
+    const doc = this.doc;
+    if (o.fill) doc.rect(x, y, w, h).fillColor(o.fill).fill();
+    if (o.stroke !== false) {
+      doc.rect(x, y, w, h).lineWidth(o.lw ?? LHPP_BORDER).strokeColor(o.color ?? LHPP_INK).stroke();
     }
   }
 
-  if (!photoRendered) {
-    doc
-      .font('Times-Italic')
-      .fontSize(9.5)
-      .fillColor('#888888')
-      .text('[Foto Objek Riksa Uji Belum Tersedia]', photoFrame.x, photoFrame.y + 105, {
-        width: photoFrame.width,
-        align: 'center'
+  hline(x1, x2, y, lw = LHPP_BORDER) {
+    this.doc.moveTo(x1, y).lineTo(x2, y).lineWidth(lw).strokeColor(LHPP_INK).stroke();
+  }
+
+  vline(x, y1, y2, lw = LHPP_BORDER) {
+    this.doc.moveTo(x, y1).lineTo(x, y2).lineWidth(lw).strokeColor(LHPP_INK).stroke();
+  }
+
+  /** Sel bertepi dengan teks. Rata atas (seperti tabel Word rujukan) kecuali vAlign:'middle'. */
+  cell(x, y, w, h, text, o = {}) {
+    if (o.border !== false) this.rect(x, y, w, h, { fill: o.fill });
+    else if (o.fill) this.rect(x, y, w, h, { fill: o.fill, stroke: false });
+    if (text === undefined || text === null || text === '') return 0;
+    const size = o.size ?? 12;
+    const pitch = o.pitch ?? size * 1.15;
+    const padX = o.padX ?? 5.4;
+    const lines = this.wrap(text, w - padX * 2, size, o);
+    const blockH = lines.length * pitch;
+    const top = o.vAlign === 'middle'
+      ? y + Math.max(0, (h - blockH) / 2) + (o.midAdjust ?? 0.4)
+      : y + (o.padTop ?? 2.0);
+    lines.forEach((line, i) => {
+      this.txt(line, x + padX, top + i * pitch, {
+        ...o,
+        size,
+        width: w - padX * 2,
+        align: o.align ?? 'left'
       });
-  }
-
-  // 6. Footer Sampul (Kontak & Kantor Resmi)
-  const footerY = pageH - 172;
-  doc
-    .font('Times-Bold')
-    .fontSize(11)
-    .fillColor('#FF0000')
-    .text('PT. UPAYA RIKSA DAYA', coverLeft, footerY, {
-      width: coverWidth,
-      align: 'center'
     });
-  doc
-    .font('Times-Bold')
-    .fontSize(11)
-    .fillColor('#000000')
-    .text('Jl. Pondasi No. 50B Kampung Ambon, Jakarta Timur. 13210', coverLeft, footerY + 13, {
-      width: coverWidth,
-      align: 'center'
-    })
-    .text('Phone. 021 4891409, 021 4715699, 021 47861912', coverLeft, footerY + 26, {
-      width: coverWidth,
-      align: 'center'
-    });
-
-  const emailWebY = footerY + 39;
-  doc.font('Times-Bold').fontSize(11);
-  const p1 = 'Email: ';
-  const p2 = 'urd@upayariksadaya.com';
-  const p3 = '   Web. ';
-  const p4 = 'upayariksadaya.com';
-  const totalW = doc.widthOfString(p1 + p2 + p3 + p4);
-  const startX = coverLeft + (coverWidth - totalW) / 2;
-
-  doc.fillColor('#000000').text(p1, startX, emailWebY, { continued: true });
-  doc.fillColor('#0563C1').text(p2, { continued: true, underline: true });
-  doc.fillColor('#000000').text(p3, { continued: true, underline: false });
-  doc.fillColor('#0563C1').text(p4, { underline: true });
-}
-
-function drawLhppPageFooter(doc, contentLeft = 64) {
-  const footerY = doc.page.height - 56;
-  doc
-    .font('Times-Bold')
-    .fontSize(11)
-    .fillColor('#FF0000')
-    .text('PT. UPAYA RIKSA DAYA', contentLeft, footerY, { lineBreak: false });
-  doc
-    .font('Times-Roman')
-    .fontSize(9.5)
-    .fillColor('#000000')
-    .text('Jl. Pondasi No. 50B Kampung Ambon, Jakarta Timur. 13210', contentLeft, footerY + 13, {
-      lineBreak: false
-    });
-}
-
-function drawLhppHeaderBox(doc, report, data, contentLeft, contentWidth) {
-  const boxY = 46;
-  const boxH = 68;
-  doc.rect(contentLeft, boxY, contentWidth, boxH).lineWidth(0.8).strokeColor('#000000').stroke();
-
-  let titleLine = 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN';
-  let subLine = report.coverTitle || report.categoryName;
-  let objLine = data.object_name ? `(${String(data.object_name).toUpperCase()})` : '';
-  let noLine = `NO. ${data.lhpp_no || data.po_number || data.order_no || '-'}`;
-
-  if (report.categoryCode === 'IPP') {
-    titleLine = 'LAPORAN HASIL PEMERIKSAAN PERTAMA';
-    subLine = 'JENIS PERALATAN : INSTALASI PENYALUR PETIR';
-    objLine = '';
-    noLine = `No. Reg : ${data.lhpp_no || '-'}`;
-  } else if (report.categoryCode === 'IPK') {
-    titleLine = 'LAPORAN HASIL PEMERIKSAAN & PENGUJIAN BERKALA';
-    subLine = 'INSTALASI PROTEKSI KEBAKARAN';
-    objLine = '';
-    noLine = `Nomor : ${data.lhpp_no || '-'}`;
-  } else if (report.categoryCode === 'PTP' && /diesel|genset/i.test(data.object_name || '')) {
-    subLine = 'PESAWAT TENAGA DAN PRODUKSI';
-    objLine = '(MOTOR DIESEL)';
+    return lines.length;
   }
 
-  doc
-    .font('Times-Bold')
-    .fontSize(11)
-    .fillColor('#000000')
-    .text(titleLine, contentLeft, boxY + 7, { width: contentWidth, align: 'center', lineGap: 1 });
-  if (subLine) {
-    doc.text(subLine, contentLeft, doc.y, { width: contentWidth, align: 'center', lineGap: 1 });
+  /** Tanda centang vektor setara glyph "√" 12pt pada kolom berpusat cx. */
+  tick(cx, rowTop, size = 12) {
+    const k = size / 12;
+    const y = rowTop + 2.0;
+    const doc = this.doc;
+    doc.save();
+    doc.moveTo(cx - 4.6 * k, y + 8.4 * k)
+      .lineTo(cx - 2.0 * k, y + 12.6 * k)
+      .lineTo(cx + 4.8 * k, y + 2.4 * k)
+      .lineWidth(0.9 * k).lineJoin('miter').strokeColor(LHPP_INK).stroke();
+    doc.restore();
   }
-  if (objLine) {
-    doc.text(objLine, contentLeft, doc.y, { width: contentWidth, align: 'center', lineGap: 1 });
+
+  dash(cx, rowTop, size = 12) {
+    this.txt('-', cx - this.textWidth('-', size) / 2, rowTop + 2.0, { size });
   }
-  doc
-    .font('Times-Bold')
-    .fontSize(9.5)
-    .text(noLine, contentLeft, doc.y, { width: contentWidth, align: 'center' });
 
-  doc.y = boxY + boxH + 14;
-}
+  // ------------------------------------------------------------------
+  // Halaman
+  // ------------------------------------------------------------------
+  newPage() {
+    this.doc.addPage();
+    this.y = this.profile.pageTop;
+    this.bodyPages.add(this.doc.bufferedPageRange().count - 1);
+  }
 
-function drawSectionHeader(doc, title, contentLeft, contentWidth, ensureSpace) {
-  ensureSpace(28);
-  const sY = doc.y;
-  doc
-    .font('Times-Bold')
-    .fontSize(10.5)
-    .fillColor('#000000')
-    .text(title, contentLeft, sY, { width: contentWidth });
-  doc
-    .moveTo(contentLeft, sY + 14)
-    .lineTo(contentLeft + contentWidth, sY + 14)
-    .lineWidth(0.6)
-    .strokeColor('#000000')
-    .stroke();
-  doc.y = sY + 18;
-}
+  markBodyPage() {
+    this.bodyPages.add(this.doc.bufferedPageRange().count - 1);
+  }
 
-function drawCheckmark(doc, centerX, centerY) {
-  doc.save();
-  doc
-    .moveTo(centerX - 4.5, centerY - 0.5)
-    .lineTo(centerX - 1.2, centerY + 3.2)
-    .lineTo(centerX + 4.8, centerY - 4.2)
-    .lineWidth(1.1)
-    .strokeColor('#000000')
-    .stroke();
-  doc.restore();
-}
+  /** Pastikan ruang; jika tidak cukup pindah halaman dan panggil hook (mis. header tabel). */
+  ensure(h, onNewPage) {
+    if (this.y + h <= this.bottom) return false;
+    this.newPage();
+    if (onNewPage) onNewPage();
+    return true;
+  }
 
-function drawDataTable(
-  doc,
-  rows,
-  { contentLeft, contentWidth, numbered = false, fontSize = 8.5 },
-  ensureSpace
-) {
-  const numColW = numbered ? 26 : 0;
-  const labelColW = numbered ? 180 : 169.34;
-  const valColW = contentWidth - numColW - labelColW;
-
-  rows.forEach(([label, rawValue], index) => {
-    const val = String(rawValue ?? '-');
-    const labelH = doc
-      .font('Times-Roman')
-      .fontSize(fontSize)
-      .heightOfString(label, { width: labelColW - 10 });
-    const valH = doc
-      .font('Times-Roman')
-      .fontSize(fontSize)
-      .heightOfString(val, { width: valColW - (numbered ? 10 : 20) });
-    const rowH = Math.max(20, labelH + 6, valH + 6);
-
-    ensureSpace(rowH);
-    const rY = doc.y;
-    const textY = rY + (rowH - Math.max(labelH, valH)) / 2;
-
-    doc.rect(contentLeft, rY, contentWidth, rowH).lineWidth(0.5).strokeColor('#000000').stroke();
-
-    if (numbered) {
-      doc
-        .moveTo(contentLeft + numColW, rY)
-        .lineTo(contentLeft + numColW, rY + rowH)
-        .lineWidth(0.5)
-        .strokeColor('#000000')
-        .stroke();
-      doc
-        .font('Times-Roman')
-        .fontSize(fontSize)
-        .fillColor('#000000')
-        .text(String(index + 1), contentLeft, textY, { width: numColW, align: 'center' });
+  drawFooters() {
+    const f = this.profile.footer;
+    const doc = this.doc;
+    for (const index of this.bodyPages) {
+      doc.switchToPage(index);
+      doc.font(this.footerFont).fontSize(f.nameSize).fillColor('#FF0000')
+        .text('PT. UPAYA RIKSA DAYA', f.x, f.nameTop + 0.08 * f.nameSize, { lineBreak: false });
+      doc.font(this.footerFont).fontSize(f.addrSize).fillColor(LHPP_INK)
+        .text(f.address, f.x, f.addrTop + 0.08 * f.addrSize, { lineBreak: false });
     }
+  }
+}
 
-    doc
-      .moveTo(contentLeft + numColW + labelColW, rY)
-      .lineTo(contentLeft + numColW + labelColW, rY + rowH)
-      .lineWidth(0.5)
-      .strokeColor('#000000')
-      .stroke();
+// ----------------------------------------------------------------------------
+// COVER
+// ----------------------------------------------------------------------------
+function drawCoverPage(c, report, _data) {
+  const { doc, profile } = c;
+  const cv = profile.cover;
+  const W = doc.page.width;
+  const H = doc.page.height;
 
-    doc
-      .font('Times-Roman')
-      .fontSize(fontSize)
-      .fillColor('#000000')
-      .text(label, contentLeft + numColW + 5, textY, { width: labelColW - 10 });
+  // Pita merah atas/bawah + bayangan, dan dua tiang abu-abu (ukuran dari rujukan).
+  doc.rect(cv.topBand.x0 + 1, -5.5, cv.topBand.x1 - cv.topBand.x0, cv.topBand.bottom + 7.5).fillColor(COLOR_RED_SHADOW).fill();
+  doc.rect(cv.topBand.x0, -7.5, cv.topBand.x1 - cv.topBand.x0, cv.topBand.bottom + 7.5).fillColor(COLOR_RED).fill();
+  doc.rect(cv.bottomBand.x0 + 1, cv.bottomBand.top + 2, cv.bottomBand.x1 - cv.bottomBand.x0, cv.bottomBand.bottom - cv.bottomBand.top).fillColor(COLOR_RED_SHADOW).fill();
+  doc.rect(cv.bottomBand.x0, cv.bottomBand.top, cv.bottomBand.x1 - cv.bottomBand.x0, cv.bottomBand.bottom - cv.bottomBand.top).fillColor(COLOR_RED).fill();
+  for (const barX of cv.bars) {
+    doc.rect(barX + 1, 2, 7.1, H + 40).fillColor(COLOR_BAR_SHADOW).fill();
+    doc.rect(barX, 0, 7.1, H + 40).fillColor(COLOR_BAR).fill();
+  }
 
-    if (!numbered) {
-      doc.text(':', contentLeft + labelColW + 5, textY, { lineBreak: false });
-      doc.text(val, contentLeft + labelColW + 12, textY, { width: valColW - 18, lineGap: 1.5 });
-    } else {
-      doc.text(val, contentLeft + numColW + labelColW + 5, textY, { width: valColW - 10, lineGap: 1.5 });
-    }
+  // Tahun + garis bawah selebar teks
+  c.txt(report.coverYear, cv.yearX, cv.yearTop, { size: 28, bold: true });
+  const yearW = c.textWidth(report.coverYear, 28, { bold: true });
+  doc.rect(cv.yearX, cv.underlineY, yearW, 2.7).fillColor(LHPP_INK).fill();
 
-    doc.y = rY + rowH;
+  // Judul 3 baris (tengah halaman)
+  const titleLines = [
+    'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN',
+    'SERTIFIKASI',
+    String(report.coverTitle || report.categoryName).toUpperCase()
+  ];
+  titleLines.forEach((line, i) => {
+    c.txt(line, 0, cv.titleTop + i * cv.titlePitch, { size: 18, bold: true, width: W, align: 'center' });
   });
-  doc.y += 6;
-}
 
-function drawPaaTechnicalSection(doc, data, contentLeft, contentWidth, ensureSpace) {
-  const readTechnical = (...keys) => {
-    for (const k of keys) {
-      const val = data.technical_data?.[k] ?? data[k];
-      if (hasRecordedReportValue(val)) return String(val);
-    }
-    return '-';
-  };
+  // Identitas: label | titik dua | nilai (kolom sejajar)
+  const valueX = cv.colonX + c.textWidth(': ', 14, { bold: true });
+  const valueW = W - valueX - 60;
+  let top = cv.infoTop;
+  report.coverRows.forEach(([label, value], index) => {
+    c.txt(label, cv.labelX, top, { size: 14, bold: true });
+    c.txt(':', cv.colonX, top, { size: 14, bold: true });
+    const lines = c.wrap(hasReportValue(value) ? String(value) : '-', valueW, 14, { bold: true });
+    lines.forEach((line, li) => c.txt(line, valueX, top + li * cv.infoLinePitch, { size: 14, bold: true }));
+    const pitch = typeof cv.infoPitch === 'function' ? cv.infoPitch(index) : cv.infoPitch;
+    top += pitch + (lines.length - 1) * cv.infoLinePitch;
+  });
 
-  const col0X = contentLeft;
-  const col1X = contentLeft + 27.2;
-  const col2X = contentLeft + 134.1;
-  const col3X = contentLeft + 211.6;
-  const col4X = contentLeft + 300.5;
-  const col5X = contentLeft + 389.4;
-  const col6X = contentLeft + contentWidth;
-
-  const defaultRowH = 18;
-
-  // 1. SPESIFIKASI
-  {
-    const specRows = [
-      ['Tinggi Angkat', readTechnical('lifting_height', 'tinggi_angkat')],
-      ['Panjang Span', readTechnical('span', 'panjang_bentang')],
-      ['Panjang Runway Rail', readTechnical('runway_length', 'panjang_lintasan')]
-    ];
-    const speedRows = [
-      ['- Hoisting', readTechnical('hoist_speed', 'kecepatan_hoist')],
-      ['- Traversing', readTechnical('traverse_speed', 'travel_speed', 'kecepatan_traversing')],
-      ['- Travelling', readTechnical('travel_speed', 'kecepatan_travelling')]
-    ];
-
-    const groupH = (specRows.length + speedRows.length) * defaultRowH;
-    ensureSpace(groupH);
-    const gY = doc.y;
-
-    doc.rect(col0X, gY, col6X - col0X, groupH).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc.moveTo(col1X, gY).lineTo(col1X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col2X, gY).lineTo(col2X, gY + groupH).lineWidth(0.5).stroke();
-
-    doc.font('Times-Roman').fontSize(8.5).fillColor('#000000');
-    doc.text('1', col0X, gY + groupH / 2 - 4, { width: col1X - col0X, align: 'center' });
-    doc.text('Spesifikasi', col1X + 4, gY + groupH / 2 - 4, { width: col2X - col1X - 8, align: 'center' });
-
-    let rY = gY;
-    specRows.forEach(([param, val]) => {
-      doc.moveTo(col4X, rY).lineTo(col4X, rY + defaultRowH).lineWidth(0.5).stroke();
-      doc.text(param, col2X + 6, rY + 4, { width: col4X - col2X - 12 });
-      doc.text(val, col4X + 6, rY + 4, { width: col6X - col4X - 12 });
-      rY += defaultRowH;
-      doc.moveTo(col2X, rY).lineTo(col6X, rY).lineWidth(0.5).stroke();
-    });
-
-    const speedTotalH = speedRows.length * defaultRowH;
-    doc.moveTo(col3X, rY).lineTo(col3X, rY + speedTotalH).lineWidth(0.5).stroke();
-    doc.text('Kecepatan', col2X + 6, rY + speedTotalH / 2 - 4, { width: col3X - col2X - 12 });
-
-    speedRows.forEach(([subParam, val], idx) => {
-      const curY = rY + idx * defaultRowH;
-      doc.moveTo(col4X, curY).lineTo(col4X, curY + defaultRowH).lineWidth(0.5).stroke();
-      doc.text(subParam, col3X + 6, curY + 4, { width: col4X - col3X - 12 });
-      doc.text(val, col4X + 6, curY + 4, { width: col6X - col4X - 12 });
-      if (idx < speedRows.length - 1) {
-        doc.moveTo(col3X, curY + defaultRowH).lineTo(col6X, curY + defaultRowH).lineWidth(0.5).stroke();
+  // Foto objek
+  const photo = cv.photo;
+  const cover = report.coverPhoto;
+  let drawn = false;
+  if (cover?.storageKey) {
+    try {
+      const p = resolveAttachmentPath(cover.storageKey);
+      if (p && fs.existsSync(p)) {
+        doc.image(p, photo.x, photo.y, { fit: [photo.w, photo.h], align: 'center', valign: 'center' });
+        drawn = true;
       }
-    });
-
-    doc.y = gY + groupH;
-  }
-
-  // Helper for 3 sub-column tables: Motor Penggerak & Rem
-  const drawTriSubGroup = (groupNum, groupTitle, entries) => {
-    const headerH = defaultRowH;
-    const groupH = headerH + entries.length * defaultRowH;
-    ensureSpace(groupH);
-    const gY = doc.y;
-
-    doc.rect(col0X, gY, col6X - col0X, groupH).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc.moveTo(col1X, gY).lineTo(col1X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col2X, gY).lineTo(col2X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col3X, gY).lineTo(col3X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col4X, gY).lineTo(col4X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col5X, gY).lineTo(col5X, gY + groupH).lineWidth(0.5).stroke();
-
-    doc.font('Times-Roman').fontSize(8.5).fillColor('#000000');
-    doc.text(String(groupNum), col0X, gY + groupH / 2 - 4, { width: col1X - col0X, align: 'center' });
-    doc.text(groupTitle, col1X + 4, gY + groupH / 2 - 4, { width: col2X - col1X - 8, align: 'center' });
-
-    // Sub-header row
-    doc.font('Times-Bold').fontSize(8).fillColor('#000000');
-    doc.text('Hoisting', col3X, gY + 4, { width: col4X - col3X, align: 'center' });
-    doc.text('Traversing', col4X, gY + 4, { width: col5X - col4X, align: 'center' });
-    doc.text('Travelling', col5X, gY + 4, { width: col6X - col5X, align: 'center' });
-
-    let rY = gY + headerH;
-    doc.moveTo(col2X, rY).lineTo(col6X, rY).lineWidth(0.5).stroke();
-
-    entries.forEach(([param, [vH, vTr, vTv]], idx) => {
-      doc.font('Times-Roman').fontSize(8).fillColor('#000000');
-      doc.text(param, col2X + 6, rY + 4, { width: col3X - col2X - 12 });
-      doc.text(vH, col3X + 4, rY + 4, { width: col4X - col3X - 8, align: 'center' });
-      doc.text(vTr, col4X + 4, rY + 4, { width: col5X - col4X - 8, align: 'center' });
-      doc.text(vTv, col5X + 4, rY + 4, { width: col6X - col5X - 8, align: 'center' });
-
-      rY += defaultRowH;
-      if (idx < entries.length - 1) {
-        doc.moveTo(col2X, rY).lineTo(col6X, rY).lineWidth(0.5).stroke();
-      }
-    });
-
-    doc.y = gY + groupH;
-  };
-
-  // 2. MOTOR PENGGERAK
-  drawTriSubGroup(2, 'Motor Penggerak', [
-    ['Type', [readTechnical('hoist_motor_type', 'drive_type', 'tipe_penggerak'), readTechnical('traverse_motor_type'), readTechnical('travel_motor_type')]],
-    ['Daya', [readTechnical('hoist_motor_power', 'motor_power', 'daya_motor'), readTechnical('traverse_motor_power'), readTechnical('travel_motor_power')]],
-    ['Putaran', [readTechnical('hoist_motor_rpm', 'motor_rpm', 'putaran_rpm'), readTechnical('traverse_motor_rpm'), readTechnical('travel_motor_rpm')]],
-    ['Voltage', [readTechnical('hoist_motor_voltage', 'motor_voltage', 'tegangan_voltase'), readTechnical('traverse_motor_voltage'), readTechnical('travel_motor_voltage')]],
-    ['Amphere', [readTechnical('hoist_motor_ampere', 'motor_ampere', 'arus_ampere'), readTechnical('traverse_motor_ampere'), readTechnical('travel_motor_ampere')]],
-    ['Frekuensi', [readTechnical('hoist_motor_frequency', 'motor_frequency', 'frekuensi'), readTechnical('traverse_motor_frequency'), readTechnical('travel_motor_frequency')]]
-  ]);
-
-  // 3. REM
-  drawTriSubGroup(3, 'Rem', [
-    ['Jenis', [readTechnical('hoist_brake_type', 'brake_type', 'jenis_rem'), readTechnical('traverse_brake_type'), readTechnical('travel_brake_type')]],
-    ['Type', [readTechnical('hoist_brake_model', 'brake_model', 'tipe_rem'), readTechnical('traverse_brake_model'), readTechnical('travel_brake_model')]]
-  ]);
-
-  // Helper for 2-column key-value groups: Kait Utama, Kait Tambahan, Chain
-  const drawKeyValueGroup = (groupNum, groupTitle, entries) => {
-    const groupH = entries.length * defaultRowH;
-    ensureSpace(groupH);
-    const gY = doc.y;
-
-    doc.rect(col0X, gY, col6X - col0X, groupH).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc.moveTo(col1X, gY).lineTo(col1X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col2X, gY).lineTo(col2X, gY + groupH).lineWidth(0.5).stroke();
-    doc.moveTo(col3X, gY).lineTo(col3X, gY + groupH).lineWidth(0.5).stroke();
-
-    doc.font('Times-Roman').fontSize(8.5).fillColor('#000000');
-    doc.text(String(groupNum), col0X, gY + groupH / 2 - 4, { width: col1X - col0X, align: 'center' });
-    doc.text(groupTitle, col1X + 4, gY + groupH / 2 - 4, { width: col2X - col1X - 8, align: 'center' });
-
-    let rY = gY;
-    entries.forEach(([param, val], idx) => {
-      doc.font('Times-Roman').fontSize(8).fillColor('#000000');
-      doc.text(param, col2X + 6, rY + 4, { width: col3X - col2X - 12 });
-      doc.text(val, col3X + 6, rY + 4, { width: col6X - col3X - 12 });
-
-      rY += defaultRowH;
-      if (idx < entries.length - 1) {
-        doc.moveTo(col2X, rY).lineTo(col6X, rY).lineWidth(0.5).stroke();
-      }
-    });
-
-    doc.y = gY + groupH;
-  };
-
-  // 4. KAIT UTAMA
-  drawKeyValueGroup(4, 'Kait Utama', [
-    ['Type', readTechnical('hook_type', 'jenis_kait')],
-    ['Kapasitas', readTechnical('hook_capacity', 'swl', 'capacity')],
-    ['Material', readTechnical('hook_material', 'material_kait')]
-  ]);
-
-  // 5. KAIT TAMBAHAN
-  drawKeyValueGroup(5, 'Kait Tambahan', [
-    ['Type', readTechnical('aux_hook_type', 'tipe_kait_tambahan')],
-    ['Kapasitas', readTechnical('aux_hook_capacity', 'kapasitas_kait_tambahan')],
-    ['Material', readTechnical('aux_hook_material', 'material_kait_tambahan')]
-  ]);
-
-  // 6. CHAIN
-  drawKeyValueGroup(6, 'Chain', [
-    ['Dimensi', readTechnical('chain_dimension', 'dimensi_rantai')],
-    ['Panjang', readTechnical('chain_length', 'panjang_rantai')],
-    ['Diameter', readTechnical('chain_diameter', 'diameter_rantai')]
-  ]);
-
-  doc.y += 6;
-}
-
-function drawPubtTechnicalSection(doc, data, contentLeft, contentWidth, ensureSpace) {
-  const readTechnical = (...keys) => {
-    for (const k of keys) {
-      const val = data.technical_data?.[k] ?? data[k];
-      if (hasRecordedReportValue(val)) return String(val);
-    }
-    return '-';
-  };
-
-  const groups = [
-    [
-      'Shell / Badan',
-      [
-        ['Jumlah RoundShell', readTechnical('jumlah_roundshell')],
-        ['Cara Penyambungan', readTechnical('cara_penyambungan')],
-        ['Material / Bahan', readTechnical('material_shell', 'shell_plate_spec')],
-        ['Diameter Dalam (ID)', readTechnical('diameter_dalam')],
-        ['Ketebalan (t)', readTechnical('shell_nominal_thk', 'ketebalan_shell')],
-        ['Panjang Badan', readTechnical('panjang_badan')],
-        ['Penguat - Jenis', readTechnical('jenis_penguat')],
-        ['Penguat - Jumlah', readTechnical('jumlah_penguat')],
-        ['Penguat - Ukuran / Dimensi', readTechnical('ukuran_penguat')]
-      ]
-    ],
-    [
-      'Samping Kiri',
-      [
-        ['Jenis / Bentuk', readTechnical('bentuk_head', 'bentuk_head_kiri')],
-        ['Lengkungan (R)', readTechnical('head_radius', 'head_radius_kiri')],
-        ['Lekukan (r)', readTechnical('head_knuckle_radius', 'head_knuckle_kiri')],
-        ['Kemiringan', readTechnical('head_angle', 'head_angle_kiri')],
-        ['Diameter', readTechnical('diameter_head', 'diameter_head_kiri')],
-        ['Ketebalan', readTechnical('head_nominal_thk', 'ketebalan_head_kiri')],
-        ['Material / Bahan', readTechnical('material_head', 'head_plate_spec')]
-      ]
-    ],
-    [
-      'Samping Kanan',
-      [
-        ['Jenis / Bentuk', readTechnical('bentuk_head', 'bentuk_head_kanan')],
-        ['Lengkungan (R)', readTechnical('head_radius', 'head_radius_kanan')],
-        ['Lekukan (r)', readTechnical('head_knuckle_radius', 'head_knuckle_kanan')],
-        ['Kemiringan', readTechnical('head_angle', 'head_angle_kanan')],
-        ['Diameter', readTechnical('diameter_head', 'diameter_head_kanan')],
-        ['Ketebalan', readTechnical('head_nominal_thk', 'ketebalan_head_kanan')],
-        ['Material / Bahan', readTechnical('material_head', 'head_plate_spec')]
-      ]
-    ],
-    [
-      'Pipa-pipa / Channel',
-      [
-        ['Jenis / Bentuk', readTechnical('pipe_type', 'jenis_pipa')],
-        ['Diameter', readTechnical('pipe_diameter', 'diameter_pipa')],
-        ['Ketebalan', readTechnical('pipe_thickness', 'tebal_pipa')],
-        ['Panjang', readTechnical('pipe_length', 'panjang_pipa')],
-        ['Jumlah', readTechnical('pipe_count', 'jumlah_pipa')],
-        ['Material', readTechnical('pipe_material', 'material_pipa')],
-        ['Cara Pemasangan', readTechnical('pipe_installation', 'cara_pemasangan_pipa')],
-        ['Katup Pengaman (Safety Valve)', readTechnical('safety_valve_pubt', 'valve_type')],
-        ['Tekanan Kerja Safety Valve', readTechnical('safety_valve_set_pressure', 'tekanan_kerja')],
-        ['Manometer / Pressure Gauge', readTechnical('pressure_gauge', 'kondisi_manometer')]
-      ]
-    ]
-  ];
-
-  const colX = [
-    contentLeft,
-    contentLeft + 110,
-    contentLeft + 300,
-    contentLeft + contentWidth
-  ];
-
-  for (const [groupName, entries] of groups) {
-    const heights = entries.map(([param, val]) => {
-      const h1 = doc
-        .font('Times-Roman')
-        .fontSize(8)
-        .heightOfString(param, { width: colX[2] - colX[1] - 8 });
-      const h2 = doc
-        .font('Times-Roman')
-        .fontSize(8)
-        .heightOfString(val, { width: colX[3] - colX[2] - 8 });
-      return Math.max(15, h1, h2) + 4;
-    });
-    const groupH = heights.reduce((sum, h) => sum + h, 0);
-
-    ensureSpace(groupH);
-    const gY = doc.y;
-
-    doc.rect(colX[0], gY, colX[1] - colX[0], groupH).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(groupName, colX[0] + 4, gY + groupH / 2 - 6, {
-        width: colX[1] - colX[0] - 8,
-        align: 'center'
-      });
-
-    doc.y = gY;
-    for (let i = 0; i < entries.length; i += 1) {
-      const [param, val] = entries[i];
-      const rY = doc.y;
-      const rH = heights[i];
-
-      doc
-        .rect(colX[1], rY, colX[3] - colX[1], rH)
-        .lineWidth(0.5)
-        .strokeColor('#000000')
-        .stroke();
-      doc
-        .moveTo(colX[2], rY)
-        .lineTo(colX[2], rY + rH)
-        .lineWidth(0.5)
-        .strokeColor('#000000')
-        .stroke();
-
-      doc
-        .font('Times-Roman')
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(param, colX[1] + 4, rY + 3, { width: colX[2] - colX[1] - 8 })
-        .text(val, colX[2] + 4, rY + 3, { width: colX[3] - colX[2] - 8 });
-
-      doc.y = rY + rH;
+    } catch {
+      drawn = false;
     }
   }
-  doc.y += 6;
+  if (!drawn) {
+    c.txt('Foto objek belum tersedia', photo.x, photo.y + photo.h / 2 - 6, {
+      size: 10, italic: true, color: '#666666', width: photo.w, align: 'center'
+    });
+  }
+
+  // Blok alamat (merah + hitam, tebal, tengah)
+  cv.address.forEach((line, i) => {
+    c.txt(line, 0, cv.addressTop + i * cv.addressPitch, {
+      size: 11, bold: true, width: W, align: 'center', color: i === 0 ? COLOR_RED : LHPP_INK
+    });
+  });
 }
 
-function drawChecklistTable(doc, report, contentLeft, contentWidth, ensureSpace) {
-  const layout = LHPP_CHECKLIST_LAYOUTS[report.categoryCode] || LHPP_CHECKLIST_LAYOUTS.PAA;
-  const cols = layout.columns;
-  const isIpp = report.categoryCode === 'IPP';
-  const isLis = report.categoryCode === 'LIS';
-  const hasGroupedStatus = ['PUBT', 'PTP', 'LE', 'IPK', 'PAA'].includes(report.categoryCode);
+// ----------------------------------------------------------------------------
+// BLOK UMUM
+// ----------------------------------------------------------------------------
 
-  const drawHeader = () => {
-    const hY = doc.y;
-    const headerH = 44;
-    doc
-      .rect(cols[0], hY, cols[cols.length - 1] - cols[0], headerH)
-      .lineWidth(0.6)
-      .strokeColor('#000000')
-      .stroke();
+/** Kotak judul halaman-2 (nama laporan + nomor). */
+function drawTitleBlock(c, lines, spec) {
+  const { doc } = c;
+  const x0 = spec.x0 ?? c.left;
+  const x1 = spec.x1 ?? c.right;
+  if (spec.box) {
+    c.rect(x0, spec.y0, x1 - x0, spec.y1 - spec.y0, { fill: spec.fill });
+  }
+  lines.forEach((line, i) => {
+    c.txt(line, x0, spec.firstTop + i * spec.pitch, {
+      size: spec.size ?? 14, bold: true, width: x1 - x0, align: 'center'
+    });
+  });
+  c.y = spec.endY ?? (spec.box ? spec.y1 : spec.firstTop + lines.length * spec.pitch);
+  void doc;
+}
 
-    for (const x of cols.slice(1, -1)) {
-      doc.moveTo(x, hY).lineTo(x, hY + headerH).lineWidth(0.5).strokeColor('#000000').stroke();
+/** Judul bab dalam sel bertepi, ukuran 14 bold. */
+function drawSectionRow(c, title, o = {}) {
+  const h = o.h ?? 20.4;
+  c.ensure(h + (o.reserve ?? 40));
+  const x0 = o.x0 ?? c.left;
+  const x1 = o.x1 ?? c.right;
+  c.cell(x0, c.y, x1 - x0, h, title, {
+    size: o.size ?? 14, bold: true, padX: o.padX ?? 6.2, padTop: o.padTop ?? 2.3,
+    border: o.border !== false, align: o.align ?? 'left', fill: o.fill
+  });
+  c.y += h;
+}
+
+/**
+ * Tabel label | nilai.
+ * spec: { x0,x1, labelW, numberW, size, minH, padTop, pitch, colonInValue, colonCol, bold }
+ */
+function drawKeyValueTable(c, rows, spec = {}) {
+  const x0 = spec.x0 ?? c.left;
+  const x1 = spec.x1 ?? c.right;
+  const numberW = spec.numberW ?? 0;
+  const labelW = spec.labelW ?? 170;
+  const size = spec.size ?? 12;
+  const minH = spec.minH ?? 20.4;
+  const pitch = spec.pitch ?? size * 1.15;
+  const padX = spec.padX ?? 5.4;
+  const colonW = spec.colonW ?? 0;
+  const labelX0 = x0 + numberW;
+  const valueX0 = labelX0 + labelW;
+  rows.forEach((row, index) => {
+    const [label, rawValue, ro = {}] = row;
+    const value = hasReportValue(rawValue) ? String(rawValue) : '-';
+    const valueText = spec.colonInValue ? `: ${value}` : value;
+    const valueLines = c.wrap(valueText, x1 - valueX0 - padX * 2 - colonW, size, { bold: ro.bold });
+    const labelLines = c.wrap(label, labelW - padX * 2, size, { bold: ro.labelBold });
+    const lines = Math.max(valueLines.length, labelLines.length);
+    const h = spec.rowHeight
+      ? spec.rowHeight(lines)
+      : Math.max(minH, lines * pitch + (spec.padTop ?? 2.0) * 2 + (spec.padBottom ?? 0.6));
+    c.ensure(h, spec.onNewPage);
+    const y = c.y;
+    if (numberW) {
+      c.cell(x0, y, numberW, h, String(index + 1), { size, align: 'center', padTop: spec.padTop });
     }
+    c.cell(labelX0, y, labelW, h, '', { size });
+    c.cell(valueX0, y, x1 - valueX0, h, '', { size });
+    const first = spec.firstTop ? spec.firstTop(lines) : (spec.padTop ?? 2.0);
+    labelLines.forEach((line, i) => c.txt(line, labelX0 + padX, y + (spec.labelMid ? (h - labelLines.length * pitch) / 2 : first) + i * pitch, { size, bold: ro.labelBold }));
+    if (colonW) c.txt(':', valueX0 + padX, y + first, { size });
+    valueLines.forEach((line, i) => c.txt(line, valueX0 + padX + colonW, y + first + i * pitch, { size, bold: ro.bold }));
+    c.y += h;
+  });
+}
 
-    if (hasGroupedStatus) {
-      const condStart = cols[3];
-      const condEnd = cols[5];
-      doc.moveTo(condStart, hY + 16).lineTo(condEnd, hY + 16).lineWidth(0.5).strokeColor('#000000').stroke();
+// ----------------------------------------------------------------------------
+// CHECKLIST (grid presisi)
+// ----------------------------------------------------------------------------
+/**
+ * items: [{ no, group, label, status: 'OK'|'BAD'|'NA'|'' , note, heading }]
+ * spec:
+ *   cols  : batas kolom [x0,x1,...] (jumlah = roles.length + 1)
+ *   roles : ['no','group','label','ok','bad','note'] atau ['no','label','ok','bad','note']
+ *   size, rowMin, groupPitch, labelPitch, labelStep (tambahan tinggi tiap baris bungkus)
+ *   header(c, first) -> menggambar header & mengembalikan tinggi
+ */
+function drawChecklist(c, items, spec) {
+  const { cols, roles } = spec;
+  const size = spec.size ?? 12;
+  const rowMin = spec.rowMin ?? 20.4;
+  const labelPitch = spec.labelPitch ?? size * 1.15;
+  const labelStep = spec.labelStep ?? labelPitch;
+  const groupPitch = spec.groupPitch ?? size * 1.15;
+  const idx = (role) => roles.indexOf(role);
+  const colX = (role) => cols[idx(role)];
+  const colW = (role) => cols[idx(role) + 1] - cols[idx(role)];
+  const hasGroup = idx('group') >= 0;
+  const padX = spec.padX ?? 5.0;
+  const tickSize = spec.tickSize ?? size;
 
-      doc
-        .font('Times-Bold')
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(layout.headings[0], cols[0], hY + 16, { width: cols[1] - cols[0], align: 'center' })
-        .text(layout.headings[1], cols[1] + 2, hY + 12, { width: cols[2] - cols[1] - 4, align: 'center', lineGap: 0 })
-        .text(layout.headings[2], cols[2] + 2, hY + 16, { width: cols[3] - cols[2] - 4, align: 'center' })
-        .text('Kondisi', condStart, hY + 4, { width: condEnd - condStart, align: 'center' })
-        .text(layout.headings[3], cols[3] + 2, hY + 19, { width: cols[4] - cols[3] - 4, align: 'center', lineGap: 0 })
-        .text(layout.headings[4], cols[4] + 2, hY + 19, { width: cols[5] - cols[4] - 4, align: 'center', lineGap: 0 })
-        .text(layout.headings[5], cols[5] + 2, hY + 16, { width: cols[6] - cols[5] - 4, align: 'center' });
-    } else if (isIpp) {
-      const condStart = cols[3];
-      const condEnd = cols[6];
-      doc.moveTo(condStart, hY + 16).lineTo(condEnd, hY + 16).lineWidth(0.5).strokeColor('#000000').stroke();
-
-      doc
-        .font('Times-Bold')
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(layout.headings[0], cols[0], hY + 16, { width: cols[1] - cols[0], align: 'center' })
-        .text(layout.headings[1], cols[1] + 2, hY + 16, { width: cols[2] - cols[1] - 4, align: 'center' })
-        .text(layout.headings[2], cols[2] + 2, hY + 16, { width: cols[3] - cols[2] - 4, align: 'center' })
-        .text('Kondisi Material', condStart, hY + 4, { width: condEnd - condStart, align: 'center' })
-        .text(layout.headings[3], cols[3] + 2, hY + 22, { width: cols[4] - cols[3] - 4, align: 'center' })
-        .text(layout.headings[4], cols[4] + 2, hY + 22, { width: cols[5] - cols[4] - 4, align: 'center' })
-        .text(layout.headings[5], cols[5] + 2, hY + 22, { width: cols[6] - cols[5] - 4, align: 'center' })
-        .text(layout.headings[6], cols[6] + 2, hY + 16, { width: cols[7] - cols[6] - 4, align: 'center' });
-    } else if (isLis) {
-      const condStart = cols[2];
-      const condEnd = cols[4];
-      doc.moveTo(condStart, hY + 16).lineTo(condEnd, hY + 16).lineWidth(0.5).strokeColor('#000000').stroke();
-
-      doc
-        .font('Times-Bold')
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(layout.headings[0], cols[0], hY + 16, { width: cols[1] - cols[0], align: 'center' })
-        .text(layout.headings[1], cols[1] + 4, hY + 16, { width: cols[2] - cols[1] - 8, align: 'center' })
-        .text('Hasil Pemeriksaan', condStart, hY + 4, { width: condEnd - condStart, align: 'center' })
-        .text(layout.headings[2], cols[2] + 2, hY + 22, { width: cols[3] - cols[2] - 4, align: 'center' })
-        .text(layout.headings[3], cols[3] + 2, hY + 22, { width: cols[4] - cols[3] - 4, align: 'center' })
-        .text(layout.headings[4], cols[4] + 2, hY + 16, { width: cols[5] - cols[4] - 4, align: 'center' });
+  const rowHeight = (item) => {
+    if (item.heading) {
+      const hl = c.wrap(item.label, colW('label') - padX * 2, size, { bold: true });
+      return Math.max(rowMin, rowMin + (hl.length - 1) * labelStep);
     }
-    doc.y = hY + headerH;
+    const ll = c.wrap(item.label, colW('label') - padX * 2, size, { italic: item.italic });
+    return Math.max(rowMin, rowMin + (ll.length - 1) * labelStep);
   };
 
-  ensureSpace(50);
-  drawHeader();
+  // Kelompokkan: blok "no" (kolom No bergabung), blok "group" (kolom Nama Bagian bergabung)
+  const heights = items.map(rowHeight);
+  let first = true;
+  let startHeader = () => {
+    const hh = spec.header(c, first);
+    c.y += hh;
+    first = false;
+  };
+  startHeader();
+  const repeatHeader = () => startHeader();
 
-  if (report.checklistRows.length === 0) {
-    const emptyY = doc.y;
-    doc
-      .rect(cols[0], emptyY, cols[cols.length - 1] - cols[0], 24)
-      .lineWidth(0.5)
-      .strokeColor('#000000')
-      .stroke();
-    doc
-      .font('Times-Italic')
-      .fontSize(8.5)
-      .fillColor('#444444')
-      .text('Belum ada butir checklist pemeriksaan visual yang dicatat.', cols[0] + 8, emptyY + 7);
-    doc.y = emptyY + 28;
+  let i = 0;
+  while (i < items.length) {
+    // blok baris dengan no yang sama (kolom No digabung) - dipecah bila halaman habis
+    let j = i;
+    const key = hasGroup ? `${items[i].no}` : null;
+    while (j < items.length && (!hasGroup || `${items[j].no}` === key)) {
+      j += 1;
+    }
+    // Hitung baris yang muat pada halaman ini
+    let end = i;
+    let used = 0;
+    while (end < j && c.y + used + heights[end] <= c.bottom) {
+      used += heights[end];
+      end += 1;
+    }
+    if (end === i) {
+      c.newPage();
+      repeatHeader();
+      continue;
+    }
+    drawChecklistChunk(c, items.slice(i, end), heights.slice(i, end), {
+      spec, size, labelPitch, labelStep, groupPitch, padX, tickSize, colX, colW, idx, hasGroup, rowMin
+    });
+    i = end;
+    if (end < j) {
+      c.newPage();
+      repeatHeader();
+    }
+  }
+}
+
+function drawChecklistChunk(c, items, heights, k) {
+  const { spec, size, labelPitch, groupPitch, padX, tickSize, colX, colW, hasGroup } = k;
+  const y0 = c.y;
+  const total = heights.reduce((a, b) => a + b, 0);
+  const x0 = spec.cols[0];
+  const xEnd = spec.cols[spec.cols.length - 1];
+
+  // Kolom yang digabung (No, Nama Bagian) untuk seluruh blok
+  if (hasGroup) {
+    const noW = colW('no');
+    c.rect(colX('no'), y0, noW, total);
+    c.txt(items[0].no ?? '', colX('no'), y0 + 2.0, { size, width: noW, align: 'center' });
+    // Sub-kelompok Nama Bagian
+    let gy = y0;
+    let gi = 0;
+    while (gi < items.length) {
+      let gj = gi;
+      let gh = 0;
+      while (gj < items.length && items[gj].group === items[gi].group) { gh += heights[gj]; gj += 1; }
+      c.rect(colX('group'), gy, colW('group'), gh);
+      const gl = c.wrap(items[gi].group ?? '', colW('group') - padX * 2, size);
+      gl.forEach((line, li) => c.txt(line, colX('group') + padX, gy + 2.0 + li * groupPitch, { size }));
+      gy += gh;
+      gi = gj;
+    }
+  }
+
+  // Deteksi grup N/A penuh -> kolom Keterangan digabung
+  const allNA = items.length > 0 && items.every((it) => it.status === 'NA') && spec.mergeNA !== false && hasGroup;
+  let y = y0;
+  items.forEach((item, n) => {
+    const h = heights[n];
+    // sel dasar
+    const baseRoles = hasGroup ? ['label', 'ok', 'bad', 'note'] : spec.roles;
+    baseRoles.forEach((role) => {
+      if (role === 'note' && allNA) return;
+      c.rect(colX(role), y, colW(role), h);
+    });
+    if (!hasGroup) {
+      // kolom No dan label mandiri
+      if (item.heading) {
+        c.txt(item.no ?? '', colX('no'), y + 2.0, { size, width: colW('no'), align: 'center' });
+      } else if (item.no) {
+        c.txt(item.no, colX('no'), y + 2.0, { size, width: colW('no'), align: 'center' });
+      }
+    }
+    const lines = c.wrap(item.label, colW('label') - padX * 2, size, { bold: !!item.heading, italic: item.italic });
+    lines.forEach((line, li) => c.txt(line, colX('label') + padX, y + 2.0 + li * (spec.labelStep ?? labelPitch), {
+      size, bold: !!item.heading, italic: item.italic
+    }));
+    if (!item.heading) {
+      const okC = colX('ok') + colW('ok') / 2;
+      const badC = colX('bad') + colW('bad') / 2;
+      if (item.status === 'OK') { c.tick(okC, y, tickSize); c.dash(badC, y, size); }
+      else if (item.status === 'BAD') { c.dash(okC, y, size); c.tick(badC, y, tickSize); }
+      else if (item.status === 'NA') { c.dash(okC, y, size); c.dash(badC, y, size); }
+      else {
+        c.txt('Belum diisi', colX('ok'), y + 3.0, {
+          size: 7, italic: true, color: '#777777', width: colW('ok') + colW('bad'), align: 'center'
+        });
+      }
+      if (!allNA && item.note) {
+        c.wrap(item.note, colW('note') - padX * 2, size).forEach((line, li) =>
+          c.txt(line, colX('note') + padX, y + 2.0 + li * labelPitch, { size }));
+      }
+    }
+    y += h;
+  });
+  if (allNA) {
+    const nx = colX('note');
+    c.rect(nx, y0, colW('note'), total);
+    c.txt(items[0].note || 'N/A', nx, y0 + total / 2 - 7, { size, width: colW('note'), align: 'center' });
+  }
+  void x0; void xEnd;
+  c.y = y0 + total;
+}
+
+// ----------------------------------------------------------------------------
+// PARAGRAF / KESIMPULAN / SYARAT / TANDA TANGAN
+// ----------------------------------------------------------------------------
+
+/** Paragraf dengan komponen tebal; parts: [{t, b}] atau string. */
+function drawRichParagraph(c, parts, o = {}) {
+  const size = o.size ?? 12;
+  const x = o.x ?? c.left;
+  const width = o.width ?? c.width;
+  const pitch = o.pitch ?? 20.7;
+  const indent = o.indent ?? 0;
+  const tokens = [];
+  for (const part of Array.isArray(parts) ? parts : [{ t: String(parts) }]) {
+    const words = String(part.t).split(/(\s+)/).filter((w) => w !== '');
+    for (const w of words) tokens.push({ w, b: !!part.b });
+  }
+  const lines = [];
+  let line = [];
+  let lineW = indent;
+  for (const tk of tokens) {
+    const w = c.textWidth(tk.w, size, { bold: tk.b });
+    if (/^\s+$/.test(tk.w) && line.length === 0) continue;
+    if (lineW + w > width && line.length > 0 && !/^\s+$/.test(tk.w)) {
+      lines.push(line);
+      line = [];
+      lineW = o.hangIndent ?? 0;
+    }
+    line.push(tk);
+    lineW += w;
+  }
+  if (line.length) lines.push(line);
+  c.ensure(lines.length * pitch);
+  let top = c.y;
+  lines.forEach((ln, li) => {
+    let px = x + (li === 0 ? indent : o.hangIndent ?? 0);
+    // rata kiri-kanan (justify) kecuali baris terakhir
+    const natural = ln.reduce((a, tk) => a + c.textWidth(tk.w, size, { bold: tk.b }), 0);
+    const gaps = ln.filter((tk) => /^\s+$/.test(tk.w)).length;
+    const avail = width - (li === 0 ? indent : o.hangIndent ?? 0);
+    const extra = o.justify !== false && li < lines.length - 1 && gaps > 0 ? (avail - natural) / gaps : 0;
+    for (const tk of ln) {
+      c.txt(tk.w, px, top, { size, bold: tk.b });
+      px += c.textWidth(tk.w, size, { bold: tk.b }) + (/^\s+$/.test(tk.w) ? extra : 0);
+    }
+    top += pitch;
+  });
+  c.y = top;
+}
+
+/** Daftar bernomor dengan indent gantung. */
+function drawNumberedList(c, items, o = {}) {
+  const size = o.size ?? 12;
+  const pitch = o.pitch ?? 20.7;
+  const numX = o.numX ?? c.left + 31.6;
+  const textX = o.textX ?? c.left + 49.6;
+  const width = (o.right ?? c.right) - textX;
+  items.forEach((item) => {
+    const m = String(item).match(/^(\d+\.|[a-z]\.)\s*(.*)$/s);
+    const label = m ? m[1] : '';
+    const body = m ? m[2] : String(item);
+    const lines = c.wrap(body, width, size);
+    c.ensure(lines.length * pitch);
+    if (label) c.txt(label, numX, c.y, { size });
+    lines.forEach((line, i) => c.txt(line, textX, c.y + i * pitch, { size }));
+    c.y += lines.length * pitch;
+  });
+}
+
+/** Blok tanda tangan satu kolom di kanan (rujukan PAA/PUBT/PTP/LIS/IPK). */
+function drawSignatureBlock(c, report, data, o = {}) {
+  const centerX = o.centerX ?? 432;
+  const size = 12;
+  const lines = [
+    `Jakarta, ${report.signature.publishedAt !== '-' ? report.signature.publishedAt : formatIndoDate(new Date())}`,
+    ...(o.titleLines || ['Yang Memeriksa/Menguji', report.specialistTitle])
+  ];
+  const sigH = o.sigH ?? 120;
+  c.ensure(lines.length * 15.8 + sigH + 40);
+  let top = c.y;
+  const colW = o.colW ?? 240;
+  lines.forEach((line, i) => {
+    c.txt(line, centerX - colW / 2, top + i * 15.9, { size, bold: true, width: colW, align: 'center' });
+  });
+  top += lines.length * 15.9;
+  // Tanda tangan/QR
+  const sigY = top + 4;
+  const sigPath = data.inspector_signature_path;
+  if (sigPath && fs.existsSync(sigPath)) {
+    try {
+      c.doc.image(sigPath, centerX - 62, sigY, { fit: [124, 80], align: 'center', valign: 'center' });
+    } catch {
+      // abaikan jika gagal dimuat
+    }
+  } else if (o.qrBuffer) {
+    c.doc.image(o.qrBuffer, centerX - 30, sigY + 6, { width: 60 });
+  }
+  const nameTop = sigY + (o.nameOffset ?? 96);
+  c.txt(report.signature.inspector, centerX - colW / 2, nameTop, { size, bold: true, width: colW, align: 'center' });
+  const nw = c.textWidth(report.signature.inspector, size, { bold: true });
+  c.hline(centerX - nw / 2, centerX + nw / 2, nameTop + 13.6, 0.7);
+  if (data.inspector_skp_no || o.skpNo) {
+    c.txt(data.inspector_skp_no || o.skpNo, centerX - colW / 2, nameTop + 15.8, { size, bold: true, width: colW, align: 'center' });
+  }
+  c.y = nameTop + 34;
+}
+
+// ----------------------------------------------------------------------------
+// GRID FOTO DOKUMENTASI (2 kolom x 3 baris, caption di sel atas foto)
+// ----------------------------------------------------------------------------
+function drawPhotoGrid(c, photos, spec) {
+  const g = spec.grid;
+  const rowsPerPage = g.rowsPerPage ?? 3;
+  const captionBelow = spec.captionPosition === 'bottom';
+  const list = photos.length > 0 ? photos : [];
+  if (list.length === 0) {
+    c.cell(c.left, c.y, c.width, 24, 'Belum ada foto dokumentasi.', { size: 11, italic: true });
+    c.y += 24;
     return;
   }
-
-  // Helper untuk parsing cerdas input checklist teknisi
-  const parseChecklistRow = (item) => {
-    let section = (item.section || '').trim();
-    let label = (item.label || '').trim();
-
-    const isGenericSection =
-      !section ||
-      /^(pemeriksaan\s+visual|hasil\s+inspeksi|checklist|pemeriksaan|pemeriksaan\s+dan\s+pengujian)$/i.test(section);
-
-    if (isGenericSection && label) {
-      const colonIdx = label.indexOf(':');
-      const dashIdx = label.indexOf(' - ');
-      if (colonIdx > 0 && (dashIdx === -1 || colonIdx < dashIdx)) {
-        section = label.substring(0, colonIdx).trim();
-        label = label.substring(colonIdx + 1).trim();
-      } else if (dashIdx > 0) {
-        section = label.substring(0, dashIdx).trim();
-        label = label.substring(dashIdx + 3).trim();
-      }
+  let i = 0;
+  let rowOnPage = 0;
+  const gridTop = () => c.y;
+  let pageTop = gridTop();
+  while (i < list.length) {
+    if (rowOnPage >= rowsPerPage) {
+      c.newPage();
+      rowOnPage = 0;
+      pageTop = gridTop();
     }
-
-    section = section.replace(/^\d+[.)]\s*/, '');
-    label = label.replace(/^\d+[.)]\s*/, '');
-
-    return {
-      ...item,
-      cleanSection: section || 'Pemeriksaan Umum',
-      cleanLabel: label || '-'
-    };
-  };
-
-  const parsedItems = report.checklistRows.map(parseChecklistRow);
-  const groups = [];
-  let currentGroup = null;
-
-  for (const item of parsedItems) {
-    if (isLis) {
-      groups.push({ sectionName: item.cleanSection, items: [item] });
-    } else {
-      if (!currentGroup || currentGroup.sectionName !== item.cleanSection) {
-        currentGroup = {
-          sectionName: item.cleanSection,
-          items: []
-        };
-        groups.push(currentGroup);
-      }
-      currentGroup.items.push(item);
-    }
-  }
-
-  const compColW = cols[2] - cols[1] - 8;
-  const inspColW = isLis ? cols[2] - cols[1] - 8 : cols[3] - cols[2] - 8;
-  const noteColW = cols[cols.length - 1] - cols[cols.length - 2] - 8;
-
-  groups.forEach((group, gIdx) => {
-    const rowHeights = group.items.map((item) => {
-      const noteText =
-        item.choice === 'TIDAK_BERLAKU'
-          ? item.note || 'N/A'
-          : item.inputType === 'CHOICE'
-            ? item.note
-            : [item.value !== 'Belum diisi' ? item.value : '', item.note]
-                .filter(hasReportValue)
-                .join(' / ');
-      item.resolvedNote = noteText || '';
-
-      const hInsp = doc
-        .font('Times-Roman')
-        .fontSize(8)
-        .heightOfString(item.cleanLabel, { width: inspColW });
-      const hNote = doc
-        .font('Times-Roman')
-        .fontSize(8)
-        .heightOfString(item.resolvedNote, { width: noteColW });
-      return Math.max(18, hInsp + 6, hNote + 6);
-    });
-
-    const secTextH = isLis
-      ? 0
-      : doc.font('Times-Roman').fontSize(8).heightOfString(group.sectionName, { width: compColW });
-    const sumRowH = rowHeights.reduce((a, b) => a + b, 0);
-    const groupH = Math.max(sumRowH, secTextH + 8);
-
-    if (doc.y + groupH > doc.page.height - 65) {
-      doc.addPage();
-      doc.y = 48;
-      drawHeader();
-    }
-
-    const gY = doc.y;
-    doc
-      .rect(cols[0], gY, cols[cols.length - 1] - cols[0], groupH)
-      .lineWidth(0.5)
-      .strokeColor('#000000')
-      .stroke();
-
-    for (const x of cols.slice(1, -1)) {
-      doc
-        .moveTo(x, gY)
-        .lineTo(x, gY + groupH)
-        .lineWidth(0.45)
-        .strokeColor('#000000')
-        .stroke();
-    }
-
-    doc.font('Times-Roman').fontSize(8).fillColor('#000000');
-    doc.text(String(gIdx + 1), cols[0], gY + (groupH - 8) / 2, {
-      width: cols[1] - cols[0],
-      align: 'center'
-    });
-
-    if (!isLis) {
-      doc.text(group.sectionName, cols[1] + 4, gY + (groupH - secTextH) / 2, {
-        width: compColW,
-        lineGap: 1
-      });
-    }
-
-    let currentSubRowY = gY;
-    group.items.forEach((item, itemIdx) => {
-      const extraPad = itemIdx === group.items.length - 1 ? groupH - sumRowH : 0;
-      const rH = rowHeights[itemIdx] + extraPad;
-      const rY = currentSubRowY;
-
-      if (itemIdx > 0) {
-        const dividerStartX = isLis ? cols[1] : cols[2];
-        doc
-          .moveTo(dividerStartX, rY)
-          .lineTo(cols[cols.length - 1], rY)
-          .lineWidth(0.45)
-          .strokeColor('#000000')
-          .stroke();
-      }
-
-      if (isLis) {
-        doc.text(item.cleanLabel, cols[1] + 4, rY + 4, { width: compColW });
-      } else {
-        doc.text(item.cleanLabel, cols[2] + 4, rY + 4, { width: inspColW });
-      }
-
-      if (item.resolvedNote) {
-        doc.text(item.resolvedNote, cols[cols.length - 2] + 4, rY + 4, { width: noteColW });
-      }
-
-      const choice = normalizedChoice(item.choice);
-      const positiveChoices = new Set([
-        'SESUAI',
-        'BAIK',
-        'ADA',
-        'MEMENUHI',
-        'MEMENUHI_SYARAT_K3',
-        'YA',
-        'V'
-      ]);
-      const negativeChoices = new Set([
-        'TIDAK_SESUAI',
-        'BURUK',
-        'TIDAK_ADA',
-        'TIDAK_MEMENUHI',
-        'TIDAK_MEMENUHI_SYARAT_K3',
-        'TIDAK',
-        'X'
-      ]);
-
-      const statusStart = isLis ? 2 : 3;
-      if (hasGroupedStatus) {
-        const posCenterX = (cols[statusStart] + cols[statusStart + 1]) / 2;
-        const negCenterX = (cols[statusStart + 1] + cols[statusStart + 2]) / 2;
-        if (positiveChoices.has(choice)) {
-          drawCheckmark(doc, posCenterX, rY + rH / 2);
-          doc.text('-', negCenterX - 4, rY + rH / 2 - 4, { width: 8, align: 'center' });
-        } else if (negativeChoices.has(choice)) {
-          doc.text('-', posCenterX - 4, rY + rH / 2 - 4, { width: 8, align: 'center' });
-          drawCheckmark(doc, negCenterX, rY + rH / 2);
+    const rowTop = pageTop + rowOnPage * g.rowPitch;
+    for (let col = 0; col < 2; col += 1) {
+      const photo = list[i + col];
+      const cx0 = g.x[col];
+      const cx1 = g.x[col + 1];
+      const capH = g.captionH;
+      // sel foto
+      c.rect(cx0, rowTop, cx1 - cx0, g.rowPitch);
+      const caption = photo ? (photo.caption || photo.originalName || '') : '';
+      const capY = captionBelow ? rowTop + g.rowPitch - capH : rowTop;
+      const imgY = captionBelow ? rowTop + g.imgDY - capH + 2 : rowTop + g.imgDY;
+      if (photo) {
+        c.txt(caption, cx0, capY + (g.captionTop ?? 2.1), {
+          size: g.captionSize ?? 12, bold: true, width: cx1 - cx0, align: 'center'
+        });
+        if (captionBelow) c.hline(cx0, cx1, capY);
+        const p = photo.storageKey ? resolveAttachmentPath(photo.storageKey) : null;
+        if (p && fs.existsSync(p) && String(photo.mimeType || '').startsWith('image/')) {
+          try {
+            c.doc.image(p, cx0 + g.imgDX, imgY, { fit: [g.imgW, g.imgH], align: 'center', valign: 'center' });
+          } catch {
+            c.txt('[Gambar tidak dapat dirender]', cx0, imgY + g.imgH / 2 - 5, { size: 9, italic: true, color: '#666666', width: cx1 - cx0, align: 'center' });
+          }
         } else {
-          doc.text('-', posCenterX - 4, rY + rH / 2 - 4, { width: 8, align: 'center' });
-          doc.text('-', negCenterX - 4, rY + rH / 2 - 4, { width: 8, align: 'center' });
-        }
-      } else if (isIpp) {
-        const baikX = (cols[3] + cols[4]) / 2;
-        const burukX = (cols[4] + cols[5]) / 2;
-        const naX = (cols[5] + cols[6]) / 2;
-        if (choice === 'BAIK' || positiveChoices.has(choice)) {
-          drawCheckmark(doc, baikX, rY + rH / 2);
-        } else if (choice === 'BURUK' || negativeChoices.has(choice)) {
-          drawCheckmark(doc, burukX, rY + rH / 2);
-        } else if (choice === 'TIDAK_BERLAKU' || choice === 'NA' || choice === 'N/A') {
-          drawCheckmark(doc, naX, rY + rH / 2);
-        }
-      } else if (isLis) {
-        const adaX = (cols[2] + cols[3]) / 2;
-        const tdkAdaX = (cols[3] + cols[4]) / 2;
-        if (choice === 'ADA' || positiveChoices.has(choice)) {
-          drawCheckmark(doc, adaX, rY + rH / 2);
-        } else if (choice === 'TIDAK_ADA' || negativeChoices.has(choice)) {
-          drawCheckmark(doc, tdkAdaX, rY + rH / 2);
+          c.txt('[Foto terlampir]', cx0, imgY + g.imgH / 2 - 5, { size: 9, italic: true, color: '#666666', width: cx1 - cx0, align: 'center' });
         }
       }
-
-      currentSubRowY += rH;
-    });
-
-    doc.y = gY + groupH;
-  });
-
-  doc.y += 6;
-}
-
-// ----------------------------------------------------------------------------
-// BAGIAN PENGUJIAN KHUSUS: PUBT, PTP, IPP, LIS
-// ----------------------------------------------------------------------------
-
-function drawPubtSpecialTesting(doc, data, contentLeft, contentWidth, ensureSpace) {
-  drawSectionHeader(
-    doc,
-    'IV. PEMERIKSAAN TIDAK MERUSAK (NDT) & PENGUJIAN TEKANAN',
-    contentLeft,
-    contentWidth,
-    ensureSpace
-  );
-
-  doc
-    .font('Times-Bold')
-    .fontSize(8.5)
-    .fillColor('#000000')
-    .text('a. PEMERIKSAAN TIDAK MERUSAK (NDT SAMBUNGAN LAS)', contentLeft, doc.y);
-  doc.y += 4;
-
-  const ndtCols = [
-    contentLeft,
-    contentLeft + 26,
-    contentLeft + 155,
-    contentLeft + 295,
-    contentLeft + 355,
-    contentLeft + 415,
-    contentLeft + contentWidth
-  ];
-  const ndtH = 26;
-
-  ensureSpace(ndtH + 60);
-  const ndtY = doc.y;
-  doc.rect(contentLeft, ndtY, contentWidth, ndtH).lineWidth(0.5).strokeColor('#000000').stroke();
-  for (const x of ndtCols.slice(1, -1)) {
-    doc.moveTo(x, ndtY).lineTo(x, ndtY + ndtH).lineWidth(0.5).strokeColor('#000000').stroke();
-  }
-  doc.moveTo(ndtCols[3], ndtY + 12).lineTo(ndtCols[5], ndtY + 12).lineWidth(0.5).strokeColor('#000000').stroke();
-
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('No', ndtCols[0], ndtY + 8, { width: ndtCols[1] - ndtCols[0], align: 'center' })
-    .text('Bagian yang di-NDT', ndtCols[1] + 4, ndtY + 8, { width: ndtCols[2] - ndtCols[1] - 8, align: 'center' })
-    .text('Lokasi', ndtCols[2] + 4, ndtY + 8, { width: ndtCols[3] - ndtCols[2] - 8, align: 'center' })
-    .text('Cacat', ndtCols[3], ndtY + 2, { width: ndtCols[5] - ndtCols[3], align: 'center' })
-    .text('Ada', ndtCols[3], ndtY + 14, { width: ndtCols[4] - ndtCols[3], align: 'center' })
-    .text('Tidak ada', ndtCols[4], ndtY + 14, { width: ndtCols[5] - ndtCols[4], align: 'center' })
-    .text('Keterangan', ndtCols[5] + 4, ndtY + 8, { width: ndtCols[6] - ndtCols[5] - 8, align: 'center' });
-  doc.y = ndtY + ndtH;
-
-  const ndtRows = [
-    ['Shell / Badan', 'Sambungan Melingkar & Memanjang', false, 'Memenuhi Syarat'],
-    ['Head / Tutup Ujung', 'Sambungan Las Shell - Head', false, 'Memenuhi Syarat'],
-    ['Nozzle & Flange', 'Daerah Lasan Nozzle', false, 'Memenuhi Syarat']
-  ];
-
-  ndtRows.forEach(([part, loc, hasDefect, ket], idx) => {
-    const rY = doc.y;
-    const rH = 18;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    for (const x of ndtCols.slice(1, -1)) {
-      doc.moveTo(x, rY).lineTo(x, rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
     }
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(String(idx + 1), ndtCols[0], rY + 4, { width: ndtCols[1] - ndtCols[0], align: 'center' })
-      .text(part, ndtCols[1] + 4, rY + 4, { width: ndtCols[2] - ndtCols[1] - 8 })
-      .text(loc, ndtCols[2] + 4, rY + 4, { width: ndtCols[3] - ndtCols[2] - 8 });
-
-    if (hasDefect) {
-      drawCheckmark(doc, (ndtCols[3] + ndtCols[4]) / 2, rY + rH / 2);
-    } else {
-      drawCheckmark(doc, (ndtCols[4] + ndtCols[5]) / 2, rY + rH / 2);
-    }
-
-    doc.text(ket, ndtCols[5] + 4, rY + 4, { width: ndtCols[6] - ndtCols[5] - 8 });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 8;
-
-  // b. Uji Tekanan (Pressure Test)
-  doc
-    .font('Times-Bold')
-    .fontSize(8.5)
-    .fillColor('#000000')
-    .text('b. METODE PENGUJIAN TEKANAN (PRESSURE TEST)', contentLeft, doc.y);
-  doc.y += 4;
-
-  const pressRows = [
-    [
-      'Tekanan Desain',
-      'DP',
-      data.technical_data?.tekanan_desain || data.technical_data?.design_pressure || '11.0 Kg/cm²',
-      'Desain Standar Pabrik'
-    ],
-    [
-      'Tekanan Kerja Maksimum',
-      'WP',
-      data.technical_data?.tekanan_kerja || data.technical_data?.max_allowable_working_pressure || '10.0 Kg/cm²',
-      'MAWP Tertera pada Nameplate'
-    ],
-    [
-      'Tekanan Uji Hidrostatis',
-      'TP',
-      data.technical_data?.test_pressure || '14.0 Kg/cm²',
-      '1.3 s/d 1.5 x Tekanan Kerja'
-    ],
-    [
-      'Temperatur Ambient',
-      'T',
-      data.technical_data?.temperatur_kerja || 'Ambient (29°C)',
-      'Suhu Ruang Operasional'
-    ]
-  ];
-
-  const pressCols = [
-    contentLeft,
-    contentLeft + 26,
-    contentLeft + 180,
-    contentLeft + 240,
-    contentLeft + 370,
-    contentLeft + contentWidth
-  ];
-
-  ensureSpace(20 + pressRows.length * 18);
-  const pHdrY = doc.y;
-  doc.rect(contentLeft, pHdrY, contentWidth, 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  for (const x of pressCols.slice(1, -1)) {
-    doc.moveTo(x, pHdrY).lineTo(x, pHdrY + 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  }
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('No', pressCols[0], pHdrY + 4, { width: pressCols[1] - pressCols[0], align: 'center' })
-    .text('Data Pengujian', pressCols[1] + 4, pHdrY + 4, { width: pressCols[2] - pressCols[1] - 8 })
-    .text('Simbol', pressCols[2], pHdrY + 4, { width: pressCols[3] - pressCols[2], align: 'center' })
-    .text('Nilai / Hasil Pengujian', pressCols[3] + 4, pHdrY + 4, { width: pressCols[4] - pressCols[3] - 8 })
-    .text('Keterangan', pressCols[4] + 4, pHdrY + 4, { width: pressCols[5] - pressCols[4] - 8 });
-  doc.y = pHdrY + 18;
-
-  pressRows.forEach(([param, sym, val, ket], idx) => {
-    const rY = doc.y;
-    const rH = 17;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    for (const x of pressCols.slice(1, -1)) {
-      doc.moveTo(x, rY).lineTo(x, rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
-    }
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(String(idx + 1), pressCols[0], rY + 3.5, { width: pressCols[1] - pressCols[0], align: 'center' })
-      .text(param, pressCols[1] + 4, rY + 3.5, { width: pressCols[2] - pressCols[1] - 8 })
-      .text(sym, pressCols[2], rY + 3.5, { width: pressCols[3] - pressCols[2], align: 'center' })
-      .text(val, pressCols[3] + 4, rY + 3.5, { width: pressCols[4] - pressCols[3] - 8 })
-      .text(ket, pressCols[4] + 4, rY + 3.5, { width: pressCols[5] - pressCols[4] - 8 });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 10;
-
-  // c. Ultrasonic Wall Thickness
-  drawSectionHeader(
-    doc,
-    'V. HASIL PENGUKURAN KETEBALAN DINDING (ULTRASONIC WALL THICKNESS)',
-    contentLeft,
-    contentWidth,
-    ensureSpace
-  );
-
-  const thkCols = [
-    contentLeft,
-    contentLeft + 26,
-    contentLeft + 160,
-    contentLeft + 245,
-    contentLeft + 355,
-    contentLeft + 425,
-    contentLeft + contentWidth
-  ];
-
-  ensureSpace(20 + 5 * 18);
-  const thkHdrY = doc.y;
-  doc.rect(contentLeft, thkHdrY, contentWidth, 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  for (const x of thkCols.slice(1, -1)) {
-    doc.moveTo(x, thkHdrY).lineTo(x, thkHdrY + 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  }
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('No', thkCols[0], thkHdrY + 4, { width: thkCols[1] - thkCols[0], align: 'center' })
-    .text('Bagian yang Diukur', thkCols[1] + 4, thkHdrY + 4, { width: thkCols[2] - thkCols[1] - 8 })
-    .text('Tebal Nominal (mm)', thkCols[2], thkHdrY + 4, { width: thkCols[3] - thkCols[2], align: 'center' })
-    .text('Hasil Ukur Aktual (mm)', thkCols[3], thkHdrY + 4, { width: thkCols[4] - thkCols[3], align: 'center' })
-    .text('Tebal Min. (mm)', thkCols[4], thkHdrY + 4, { width: thkCols[5] - thkCols[4], align: 'center' })
-    .text('Keterangan', thkCols[5] + 4, thkHdrY + 4, { width: thkCols[6] - thkCols[5] - 8 });
-  doc.y = thkHdrY + 18;
-
-  const shellNom = data.technical_data?.shell_nominal_thk || '8.00 mm';
-  const headNom = data.technical_data?.head_nominal_thk || '8.00 mm';
-  const thkRows = [
-    ['Shell / Badan - Titik 1 (Atas)', shellNom, '7.85 mm', '5.20 mm', 'Memenuhi Syarat'],
-    ['Shell / Badan - Titik 2 (Tengah)', shellNom, '7.90 mm', '5.20 mm', 'Memenuhi Syarat'],
-    ['Shell / Badan - Titik 3 (Bawah)', shellNom, '7.82 mm', '5.20 mm', 'Memenuhi Syarat'],
-    ['Head Kiri / Samping Kiri', headNom, '7.88 mm', '5.10 mm', 'Memenuhi Syarat'],
-    ['Head Kanan / Samping Kanan', headNom, '7.86 mm', '5.10 mm', 'Memenuhi Syarat']
-  ];
-
-  thkRows.forEach(([part, nom, act, min, ket], idx) => {
-    const rY = doc.y;
-    const rH = 17;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    for (const x of thkCols.slice(1, -1)) {
-      doc.moveTo(x, rY).lineTo(x, rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
-    }
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(String(idx + 1), thkCols[0], rY + 3.5, { width: thkCols[1] - thkCols[0], align: 'center' })
-      .text(part, thkCols[1] + 4, rY + 3.5, { width: thkCols[2] - thkCols[1] - 8 })
-      .text(nom, thkCols[2], rY + 3.5, { width: thkCols[3] - thkCols[2], align: 'center' })
-      .text(act, thkCols[3], rY + 3.5, { width: thkCols[4] - thkCols[3], align: 'center' })
-      .text(min, thkCols[4], rY + 3.5, { width: thkCols[5] - thkCols[4], align: 'center' })
-      .text(ket, thkCols[5] + 4, rY + 3.5, { width: thkCols[6] - thkCols[5] - 8 });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 8;
-}
-
-function drawPtpEnvironmentalTesting(doc, data, contentLeft, contentWidth, ensureSpace) {
-  drawSectionHeader(
-    doc,
-    'IV. PENGUJIAN PENGUKURAN TEKNIS & LINGKUNGAN KERJA',
-    contentLeft,
-    contentWidth,
-    ensureSpace
-  );
-
-  const envCols = [
-    contentLeft,
-    contentLeft + 26,
-    contentLeft + 180,
-    contentLeft + 285,
-    contentLeft + 415,
-    contentLeft + contentWidth
-  ];
-
-  ensureSpace(20 + 5 * 18);
-  const hdrY = doc.y;
-  doc.rect(contentLeft, hdrY, contentWidth, 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  for (const x of envCols.slice(1, -1)) {
-    doc.moveTo(x, hdrY).lineTo(x, hdrY + 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  }
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('No', envCols[0], hdrY + 4, { width: envCols[1] - envCols[0], align: 'center' })
-    .text('Komponen / Parameter yang Diuji', envCols[1] + 4, hdrY + 4, { width: envCols[2] - envCols[1] - 8 })
-    .text('Nilai Hasil Pengukuran', envCols[2], hdrY + 4, { width: envCols[3] - envCols[2], align: 'center' })
-    .text('Standar Rujukan K3', envCols[3], hdrY + 4, { width: envCols[4] - envCols[3], align: 'center' })
-    .text('Keterangan', envCols[4] + 4, hdrY + 4, { width: envCols[5] - envCols[4] - 8 });
-  doc.y = hdrY + 18;
-
-  const rpmVal = data.technical_data?.putaran_rpm || data.technical_data?.motor_rpm || '1500 RPM';
-  const groundVal = data.technical_data?.tahanan_pembumian_ohm || data.technical_data?.grounding || '0.80 Ohm';
-  const noiseVal = data.technical_data?.kebisingan_dba || '85.4 dBA';
-  const luxVal = data.technical_data?.pencahayaan_lux || '210 Lux';
-
-  const envRows = [
-    ['Putaran Poros Mesin / Diesel (RPM)', rpmVal, 'Standar Desain Mesin', 'Berfungsi Baik'],
-    ['Pembumian (Grounding)', groundVal, '< 5.0 Ohm (Permenaker 12/2015)', 'Memenuhi Syarat'],
-    ['Pengukuran Tingkat Kebisingan', noiseVal, 'Maks. 85.0 dBA (8 Jam Kerja)', 'Sesuai / APD Wajib'],
-    ['Pengukuran Tingkat Pencahayaan', luxVal, 'Min. 100 Lux (Area Kerja)', 'Memenuhi Syarat'],
-    ['Uji Fungsi Safety Device & Interlock', 'Aktif & Bekerja Normal', 'Wajib Bekerja Sempurna', 'Memenuhi Syarat']
-  ];
-
-  envRows.forEach(([param, act, std, ket], idx) => {
-    const rY = doc.y;
-    const rH = 17;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    for (const x of envCols.slice(1, -1)) {
-      doc.moveTo(x, rY).lineTo(x, rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
-    }
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(String(idx + 1), envCols[0], rY + 3.5, { width: envCols[1] - envCols[0], align: 'center' })
-      .text(param, envCols[1] + 4, rY + 3.5, { width: envCols[2] - envCols[1] - 8 })
-      .text(act, envCols[2], rY + 3.5, { width: envCols[3] - envCols[2], align: 'center' })
-      .text(std, envCols[3], rY + 3.5, { width: envCols[4] - envCols[3], align: 'center' })
-      .text(ket, envCols[4] + 4, rY + 3.5, { width: envCols[5] - envCols[4] - 8 });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 8;
-}
-
-function drawGroundingTestSection(doc, data, categoryCode, contentLeft, contentWidth, ensureSpace) {
-  const title =
-    categoryCode === 'IPP'
-      ? 'HASIL PENGUKURAN TAHANAN PEMBUMIAN (GROUNDING)'
-      : 'HASIL PENGUKURAN TAHANAN PEMBUMIAN & ISOLASI (GROUNDING & INSULATION)';
-  drawSectionHeader(doc, title, contentLeft, contentWidth, ensureSpace);
-
-  if (categoryCode === 'IPP') {
-    doc
-      .font('Times-Roman')
-      .fontSize(8.5)
-      .fillColor('#000000')
-      .text(
-        'Pengukuran tahanan tanah dilakukan menggunakan alat Digital Earth Tester Kyoritsu 4105A (Terkalibrasi):',
-        contentLeft,
-        doc.y
-      );
-    doc.y += 4;
-  }
-
-  const gCols = [
-    contentLeft,
-    contentLeft + 26,
-    contentLeft + 215,
-    contentLeft + 325,
-    contentLeft + 415,
-    contentLeft + contentWidth
-  ];
-
-  ensureSpace(20 + 3 * 18);
-  const gHdrY = doc.y;
-  doc.rect(contentLeft, gHdrY, contentWidth, 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  for (const x of gCols.slice(1, -1)) {
-    doc.moveTo(x, gHdrY).lineTo(x, gHdrY + 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  }
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('No', gCols[0], gHdrY + 4, { width: gCols[1] - gCols[0], align: 'center' })
-    .text('Titik Pengukuran / Bak Kontrol', gCols[1] + 4, gHdrY + 4, { width: gCols[2] - gCols[1] - 8 })
-    .text('Nilai Hasil Ukur', gCols[2], gHdrY + 4, { width: gCols[3] - gCols[2], align: 'center' })
-    .text('Standar Maks. K3', gCols[3], gHdrY + 4, { width: gCols[4] - gCols[3], align: 'center' })
-    .text('Hasil Evaluasi', gCols[4] + 4, gHdrY + 4, { width: gCols[5] - gCols[4] - 8 });
-  doc.y = gHdrY + 18;
-
-  const gVal = data.technical_data?.hasil_tahanan_tanah || data.technical_data?.tahanan_pembumian_ohm || '1.18 Ohm';
-  const gRows =
-    categoryCode === 'IPP'
-      ? [
-          ['Bak Kontrol 1 (Down Conductor Utama)', gVal, '< 5.00 Ohm', 'MEMENUHI SYARAT K3'],
-          ['Bak Kontrol 2 (Elektroda Pembumian)', '1.25 Ohm', '< 5.00 Ohm', 'MEMENUHI SYARAT K3']
-        ]
-      : [
-          ['Panel Distribusi Utama (LVMDP)', gVal, '< 5.00 Ohm', 'MEMENUHI SYARAT K3'],
-          ['Sub Distribusi Panel (SDP)', '0.82 Ohm', '< 5.00 Ohm', 'MEMENUHI SYARAT K3'],
-          ['Tahanan Isolasi Kabel Fasa (R-S-T-N)', '> 100 MegaOhm', 'Min. 1.0 MΩ (PUIL 2011)', 'MEMENUHI SYARAT K3']
-        ];
-
-  gRows.forEach(([titik, val, std, evalResult], idx) => {
-    const rY = doc.y;
-    const rH = 17;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    for (const x of gCols.slice(1, -1)) {
-      doc.moveTo(x, rY).lineTo(x, rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
-    }
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(String(idx + 1), gCols[0], rY + 3.5, { width: gCols[1] - gCols[0], align: 'center' })
-      .text(titik, gCols[1] + 4, rY + 3.5, { width: gCols[2] - gCols[1] - 8 })
-      .text(val, gCols[2], rY + 3.5, { width: gCols[3] - gCols[2], align: 'center' })
-      .text(std, gCols[3], rY + 3.5, { width: gCols[4] - gCols[3], align: 'center' })
-      .text(evalResult, gCols[4] + 4, rY + 3.5, { width: gCols[5] - gCols[4] - 8 });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 8;
-}
-
-function drawLisThermalPanelSection(doc, data, contentLeft, contentWidth, ensureSpace) {
-  drawSectionHeader(
-    doc,
-    'IV. PENGUKURAN THERMAL PANEL (THERMOVISION)',
-    contentLeft,
-    contentWidth,
-    ensureSpace
-  );
-
-  doc
-    .font('Times-Bold')
-    .fontSize(8.5)
-    .fillColor('#000000')
-    .text('1. STANDAR KRITERIA EVALUASI THERMAL PANEL', contentLeft, doc.y);
-  doc.y += 4;
-
-  const tCols = [contentLeft, contentLeft + 250, contentLeft + contentWidth];
-  ensureSpace(18 + 5 * 16);
-  const tHdrY = doc.y;
-  doc.rect(contentLeft, tHdrY, contentWidth, 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  doc.moveTo(tCols[1], tHdrY).lineTo(tCols[1], tHdrY + 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('Perbedaan Temperatur dari Maksimum yang Diizinkan (ΔT)', tCols[0] + 4, tHdrY + 4, {
-      width: tCols[1] - tCols[0] - 8
-    })
-    .text('Kategori & Prioritas Tindak Lanjut Perbaikan', tCols[1] + 4, tHdrY + 4, {
-      width: tCols[2] - tCols[1] - 8
-    });
-  doc.y = tHdrY + 18;
-
-  const tCriteria = [
-    ['1°C - 10°C', 'Kondisi Normal / Pemantauan Rutin (Prioritas 1 Bulan)'],
-    ['11°C - 20°C', 'Perhatian / Jadwalkan Perawatan Berkala (Prioritas 1 - 2 Minggu)'],
-    ['21°C - 40°C', 'Pemanasan Sedang / Segera Periksa Sambungan (Prioritas 1 - 2 Hari)'],
-    ['> 40°C', 'Acute Heating / Pemanasan Akut (Segera Perbaiki)'],
-    ['> 70°C', 'Critical Heating / Pemanasan Kritis (Bahaya Kebakaran, Segera Matikan)']
-  ];
-
-  tCriteria.forEach(([dt, prior]) => {
-    const rY = doc.y;
-    const rH = 16;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc.moveTo(tCols[1], rY).lineTo(tCols[1], rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(dt, tCols[0] + 6, rY + 3.5, { width: tCols[1] - tCols[0] - 12 })
-      .text(prior, tCols[1] + 6, rY + 3.5, { width: tCols[2] - tCols[1] - 12 });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 8;
-
-  doc
-    .font('Times-Bold')
-    .fontSize(8.5)
-    .fillColor('#000000')
-    .text('2. TEMPERATUR MAKSIMUM YANG DIIJINKAN KOMPONEN LISTRIK (ANSI/IEEE)', contentLeft, doc.y);
-  doc.y += 4;
-
-  const compCols = [
-    contentLeft,
-    contentLeft + 26,
-    contentLeft + 225,
-    contentLeft + 375,
-    contentLeft + contentWidth
-  ];
-  ensureSpace(18 + 6 * 16);
-  const cHdrY = doc.y;
-  doc.rect(contentLeft, cHdrY, contentWidth, 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  for (const x of compCols.slice(1, -1)) {
-    doc.moveTo(x, cHdrY).lineTo(x, cHdrY + 18).lineWidth(0.5).strokeColor('#000000').stroke();
-  }
-  doc
-    .font('Times-Bold')
-    .fontSize(8)
-    .fillColor('#000000')
-    .text('No', compCols[0], cHdrY + 4, { width: compCols[1] - compCols[0], align: 'center' })
-    .text('Komponen / Bagian Listrik', compCols[1] + 4, cHdrY + 4, { width: compCols[2] - compCols[1] - 8 })
-    .text('Standar Rujukan', compCols[2], cHdrY + 4, { width: compCols[3] - compCols[2], align: 'center' })
-    .text('Suhu Maks. (°C)', compCols[3], cHdrY + 4, { width: compCols[4] - compCols[3], align: 'center' });
-  doc.y = cHdrY + 18;
-
-  const compTemps = [
-    ['Coil Contactor & Coil Relay', 'ANSI/IEEE C 37.63 1984', '90°C'],
-    ['Busbar & Terminal Koneksi Busbar / Konduktor', 'ANSI/IEEE C 37.20', '90°C'],
-    ['Terminal Koneksi Kabel / Sepatu Kabel', 'ANSI/IEEE C 37 1991', '80°C'],
-    ['Isolasi & Lapisan Selubung Raychem', 'ANSI/IEEE C 37', '70°C'],
-    ['Bushing Trafo & Bushing Circuit Breaker', 'ANSI/IEEE C 37.04', '85°C'],
-    ['Case Enclosure ACB / MCCB / MCB', 'ANSI/IEEE', '75°C']
-  ];
-
-  compTemps.forEach(([cName, std, maxT], idx) => {
-    const rY = doc.y;
-    const rH = 16;
-    doc.rect(contentLeft, rY, contentWidth, rH).lineWidth(0.5).strokeColor('#000000').stroke();
-    for (const x of compCols.slice(1, -1)) {
-      doc.moveTo(x, rY).lineTo(x, rY + rH).lineWidth(0.45).strokeColor('#000000').stroke();
-    }
-    doc
-      .font('Times-Roman')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(String(idx + 1), compCols[0], rY + 3.5, { width: compCols[1] - compCols[0], align: 'center' })
-      .text(cName, compCols[1] + 4, rY + 3.5, { width: compCols[2] - compCols[1] - 8 })
-      .text(std, compCols[2], rY + 3.5, { width: compCols[3] - compCols[2], align: 'center' })
-      .text(maxT, compCols[3], rY + 3.5, { width: compCols[4] - compCols[3], align: 'center' });
-    doc.y = rY + rH;
-  });
-
-  doc.y += 8;
-}
-
-function drawFindingsSection(doc, report, contentLeft, contentWidth, ensureSpace) {
-  drawSectionHeader(doc, report.sectionTitles[3], contentLeft, contentWidth, ensureSpace);
-
-  if (report.noFindings) {
-    ensureSpace(28);
-    const fY = doc.y;
-    doc.rect(contentLeft, fY, contentWidth, 24).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc
-      .font('Times-Italic')
-      .fontSize(8.5)
-      .fillColor('#333333')
-      .text(
-        'Berdasarkan hasil pemeriksaan dan pengujian, seluruh komponen yang diperiksa telah memenuhi persyaratan K3 tanpa adanya temuan ketidaksesuaian.',
-        contentLeft + 8,
-        fY + 7,
-        { width: contentWidth - 16 }
-      );
-    doc.y = fY + 30;
-  } else {
-    const fCols = [
-      contentLeft,
-      contentLeft + 80,
-      contentLeft + 280,
-      contentLeft + contentWidth
-    ];
-
-    ensureSpace(22);
-    const fHdrY = doc.y;
-    doc.rect(contentLeft, fHdrY, contentWidth, 20).lineWidth(0.6).strokeColor('#000000').stroke();
-    doc.moveTo(fCols[1], fHdrY).lineTo(fCols[1], fHdrY + 20).lineWidth(0.5).strokeColor('#000000').stroke();
-    doc.moveTo(fCols[2], fHdrY).lineTo(fCols[2], fHdrY + 20).lineWidth(0.5).strokeColor('#000000').stroke();
-
-    doc
-      .font('Times-Bold')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text('Tingkat Risiko', fCols[0], fHdrY + 6, { width: fCols[1] - fCols[0], align: 'center' })
-      .text('Uraian Temuan Lapangan', fCols[1] + 6, fHdrY + 6, { width: fCols[2] - fCols[1] - 12 })
-      .text('Rekomendasi Tindak Lanjut K3', fCols[2] + 6, fHdrY + 6, { width: fCols[3] - fCols[2] - 12 });
-    doc.y = fHdrY + 20;
-
-    for (let i = 0; i < report.findings.length; i += 1) {
-      const f = report.findings[i];
-      const sev = (f.severity || 'TEMUAN').toUpperCase();
-      const desc = f.description || '-';
-      const rec = f.recommendation || '-';
-
-      const h1 = doc.font('Times-Roman').fontSize(8).heightOfString(desc, { width: fCols[2] - fCols[1] - 12 });
-      const h2 = doc.font('Times-Roman').fontSize(8).heightOfString(rec, { width: fCols[3] - fCols[2] - 12 });
-      const rowH = Math.max(18, h1, h2) + 6;
-
-      ensureSpace(rowH);
-      const rY = doc.y;
-
-      doc.rect(contentLeft, rY, contentWidth, rowH).lineWidth(0.5).strokeColor('#000000').stroke();
-      doc.moveTo(fCols[1], rY).lineTo(fCols[1], rY + rowH).lineWidth(0.5).strokeColor('#000000').stroke();
-      doc.moveTo(fCols[2], rY).lineTo(fCols[2], rY + rowH).lineWidth(0.5).strokeColor('#000000').stroke();
-
-      doc
-        .font('Times-Bold')
-        .fontSize(8)
-        .fillColor('#B91C1C')
-        .text(sev, fCols[0], rY + 4, { width: fCols[1] - fCols[0], align: 'center' });
-      doc
-        .font('Times-Roman')
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(desc, fCols[1] + 6, rY + 4, { width: fCols[2] - fCols[1] - 12 })
-        .text(rec, fCols[2] + 6, rY + 4, { width: fCols[3] - fCols[2] - 12 });
-
-      doc.y = rY + rowH;
-    }
-    doc.y += 6;
+    i += 2;
+    rowOnPage += 1;
+    c.y = rowTop + g.rowPitch;
   }
 }
 
-function drawConclusionAndRules(doc, report, data, contentLeft, contentWidth, ensureSpace) {
-  drawSectionHeader(doc, report.sectionTitles[4], contentLeft, contentWidth, ensureSpace);
+// ============================================================================
+// PROFIL GEOMETRI PER BIDANG (diukur dari PDF rujukan)
+// ============================================================================
+const ADDRESS_FOOTER = 'Jl. Pondasi No. 50B Kampung Ambon, Jakarta Timur. 13210';
+const COVER_ADDRESS_A = [
+  'PT. UPAYA RIKSA DAYA',
+  ADDRESS_FOOTER,
+  'Phone. 021 4891409, 021 4715699, 021 47861912',
+  'Email: urd@upayariksadaya.com  Web. upayariksa.com'
+];
+const COVER_ADDRESS_B = [
+  'PT. UPAYA RIKSA DAYA',
+  ADDRESS_FOOTER,
+  'Phone: 021 4891409 | 021 4715699,021 47861912',
+  'Email : urd@upayariksadaya.com Web. upayariksa.com'
+];
 
-  ensureSpace(45);
-  doc
-    .font('Times-Roman')
-    .fontSize(10)
-    .fillColor('#000000')
-    .text(
-      'Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa unit peralatan dinyatakan :',
-      contentLeft,
-      doc.y,
-      { width: contentWidth, lineGap: 2 }
-    );
-  doc.y += 6;
-
-  // Banner Status Hasil Akhir
-  let bannerBg = '#ECFDF5';
-  let bannerBorder = '#059669';
-  let bannerTextColor = '#065F46';
-  const cUpper = (report.conclusion || '').toUpperCase();
-  if (cUpper.includes('CATATAN')) {
-    bannerBg = '#FFFBEB';
-    bannerBorder = '#D97706';
-    bannerTextColor = '#92400E';
-  } else if (cUpper.includes('TIDAK') || cUpper.includes('BELUM')) {
-    bannerBg = '#FEF2F2';
-    bannerBorder = '#DC2626';
-    bannerTextColor = '#991B1B';
-  }
-
-  ensureSpace(45);
-  const bannerY = doc.y;
-  const bannerH = 32;
-  doc.rect(contentLeft, bannerY, contentWidth, bannerH).fillColor(bannerBg).fill();
-  doc.rect(contentLeft, bannerY, contentWidth, bannerH).lineWidth(1.2).strokeColor(bannerBorder).stroke();
-  doc
-    .font('Times-Bold')
-    .fontSize(12)
-    .fillColor(bannerTextColor)
-    .text(report.conclusion, contentLeft, bannerY + 9, {
-      width: contentWidth,
-      align: 'center'
-    });
-  doc.y = bannerY + bannerH + 12;
-
-  // Narasi Kelayakan Operasional
-  ensureSpace(40);
-  const narrative = `Unit ${data.object_name || 'peralatan'} dengan Nomor Seri : ${data.serial_number || '-'}, Tahun : ${data.manufacture_year || '-'}, Kapasitas : ${data.capacity || '-'}${data.capacity_unit ? ` ${data.capacity_unit}` : ''}, dapat dipergunakan di ${data.install_location || data.client_address || '-'}, ${data.client_name || '-'} dengan mengikuti rekomendasi dan syarat-syarat K3 yang berlaku.`;
-  doc
-    .font('Times-Roman')
-    .fontSize(10)
-    .fillColor('#000000')
-    .text(narrative, contentLeft, doc.y, { width: contentWidth, lineGap: 3 });
-  doc.y += 10;
-
-  if (report.conclusionNotes && report.conclusionNotes !== '-') {
-    ensureSpace(30);
-    doc
-      .font('Times-Bold')
-      .fontSize(9.5)
-      .fillColor('#000000')
-      .text('Catatan Hasil Pemeriksaan :', contentLeft, doc.y);
-    doc.y += 3;
-    doc
-      .font('Times-Roman')
-      .fontSize(9.5)
-      .fillColor('#000000')
-      .text(report.conclusionNotes, contentLeft, doc.y, { width: contentWidth, lineGap: 2 });
-    doc.y += 8;
-  }
-
-  if (report.recommendations && report.recommendations !== 'Belum diisi.') {
-    ensureSpace(30);
-    doc
-      .font('Times-Bold')
-      .fontSize(9.5)
-      .fillColor('#000000')
-      .text('Rekomendasi Tindak Lanjut K3 :', contentLeft, doc.y);
-    doc.y += 3;
-    doc
-      .font('Times-Roman')
-      .fontSize(9.5)
-      .fillColor('#000000')
-      .text(report.recommendations, contentLeft, doc.y, { width: contentWidth, lineGap: 2 });
-    doc.y += 8;
-  }
-
-  // Syarat-syarat K3
-  ensureSpace(70);
-  doc
-    .font('Times-Bold')
-    .fontSize(10.5)
-    .fillColor('#000000')
-    .text('SYARAT - SYARAT KESELAMATAN DAN KESEHATAN KERJA', contentLeft, doc.y);
-  doc.y += 4;
-
-  const rulesList = report.rules && report.rules.length > 0
-    ? report.rules
-    : [
-        '1. Unit harus dioperasikan oleh Operator yang telah memiliki Sertifikat K3 dan SIO (Surat Izin Operasi) resmi dari Kemenaker R.I.',
-        '2. Dilarang mengoperasikan unit melebihi batas kapasitas maksimum yang diizinkan (Safe Working Load / SWL).',
-        '3. Lakukan pemeriksaan dan pengujian berkala selambat-lambatnya sesuai batas rekomendasi uji berkala berikutnya.'
-      ];
-
-  for (const rule of rulesList) {
-    const rH = doc.font('Times-Roman').fontSize(9).heightOfString(rule, { width: contentWidth });
-    ensureSpace(rH + 4);
-    doc.font('Times-Roman').fontSize(9).fillColor('#000000').text(rule, contentLeft, doc.y, {
-      width: contentWidth,
-      lineGap: 2
-    });
-    doc.y += 4;
-  }
-  doc.y += 10;
+function makeCover(o) {
+  return {
+    topBand: { x0: -23.2, x1: 619.4, bottom: o.topBottom ?? 51.8 },
+    bottomBand: { x0: -4.3, x1: 624.9, top: o.bottomTop, bottom: o.bottomEnd },
+    bars: o.bars,
+    yearX: o.yearX, yearTop: o.yearTop ?? 61.0, underlineY: o.underlineY ?? 85.9,
+    titleTop: o.titleTop, titlePitch: o.titlePitch ?? 20.7,
+    labelX: o.labelX ?? 85.2, colonX: o.colonX, infoTop: o.infoTop,
+    infoPitch: o.infoPitch, infoLinePitch: o.infoLinePitch ?? 16.1,
+    photo: o.photo,
+    address: o.address ?? COVER_ADDRESS_B, addressTop: o.addressTop, addressPitch: o.addressPitch ?? 12.7
+  };
 }
 
-function drawSignaturesSection(doc, report, data, qrBuffer, contentLeft, contentWidth, ensureSpace) {
-  ensureSpace(140);
-
-  const dateStr = `Jakarta, ${report.signature.publishedAt !== '-' ? report.signature.publishedAt : formatIndoDate(new Date())}`;
-  doc
-    .font('Times-Roman')
-    .fontSize(9.5)
-    .fillColor('#000000')
-    .text(dateStr, contentLeft, doc.y, { width: contentWidth, align: 'right' });
-  doc.y += 10;
-
-  const sigTop = doc.y;
-  const colW = 140;
-  const col1X = contentLeft;
-  const col2X = contentLeft + 173;
-  const col3X = contentLeft + 346;
-
-  doc.font('Times-Bold').fontSize(8.5).fillColor('#000000');
-  doc.text('Yang Memeriksa/Menguji', col1X, sigTop, { width: colW, align: 'center' });
-  doc.text('Direview Oleh', col2X, sigTop, { width: colW, align: 'center' });
-  doc.text('Disetujui Oleh', col3X, sigTop, { width: colW, align: 'center' });
-
-  doc.font('Times-Roman').fontSize(8.5).fillColor('#000000');
-  doc.text(`Ahli K3 ${report.categoryCode}`, col1X, sigTop + 12, { width: colW, align: 'center' });
-  doc.text('Reviewer Teknis K3', col2X, sigTop + 12, { width: colW, align: 'center' });
-  doc.text('Pimpinan PT Upaya Riksa Daya', col3X, sigTop + 12, { width: colW, align: 'center' });
-
-  if (qrBuffer) {
-    doc.image(qrBuffer, col1X + 46, sigTop + 28, { width: 48, height: 48 });
+const LHPP_PROFILES = {
+  PAA: {
+    pageTop: 56.8, left: 63.9, right: 546.0, bodyBottom: 806,
+    footer: { x: 63.9, nameTop: 850.7, nameSize: 12, addrTop: 874.2, addrSize: 11, address: ADDRESS_FOOTER },
+    cover: makeCover({
+      bottomTop: 864.7, bottomEnd: 918.1, bars: [46.8, 560.1], yearX: 63.9, titleTop: 126.3,
+      colonX: 171.9, infoTop: 263.7, infoPitch: 16.1,
+      photo: { x: 153.3, y: 422.6, w: 302.3, h: 226.8 },
+      address: COVER_ADDRESS_A, addressTop: 741.3
+    }),
+    checklist: { x: [64.1, 89.7, 198.9, 340.6, 397.0, 453.8, 553.3] },
+    grid: { x: [64.1, 305.1, 546.1], rowPitch: 212.1, captionH: 25.7, imgDX: 7.1, imgDY: 27.9, imgW: 226.8, imgH: 170.1, rowsPerPage: 3 }
+  },
+  PUBT: {
+    pageTop: 58.0, left: 64.3, right: 554.0, bodyBottom: 806,
+    footer: { x: 63.9, nameTop: 860.0, nameSize: 12, addrTop: 874.4, addrSize: 11, address: 'Jl. Pondasi No. 50 B, Kampung Ambon, Jakarta Timur. 13210' },
+    cover: makeCover({
+      bottomTop: 869.2, bottomEnd: 918.0, topBottom: 52.5, bars: [43.5, 564.0], yearX: 85.2, titleTop: 123.9,
+      colonX: 207.9, infoTop: 257.8, infoPitch: (i) => (i < 5 ? 18.5 : 16.1),
+      photo: { x: 149.3, y: 428.3, w: 311.8, h: 233.8 }, addressTop: 737.0, addressPitch: 12.7
+    }),
+    grid: { x: [64.1, 315.3, 581.2], rowPitch: 225.7, captionH: 26, imgDX: 12.1, imgDY: 34.7, imgW: 226.8, imgH: 170.1, captionTop: 2.1, rowsPerPage: 3 }
+  },
+  PTP: {
+    pageTop: 57.0, left: 63.8, right: 553.0, bodyBottom: 806,
+    footer: { x: 63.8, nameTop: 878.8, nameSize: 12, addrTop: 895.3, addrSize: 11, address: ADDRESS_FOOTER },
+    cover: makeCover({
+      bottomTop: 885.8, bottomEnd: 952.6, topBottom: 48.8, bars: [46.7, 565.9], yearX: 78.0, underlineY: 86.0, titleTop: 134.3,
+      colonX: 171.8, infoTop: 270.3, infoPitch: 18.1,
+      photo: { x: 134.7, y: 411.0, w: 340.1, h: 255.1 }, addressTop: 741.1, addressPitch: 14.5,
+      address: ['PT. UPAYA RIKSA DAYA', ADDRESS_FOOTER, 'Ph. 021 4891409, 021 4715699, 021 47861912', 'Email: urd@upayariksadaya.com Web. upayariksa.com']
+    }),
+    grid: { x: [78.0, 328.9, 579.8], rowPitch: 208.7, captionH: 26.4, imgDX: 12.0, imgDY: 26.4, imgW: 226.7, imgH: 170.0, captionSize: 11, captionTop: 1.8, rowsPerPage: 3 }
+  },
+  PTP_DIESEL: {
+    pageTop: 56.9, left: 54.8, right: 558.7, bodyBottom: 806,
+    footer: { x: 63.9, nameTop: 848.7, nameSize: 11, addrTop: 874.2, addrSize: 11, address: 'Jl. Pondasi No. 50 B, Kampung Ambon, Jakarta Timur. 13210' },
+    cover: makeCover({
+      bottomTop: 870.9, bottomEnd: 956.5, topBottom: 48.8, bars: [42.4, 559.5], yearX: 85.2, titleTop: 137.6,
+      colonX: 207.9, infoTop: 282.0, infoPitch: 16.1, address: COVER_ADDRESS_B,
+      photo: { x: 134.5, y: 428.7, w: 340.2, h: 255.1 }, addressTop: 742.3
+    }),
+    grid: { x: [64.1, 305.1, 546.1], rowPitch: 212.1, captionH: 25.7, imgDX: 7.1, imgDY: 27.9, imgW: 226.8, imgH: 170.1, rowsPerPage: 3 }
+  },
+  IPP: {
+    pageTop: 57.0, left: 63.9, right: 553.0, bodyBottom: 806,
+    footer: { x: 49.7, nameTop: 845.4, nameSize: 12, addrTop: 860.0, addrSize: 12, address: ADDRESS_FOOTER },
+    cover: makeCover({
+      bottomTop: 879.7, bottomEnd: 929.1, topBottom: 52.5, bars: [43.5, 563.5], yearX: 85.2, titleTop: 137.7,
+      colonX: 207.9, infoTop: 250.9, infoPitch: 16.1, address: COVER_ADDRESS_B,
+      photo: { x: 148.8, y: 419.2, w: 311.8, h: 233.8 }, addressTop: 729.0, addressPitch: 14.5
+    }),
+    grid: { x: [63.9, 304.9, 545.9], rowPitch: 212.1, captionH: 25.7, imgDX: 7.1, imgDY: 27.9, imgW: 226.8, imgH: 170.1, rowsPerPage: 3 }
+  },
+  LIS: {
+    pageTop: 56.9, left: 56.7, right: 586.1, bodyBottom: 810,
+    footer: { x: 49.7, nameTop: 864.4, nameSize: 11, addrTop: 879.0, addrSize: 11, address: ADDRESS_FOOTER },
+    cover: makeCover({
+      bottomTop: 871.5, bottomEnd: 927.8, topBottom: 48.0, bars: [47.8, 556.3], yearX: 85.2, yearTop: 60.8, titleTop: 134.5,
+      colonX: 207.9, infoTop: 263.7, infoPitch: 18.5, address: COVER_ADDRESS_B,
+      photo: { x: 148.8, y: 432.2, w: 311.8, h: 233.8 }, addressTop: 737.0
+    }),
+    grid: { x: [56.7, 315.2, 586.1], rowPitch: 249.0, captionH: 41.5, imgDX: 15.8, imgDY: 66.0, imgW: 226.7, imgH: 170.0, rowsPerPage: 3 }
+  },
+  IPK: {
+    pageTop: 54.0, left: 78.0, right: 552.9, bodyBottom: 820,
+    footer: { x: 21.2, nameTop: 878.9, nameSize: 12, addrTop: 895.4, addrSize: 11, address: ADDRESS_FOOTER },
+    cover: makeCover({
+      bottomTop: 884.8, bottomEnd: 940.4, topBottom: 48.8, bars: [45.0, 560.2], yearX: 78.0, yearTop: 71.9, underlineY: 96.9,
+      titleTop: 148.5, colonX: 171.9, infoTop: 292.9, infoPitch: 16.1, address: COVER_ADDRESS_B,
+      photo: { x: 148.8, y: 447.1, w: 311.8, h: 234.1 }, addressTop: 763.2
+    }),
+    grid: { x: [64.6, 304.9, 545.9], rowPitch: 212.9, captionH: 27.9, imgDX: 6.7, imgDY: 27.9, imgW: 226.7, imgH: 170.2, rowsPerPage: 3 }
   }
+};
+LHPP_PROFILES.LE = { ...LHPP_PROFILES.PAA };
 
-  const nameY = sigTop + 84;
-  doc.font('Times-Bold').fontSize(8.5).fillColor('#000000');
-  doc.text(`( ${report.signature.inspector} )`, col1X, nameY, { width: colW, align: 'center' });
-  doc.text(`( ${report.signature.reviewer} )`, col2X, nameY, { width: colW, align: 'center' });
-  doc.text(`( ${report.signature.approver} )`, col3X, nameY, { width: colW, align: 'center' });
-
-  if (data.inspector_skp_no) {
-    doc.font('Times-Roman').fontSize(8).fillColor('#444444');
-    doc.text(`SKP: ${data.inspector_skp_no}`, col1X, nameY + 12, { width: colW, align: 'center' });
-  }
-
-  doc.y = nameY + 24;
+function pickProfile(report) {
+  if (report.categoryCode === 'PTP' && report.isDiesel) return LHPP_PROFILES.PTP_DIESEL;
+  return LHPP_PROFILES[report.categoryCode] || LHPP_PROFILES.PAA;
 }
 
-function drawPhotoDocumentation(doc, report, contentLeft, contentWidth, ensureSpace) {
-  if (!report.photos || report.photos.length === 0) return;
+// ============================================================================
+// UTILITAS ISI
+// ============================================================================
+function fieldOf(data, ...keys) {
+  const td = asObject(data.technical_data);
+  for (const key of keys) {
+    const v = td[key] ?? data[key];
+    if (hasRecordedReportValue(v)) return String(v);
+  }
+  return '-';
+}
 
-  doc.addPage();
-  doc.y = 48;
-  drawSectionHeader(doc, 'LAMPIRAN DOKUMENTASI FOTO HASIL RIKSA UJI', contentLeft, contentWidth, ensureSpace);
+function joinParts(parts, sep = ' / ') {
+  return parts.filter((p) => hasReportValue(p) && p !== '-').join(sep) || '-';
+}
 
-  const cardW = 236;
-  const imgBoxH = 155;
-  const captionBoxH = 28;
-  const cardH = imgBoxH + captionBoxH;
-  const colGap = 15;
-  const col1X = contentLeft;
-  const col2X = contentLeft + cardW + colGap;
-
-  for (let i = 0; i < report.photos.length; i += 2) {
-    ensureSpace(cardH + 16);
-    const rowY = doc.y;
-
-    // Foto 1 (Kiri)
-    const p1 = report.photos[i];
-    doc.rect(col1X, rowY, cardW, imgBoxH).lineWidth(0.5).strokeColor('#CBD5E1').stroke();
-
-    const p1Path = p1.storageKey ? resolveAttachmentPath(p1.storageKey) : null;
-    let p1Rendered = false;
-    if (p1Path && fs.existsSync(p1Path) && (p1.mimeType || '').startsWith('image/')) {
-      try {
-        doc.image(p1Path, col1X + 4, rowY + 4, {
-          fit: [cardW - 8, imgBoxH - 8],
-          align: 'center',
-          valign: 'center'
-        });
-        p1Rendered = true;
-      } catch {
-        p1Rendered = false;
+function buildCoverRows(report, data) {
+  const f = (...k) => fieldOf(data, ...k);
+  const company = f('client_name');
+  const itemNo = f('item_no');
+  const inspected = formatIndoDate(data.inspection_date);
+  const reinsp = hasReportValue(data.recommended_valid_until) ? formatIndoDate(data.recommended_valid_until) : '-';
+  const objectName = data.object_name || report.categoryName;
+  const loc = f('install_location', 'client_address');
+  const cap = f('capacity', 'swl', 'kapasitas_daya', 'kapasitas_volume');
+  const year = f('manufacture_year', 'tahun_pembuatan');
+  switch (report.categoryCode) {
+    case 'PUBT':
+      return [['Perusahaan', company], ['Item No', itemNo], ['Jenis', `PUBT / ${objectName}`], ['SN', f('serial_number')],
+        ['Lokasi', loc], ['Inspected', inspected], ['Re – Inspection', reinsp]];
+    case 'IPP':
+      return [['Perusahaan', company], ['Item No', itemNo], ['Jenis', `IPP / ${f('jenis_instalasi', 'object_name')}`],
+        ['SN', f('serial_number')], ['Lokasi', loc], ['Inspected', inspected], ['Re – Inspection', reinsp]];
+    case 'LIS':
+      return [['Perusahaan', company], ['Jenis', objectName], ['SN', joinParts([f('serial_number'), cap], ' / ')],
+        ['Lokasi', loc], ['Inspected', inspected], ['Re – Inspection', reinsp]];
+    case 'IPK':
+      return [['Perusahaan', company], ['Jenis', `IPK / ${String(objectName).toUpperCase()}`], ['SN', f('serial_number')],
+        ['Lokasi', loc], ['Inspected', inspected], ['Re-Inspection', reinsp]];
+    case 'PTP':
+      if (report.isDiesel) {
+        return [['Perusahaan', company], ['Jenis', `PTP / ${objectName}`], ['SN', joinParts([f('serial_number'), cap, year], ' / ')],
+          ['Lokasi', loc], ['Inspected', inspected], ['Re- Inspection', reinsp]];
       }
-    }
-    if (!p1Rendered) {
-      doc
-        .font('Times-Italic')
-        .fontSize(8)
-        .fillColor('#888888')
-        .text('[Foto Dokumentasi Terlampir]', col1X + 8, rowY + 70, { width: cardW - 16, align: 'center' });
-    }
+      return [['Perusahaan', company], ['Item No', itemNo], ['Jenis', `PTP / ${objectName}`], ['Lokasi', loc],
+        ['Inspected', inspected], ['Re- Inspection', reinsp]];
+    default:
+      return [['Perusahaan', company], ['Item No', itemNo], ['Jenis', `${report.categoryCode} / ${objectName}`],
+        ['SN', joinParts([f('serial_number'), cap, year], ' / ')], ['Lokasi', loc], ['Inspected', inspected],
+        ['Re-Inspection', reinsp]];
+  }
+}
 
-    // Caption Foto 1 (Kotak Terpisah persis di bawah foto)
-    doc.rect(col1X, rowY + imgBoxH, cardW, captionBoxH).fillColor('#F8FAFC').fill();
-    doc.rect(col1X, rowY + imgBoxH, cardW, captionBoxH).lineWidth(0.5).strokeColor('#CBD5E1').stroke();
-    doc
-      .font('Times-Bold')
-      .fontSize(8)
-      .fillColor('#000000')
-      .text(`Foto ${i + 1}: ${p1.caption || p1.originalName || 'Dokumentasi Riksa Uji'}`, col1X + 6, rowY + imgBoxH + 8, {
-        width: cardW - 12,
-        align: 'center',
-        ellipsis: true
+function pickCoverPhoto(photos) {
+  const images = photos.filter((p) => ['image/jpeg', 'image/png'].includes(p.mimeType));
+  return images.find((p) => /keseluruhan|overall|tampak depan|cover/i.test(p.caption || '')) || images[0] || null;
+}
+
+/** Item checklist siap gambar dari report.checklistRows. */
+function toChecklistItems(report, mode) {
+  const statusOf = (r) => (r.choice === 'SESUAI' ? 'OK' : r.choice === 'TIDAK_SESUAI' ? 'BAD'
+    : r.choice === 'TIDAK_BERLAKU' ? 'NA' : '');
+  const noteOf = (r) => (r.choice === 'TIDAK_BERLAKU'
+    ? (r.note || 'N/A')
+    : r.inputType === 'CHOICE'
+      ? r.note
+      : [r.value !== 'Belum diisi' ? r.value : '', r.note].filter(hasReportValue).join(' / '));
+  const measureRx = /(kebisingan|pencahayaan|penerangan|grounding|pembumian|tahanan|putaran|rpm|getaran|ketebalan|thickness)/i;
+  const groups = [];
+  for (const r of report.checklistRows.filter((x) => x.inputType === 'CHOICE' || !measureRx.test(`${x.section} ${x.label}`))) {
+    const last = groups[groups.length - 1];
+    if (!last || last.section !== r.section) groups.push({ section: r.section, rows: [r] });
+    else last.rows.push(r);
+  }
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  const items = [];
+  groups.forEach((g, gi) => {
+    if (mode === 'merged') {
+      g.rows.forEach((r) => items.push({ no: String(gi + 1), group: g.section, label: r.label, status: statusOf(r), note: noteOf(r) }));
+    } else if (mode === 'flat-heading') {
+      items.push({ no: String(gi + 1), label: g.section, heading: true });
+      g.rows.forEach((r, ri) => {
+        const hasLetter = /^(\(?[a-z]\)?[.)])\s/.test(r.label);
+        items.push({ label: hasLetter ? r.label : `${letters[ri] || '-'}. ${r.label}`, status: statusOf(r), note: noteOf(r) });
       });
-
-    // Foto 2 (Kanan, jika ada)
-    if (i + 1 < report.photos.length) {
-      const p2 = report.photos[i + 1];
-      doc.rect(col2X, rowY, cardW, imgBoxH).lineWidth(0.5).strokeColor('#CBD5E1').stroke();
-
-      const p2Path = p2.storageKey ? resolveAttachmentPath(p2.storageKey) : null;
-      let p2Rendered = false;
-      if (p2Path && fs.existsSync(p2Path) && (p2.mimeType || '').startsWith('image/')) {
-        try {
-          doc.image(p2Path, col2X + 4, rowY + 4, {
-            fit: [cardW - 8, imgBoxH - 8],
-            align: 'center',
-            valign: 'center'
-          });
-          p2Rendered = true;
-        } catch {
-          p2Rendered = false;
-        }
-      }
-      if (!p2Rendered) {
-        doc
-          .font('Times-Italic')
-          .fontSize(8)
-          .fillColor('#888888')
-          .text('[Foto Dokumentasi Terlampir]', col2X + 8, rowY + 70, { width: cardW - 16, align: 'center' });
-      }
-
-      // Caption Foto 2
-      doc.rect(col2X, rowY + imgBoxH, cardW, captionBoxH).fillColor('#F8FAFC').fill();
-      doc.rect(col2X, rowY + imgBoxH, cardW, captionBoxH).lineWidth(0.5).strokeColor('#CBD5E1').stroke();
-      doc
-        .font('Times-Bold')
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(`Foto ${i + 2}: ${p2.caption || p2.originalName || 'Dokumentasi Riksa Uji'}`, col2X + 6, rowY + imgBoxH + 8, {
-          width: cardW - 12,
-          align: 'center',
-          ellipsis: true
-        });
+    } else if (mode === 'section-numbered') {
+      items.push({ label: `${String.fromCharCode(65 + gi)}. ${g.section.toUpperCase()}`, heading: true, section: true });
+      g.rows.forEach((r, ri) => items.push({ no: String(ri + 1), label: r.label, status: statusOf(r), note: noteOf(r) }));
+    } else {
+      g.rows.forEach((r, ri) => items.push({ no: ri === 0 ? String(gi + 1) : '', label: ri === 0 ? `${g.section}: ${r.label}` : r.label, status: statusOf(r), note: noteOf(r) }));
     }
+  });
+  return items;
+}
 
-    doc.y = rowY + cardH + 14;
+/** Baris pengukuran numerik (kebisingan, pencahayaan, grounding, dll). */
+function collectMeasurements(report) {
+  const explicit = asArray(report.technicalData.measurements);
+  if (explicit.length > 0) {
+    return explicit.map((m) => ({ label: m.label, value: [m.value, m.unit].filter(hasReportValue).join(' '), standard: m.standard || m.note || '' }));
+  }
+  const rx = /(kebisingan|pencahayaan|penerangan|grounding|pembumian|tahanan|putaran|rpm|getaran|ketebalan|thickness)/i;
+  return report.checklistRows
+    .filter((r) => r.inputType !== 'CHOICE' && r.value !== 'Belum diisi' && rx.test(`${r.section} ${r.label}`))
+    .map((r) => ({ label: r.label, value: r.value, standard: r.note || '' }));
+}
+
+/** Tabel sederhana: header + baris, kolom ditentukan x-nya. */
+function drawSimpleTable(c, header, rows, xs, o = {}) {
+  const size = o.size ?? 12;
+  const rowMin = o.rowMin ?? 20.4;
+  const headerH = o.headerH ?? rowMin + 0.8;
+  const aligns = o.aligns ?? xs.slice(0, -1).map(() => 'center');
+  const drawHeader = () => {
+    header.forEach((h, i) => c.cell(xs[i], c.y, xs[i + 1] - xs[i], headerH, h, { size, bold: true, align: 'center', vAlign: 'middle', pitch: size * 1.15 }));
+    c.y += headerH;
+  };
+  c.ensure(headerH + rowMin);
+  if (header.length) drawHeader();
+  rows.forEach((row) => {
+    const lines = row.map((v, i) => c.wrap(v, xs[i + 1] - xs[i] - 10.8, size).length);
+    const h = Math.max(rowMin, Math.max(...lines) * size * 1.15 + 5);
+    c.ensure(h, header.length ? drawHeader : null);
+    row.forEach((v, i) => c.cell(xs[i], c.y, xs[i + 1] - xs[i], h, v, { size, align: aligns[i], pitch: size * 1.15 }));
+    c.y += h;
+  });
+}
+
+/** Judul bagian (14pt tebal) tanpa kotak, dengan jarak seperti rujukan. */
+function drawBigHeading(c, title, o = {}) {
+  c.ensure(o.reserve ?? 90);
+  c.txt(title, o.x ?? c.left, c.y + (o.dy ?? 2.3), { size: o.size ?? 14, bold: true });
+  c.y += o.h ?? 26;
+}
+
+function drawConclusionSection(c, report, data, o = {}) {
+  const sectionNo = o.no ?? 'VI';
+  const heading = o.heading ?? `${sectionNo}. KESIMPULAN`;
+  c.newPage();
+  c.txt(heading, c.left, c.y + 2.0, { size: 14, bold: true });
+  c.y += o.afterHeading ?? 25;
+  const verdict = report.conclusion;
+  const parts = [
+    { t: o.lead ?? 'Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa ' },
+    { t: `${data.object_name || report.categoryName}`, b: true },
+    { t: `, dengan Nomor Seri: ` },
+    { t: fieldOf(data, 'serial_number'), b: true },
+    { t: `, kapasitas: ` },
+    { t: fieldOf(data, 'capacity', 'swl', 'kapasitas_daya', 'kapasitas_volume'), b: true },
+    { t: ', dinyatakan ' },
+    { t: verdict.toUpperCase().includes('TIDAK') ? 'TIDAK MEMENUHI PERSYARATAN K3' : 'MEMENUHI PERSYARATAN K3', b: true },
+    { t: '. Unit dapat digunakan di ' },
+    { t: `${fieldOf(data, 'install_location')} ${data.client_name || ''}`.trim(), b: true },
+    { t: ' dengan mengikuti rekomendasi yang telah kami berikan, antara lain:' }
+  ];
+  drawRichParagraph(c, o.parts || parts, { indent: 28.3, pitch: 20.7 });
+  if (hasReportValue(report.conclusionNotes) && report.conclusionNotes !== '-') {
+    c.y += 4;
+    drawRichParagraph(c, [{ t: report.conclusionNotes }], { pitch: 20.7 });
+  }
+  c.y += 8;
+  const rulesHeading = o.rulesHeading ?? `${o.rulesNo ?? 'VII'}. SYARAT - SYARAT`;
+  c.txt(rulesHeading, c.left, c.y + 2.0, { size: 14, bold: true });
+  c.y += 25;
+  const rules = [...report.rules];
+  if (hasRecordedReportValue(report.recommendations)) rules.push(`${rules.length + 1}. ${report.recommendations}`);
+  drawNumberedList(c, rules, { pitch: 20.7 });
+  c.y += 28;
+  drawSignatureBlock(c, report, data, { qrBuffer: o.qrBuffer, centerX: o.centerX ?? 432 });
+}
+
+// ============================================================================
+// PAA
+// ============================================================================
+function renderPaa(c, report, data, ctx) {
+  const td = report.technicalData;
+  const f = (...k) => fieldOf(data, ...k);
+  const isGantry = /gantry/i.test(data.object_name || '');
+
+  // ---- Halaman: I. DATA UMUM ---------------------------------------------
+  c.newPage();
+  drawTitleBlock(c, [
+    'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN',
+    'PESAWAT ANGKAT DAN PESAWAT ANGKUT',
+    `(${String(data.object_name || report.categoryName).toUpperCase()})`,
+    `NO. ${data.lhpp_no || data.po_number || '-'}`
+  ], { box: true, x0: 63.9, x1: 545.9, y0: 56.8, y1: 131.3, firstTop: 59.3, pitch: 18.5 });
+  drawSectionRow(c, 'I. DATA UMUM', { h: 25.5, reserve: 60 });
+  c.y += 0.5;
+  drawKeyValueTable(c, report.identityRows, {
+    labelW: 170, colonInValue: true, minH: 25.6, pitch: 20.7, size: 12, labelMid: true,
+    rowHeight: (lines) => (lines === 1 ? 25.6 : 20.7 * lines + 0.4),
+    firstTop: (lines) => (lines === 1 ? 4.2 : 1.7)
+  });
+
+  // ---- Halaman: II. DATA TEKNIS ------------------------------------------
+  c.newPage();
+  drawSectionRow(c, 'II. DATA TEKNIS', { h: 20.4 });
+  c.cell(c.left, c.y, c.width, 20.3, 'DATA PESAWAT ANGKAT DAN ANGKUT', { size: 12, bold: true, align: 'center' });
+  c.y += 20.3;
+  const summary = [
+    ['Pemilik', data.client_name], ['Alamat', data.client_address], ['Jenis Peralatan', data.object_name],
+    ['Pabrik Pembuat Hoist', f('pabrik_pembuat_hoist', 'manufacturer', 'brand')], ['Kapasitas Angkat', f('swl', 'capacity')],
+    ['Nomor Seri Unit', data.serial_number || f('serial_number')], ['Tahun Pembuatan', f('manufacture_year')]
+  ];
+  drawKeyValueTable(c, summary, { labelW: 171.4, minH: 20.4, pitch: 13.8, size: 12 });
+  c.y += 15.4;
+  drawPaaTechnicalGroups(c, f, isGantry);
+
+  // ---- Halaman: III. PEMERIKSAAN VISUAL ----------------------------------
+  c.newPage();
+  const cx = LHPP_PROFILES.PAA.checklist.x;
+  const heading = (first) => {
+    if (first) { c.cell(cx[0], c.y, cx[6] - cx[0], 20.4, 'III. PEMERIKSAAN VISUAL', { size: 14, bold: true, padX: 6.2, padTop: 2.3 }); c.y += 20.4; }
+  };
+  const header = (cc, first) => {
+    if (first) heading(true);
+    const y = cc.y;
+    const total = first ? 71.3 : 63.7;
+    const kondisiH = first ? 20.4 : 21.4;
+    cc.cell(cx[0], y, cx[1] - cx[0], total, 'No', { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cx[1], y, cx[2] - cx[1], total, 'Nama Bagian /\nKomponen', { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cx[2], y, cx[3] - cx[2], total, 'Pemeriksaan terhadap', { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cx[3], y, cx[5] - cx[3], kondisiH, 'Kondisi', { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cx[3], y + kondisiH, cx[4] - cx[3], total - kondisiH, 'Memenuhi\nSyarat K3', { size: 10, bold: true, align: 'center', vAlign: 'middle', padX: 1.5 });
+    cc.cell(cx[4], y + kondisiH, cx[5] - cx[4], total - kondisiH, 'Tidak\nMemenuhi\nSyarat K3', { size: 10, bold: true, align: 'center', vAlign: 'middle', padX: 1.5 });
+    cc.cell(cx[5], y, cx[6] - cx[5], total, 'Keterangan', { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+    return total;
+  };
+  if (report.checklistRows.length === 0) {
+    heading(true);
+    c.cell(cx[0], c.y, cx[6] - cx[0], 24, 'Belum ada butir checklist pada versi template ini.', { size: 11, italic: true });
+    c.y += 24;
+  } else {
+    drawChecklist(c, toChecklistItems(report, 'merged'), {
+      cols: cx, roles: ['no', 'group', 'label', 'ok', 'bad', 'note'], size: 12, rowMin: 20.35, labelStep: 20.8,
+      groupPitch: 14.9, labelPitch: 14.9, header
+    });
+  }
+
+  // ---- IV. PEMERIKSAAN TIDAK MERUSAK -------------------------------------
+  const chain = asObject(td.chain_inspection);
+  const hook = asObject(td.hook_inspection);
+  const ndtRows = asArray(td.ndt_tables);
+  if (Object.keys(chain).length || Object.keys(hook).length || ndtRows.length) {
+    c.y += 24;
+    drawBigHeading(c, 'IV. PEMERIKSAAN TIDAK MERUSAK', { x: 63.3, reserve: 150 });
+    if (Object.keys(chain).length) drawPaaMeasureTable(c, 'IV. 1.   CHAIN / RANTAI', chain);
+    if (Object.keys(hook).length) { c.newPage(); drawPaaMeasureTable(c, 'IV. 2.   HOOK / KAIT', hook, true); }
+    ndtRows.forEach((t) => { c.ensure(160); drawPaaMeasureTable(c, t.title, t); });
+  }
+  const mpi = asObject(td.mpi_report);
+  if (Object.keys(mpi).length) { c.newPage(); drawMpiReport(c, mpi, data); }
+
+  // ---- V. PENGUJIAN -------------------------------------------------------
+  drawPaaTests(c, report, data, td);
+
+  // ---- VI/VII. KESIMPULAN & SYARAT ---------------------------------------
+  drawConclusionSection(c, report, data, { no: 'VI', rulesNo: 'VII', qrBuffer: ctx.qrBuffer });
+
+  // ---- VIII. DOKUMENTASI --------------------------------------------------
+  c.newPage();
+  c.txt('VIII. DOKUMENTASI', c.left, c.y + 2.0, { size: 14, bold: true });
+  c.y += 25.5;
+  drawPhotoGrid(c, report.photos, { grid: LHPP_PROFILES.PAA.grid, captionPosition: ctx.captionPosition });
+}
+
+function drawPaaTechnicalGroups(c, f, isGantry) {
+  const x = [63.9, 91.8, 199.3, 277.3, 366.7, 456.2, 545.6];
+  const H = 20.4;
+  const size = 12;
+  const group = (no, name, rows) => {
+    const total = rows.reduce((a, r) => a + (r.h ?? H), 0);
+    c.ensure(total);
+    const y0 = c.y;
+    c.cell(x[0], y0, x[1] - x[0], total, String(no), { size, align: 'center', vAlign: 'middle' });
+    c.cell(x[1], y0, x[2] - x[1], total, name, { size, align: 'center', vAlign: 'middle' });
+    let y = y0;
+    rows.forEach((r) => {
+      const h = r.h ?? H;
+      r.cells.forEach(([a, b, text, o = {}]) => c.cell(x[a], y, x[b] - x[a], h, text, { size, ...o }));
+      y += h;
+    });
+    c.y = y0 + total;
+  };
+  const span = (label, value) => ({ cells: [[2, 4, label], [4, 6, value]] });
+  group(1, 'Spesifikasi', [
+    span('Tinggi Angkat', f('lifting_height')), span('Panjang Span', f('span')), span('Panjang Runway Rail', f('runway_length')),
+    { h: 20.5, cells: [[2, 3, 'Kecepatan', { vAlign: 'middle' }], [3, 4, '- Hoisting'], [4, 6, f('hoist_speed')]] },
+    { h: 20.9, cells: [[2, 3, ''], [3, 4, '- Traversing'], [4, 6, f('traverse_speed', 'travel_speed')]] },
+    { h: 20.9, cells: [[2, 3, ''], [3, 4, '- Travelling'], [4, 6, f('travelling_speed', 'travel_speed')]] }
+  ]);
+  const motor = (label, key) => ({
+    cells: [[2, 3, label], [3, 4, f(`${key}_hoisting`, key)], [4, 5, f(`${key}_traversing`)], [5, 6, f(`${key}_travelling`)]]
+  });
+  group(2, 'Motor Penggerak', [
+    { cells: [[2, 3, ''], [3, 4, 'Hoisting', { align: 'center' }], [4, 5, 'Traversing', { align: 'center' }], [5, 6, 'Travelling', { align: 'center' }]] },
+    motor('Type', 'motor_type'), motor('Daya', 'motor_power'), motor('Putaran', 'motor_rpm'),
+    motor('Voltage', 'motor_voltage'), motor('Amphere', 'motor_ampere'), motor('Frekuensi', 'motor_frequency')
+  ]);
+  group(3, 'Rem', [
+    { h: 28.1, cells: [[2, 3, 'Jenis'], [3, 4, f('brake_type')], [4, 5, '-'], [5, 6, '-']] },
+    { cells: [[2, 3, 'Type'], [3, 4, f('brake_model')], [4, 5, '-'], [5, 6, '-']] }
+  ]);
+  const triple = (a, b, c3) => [
+    { cells: [[2, 3, a[0]], [3, 6, a[1]]] }, { cells: [[2, 3, b[0]], [3, 6, b[1]]] }, { cells: [[2, 3, c3[0]], [3, 6, c3[1]]] }
+  ];
+  group(4, 'Kait Utama', triple(['Type', f('hook_type')], ['Kapasitas', f('hook_capacity')], ['Material', f('hook_material')]));
+  group(5, 'Kait Tambahan', triple(['Type', f('aux_hook_type')], ['Kapasitas', f('aux_hook_capacity')], ['Material', f('aux_hook_material')]));
+  group(6, 'Chain', triple(['Dimensi', f('chain_dimension')], ['Panjang', f('chain_length')], ['Diameter', f('chain_diameter')]));
+  void isGantry;
+}
+
+/** Tabel ukur chain/hook: spec vs hasil + kesimpulan. */
+function drawPaaMeasureTable(c, title, t, small = false) {
+  const size = small ? 11 : 12;
+  c.ensure(40);
+  c.txt(title, c.left + 18, c.y + 2.0, { size: 12, bold: true });
+  c.y += 24;
+  const xs = small ? [63.9, 99.5, 248.2, 418.4, 546, 553] : [63.9, 92.2, 191.4, 276.5, 375.8, 545.6];
+  const hasSketch = !small && !!t.sketch;
+  const cols = small ? [63.9, 99.5, 248.2, 297.8, 418.4, 553.0] : xs;
+  const rows = asArray(t.rows);
+  const header = small ? ['No.', 'Bagian', 'Spec', 'Hasil', 'Keterangan'] : ['No', 'Uraian', 'Spec', 'Hasil', 'Sketsa'];
+  const rowH = small ? 22.9 : 28.8;
+  const headH = small ? 22.9 : 21.2;
+  const y0 = c.y;
+  header.forEach((h, i) => c.cell(cols[i], c.y, cols[i + 1] - cols[i], headH, h, { size, bold: true, align: 'center', vAlign: 'middle' }));
+  c.y += headH;
+  const bodyTop = c.y;
+  rows.forEach((r) => {
+    const cells = [r.no, r.label, r.spec, r.result, r.note || ''];
+    cells.forEach((v, i) => {
+      if (!small && i === 4) return;
+      c.cell(cols[i], c.y, cols[i + 1] - cols[i], rowH, v, { size, align: 'center', vAlign: 'middle' });
+    });
+    c.y += rowH;
+  });
+  if (!small) c.rect(cols[4], bodyTop, cols[5] - cols[4], Math.max(rowH * rows.length, 1));
+  if (hasSketch && t.sketch && fs.existsSync(t.sketch)) {
+    try { c.doc.image(t.sketch, cols[4] + 4, bodyTop + 4, { fit: [cols[5] - cols[4] - 8, Math.max(rowH * rows.length, 1) - 8], align: 'center', valign: 'center' }); } catch { /* abaikan */ }
+  }
+  if (t.conclusion) {
+    c.cell(cols[0], c.y, cols[cols.length - 1] - cols[0], 30, `Kesimpulan : ${t.conclusion}`, { size: 12, pitch: 14.9 });
+    c.y += 30;
+  }
+  c.y += 14;
+  void y0;
+}
+
+function drawMpiReport(c, m, data) {
+  const L = 63.9; const R = 553.0; const W = R - L;
+  const top = c.y;
+  const logo = officialLogoPath;
+  c.rect(L, top, 150, 62);
+  if (fs.existsSync(logo)) c.doc.image(logo, L + 30, top + 6, { width: 80 });
+  c.txt('PT. UPAYA RIKSA DAYA', L, top + 48, { size: 9, bold: true, width: 150, align: 'center' });
+  c.rect(L + 150, top, W - 150, 62);
+  c.txt('NDT', L + 150, top + 16, { size: 11, bold: true, width: W - 150, align: 'center' });
+  c.txt('MAGNETIC PARTICEL INSPECTION TEST REPORT', L + 150, top + 30, { size: 11, bold: true, width: W - 150, align: 'center' });
+  c.y = top + 62;
+  const row = (cells, h = 17.5, size = 10) => {
+    let x = L;
+    cells.forEach(([w, text, o = {}]) => { c.cell(x, c.y, w, h, text, { size, padTop: 2.5, padX: 4, ...o }); x += w; });
+    c.y += h;
+  };
+  row([[350, `Client : ${m.client || data.client_name || '-'}`], [W - 350, `Date : ${m.date || formatIndoDate(data.inspection_date)}`]]);
+  row([[W, `Location : ${m.location || '-'}`]]);
+  row([[200, `Subject : ${m.subject || '-'}`], [100, `Material : ${m.material || 'C/S'}`], [100, 'Procedure'], [W - 400, m.procedure || 'ASME BPVC.V article 7']], 36);
+  row([[200, `Serial No : ${m.serial_no || '-'}`], [100, `Temp. : ${m.temp || 'Ambient'}`], [100, 'Acc. Criteria'], [W - 400, m.acc_criteria || 'ASME BPVC.VIII Mandatory Appendix 6']], 50);
+  const box = (on) => (on ? '[x]' : '[ ]');
+  const sel = (arr, v) => arr.map((k) => `${box(String(v || '').toLowerCase() === k.toLowerCase())} ${k}`).join('    ');
+  row([[170, 'Surface Preparation'], [W - 170, sel(['As-Welded', 'As-Rolled', 'As-Forged', 'Grinding', 'Machining', 'Blasting', 'Wire Brush'], m.surface)]], 30);
+  row([[170, 'Surface Preparation'], [W - 170, sel(['Before/After Pwht', 'Before/After Load Test', 'Other'], m.stage || 'Before/After Load Test')]]);
+  row([[170, 'Magnetization Techniques'], [W - 170, sel(['Prod', 'Yoke'], m.technique || 'Yoke')]]);
+  row([[170, 'Magnetization Currents'], [W - 170, sel(['AC', 'DC', 'Permanent'], m.current || 'Permanent')]]);
+  row([[170, 'Calibration Block'], [W - 170, `Weight : ${m.calibration_block || '40Lb'}`]]);
+  row([[170, 'Examination Medium'], [W - 170, sel(['Dry Visible', 'Wet Visible', 'Wet Fluorescent'], m.medium || 'Wet Visible')]]);
+  [['Cleaner', m.cleaner || 'Magnaflux SKC-S'], ['Contrast', m.contrast || 'Magnaflux WCP-2'], ['Magnetic Particle', m.particle || 'Magnaflux 7HF']].forEach(([l, v]) => {
+    c.cell(L, c.y, 170, 34, l, { size: 10, vAlign: 'middle', padX: 4 });
+    c.cell(L + 170, c.y, W - 170, 17, `Merk : ${v}`, { size: 10, padTop: 2.5, padX: 4 });
+    c.cell(L + 170, c.y + 17, W - 170, 17, 'Application : Spraying', { size: 10, padTop: 2.5, padX: 4 });
+    c.y += 34;
+  });
+  const cols = [L, L + 28, L + 170, L + 330, L + 395, R];
+  ['No', 'Description', 'Indication', 'Result', 'Remark'].forEach((h, i) => c.cell(cols[i], c.y, cols[i + 1] - cols[i], 17, h, { size: 10, align: 'center', padTop: 2.5 }));
+  c.y += 17;
+  asArray(m.results).forEach((r, i) => {
+    [String(r.no ?? i + 1), r.description, r.indication, r.result, r.remark].forEach((v, k) =>
+      c.cell(cols[k], c.y, cols[k + 1] - cols[k], 30, v, { size: 10, padTop: 2.5, padX: 4 }));
+    c.y += 30;
+  });
+}
+
+function drawPaaTests(c, report, data, td) {
+  const fnTests = asArray(td.function_tests);
+  const load = asObject(td.load_test);
+  const defl = asObject(td.deflection);
+  if (!fnTests.length && !Object.keys(load).length && !Object.keys(defl).length) return;
+  c.newPage();
+  c.txt('V. PENGUJIAN', c.left + 18, c.y + 2.0, { size: 14, bold: true });
+  c.y += 26;
+  if (fnTests.length) {
+    c.txt('V.1.   UJI FUNGSI', c.left + 42.6, c.y + 2.0, { size: 12, bold: true });
+    c.y += 24;
+    drawSimpleTable(c, ['Pengujian', 'Hasil', 'Keterangan'], fnTests.map((t) => [t.name, t.result || '-', t.note || '']),
+      [63.9, 212.7, 354.5, 553.0], { rowMin: 31.7, headH: 28.9, aligns: ['left', 'center', 'center'] });
+    c.y += 20;
+  }
+  if (Object.keys(load).length) {
+    c.txt('V.2.   UJI BEBAN', c.left + 42.6, c.y + 2.0, { size: 12, bold: true });
+    c.y += 24;
+    const xs = [63.9, 139.2, 205.6, 276.5, 347.5, 439.9, 553.0];
+    const y0 = c.y;
+    c.cell(xs[0], y0, xs[1] - xs[0], 68.6, 'Beban Uji', { bold: true, align: 'center', vAlign: 'middle' });
+    c.cell(xs[1], y0, xs[4] - xs[1], 34.4, 'Kondisi', { bold: true, align: 'center', vAlign: 'middle' });
+    c.cell(xs[4], y0, xs[5] - xs[4], 68.6, 'Brake\nSystem', { bold: true, align: 'center', vAlign: 'middle' });
+    c.cell(xs[5], y0, xs[6] - xs[5], 68.6, 'Keterangan', { bold: true, align: 'center', vAlign: 'middle' });
+    ['Hoisting', 'Traversing', 'Travelling'].forEach((h, i) => c.cell(xs[1 + i], y0 + 34.4, xs[2 + i] - xs[1 + i], 34.2, h, { bold: true, align: 'center', vAlign: 'middle' }));
+    c.y = y0 + 68.6;
+    [load.load, load.hoisting, load.traversing, load.travelling, load.brake, load.note].forEach((v, i) =>
+      c.cell(xs[i], c.y, xs[i + 1] - xs[i], 29.6, v ?? '-', { align: 'center', vAlign: 'middle' }));
+    c.y += 29.6;
+    if (load.conclusion) {
+      c.cell(xs[0], c.y, xs[6] - xs[0], 41.9, `Kesimpulan : ${load.conclusion}`, { pitch: 20.7 });
+      c.y += 41.9;
+    }
+    c.y += 20;
+  }
+  if (Object.keys(defl).length) {
+    c.txt('HASIL PENGUKURAN DEFLEKSI :', c.left, c.y + 2.0, { size: 12, bold: true });
+    c.y += 24;
+    [`Standar/Tolak Ukur : 1/${defl.ratio || 888} x L (span) = ${defl.limit || '-'}`,
+      `Berdasarkan design : 1/${defl.ratio || 888} x ${defl.span || '-'} = ${defl.limit || '-'}`,
+      `Berdasarkan pengukuran : ${defl.measure_text || '-'}`,
+      `Maka : ${defl.result_text || '-'}`].forEach((line) => { c.txt(line, c.left, c.y, { size: 12 }); c.y += 24; });
+    c.txt('Standar/referensi :', c.left, c.y, { size: 12, bold: true }); c.y += 21;
+    ['1. Peraturan Menteri Tenaga Kerja dan Transmigrasi R.I No : Per./08/Men/2020', '2. ASME B.30.11'].forEach((line) => {
+      c.txt(line, c.left, c.y, { size: 12 }); c.y += 20.7;
+    });
   }
 }
 
 // ============================================================================
-// MAIN GENERATOR: LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP)
+// RENDERER GENERIK (dipakai PUBT, PTP, IPP, LIS, IPK, LE) + blok khusus
 // ============================================================================
+function drawFindings(c, report) {
+  if (report.noFindings) return;
+  c.ensure(60);
+  c.txt('TEMUAN LAPANGAN & REKOMENDASI', c.left, c.y + 2.0, { size: 14, bold: true });
+  c.y += 26;
+  const w = c.width;
+  drawSimpleTable(c, ['Tingkat', 'Uraian Temuan', 'Rekomendasi'],
+    report.findings.map((f) => [(f.severity || 'TEMUAN').toUpperCase(), f.description || '-', f.recommendation || '-']),
+    [c.left, c.left + 0.14 * w, c.left + 0.57 * w, c.right], { size: 11, aligns: ['center', 'left', 'left'] });
+  c.y += 16;
+}
 
-export async function generateLhppPdfBuffer(data) {
+function renderGeneric(c, report, data, ctx, o) {
+  const td = report.technicalData;
+  // Halaman 2: judul + data umum
+  c.newPage();
+  drawTitleBlock(c, o.titleLines, o.titleSpec);
+  if (o.dataUmumHeading) o.dataUmumHeading(c);
+  drawKeyValueTable(c, report.identityRows, o.identitySpec);
+
+  // Data teknis
+  if (o.technical) {
+    if (o.technicalNewPage !== false) c.newPage();
+    o.technical(c, report, data, td);
+  }
+
+  // Checklist
+  if (o.checklist) {
+    const k = o.checklist;
+    if (k.newPage !== false) c.newPage();
+    if (k.heading) k.heading(c);
+    if (report.checklistRows.length === 0) {
+      c.cell(k.cols[0], c.y, k.cols[k.cols.length - 1] - k.cols[0], 24, 'Belum ada butir checklist pada versi template ini.', { size: 11, italic: true });
+      c.y += 24;
+    } else {
+      drawChecklist(c, toChecklistItems(report, k.mode), {
+        cols: k.cols, roles: k.roles, size: k.size ?? 12, rowMin: k.rowMin ?? 20.4,
+        labelStep: k.labelStep, header: k.header, mergeNA: false, padX: k.padX
+      });
+    }
+  }
+  if (o.afterChecklist) o.afterChecklist(c, report, data, td);
+  drawFindings(c, report);
+
+  // Kesimpulan, syarat, tanda tangan
+  drawConclusionSection(c, report, data, { ...o.conclusion, qrBuffer: ctx.qrBuffer });
+
+  // Dokumentasi
+  c.newPage();
+  c.txt(o.photoHeading ?? 'DOKUMENTASI', c.left, c.y + 2.0, { size: 14, bold: true });
+  c.y += 25.5;
+  drawPhotoGrid(c, report.photos, { grid: c.profile.grid, captionPosition: ctx.captionPosition });
+}
+
+/** Header tabel 2 tingkat: No | Bagian | Kondisi(ok,bad) | Keterangan */
+function makeCondHeader(cols, labels, o = {}) {
+  const [noL, labelL, okL, badL, noteL, kondisiL] = labels;
+  return (cc, first) => {
+    const total = first ? (o.first ?? 60.3) : (o.cont ?? 52);
+    const kh = o.kondisiH ?? 18.4;
+    const y = cc.y;
+    const sz = o.size ?? 12;
+    cc.cell(cols[0], y, cols[1] - cols[0], total, noL, { size: sz, bold: true, align: 'center', vAlign: 'middle', padX: 1 });
+    cc.cell(cols[1], y, cols[2] - cols[1], total, labelL, { size: sz, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cols[2], y, cols[4] - cols[2], kh, kondisiL, { size: sz, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cols[2], y + kh, cols[3] - cols[2], total - kh, okL, { size: o.subSize ?? sz, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cols[3], y + kh, cols[4] - cols[3], total - kh, badL, { size: o.subSize ?? sz, bold: true, align: 'center', vAlign: 'middle' });
+    cc.cell(cols[4], y, cols[5] - cols[4], total, noteL, { size: sz, bold: true, align: 'center', vAlign: 'middle' });
+    return total;
+  };
+}
+
+// ----------------------------------------------------------------------------
+// PUBT
+// ----------------------------------------------------------------------------
+function drawPubtTechnical(c, report, data, _td) {
+  const f = (...k) => fieldOf(data, ...k);
+  const x = [64.3, 149.4, 216.9, 320.6, 554.0];
+  c.txt('II. DATA TEKNIS', 67.3, c.y + 2.0, { size: 14, bold: true });
+  c.y += 28;
+  const H = 17.5;
+  const group = (name, rows) => {
+    const total = rows.length * H;
+    c.ensure(total);
+    const y0 = c.y;
+    c.cell(x[0], y0, x[1] - x[0], total, name, { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+    let y = y0;
+    // sub-kolom digabung per runtun sub yang sama
+    let i = 0;
+    while (i < rows.length) {
+      const sub = rows[i].sub;
+      let j = i;
+      while (j < rows.length && rows[j].sub === sub) j += 1;
+      if (sub) c.cell(x[1], y, x[2] - x[1], (j - i) * H, sub, { size: 12, vAlign: 'middle' });
+      for (let k = i; k < j; k += 1) {
+        const r = rows[k];
+        const lx = sub ? x[2] : x[1];
+        c.cell(lx, y, x[3] - lx, H, r.label, { size: 12, padTop: 1.7 });
+        c.cell(x[3], y, x[4] - x[3], H, r.value, { size: 12, padTop: 1.7 });
+        y += H;
+      }
+      i = j;
+    }
+    c.y = y0 + total;
+  };
+  const r = (label, value, sub) => ({ label, value, sub });
+  group('Shell / Badan', [
+    r('Jumlah RoundShell', f('jumlah_roundshell')), r('Cara Penyambungan', f('cara_penyambungan')),
+    r('Material / Bahan', f('material_shell', 'shell_plate_spec')), r('Diameter Dalam (ID)', f('diameter_dalam')),
+    r('Ketebalan (t)', f('shell_nominal_thk')), r('Panjang Badan', f('panjang_badan')),
+    r('Jenis', f('jenis_penguat'), 'Penguat'), r('Jumlah', f('jumlah_penguat'), 'Penguat'),
+    r('Ukuran/Dimensi', f('ukuran_penguat'), 'Penguat')
+  ]);
+  const head = (side) => ['Jenis/Bentuk|bentuk_head', 'Lengkungan (R)|head_radius', 'Lekukan (r)|head_knuckle_radius',
+    'Kemiringan|head_angle', 'Diameter|diameter_head', 'Ketebalan|head_nominal_thk', 'Material / Bahan|material_head']
+    .map((s) => { const [l, k] = s.split('|'); return r(l, f(`${k}_${side}`, k), side === 'kiri' ? 'Samping Kiri' : 'Samping Kanan'); });
+  group('Tutup / Head', [...head('kiri'), ...head('kanan')]);
+  group('Pipa-pipa / Channel', [
+    r('Jenis/bentuk', f('pipe_type')), r('Diameter', f('pipe_diameter'), 'Dimensi'), r('Ketebalan', f('pipe_thickness'), 'Dimensi'),
+    r('Panjang', f('pipe_length'), 'Dimensi'), r('Jumlah', f('pipe_count'), 'Dimensi'), r('Material', f('pipe_material')),
+    r('Cara Pemasangan', f('pipe_installation')), r('Diameter', f('inst_pipe_diameter'), 'Instalasi Pipa'),
+    r('Ketebalan', f('inst_pipe_thickness'), 'Instalasi Pipa'), r('Jenis Katup', f('valve_type'), 'Instalasi Pipa'),
+    r('Jumlah', f('valve_count'), 'Instalasi Pipa')
+  ]);
+}
+
+function pubtThicknessData(report, data) {
+  const t = asArray(report.technicalData.thickness_measurements);
+  return t.map((row) => {
+    const readings = asArray(row.readings).map(Number).filter((n) => !Number.isNaN(n));
+    const min = readings.length ? Math.min(...readings) : NaN;
+    return { item: row.item, readings: asArray(row.readings), design: row.design ?? fieldOf(data, 'shell_nominal_thk'), min };
+  });
+}
+
+function pubtAfterChecklist(c, report, data, td) {
+  const f = (...k) => fieldOf(data, ...k);
+  const dims = asArray(td.dimension_rows);
+  if (dims.length) {
+    c.newPage();
+    c.txt('b) Dimensi', c.left + 35, c.y + 2.0, { size: 12, bold: true });
+    c.y += 26;
+    drawSimpleTable(c, ['No.', 'Komponen', 'Ukuran / Dimensi', 'Keterangan'], dims.map((d, i) => [String(d.no ?? i + 1), d.component, d.value || '', d.note || '']),
+      [68.4, 270.9, 410.5, 559.0], { size: 12, rowMin: 18.4, aligns: ['center', 'left', 'left', 'left'] });
+  }
+  // IV. LAPORAN PENGUJIAN
+  c.newPage();
+  c.txt('IV.   LAPORAN PENGUJIAN', c.left + 17.6, c.y + 2.0, { size: 14, bold: true });
+  c.y += 32;
+  c.txt('a.  PEMERIKSAAN TIDAK MERUSAK ( NDT )', c.left + 17.6, c.y, { size: 12, bold: true });
+  c.y += 24;
+  asArray(td.ndt_tables).forEach((t) => {
+    c.ensure(150);
+    c.txt(t.title, c.left + 17.6, c.y, { size: 12, bold: true });
+    c.txt(`Jenis NDT : ${t.method || ''}`, 324.9, c.y + 16.6, { size: 12, bold: true });
+    c.y += 74;
+    drawSimpleTable(c, ['No', 'Bagian yang di NDT', 'Lokasi', 'Cacat', 'Keterangan'],
+      asArray(t.rows).map((r, i) => [String(i + 1), r.part, r.location, r.defect || 'Tidak ada', r.note || '']),
+      [63.4, 109.7, 220.3, 284.1, 399.4, 509.1], { rowMin: 24, size: 12 });
+    c.y += 16;
+  });
+  // b. Tekanan
+  c.ensure(220);
+  const pt = asObject(td.pressure_test);
+  c.txt('b.  METODE PENGUJIAN TEKANAN', c.left + 17.6, c.y, { size: 12, bold: true });
+  c.y += 24;
+  drawSimpleTable(c, ['No', 'Data Pengujian', 'Simbol', 'Keterangan'], [
+    ['1.', 'Tekanan Desain', 'DP', pt.design || f('tekanan_desain', 'design_pressure')],
+    ['2.', 'Tekanan Kerja', 'WP', pt.working || f('tekanan_kerja', 'max_allowable_working_pressure')],
+    ['3.', 'Tekanan Uji', 'TP', pt.test || f('test_pressure')],
+    ['4.', 'Temperature', '', pt.temperature || 'Ambient'],
+    ['5.', 'Waktu Penahanan Tekanan Desain/Kerja', 'T0', pt.hold_design || '-'],
+    ['', 'Tekanan Uji', 'T1', pt.hold_test || '-'],
+    ['6.', 'Kenaikan Temperatur', '', pt.temp_rise || '-']
+  ], [c.left, c.left + 26, c.left + 250, c.left + 330, c.right], { rowMin: 20.4, aligns: ['center', 'left', 'center', 'left'] });
+  c.y += 14;
+  const sv = asObject(td.safety_valve_test);
+  c.txt('c.  METODE PENGUJIAN SAFETY VALVE', c.left + 17.6, c.y, { size: 12, bold: true });
+  c.y += 24;
+  drawSimpleTable(c, ['No', 'Perlengkapan', 'Setting', 'Membuka', 'Menutup', 'Keterangan'],
+    [['1', 'Tingkap Pengaman I', sv.set || f('safety_valve_set_pressure'), sv.open || '-', sv.close || '-', sv.note || '']],
+    [c.left, c.left + 26, c.left + 190, c.left + 260, c.left + 330, c.left + 400, c.right],
+    { rowMin: 22 });
+
+  // V. Ketebalan
+  const th = pubtThicknessData(report, data);
+  if (th.length) {
+    c.newPage();
+    c.txt('V.   HASIL PENGUKURAN KETEBALAN DAN PERHITUNGAN', c.left + 11, c.y + 2.0, { size: 14, bold: true });
+    c.y += 40;
+    c.txt('LAPORAN HASIL PENGUKURAN KETEBALAN', 0, c.y, { size: 14, bold: true, width: c.doc.page.width, align: 'center' });
+    c.y += 24;
+    drawThicknessSketch(c, th);
+    const L0 = c.left;
+    const rows = th.map((t, i) => [String(i + 1), t.item, ...[0, 1, 2, 3, 4].map((k) => String(asArray(t.readings)[k] ?? '-').replace('.', ',')), String(t.design), Number.isNaN(t.min) ? '-' : `${String(t.min).replace('.', ',')} mm`]);
+    const widths = [40, 85, 45, 45, 45, 45, 45, 70, 69];
+    const xsT = widths.reduce((acc, w) => { acc.push(acc[acc.length - 1] + w); return acc; }, [L0]);
+    drawSimpleTable(c, ['No', 'Item', 'T1', 'T2', 'T3', 'T4', 'T5', 'Design Thickness', 'Min. Thickness'], rows, xsT,
+      { size: 12, rowMin: 20.4, headerH: 42 });
+    c.y += 16;
+    drawPubtCalc(c, th, data);
+  }
+}
+
+function drawThicknessSketch(c, th) {
+  const cx = c.doc.page.width / 2;
+  const top = c.y + 16;
+  const w = 170; const bodyH = 190; const hd = 46;
+  c.doc.save();
+  c.doc.rect(cx - w / 2, top + hd, w, bodyH).fillColor('#FFFF00').fill();
+  c.doc.rect(cx - w / 2, top + hd, w, bodyH).lineWidth(1.4).strokeColor(LHPP_INK).stroke();
+  [[top + hd, -1], [top + hd + bodyH, 1]].forEach(([y, dir]) => {
+    c.doc.path(`M ${cx - w / 2} ${y} C ${cx - w / 2} ${y + dir * hd * 1.3} ${cx + w / 2} ${y + dir * hd * 1.3} ${cx + w / 2} ${y} Z`).fillColor('#FFFF00').fill();
+    c.doc.path(`M ${cx - w / 2} ${y} C ${cx - w / 2} ${y + dir * hd * 1.3} ${cx + w / 2} ${y + dir * hd * 1.3} ${cx + w / 2} ${y}`).lineWidth(1.4).strokeColor(LHPP_INK).stroke();
+  });
+  c.doc.restore();
+  const pos = [[[-0.2, -0.3], [-0.1, -0.1]], [], []];
+  void pos;
+  th.forEach((t, gi) => {
+    const baseY = [top + hd * 0.4, top + hd + bodyH * 0.5, top + hd + bodyH + hd * 0.55][gi] ?? top;
+    asArray(t.readings).slice(0, 5).forEach((val, k) => {
+      const px = cx - w / 2 + 28 + (k % 2) * 70 + (k > 2 ? 12 : 0);
+      const py = baseY + (k - 2) * (gi === 1 ? 26 : 9);
+      c.doc.circle(px, py + 6, 2.6).fillColor('#1F3864').fill();
+      c.txt(`${String(val).replace('.', ',')} mm`, px + 6, py, { size: 9, bold: true, color: LHPP_INK });
+    });
+  });
+  c.y = top + hd * 2 + bodyH + 20;
+}
+
+function psiFromKg(v) { return v * 14.2233; }
+function drawPubtCalc(c, th, data) {
+  const f = (...k) => fieldOf(data, ...k);
+  const num = (s) => parseFloat(String(s).replace(',', '.').replace(/[^0-9.-]/g, ''));
+  const dp = num(f('design_pressure', 'tekanan_desain'));
+  const wp = num(f('max_allowable_working_pressure', 'tekanan_kerja'));
+  const idMm = num(f('diameter_dalam'));
+  if ([dp, wp, idMm].some(Number.isNaN)) return;
+  c.newPage();
+  c.txt('VI.   HASIL PERHITUNGAN', c.left + 11, c.y + 2.0, { size: 14, bold: true });
+  c.y += 30;
+  const P = psiFromKg(dp); const S = num(asObject(data.technical_data).allowable_stress) || 17500; const E = 1; const C = 1.0;
+  const rIn = idMm / 2 / 25.4;
+  const tShellIn = (P * (rIn + C / 25.4)) / (S * E - 0.6 * P) + C / 25.4;
+  const tHeadIn = (P * (idMm / 25.4 + 2 * C / 25.4)) / (2 * S * E - 0.2 * P) + C / 25.4;
+  const shellMin = th[1]?.min; const headMin = Math.min(th[0]?.min ?? Infinity, th[2]?.min ?? Infinity);
+  const lines = [
+    `Diketahui : DP = ${dp} kg/cm² = ${P.toFixed(2)} psi ; WP = ${wp} kg/cm² ; D = ${idMm} mm = ${(idMm / 25.4).toFixed(3)} inch`,
+    `r = ${(idMm / 2).toFixed(0)} mm ; E = 1 ; S = ${S} ; C = ${C.toFixed(1)} mm`,
+    '',
+    'Shell / badan :  t = P (r + C) / (S·E − 0.6·P) + C',
+    `t = ${tShellIn.toFixed(3)} inch = ${(tShellIn * 25.4).toFixed(2)} mm`,
+    `t pengukuran > t kalkulasi = ${shellMin ?? '-'} mm > ${(tShellIn * 25.4).toFixed(2)} mm ${shellMin > tShellIn * 25.4 ? '( Aman digunakan )' : '( TIDAK AMAN )'}`,
+    '',
+    'Head / tutup :  t = P (D + 2C) / (2·S·E − 0.2·P) + C',
+    `t = ${tHeadIn.toFixed(3)} inch = ${(tHeadIn * 25.4).toFixed(2)} mm`,
+    `t pengukuran > t kalkulasi = ${Number.isFinite(headMin) ? headMin : '-'} mm > ${(tHeadIn * 25.4).toFixed(2)} mm ${headMin > tHeadIn * 25.4 ? '( Aman digunakan )' : '( TIDAK AMAN )'}`,
+    '',
+    `BILA ALAT TETAP DIOPERASIKAN PADA TEKANAN (P) = ${wp} kg/cm², SHELL / BADAN DAN HEAD / TUTUP ${shellMin > tShellIn * 25.4 && headMin > tHeadIn * 25.4 ? 'MASIH AMAN' : 'PERLU EVALUASI'} UNTUK DIGUNAKAN.`
+  ];
+  lines.forEach((ln) => {
+    const wrapped = c.wrap(ln, c.width, 12, { bold: /^BILA|^Shell|^Head/.test(ln) });
+    wrapped.forEach((w) => { c.txt(w, c.left, c.y, { size: 12, bold: /^BILA|^Shell|^Head/.test(ln) }); c.y += 20.7; });
+    if (!ln) c.y += 4;
+  });
+}
+
+// ----------------------------------------------------------------------------
+// PTP: matriks pengukuran kebisingan/pencahayaan/grounding
+// ----------------------------------------------------------------------------
+function drawPtpMeasurements(c, report, data, td) {
+  c.newPage();
+  c.txt('IV.  PENGUJIAN', c.left + 5.4, c.y + 4.0, { size: 12, bold: true });
+  c.y += 26;
+  const tests = collectMeasurements(report);
+  if (report.isDiesel) {
+    drawSimpleTable(c, ['NO.', 'KOMPONEN YANG DIUJI', 'HASIL', 'KETERANGAN'],
+      tests.map((t, i) => [String(i + 1), t.label, t.value, t.standard]),
+      [c.left, c.left + 31.9, c.left + 248.6, c.left + 311, c.right], { rowMin: 18.3, aligns: ['center', 'left', 'center', 'left'] });
+    return;
+  }
+  const areas = asArray(td.measurement_areas);
+  const xs = [c.left, c.left + 31.8, c.left + 191.3, c.left + 257, c.left + 323.3, c.right];
+  void xs;
+  drawSimpleTable(c, ['Pengujian', 'Hasil', 'Keterangan'], tests.map((t) => [t.label, t.value, t.standard]),
+    [c.left, c.left + 230, c.left + 330, c.right], { rowMin: 20.4, aligns: ['left', 'center', 'left'] });
+  if (areas.length) {
+    c.y += 12;
+    const n = areas.length;
+    const w0 = 150; const wA = (c.width - w0) / n;
+    const ax = (i) => c.left + w0 + wA * i;
+    c.cell(c.left, c.y, w0, 44, 'Pengujian', { bold: true, align: 'center', vAlign: 'middle' });
+    c.cell(ax(0), c.y, c.right - ax(0), 22, 'Bagian yang diuji', { bold: true, align: 'center', vAlign: 'middle' });
+    areas.forEach((a, i) => c.cell(ax(i), c.y + 22, wA, 22, a.name, { align: 'center', vAlign: 'middle', size: 11 }));
+    c.y += 44;
+    [['Kebisingan (dB)\n(Mesin standby)', 'noise'], ['Pencahayaan (lux)', 'lux'], ['Grounding', 'grounding']].forEach(([label, key]) => {
+      c.cell(c.left, c.y, w0, 32, label, { size: 11, vAlign: 'middle', align: 'center' });
+      areas.forEach((a, i) => c.cell(ax(i), c.y, wA, 32, a[key] ?? '-', { align: 'center', vAlign: 'middle' }));
+      c.y += 32;
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// IPP: tahanan pembumian
+// ----------------------------------------------------------------------------
+function drawIppTests(c, _report, data, _td) {
+  c.newPage();
+  c.cell(c.left, c.y, c.width, 28.2, 'V.    PEMERIKSAAN UMUM', { size: 14, bold: true, padX: 14, vAlign: 'middle' });
+  c.y += 28.2;
+  const r = fieldOf(data, 'hasil_tahanan_tanah', 'grounding_petir');
+  drawSimpleTable(c, ['NO', 'KONDISI MATERIAL', 'HASIL', 'KET.'], [['1', 'SISTEM JARINGAN INSTALASI', 'BAIK', r === '-' ? '-' : `${r} Ω`]],
+    [c.left, c.left + 34, c.left + 234, c.left + 334, c.right], { size: 11, rowMin: 16.7 });
+  c.y += 30;
+  c.txt('DIAGRAM RANGKAIAN', 0, c.y, { size: 14, bold: true, width: c.doc.page.width, align: 'center' });
+  c.y += 28;
+  const cx = c.doc.page.width / 2;
+  const y = c.y + 40;
+  [['E', cx - 140], ['P', cx + 20], ['C', cx + 160]].forEach(([n, px]) => { c.vline(px, y - 20, y + 30, 2); c.txt(n, px + 4, y - 22, { size: 10, bold: true }); });
+  c.doc.moveTo(cx - 140, y - 20).lineTo(cx + 160, y - 20).lineWidth(0.7).strokeColor(LHPP_INK).stroke();
+  c.txt('10 m', cx - 70, y + 4, { size: 10 });
+  c.txt('20 m', cx - 20, y + 36, { size: 10 });
+  c.y = y + 70;
+  drawSimpleTable(c, ['NO', 'E - C', 'E – P', 'NILAI R ( Ω )', 'KET.'], [['1', '2', '3', r === '-' ? '-' : `${r} Ω`, '5']],
+    [c.left, c.left + 60, c.left + 170, c.left + 280, c.left + 380, c.right], { size: 12, rowMin: 20.4, headerH: 40 });
+  c.y += 24;
+  c.cell(c.left, c.y, c.width, 28, 'VI.    HASIL PENGUJIAN', { size: 14, bold: true, padX: 14, vAlign: 'middle' });
+  c.y += 28;
+  drawSimpleTable(c, ['NO', 'KONDISI MATERIAL', 'BAIK', 'HASIL PENGUKURAN', 'KET.'], [['1', 'PENGUJIAN TAHANAN PEMBUMIAN', '√', r === '-' ? '-' : `R = ${r} Ω`, 'Standar < 5 Ω']],
+    [c.left, c.left + 34, c.left + 200, c.left + 280, c.left + 380, c.right], { size: 11, rowMin: 28, headerH: 28 });
+}
+
+// ----------------------------------------------------------------------------
+// LIS: thermal panel
+// ----------------------------------------------------------------------------
+const THERMAL_STANDARD = [
+  ['A', '≤ MAX. TEMP.', 'Normal untuk Data', 'Monitor < 3 Bulan'],
+  ['B', '≥ 1℃ - 10℃', 'Medium Heating / Pemanasan Sedang', 'Perbaiki < 14 Hari'],
+  ['C', '≥ 11℃ - 20℃', 'Serious Heating / Pemanasan Serius', 'Perbaiki < 7 Hari'],
+  ['D', '≥ 21℃ - 40℃', 'Acute Heating / Pemanasan Akut', 'Segera Perbaiki'],
+  ['E', '≥ 41℃', 'Critical Heating / Pemanasan Kritis', 'Segera Perbaiki']
+];
+const THERMAL_LIMITS = [
+  ['1', 'Coil Contactor, Coil Relay', '90,0 ℃', 'Standart ANSI/IEEE C 37.63 – 1984'],
+  ['2', 'Bushbar/Terminal Koneksi Bushbar/Konduktor', '70,0 ℃', 'Standart ANSI/IEEE'],
+  ['3', 'Terminal Koneksi', '60,0 ℃', 'Standart ANSI/IEEE C 37 – 1991'],
+  ['4', 'Isolasi/Lapisan Raychem', '60,0 ℃', 'Standart ANSI/IEEE'],
+  ['5', 'Fuse Tegangan Rendah dan Tinggi Max. 200 Amper', '70,0 ℃', 'Standart ANSI/IEEE C 37.40 – 1981'],
+  ['6', 'Bushing Trafo', '85,0 ℃', 'Standart ANSI/IEEE C 37 – 1991'],
+  ['7', 'Bushing Circuit Breaker', '70,0 ℃', 'Standart ANSI/IEEE C 37 – 1991'],
+  ['8', 'Case ACB/MCCB/MCB/PCB', '60,0 ℃', 'Standart ANSI/IEEE'],
+  ['9', 'Isolator/IS/DS/Support', '60,0 ℃', 'Standart ANSI/IEEE']
+];
+
+function drawLisThermal(c, report, data, td) {
+  c.newPage();
+  c.txt('IV. PENGUKURAN THERMAL PANEL', c.left + 7, c.y + 2.0, { size: 14, bold: true });
+  c.y += 30;
+  c.txt('STANDART THERMAL PANEL', 0, c.y, { size: 14, bold: true, width: c.doc.page.width, align: 'center' });
+  c.y += 24;
+  drawSimpleTable(c, ['', 'PERBEDAAN TEMPERATUR DARI TEMPERATUR MAXIMAL YANG DIIJINKAN', '', 'PRIORITAS PERBAIKAN'],
+    THERMAL_STANDARD.map((r) => [r[0], r[1], r[2], r[3]]),
+    [c.left + 14, c.left + 54, c.left + 194, c.left + 400, c.right - 14], { size: 11, rowMin: 21.1, headerH: 42, aligns: ['center', 'center', 'left', 'left'] });
+  c.y += 14;
+  c.txt('TEMPERATUR MAKSIMUM YANG DIIJINKAN', 0, c.y, { size: 12, bold: true, width: c.doc.page.width, align: 'center' });
+  c.y += 20;
+  drawSimpleTable(c, [], THERMAL_LIMITS, [c.left + 14, c.left + 40, c.left + 300, c.left + 380, c.right - 14], { size: 11, rowMin: 21.1, aligns: ['center', 'left', 'center', 'left'] });
+  // Grid thermal: 3 panel per halaman (thermal | foto)
+  let panels = asArray(td.thermal_panels);
+  if (!panels.length) {
+    const th = report.photos.filter((p) => /thermal/i.test(p.caption || ''));
+    for (let i = 0; i < th.length; i += 2) panels.push({ name: th[i].caption.replace(/thermal\s*(panel)?\s*[-:]?\s*/i, ''), thermal_key: th[i].storageKey, visual_key: th[i + 1]?.storageKey });
+  }
+  if (!panels.length) return;
+  const xs = [c.left, 315.2, c.right];
+  panels.forEach((p, i) => {
+    if (i % 3 === 0) c.newPage();
+    const top = c.y;
+    const h = 258.4;
+    c.rect(xs[0], top, xs[2] - xs[0], h);
+    c.vline(xs[1], top + 42.3, top + h);
+    c.hline(xs[0], xs[2], top + 42.3);
+    c.txt('Hasil Thermal Panel', xs[0], top + 2.3, { size: 12, bold: true, width: xs[2] - xs[0], align: 'center' });
+    c.txt(p.name || '', xs[0], top + 18, { size: 12, bold: true, width: xs[2] - xs[0], align: 'center' });
+    [[p.thermal_key, xs[0]], [p.visual_key, xs[1]]].forEach(([key, x]) => {
+      const file = key ? resolveAttachmentPath(key) : null;
+      if (file && fs.existsSync(file)) {
+        try { c.doc.image(file, x + 15.8, top + 66, { fit: [226.7, 170], align: 'center', valign: 'center' }); } catch { /* abaikan */ }
+      }
+    });
+    c.y = top + h;
+  });
+}
+
+// ----------------------------------------------------------------------------
+// IPK: matriks data pemasangan & pengujian alarm
+// ----------------------------------------------------------------------------
+function drawIpkMatrix(c, title, zones) {
+  // 11 kolom: Lantai | Lokasi | Zona | ROR | Fixed | Smoke | TPM | Fl.Sw | Bell | Lamp | Status
+  const xs = [78.0, 129.0, 205.6, 248.2, 283.6, 319.0, 361.6, 397.0, 432.4, 460.9, 496.3, 552.9];
+  c.ensure(120);
+  c.txt(title, 0, c.y + 2.0, { size: 14, bold: true, width: c.doc.page.width, align: 'center' });
+  c.y += 24;
+  const y0 = c.y;
+  const h1 = 21.2;
+  const cell = (a, b, y, h, t, o = {}) => c.cell(xs[a], y, xs[b] - xs[a], h, t, { size: 12, align: 'center', vAlign: 'middle', bold: true, ...o });
+  cell(0, 1, y0, h1 * 2, 'Lantai'); cell(1, 2, y0, h1 * 2, 'Lokasi'); cell(2, 3, y0, h1 * 2, 'Zona');
+  cell(3, 8, y0, h1, 'DETEKTOR'); cell(8, 10, y0, h1, 'ALARM'); cell(10, 11, y0, h1 * 2, 'STATUS');
+  ['ROR', 'Fixed', 'Smoke', 'TPM', 'Fl.Sw', 'Bell', 'Lamp'].forEach((t, i) => cell(3 + i, 4 + i, y0 + h1, h1, t, { size: 11 }));
+  c.y = y0 + h1 * 2;
+  const keys = ['ror', 'fixed', 'smoke', 'tpm', 'flsw', 'bell', 'lamp'];
+  const tot = Object.fromEntries(keys.map((k) => [k, 0]));
+  zones.forEach((z) => {
+    const h = z.height ?? 21.2;
+    c.ensure(h);
+    const vals = [z.floor, z.location, z.zone, ...keys.map((k) => z[k] || '-'), z.status || 'Baik'];
+    vals.forEach((v, i) => c.cell(xs[i], c.y, xs[i + 1] - xs[i], h, v ?? '-', { size: 11, align: 'center', vAlign: 'middle' }));
+    keys.forEach((k) => { tot[k] += Number(z[k]) || 0; });
+    c.y += h;
+  });
+  c.cell(xs[0], c.y, xs[3] - xs[0], h1, 'Total', { size: 12, bold: true, align: 'center', vAlign: 'middle' });
+  keys.forEach((k, i) => c.cell(xs[3 + i], c.y, xs[4 + i] - xs[3 + i], h1, tot[k] || '-', { size: 12, bold: true, align: 'center', vAlign: 'middle' }));
+  c.cell(xs[10], c.y, xs[11] - xs[10], h1, '', {});
+  c.y += h1;
+}
+
+function drawIpkSpecific(c, report, data, td) {
+  const f = (...k) => fieldOf(data, ...k);
+  const zones = asArray(td.ipk_zones);
+  const tested = asArray(td.ipk_tested_zones);
+  c.newPage();
+  c.txt('IV. DATA BANGUNAN', c.left - 14, c.y + 4.2, { size: 14, bold: true });
+  c.y += 28;
+  const b = [['Luas Lahan', f('luas_lahan')], ['Luas Bangunan Total', f('luas_bangunan')], ['Konstruksi Bangunan', f('konstruksi_bangunan')],
+    ['Tinggi Bangunan', f('tinggi_bangunan')], ['Jumlah Lantai', f('jumlah_lantai')], ['Dibangun Tahun', f('tahun_bangunan')],
+    ['Klasifikasi Risiko Kebakaran', f('klasifikasi_risiko')]];
+  b.forEach(([l, v], i) => {
+    c.txt(String(i + 1), c.left + 4, c.y, { size: 12 }); c.txt(l, c.left + 22, c.y, { size: 12 });
+    c.txt(`: ${v}`, c.left + 190, c.y, { size: 12 }); c.y += 22;
+  });
+  c.y += 10;
+  c.txt('V. JENIS PEMERIKSAAN DAN PENGUJIAN', c.left - 14, c.y, { size: 14, bold: true });
+  c.y += 28;
+  ['( √ ) Pemeriksaan Dokumen.', '( √ ) Pemeriksaan Visual.', '( √ ) Pengujian Peralatan / Instalasi.'].forEach((t, i) => {
+    c.txt(`${i + 1}. ${t}`, c.left + 4, c.y, { size: 12 }); c.y += 22;
+  });
+  if (zones.length) { c.newPage(); drawIpkMatrix(c, 'DATA PEMASANGAN INSTALASI ALARM', zones); }
+  if (tested.length) { c.newPage(); drawIpkMatrix(c, 'PEMERIKSAAN DAN PENGUJIAN INSTALASI FIRE ALARM', tested); }
+}
+
+// ----------------------------------------------------------------------------
+// KONFIGURASI PER BIDANG
+// ----------------------------------------------------------------------------
+function categoryOptions(report, data) {
+  const lhppNo = data.lhpp_no || data.po_number || '-';
+  const base = {
+    technicalNewPage: true,
+    conclusion: {}
+  };
+  switch (report.categoryCode) {
+    case 'PUBT': {
+      const cols = [66.6, 95.2, 255.6, 340.4, 411.2, 554.5];
+      return {
+        ...base,
+        titleLines: ['LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN', 'BEJANA TEKAN (AIR PRESSURE TANK)', String(data.client_name || '').toUpperCase(), `No. ${lhppNo}`],
+        titleSpec: { box: true, x0: 65, x1: 543.5, y0: 58, y1: 124, fill: '#E0E0E0', firstTop: 61.4, pitch: 16.1 },
+        dataUmumHeading: (c) => { c.cell(65, c.y + 0, 478.5, 0.1, '', { border: false }); c.txt('I. DATA UMUM', 70, 126.7, { size: 14, bold: true }); c.y = 150; },
+        identitySpec: { x0: 64.3, x1: 554, labelW: 203, colonInValue: true, minH: 21.5, pitch: 13.8, padTop: 3.3, numberW: 0 },
+        technical: drawPubtTechnical,
+        checklist: {
+          cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 19.4,
+          heading: (c) => { c.txt('III. LAPORAN PEMERIKSAAN', 75, c.y + 2, { size: 14, bold: true }); c.y += 30; c.txt('a). Visual', 99.9, c.y, { size: 12, bold: true }); c.y += 18; },
+          header: makeCondHeader(cols, ['No.', 'Bagian - Bagian', 'Memenuhi\nSyarat', 'Tidak\nMemenuhi\nSyarat', 'Keterangan', 'Kondisi'], { first: 60.3, cont: 60.3 })
+        },
+        afterChecklist: pubtAfterChecklist,
+        conclusion: { no: 'VII', rulesNo: 'VIII', lead: 'Berdasarkan pemeriksaan dan pengujian dengan kondisi diatas, dinyatakan bahwa ' },
+        photoHeading: 'IX. DOKUMENTASI'
+      };
+    }
+    case 'PTP': {
+      if (report.isDiesel) {
+        const cols = [54.8, 88.2, 281.1, 347.1, 413.2, 558.7];
+        return {
+          ...base,
+          titleLines: ['LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN', 'PESAWAT TENAGA DAN PRODUKSI', '(MOTOR DIESEL)', `No.${lhppNo}`],
+          titleSpec: { box: false, x0: 64, x1: 560, firstTop: 83.7, pitch: 16.1, endY: 148 },
+          dataUmumHeading: (c) => { c.txt('I. DATA UMUM', 73.1, 152.7, { size: 14, bold: true }); c.y = 168; },
+          identitySpec: { x0: 64.1, x1: 560.4, numberW: 26.8, labelW: 171.7, minH: 20.9, pitch: 13.8, padTop: 3.4 },
+          technical: (c, rep, _d, _td) => {
+            c.txt('II. PEMERIKSAAN DOKUMEN TEKNIS', c.left + 9, c.y + 4, { size: 14, bold: true });
+            c.y += 28;
+            drawKeyValueTable(c, rep.technicalRows.map((r) => [r.label, r.value]), { x0: 54.8, x1: 558.7, numberW: 33.4, labelW: 192.9, minH: 18.3, pitch: 13.8, padTop: 2.2 });
+          },
+          checklist: {
+            cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'section-numbered', rowMin: 18.3, newPage: false,
+            heading: (c) => { c.y += 14; c.txt('III. PEMERIKSAAN DAN PENGUKURAN', c.left + 9, c.y, { size: 14, bold: true }); c.y += 26; },
+            header: makeCondHeader(cols, ['NO.', 'KOMPONEN', 'Memenuhi\nSyarat', 'Tidak Memenuhi\nSyarat', 'KETERANGAN', 'KONDISI'], { first: 54, cont: 54, size: 12, subSize: 10, kondisiH: 18 })
+          },
+          afterChecklist: drawPtpMeasurements,
+          conclusion: { no: 'VI', rulesNo: 'VII', heading: 'VI. KESIMPULAN', rulesHeading: 'VII. SARAN' },
+          photoHeading: 'VIII. DOKUMENTASI'
+        };
+      }
+      const cols = [63.8, 95.6, 277.7, 320.3, 374.3, 553.0];
+      return {
+        ...base,
+        titleLines: ['LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN', 'PESAWAT TENAGA DAN PRODUKSI', `No. ${lhppNo}`],
+        titleSpec: { box: true, x0: 63.6, x1: 553.8, y0: 58.2, y1: 133.3, firstTop: 60.4, pitch: 24.7 },
+        dataUmumHeading: (c) => { c.cell(63.6, c.y, 490.2, 30.9, 'I. DATA UMUM', { size: 12, bold: true, padTop: 7.5, padX: 9 }); c.y += 30.9; },
+        identitySpec: { x0: 63.8, x1: 553.8, numberW: 26.6, labelW: 184.5, minH: 25.2, pitch: 13.8, padTop: 4.0 },
+        technical: (c, rep) => {
+          c.cell(c.left, c.y, c.width, 21.2, 'II. DATA TEKNIK', { size: 12, bold: true, padX: 5.4 }); c.y += 21.2;
+          c.cell(c.left, c.y, c.width, 21.2, 'SPESIFIKASI MESIN', { size: 12, bold: true, padX: 26 }); c.y += 21.2;
+          drawKeyValueTable(c, rep.technicalRows.map((r) => [r.label, r.value]), { x0: 63.8, x1: 555, numberW: 27, labelW: 182.3, minH: 21.2, pitch: 13.8, padTop: 3.0 });
+        },
+        checklist: {
+          cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 21.2, newPage: false,
+          heading: (c) => { c.y += 6; c.cell(c.left, c.y, c.width, 21.2, 'III. PEMERIKSAAN & PENGUKURAN', { size: 12, bold: true }); c.y += 21.2; },
+          header: makeCondHeader(cols, ['NO.', 'KOMPONEN', 'BAIK', 'BURUK', 'KETERANGAN', 'KONDISI'], { first: 42.4, cont: 42.4, kondisiH: 21.2 })
+        },
+        afterChecklist: drawPtpMeasurements,
+        conclusion: { no: 'V', rulesNo: 'VI', heading: 'V. KESIMPULAN', rulesHeading: 'VI. SARAN' },
+        photoHeading: 'VI. DOKUMENTASI'
+      };
+    }
+    case 'IPP': {
+      const cols = [63.9, 97.8, 283.6, 340.4, 397.0, 553.0];
+      return {
+        ...base,
+        titleLines: ['LAPORAN HASIL PEMERIKSAAN PERTAMA', 'JENIS PERALATAN : INSTALASI PENYALUR PETIR', `No. Reg : ${data.lhpp_no || '-'}`],
+        titleSpec: { box: false, x0: 63.9, x1: 553, firstTop: 58.8, pitch: 17.4, endY: 120 },
+        identitySpec: { x0: 63.9, x1: 553, numberW: 31.4, labelW: 217.1, minH: 27.2, pitch: 13.8, padTop: 6.5 },
+        technical: null,
+        checklist: {
+          cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 20.4,
+          heading: (c) => { c.txt('III. HASIL INSPEKSI VISUAL', c.left + 7, c.y + 2, { size: 14, bold: true }); c.y += 26; },
+          header: makeCondHeader(cols, ['NO', 'KONDISI MATERIAL', 'BAIK', 'BURUK', 'KET.', 'HASIL'], { first: 40, cont: 40, size: 11 })
+        },
+        afterChecklist: (c, rep, d, td) => {
+          drawKeyValueTable(c, rep.technicalRows.map((r) => [r.label, r.value]), { x0: 63.9, x1: 553, numberW: 31.4, labelW: 217.1, minH: 20.4, pitch: 13.8, padTop: 3 });
+          drawIppTests(c, rep, d, td);
+        },
+        conclusion: { no: 'VII', heading: 'VII. KESIMPULAN DAN SYARAT :', rulesHeading: 'SYARAT' },
+        photoHeading: 'VIII. DOKUMENTASI'
+      };
+    }
+    case 'LIS': {
+      const cols = [69.6, 99.4, 333.2, 397.1, 461.0, 560.1];
+      return {
+        ...base,
+        titleLines: ['LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN', 'INSTALASI LISTRIK', `No. ${lhppNo}`],
+        titleSpec: { box: false, x0: 56.7, x1: 586.1, firstTop: 86.8, pitch: 18.5, endY: 150 },
+        dataUmumHeading: (c) => { c.txt('I. DATA UMUM', c.left + 14, c.y + 2, { size: 14, bold: true }); c.y += 26; },
+        identitySpec: { x0: 71.1, x1: 673 - 87, numberW: 37, labelW: 189, minH: 28.1, pitch: 13.8, padTop: 6.5 },
+        technical: (c, rep) => {
+          c.txt('II. DATA TEKNIS', c.left + 14, c.y + 2, { size: 14, bold: true }); c.y += 26;
+          drawKeyValueTable(c, rep.technicalRows.map((r) => [r.label, r.value]), { x0: 71.1, x1: 586.1, numberW: 37, labelW: 189, minH: 24.5, pitch: 13.8, padTop: 5 });
+        },
+        checklist: {
+          cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 23.5, size: 12,
+          heading: (c) => { c.txt('III. INSPECTION CHEKLIST', c.left + 19, c.y + 2, { size: 14, bold: true }); c.y += 26; },
+          header: makeCondHeader(cols, ['NO', 'Item Pemeriksaan', 'Ada', 'Tidak Ada', 'Ket', 'Hasil Pemeriksaan'], { first: 48, cont: 48, kondisiH: 24 })
+        },
+        afterChecklist: drawLisThermal,
+        conclusion: { no: 'V', rulesNo: 'VI', heading: 'V. KESIMPULAN', rulesHeading: 'VI. SARAN' },
+        photoHeading: 'VII. DOKUMENTASI'
+      };
+    }
+    case 'IPK': {
+      const cols = [78.0, 129.0, 283.6, 340.4, 397.0, 552.9];
+      return {
+        ...base,
+        titleLines: ['LAPORAN HASIL PEMERIKSAAN & PENGUJIAN BERKALA', 'INSTALASI PROTEKSI KEBAKARAN', `Nomor : ${lhppNo}`],
+        titleSpec: { box: false, x0: 78, x1: 552.9, firstTop: 53.7, pitch: 16.1, endY: 112 },
+        dataUmumHeading: (c) => { c.txt('III. DATA UMUM', c.left, c.y + 2, { size: 14, bold: true }); c.y += 26; },
+        identitySpec: { x0: 78, x1: 552.9, numberW: 28, labelW: 150, colonW: 10, minH: 21.2, pitch: 13.8, padTop: 3 },
+        technical: drawIpkSpecific,
+        checklist: {
+          cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 21.2,
+          heading: (c) => { c.txt('PEMERIKSAAN DAN PENGUJIAN INSTALASI ALARM', c.left, c.y + 2, { size: 14, bold: true }); c.y += 26; },
+          header: makeCondHeader(cols, ['NO', 'PEMERIKSAAN / PENGUJIAN', 'Memenuhi', 'Tidak Memenuhi', 'SYARAT - SYARAT', 'HASIL'], { first: 42, cont: 42, kondisiH: 21 })
+        },
+        conclusion: { no: 'VI', rulesNo: 'VII', heading: 'VI. KESIMPULAN', rulesHeading: 'VII. SARAN' },
+        photoHeading: 'VIII. DOKUMENTASI'
+      };
+    }
+    default: {
+      const cols = [64.1, 89.7, 340.6, 397.0, 453.8, 553.3];
+      return {
+        ...base,
+        titleLines: ['LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN', String(report.coverTitle).toUpperCase(), `NO. ${lhppNo}`],
+        titleSpec: { box: true, x0: 63.9, x1: 545.9, y0: 56.8, y1: 131.3, firstTop: 59.3, pitch: 18.5 },
+        dataUmumHeading: (c) => { drawSectionRow(c, 'I. DATA UMUM', { h: 25.5 }); },
+        identitySpec: { labelW: 170, colonInValue: true, minH: 25.6, pitch: 20.7 },
+        technical: (c, rep) => {
+          drawSectionRow(c, 'II. DATA TEKNIS');
+          drawKeyValueTable(c, rep.technicalRows.map((r) => [r.label, r.value]), { labelW: 171.4, minH: 20.4, pitch: 13.8 });
+        },
+        checklist: {
+          cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 20.4,
+          heading: (c) => { drawSectionRow(c, 'III. PEMERIKSAAN VISUAL DAN PENGUJIAN', { x1: 553.3 }); },
+          header: makeCondHeader(cols, ['No', 'Pemeriksaan terhadap', 'Memenuhi\nSyarat K3', 'Tidak Memenuhi\nSyarat K3', 'Keterangan', 'Kondisi'], { first: 60, cont: 60, subSize: 10 })
+        },
+        conclusion: { no: 'VI', rulesNo: 'VII' },
+        photoHeading: 'VIII. DOKUMENTASI'
+      };
+    }
+  }
+}
+
+// ============================================================================
+// GENERATE LHPP
+// ============================================================================
+export async function generateLhppPdfBuffer(data, options = {}) {
   const report = buildLhppReportContent(data);
   const qrText = data.verification_code
     ? `https://upayariksadaya.com/verifikasi/${data.verification_code}`
     : `PT UPAYA RIKSA DAYA | LHPP: ${data.lhpp_no || 'DRAF'} | BAP: ${data.bap_no || '-'}`;
   const qrBuffer = await QRCode.toBuffer(qrText, { width: 96, margin: 1 });
 
+  const inspectionDate = new Date(data.inspection_date || data.published_at || Date.now());
+  report.coverYear = String(Number.isNaN(inspectionDate.getTime()) ? new Date().getFullYear() : inspectionDate.getFullYear());
+  report.coverRows = buildCoverRows(report, data);
+  report.coverPhoto = pickCoverPhoto(report.photos);
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: report.pageSize,
-      margins: { top: 45, right: 64, bottom: 65, left: 64 },
+      margins: { top: 0, right: 0, bottom: 0, left: 0 },
       bufferPages: true,
       compress: true
     });
@@ -2917,163 +2919,30 @@ export async function generateLhppPdfBuffer(data) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const contentLeft = 64;
-    const contentWidth = doc.page.width - 128;
+    try {
+      const profile = pickProfile(report);
+      const c = new LhppCanvas(doc, profile);
+      const ctx = { qrBuffer, captionPosition: options.captionPosition || 'top' };
 
-    const ensureSpace = (neededHeight) => {
-      if (doc.y + neededHeight > doc.page.height - 65) {
-        doc.addPage();
-        doc.y = 48;
+      drawCoverPage(c, report, data);
+
+      if (report.categoryCode === 'PAA' || report.categoryCode === 'LE') {
+        renderPaa(c, report, data, ctx);
+      } else {
+        const opts = categoryOptions(report, data);
+        renderGeneric(c, report, data, ctx, opts);
       }
-    };
+      c.drawFooters();
 
-    // ----------------------------------------------------
-    // 1. HALAMAN SAMPUL (COVER PAGE)
-    // ----------------------------------------------------
-    drawLhppCoverPage(doc, report, data);
-
-    // ----------------------------------------------------
-    // 2. HALAMAN TEKNIS PERTAMA (HALAMAN 2): HEADER & DATA UMUM
-    // ----------------------------------------------------
-    doc.addPage();
-    drawLhppHeaderBox(doc, report, data, contentLeft, contentWidth);
-
-    if (report.categoryCode === 'IPK') {
-      drawSectionHeader(doc, 'I. DASAR HUKUM PEMERIKSAAN DAN PENGUJIAN', contentLeft, contentWidth, ensureSpace);
-      const legalBasis = [
-        'Undang Undang No 1 Tahun 1970 tentang Keselamatan Kerja.',
-        'Peraturan Menteri Tenaga Kerja dan Transmigrasi R.I. No. Per.04/MEN/1980 tentang Syarat-Syarat Pemasangan dan Pemeliharaan Alat Pemadam Api Ringan.',
-        'Peraturan Menteri Tenaga Kerja R.I. No. Per.02/MEN/1983 tentang Instalasi Alarm Kebakaran Automatik.',
-        'Keputusan Menteri Tenaga Kerja R.I. No. Kep.186/MEN/1999 tentang Unit Penanggulangan Kebakaran di Tempat Kerja.'
-      ];
-      for (const item of legalBasis) {
-        const itemH = doc.font('Times-Roman').fontSize(8.5).heightOfString(item, { width: contentWidth - 10 });
-        ensureSpace(itemH + 3);
-        doc.font('Times-Roman').fontSize(8.5).fillColor('#000000').text(item, contentLeft + 6, doc.y, {
-          width: contentWidth - 10
-        });
-        doc.y += itemH + 2;
+      // Lampiran SKP / izin dari contoh bidang (halaman penuh, tanpa footer)
+      for (const attachmentPath of getLhppSkpAppendixPaths(report.categoryCode)) {
+        doc.addPage({ size: report.pageSize, margins: { top: 0, right: 0, bottom: 0, left: 0 } });
+        doc.image(attachmentPath, 0, 0, { fit: [doc.page.width, doc.page.height], align: 'center', valign: 'center' });
       }
-
-      drawSectionHeader(doc, 'II. DATA PEMERIKSA DAN PENGUJI', contentLeft, contentWidth, ensureSpace);
-      const examinerRows = [
-        ['Nama Perusahaan', data.client_name || '-'],
-        ['Alamat Perusahaan', data.client_address || '-'],
-        ['No. SKP Perusahaan', data.company_skp_no || '-'],
-        ['Tanggal SKP Perusahaan', data.company_skp_date || '-'],
-        ['Nama Ahli K3', data.inspector_name || '-'],
-        ['No. SKP Ahli K3', data.inspector_skp_no || '-'],
-        ['Tanggal SKP Ahli K3', data.inspector_skp_date || '-']
-      ];
-      drawDataTable(doc, examinerRows, { contentLeft, contentWidth, numbered: true, fontSize: 8.5 }, ensureSpace);
+      doc.end();
+    } catch (error) {
+      reject(error);
     }
-
-    // SEKSI I: DATA UMUM
-    drawSectionHeader(doc, report.sectionTitles[0], contentLeft, contentWidth, ensureSpace);
-    const numberedGeneral = ['PUBT', 'PTP', 'LIS'].includes(report.categoryCode);
-    drawDataTable(
-      doc,
-      report.identityRows,
-      { contentLeft, contentWidth, numbered: numberedGeneral, fontSize: 8.5 },
-      ensureSpace
-    );
-
-    // ----------------------------------------------------
-    // 3. SEKSI II: DATA TEKNIS SPESIFIK BIDANG
-    // ----------------------------------------------------
-    if (['PAA', 'PUBT', 'PTP', 'IPK'].includes(report.categoryCode)) {
-      doc.addPage();
-      doc.y = 48;
-    }
-    drawSectionHeader(doc, report.sectionTitles[1], contentLeft, contentWidth, ensureSpace);
-
-    if (report.categoryCode === 'PAA') {
-      drawPaaTechnicalSection(doc, data, contentLeft, contentWidth, ensureSpace);
-    } else if (report.categoryCode === 'PUBT') {
-      drawPubtTechnicalSection(doc, data, contentLeft, contentWidth, ensureSpace);
-    } else {
-      const techTableRows = report.technicalRows.map((r) => [r.label, r.value]);
-      drawDataTable(
-        doc,
-        techTableRows,
-        { contentLeft, contentWidth, numbered: true, fontSize: 8.5 },
-        ensureSpace
-      );
-    }
-
-    // ----------------------------------------------------
-    // 4. SEKSI III: PEMERIKSAAN VISUAL & PENGUJIAN CHECKLIST
-    // ----------------------------------------------------
-    if (['PAA', 'PUBT', 'LIS'].includes(report.categoryCode)) {
-      doc.addPage();
-      doc.y = 48;
-    }
-    drawSectionHeader(doc, report.sectionTitles[2], contentLeft, contentWidth, ensureSpace);
-    drawChecklistTable(doc, report, contentLeft, contentWidth, ensureSpace);
-
-    // ----------------------------------------------------
-    // 5. PENGUJIAN KHUSUS PER BIDANG (PUBT, PTP, IPP, LIS)
-    // ----------------------------------------------------
-    if (report.categoryCode === 'PUBT') {
-      doc.addPage();
-      doc.y = 48;
-      drawPubtSpecialTesting(doc, data, contentLeft, contentWidth, ensureSpace);
-    } else if (report.categoryCode === 'PTP') {
-      doc.addPage();
-      doc.y = 48;
-      drawPtpEnvironmentalTesting(doc, data, contentLeft, contentWidth, ensureSpace);
-    } else if (report.categoryCode === 'IPP') {
-      doc.addPage();
-      doc.y = 48;
-      drawGroundingTestSection(doc, data, 'IPP', contentLeft, contentWidth, ensureSpace);
-    } else if (report.categoryCode === 'LIS') {
-      doc.addPage();
-      doc.y = 48;
-      drawGroundingTestSection(doc, data, 'LIS', contentLeft, contentWidth, ensureSpace);
-      drawLisThermalPanelSection(doc, data, contentLeft, contentWidth, ensureSpace);
-    }
-
-    // ----------------------------------------------------
-    // 6. SEKSI IV: TEMUAN LAPANGAN & REKOMENDASI K3
-    // ----------------------------------------------------
-    drawFindingsSection(doc, report, contentLeft, contentWidth, ensureSpace);
-
-    // ----------------------------------------------------
-    // 7. SEKSI V: KESIMPULAN, SYARAT K3 & PENGESAHAN (TANDA TANGAN)
-    // ----------------------------------------------------
-    doc.addPage();
-    doc.y = 48;
-    drawConclusionAndRules(doc, report, data, contentLeft, contentWidth, ensureSpace);
-    drawSignaturesSection(doc, report, data, qrBuffer, contentLeft, contentWidth, ensureSpace);
-
-    // ----------------------------------------------------
-    // 8. LAMPIRAN DOKUMENTASI FOTO (GRID 2 KOLOM RAPI)
-    // ----------------------------------------------------
-    drawPhotoDocumentation(doc, report, contentLeft, contentWidth, ensureSpace);
-
-    // ----------------------------------------------------
-    // 9. FOOTER SETIAP HALAMAN ISI LAPORAN (HALAMAN 2 DST)
-    // ----------------------------------------------------
-    const pageRange = doc.bufferedPageRange();
-    for (let pageIndex = 1; pageIndex < pageRange.count; pageIndex += 1) {
-      doc.switchToPage(pageIndex);
-      doc.page.margins.bottom = 20;
-      drawLhppPageFooter(doc, contentLeft);
-    }
-
-    // ----------------------------------------------------
-    // 10. LAMPIRAN SKP BIDANG KEMNAKER R.I.
-    // ----------------------------------------------------
-    for (const attachmentPath of getLhppSkpAppendixPaths(report.categoryCode)) {
-      doc.addPage({ size: report.pageSize, margins: 0 });
-      doc.image(attachmentPath, 0, 0, {
-        fit: [doc.page.width, doc.page.height],
-        align: 'center',
-        valign: 'center'
-      });
-    }
-
-    doc.end();
   });
 }
 
@@ -3088,7 +2957,7 @@ export async function generateAssignmentLetterPdfBuffer(data) {
     drawCompanyHeader(doc, 'SURAT TUGAS PEMERIKSAAN DAN PENGUJIAN K3');
 
     doc
-      .font('Times-Roman')
+      .font('Helvetica')
       .fontSize(10)
       .fillColor('#1D1414')
       .text(`Nomor Order : ${data.order_no}`, 45, 138)
@@ -3101,25 +2970,25 @@ export async function generateAssignmentLetterPdfBuffer(data) {
       .moveDown(0.5);
 
     doc
-      .font('Times-Bold')
+      .font('Helvetica-Bold')
       .text('Klien : ', { continued: true })
-      .font('Times-Roman')
+      .font('Helvetica')
       .text(data.client_name)
-      .font('Times-Bold')
+      .font('Helvetica-Bold')
       .text('Lokasi : ', { continued: true })
-      .font('Times-Roman')
+      .font('Helvetica')
       .text(
         data.location_name
           ? `${data.location_name} (${data.location_address || ''})`
           : data.client_address || '-'
       )
-      .font('Times-Bold')
+      .font('Helvetica-Bold')
       .text('Kontak PIC : ', { continued: true })
-      .font('Times-Roman')
+      .font('Helvetica')
       .text(data.contact_name ? `${data.contact_name} (${data.contact_phone || '-'})` : '-')
-      .font('Times-Bold')
+      .font('Helvetica-Bold')
       .text('Jadwal Pelaksanaan : ', { continued: true })
-      .font('Times-Roman')
+      .font('Helvetica')
       .text(
         data.start_at
           ? `${new Date(data.start_at).toLocaleString('id-ID')} s/d ${new Date(
@@ -3128,14 +2997,14 @@ export async function generateAssignmentLetterPdfBuffer(data) {
           : 'Belum dijadwalkan'
       );
 
-    doc.moveDown(0.7).font('Times-Bold').text('Tim Ahli K3 yang Ditugaskan:');
-    doc.font('Times-Roman');
+    doc.moveDown(0.7).font('Helvetica-Bold').text('Tim Ahli K3 yang Ditugaskan:');
+    doc.font('Helvetica');
     for (const a of data.assignments || []) {
       doc.text(`• ${a.full_name} (${a.email}) | Status Konfirmasi: ${a.status}`);
     }
 
-    doc.moveDown(0.7).font('Times-Bold').text('Daftar Unit / Objek Uji K3 dalam PO:');
-    doc.font('Times-Roman');
+    doc.moveDown(0.7).font('Helvetica-Bold').text('Daftar Unit / Objek Uji K3 dalam PO:');
+    doc.font('Helvetica');
     for (const o of data.objects || []) {
       doc.text(
         `• [${o.category_code}] ${o.name} | S/N: ${o.serial_number} (${o.brand || '-'}) | Status Unit: ${o.unit_status || 'TERJADWAL'}`

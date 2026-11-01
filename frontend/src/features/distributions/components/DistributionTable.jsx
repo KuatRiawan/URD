@@ -15,11 +15,11 @@ const STATUS_TONES = {
 };
 
 export const DISPATCH_MEDIA_OPTIONS = [
-  { value: 'KURIR', label: 'Kurir / Ekspedisi (JNE, TIKI, dsb)' },
-  { value: 'SERAH_TERIMA_LANGSUNG', label: 'Serah Terima Langsung di Lokasi' },
+  { value: 'KURIR_FISIK', label: 'Kurir / Ekspedisi (JNE, TIKI, dsb)' },
+  { value: 'LANGSUNG', label: 'Serah Terima Langsung di Lokasi' },
   { value: 'EMAIL', label: 'Email Resmi Perusahaan' },
   { value: 'WHATSAPP', label: 'WhatsApp / WABA Resmi' },
-  { value: 'PORTAL_KLIEN', label: 'Unduhan Portal Klien' }
+  { value: 'PORTAL', label: 'Unduhan Portal Klien' }
 ];
 
 export function DistributionTable({

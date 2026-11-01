@@ -389,7 +389,7 @@ export function useOrderManagement() {
     setSubmitting(true);
     setError('');
     try {
-      await api.put(`/orders/${detailData.order.id}/schedule`, scheduleForm);
+      await api.post(`/orders/${detailData.order.id}/schedule`, scheduleForm);
       setFeedback('Jadwal pelaksanaan riksa uji berhasil diperbarui.');
       await openOrderDetail(detailData.order.id);
       loadOrders();
@@ -410,7 +410,7 @@ export function useOrderManagement() {
     setSubmitting(true);
     setError('');
     try {
-      await api.post(`/orders/${detailData.order.id}/assign`, {
+      await api.post(`/orders/${detailData.order.id}/assignments`, {
         inspectorIds: selectedInspectorIds
       });
       setFeedback('Penugasan Ahli K3 / Inspector berhasil diperbarui.');
@@ -654,4 +654,3 @@ export function useOrderManagement() {
     handleDownloadUnitPdf
   };
 }
-

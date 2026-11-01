@@ -3,15 +3,20 @@ import { query } from '../database/pool.js';
 import { isValidEmail, normalizePhone, sendEmail, sendWhatsApp } from './notifier.js';
 
 const STAGES = [
-  { code: 'H0', maxDays: 0 },
+  { code: 'H7', maxDays: 7 },
   { code: 'H14', maxDays: 14 },
-  { code: 'H30', maxDays: 30 },
-  { code: 'H60', maxDays: 60 },
-  { code: 'H90', maxDays: 90 }
+  { code: 'H30', maxDays: 30 }
 ];
 
 export function resolveClientStage(daysRemaining) {
-  if (daysRemaining === null || daysRemaining === undefined || daysRemaining > 90) return null;
+  if (
+    daysRemaining === null ||
+    daysRemaining === undefined ||
+    daysRemaining < 0 ||
+    daysRemaining > 30
+  ) {
+    return null;
+  }
   return STAGES.find((s) => daysRemaining <= s.maxDays) || null;
 }
 
@@ -20,21 +25,22 @@ function formatDateId(value) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-export function buildReminderMessage(unit) {
-  const pic = unit.contact_name ? `Bapak/Ibu ${unit.contact_name}` : 'Bapak/Ibu PIC K3';
-  const expired = unit.days_remaining < 0;
-  const timing = expired
-    ? 'telah melewati masa berlaku'
-    : unit.days_remaining === 0
-      ? 'jatuh tempo hari ini'
-      : `akan jatuh tempo dalam ${unit.days_remaining} hari`;
+export function buildReminderMessage(group) {
+  const firstUnit = group.units[0];
+  const pic = firstUnit.contact_name ? `Bapak/Ibu ${firstUnit.contact_name}` : 'Bapak/Ibu PIC K3';
+  const timing = `akan jatuh tempo dalam ${firstUnit.days_remaining} hari`;
+  const units = group.units
+    .map(
+      (unit, index) =>
+        `${index + 1}. ${unit.object_name} (${unit.category_code}) | No. Seri: ${unit.serial_number} | Batas: ${formatDateId(unit.valid_until)}`
+    )
+    .join('\n');
+
   return [
-    `Yth. ${pic} (${unit.client_name}),`,
+    `Yth. ${pic} (${firstUnit.client_name}),`,
     '',
-    `Kami dari PT Upaya Riksa Daya menginformasikan bahwa riksa uji berkala unit berikut ${timing}:`,
-    `- Unit Alat: ${unit.object_name} (${unit.category_code})`,
-    `- Nomor Seri: ${unit.serial_number}`,
-    `- Batas Masa Berlaku: ${formatDateId(unit.valid_until)}`,
+    `Kami dari PT Upaya Riksa Daya menginformasikan bahwa masa berlaku riksa uji berkala peralatan berikut ${timing}:`,
+    units,
     '',
     'Agar operasional tetap memenuhi ketentuan K3, silakan hubungi kami untuk penjadwalan pemeriksaan perpanjangan.',
     '',
@@ -104,52 +110,77 @@ export async function dispatchClientReminders() {
   if (!env.clientRemindersEnabled) return summary;
 
   const units = await loadCandidates();
+  const groups = new Map();
   for (const unit of units) {
     const stage = resolveClientStage(unit.days_remaining);
     if (!stage) continue;
+    const key = `${unit.client_name}|${unit.valid_until}|${stage.code}`;
+    const group = groups.get(key) || { stage: stage.code, units: [] };
+    group.units.push(unit);
+    groups.set(key, group);
+  }
 
+  for (const group of groups.values()) {
+    const firstUnit = group.units[0];
     const { rows: done } = await query(
-      `SELECT channel FROM client_reminder_log
-       WHERE object_id = $1 AND valid_until = $2 AND stage = $3 AND status = 'TERKIRIM'`,
-      [unit.object_id, unit.valid_until, stage.code]
+      `SELECT channel, count(*)::int AS completed
+       FROM client_reminder_log
+       WHERE object_id = ANY($1::uuid[])
+         AND valid_until = $2
+         AND stage = $3
+         AND status = 'TERKIRIM'
+       GROUP BY channel`,
+      [group.units.map((unit) => unit.object_id), firstUnit.valid_until, group.stage]
     );
-    const doneChannels = new Set(done.map((r) => r.channel));
-    const message = buildReminderMessage(unit);
-    const subject = `Pengingat Perpanjangan Riksa Uji K3: ${unit.object_name}`;
+    const doneChannels = new Set(
+      done.filter((row) => row.completed === group.units.length).map((row) => row.channel)
+    );
+    const message = buildReminderMessage(group);
+    const subject = `Pengingat Perpanjangan Riksa Uji K3: ${firstUnit.client_name}`;
 
     const attempts = [
       {
         channel: 'EMAIL',
-        recipient: isValidEmail(unit.email) ? unit.email.trim() : '',
+        recipient: isValidEmail(firstUnit.email) ? firstUnit.email.trim() : '',
         send: (to) => sendEmail({ to, subject, text: message })
       },
       {
         channel: 'WHATSAPP',
-        recipient: normalizePhone(unit.phone),
+        recipient: normalizePhone(firstUnit.phone),
         send: (to) => sendWhatsApp({ to, message })
       }
     ];
 
     for (const attempt of attempts) {
       if (doneChannels.has(attempt.channel)) continue;
-      summary.evaluated += 1;
-      const base = { unit, stage: stage.code, channel: attempt.channel, recipient: attempt.recipient };
-      if (!attempt.recipient) {
-        await recordAttempt({ ...base, status: 'DILEWATI', error: 'Kontak klien belum tersedia' });
-        summary.skipped += 1;
-        continue;
-      }
-      try {
-        const result = await attempt.send(attempt.recipient);
-        await recordAttempt({ ...base, status: result.mode });
-        if (result.mode === 'TERKIRIM') summary.sent += 1;
-        else summary.simulated += 1;
-      } catch (err) {
-        await recordAttempt({ ...base, status: 'GAGAL', error: String(err.message).slice(0, 300) });
-        summary.failed += 1;
+      const status = !attempt.recipient ? 'DILEWATI' : await (async () => {
+        try {
+          const result = await attempt.send(attempt.recipient);
+          if (result.mode === 'TERKIRIM') summary.sent += 1;
+          else summary.simulated += 1;
+          return result.mode;
+        } catch (err) {
+          summary.failed += 1;
+          return { mode: 'GAGAL', error: String(err.message).slice(0, 300) };
+        }
+      })();
+
+      for (const unit of group.units) {
+        summary.evaluated += 1;
+        const result = typeof status === 'string' ? { mode: status } : status;
+        await recordAttempt({
+          unit,
+          stage: group.stage,
+          channel: attempt.channel,
+          recipient: attempt.recipient,
+          status: result.mode,
+          error: result.error || (!attempt.recipient ? 'Kontak klien belum tersedia' : null)
+        });
+        if (result.mode === 'DILEWATI') {
+          summary.skipped += 1;
+        }
       }
     }
   }
   return summary;
 }
-

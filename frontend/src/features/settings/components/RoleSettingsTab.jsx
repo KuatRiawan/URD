@@ -74,7 +74,7 @@ export function RoleSettingsTab({ user, meData }) {
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
                   <span className="text-[11px] font-bold text-slate-400 uppercase">Nomor Pegawai / KTA</span>
                   <p className="font-bold text-sm text-slate-900 dark:text-slate-100 mt-1">
-                    {meData?.inspector?.employeeNo || 'URD-EXP-2024-001'}
+                    {meData?.inspector?.employeeNo || 'Belum tercatat'}
                   </p>
                 </div>
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">

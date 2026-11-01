@@ -167,11 +167,6 @@ function LayoutShell() {
             <span className="text-slate-300 dark:text-slate-600">·</span>
             <span>Sistem Informasi Terpadu Pemeriksaan dan Pengujian K3</span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500">
-            <span>urd@upayariksadaya.com</span>
-            <span>·</span>
-            <span>(021) 489 1409</span>
-          </div>
         </footer>
 
         <GlobalSearchDialog isOpen={searchOpen} onClose={() => setSearchOpen(false)} />

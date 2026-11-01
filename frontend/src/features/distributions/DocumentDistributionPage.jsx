@@ -39,7 +39,7 @@ export function DocumentDistributionPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState('DIKIRIM');
-  const [dispatchMedia, setDispatchMedia] = useState('KURIR');
+  const [dispatchMedia, setDispatchMedia] = useState('KURIR_FISIK');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -54,21 +54,24 @@ export function DocumentDistributionPage() {
         api.get('/distributions', {
           params: {
             q: searchQuery || undefined,
-            target: targetFilter || undefined,
+            targetDestination: targetFilter || undefined,
             status: statusFilter || undefined
           }
         }),
         api.get('/distributions/summary')
       ]);
 
-      setDistributions(listRes.data?.distributions || []);
-      setSummary(summaryRes.data?.summary || {
-        total: 0,
-        siapKirim: 0,
-        dikirim: 0,
-        diterima: 0,
-        targetKlien: 0,
-        targetDisnaker: 0
+      setDistributions(listRes.data?.items || []);
+      const distributionSummary = summaryRes.data?.summary || {};
+      setSummary({
+        total: distributionSummary.total_records || 0,
+        siapKirim: distributionSummary.ready_to_dispatch || 0,
+        dikirim: distributionSummary.dispatched || 0,
+        diterima: distributionSummary.received || 0,
+        targetKlien: distributionSummary.bap_client_total || 0,
+        targetDisnaker:
+          (distributionSummary.lhpp_disnaker_total || 0) +
+          (distributionSummary.bap_disnaker_total || 0)
       });
     } catch (err) {
       setError(err?.response?.data?.error?.message || 'Gagal memuat data distribusi dokumen.');
@@ -85,7 +88,7 @@ export function DocumentDistributionPage() {
   const openUpdateModal = (item) => {
     setSelectedItem(item);
     setUpdateStatus(item.status === 'SIAP_DIKIRIM' ? 'DIKIRIM' : 'DITERIMA');
-    setDispatchMedia(item.dispatch_media || 'KURIR');
+    setDispatchMedia(item.dispatch_media || 'KURIR_FISIK');
     setTrackingNumber(item.tracking_number || '');
     setDispatchNotes(item.notes || '');
     setModalOpen(true);
@@ -100,7 +103,7 @@ export function DocumentDistributionPage() {
       await api.patch(`/distributions/${selectedItem.id}/status`, {
         status: updateStatus,
         dispatchMedia,
-        trackingNumber: trackingNumber.trim() || undefined,
+        trackingReference: trackingNumber.trim() || undefined,
         notes: dispatchNotes.trim() || undefined
       });
 

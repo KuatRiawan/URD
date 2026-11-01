@@ -209,7 +209,7 @@ export function OrdersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="PO &amp; Order Pemeriksaan Riksa Uji K3"
+        title="PO & Order Pemeriksaan Riksa Uji K3"
         subtitle="Pengelolaan Purchase Order resmi, pendaftaran alat K3 multi-unit, alokasi Ahli K3, dan pemantauan progres berkas LHPP"
         actions={
           canManage && (
