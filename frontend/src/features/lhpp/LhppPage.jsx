@@ -310,7 +310,7 @@ export function LhppPage() {
       title: 'Hapus Foto Dokumentasi',
       message: 'Foto dokumentasi ini akan dihapus dari lampiran Bab VIII LHPP.',
       confirmLabel: 'Hapus Foto',
-      danger: true
+      tone: 'danger'
     });
     if (!confirmed) return;
     try {
