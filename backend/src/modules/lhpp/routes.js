@@ -7,8 +7,9 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
-import { notifyRoles } from '../../services/notify.js';
+import { notifyRoles, createNotification } from '../../services/notify.js';
 import { generateLhppPdfBuffer } from '../../services/pdf-generator.js';
+import { generateLhppDocxBuffer } from '../../services/docx-generator.js';
 import { syncOrderUnitStatus } from '../../services/workflow.js';
 import { resolveAttachmentPath, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
@@ -29,6 +30,11 @@ const updateDraftSchema = Joi.object({
 const finalizeLhppSchema = Joi.object({
   note: Joi.string().max(1500).allow('', null)
 }).default({});
+
+// Alasan pengembalian wajib dan harus spesifik agar Ahli K3 tahu apa yang harus diperbaiki.
+const returnLhppSchema = Joi.object({
+  note: Joi.string().trim().min(10).max(1500).required()
+});
 
 const deliverySchema = Joi.object({
   deliveredAt: Joi.date().iso().required(),
@@ -353,7 +359,7 @@ router.delete(
   }
 );
 
-// Inspector mengirim draf LHPP kepada Marketing untuk pratinjau dan finalisasi.
+// Inspector mengirim draf LHPP kepada Admin Kantor untuk pratinjau dan finalisasi.
 router.post('/:id/submit-finalization', authorize('INSPECTOR'), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -379,7 +385,7 @@ router.post('/:id/submit-finalization', authorize('INSPECTOR'), async (req, res,
 
       await db.query(
         `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
-         VALUES ($1, $2, 'SUBMIT_FINALIZATION', 'Diajukan ke Marketing untuk pratinjau dan finalisasi', $3, $4)`,
+         VALUES ($1, $2, 'SUBMIT_FINALIZATION', 'Diajukan ke Admin Kantor untuk pratinjau dan finalisasi', $3, $4)`,
         [
           id,
           nextVer,
@@ -437,10 +443,10 @@ router.post('/:id/submit-finalization', authorize('INSPECTOR'), async (req, res,
   }
 });
 
-// Marketing mempratinjau dan memfinalisasi LHPP setelah Inspector mengirim hasil pemeriksaan.
+// Admin Kantor memproses dan memfinalisasi LHPP setelah Inspector mengirim hasil pemeriksaan.
 router.post(
   '/:id/finalize',
-  authorize('MARKETING', 'ADMIN_SISTEM'),
+  authorize('ADMIN_KANTOR', 'ADMIN_SISTEM'),
   validate(finalizeLhppSchema),
   async (req, res, next) => {
     try {
@@ -627,9 +633,98 @@ router.post(
   }
 );
 
+// Admin Kantor mengembalikan LHPP yang belum layak terbit agar diperbaiki Inspector.
+// Alur ini sempat hilang saat review lama diganti pratinjau/finalisasi, padahal status
+// DIKEMBALIKAN, review_notes, dan antrean "LHPP Perlu Revisi" masih dipakai di seluruh sistem.
+router.post(
+  '/:id/return',
+  authorize('ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  validate(returnLhppSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const note = req.body.note.trim();
+
+      const updated = await withTransaction(async (db) => {
+        const cur = await fetchFullLhppContext(db, id);
+        if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
+        if (['TERBIT', 'FINAL'].includes(cur.status)) {
+          throw new AppError(
+            409,
+            'LHPP_IMMUTABLE',
+            'LHPP yang sudah final/terbit terkunci dan tidak dapat dikembalikan untuk revisi.'
+          );
+        }
+        if (cur.status !== 'SIAP_PREVIEW') {
+          throw new AppError(
+            409,
+            'LHPP_NOT_READY',
+            'Hanya LHPP berstatus Siap Pratinjau yang dapat dikembalikan untuk revisi.'
+          );
+        }
+
+        const { rows } = await db.query(
+          `UPDATE lhpp_documents
+           SET status = 'DIKEMBALIKAN',
+               review_notes = $1,
+               reviewed_by = $2,
+               reviewed_at = now(),
+               updated_at = now()
+           WHERE id = $3
+           RETURNING *`,
+          [note, req.user.id, id]
+        );
+
+        await db.query(
+          `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
+           VALUES ($1, $2, 'RETURNED', $3, $4, $5)`,
+          [id, cur.version, note, { status: 'DIKEMBALIKAN' }, req.user.id]
+        );
+
+        // Unit kembali ke tahap revisi; status PO dihitung ulang otomatis (tercatat di riwayat).
+        await syncOrderUnitStatus(db, {
+          orderId: cur.order_id,
+          objectId: cur.object_id,
+          unitStatus: 'PERLU_REVISI',
+          actorId: req.user.id
+        });
+
+        await createNotification(
+          {
+            userId: cur.inspector_id,
+            type: 'LHPP_RETURNED',
+            title: `LHPP Dikembalikan: ${cur.object_name}`,
+            body: `Catatan Admin Kantor: ${note}`,
+            link: '/app/lhpp'
+          },
+          db
+        );
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'LHPP_RETURN',
+            entity: 'lhpp_documents',
+            entityId: id,
+            summary: { note },
+            ip: req.ip
+          },
+          db
+        );
+
+        return { lhpp: rows[0] };
+      });
+
+      return res.json(updated);
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
 // Endpoint approval lama dinonaktifkan agar keputusan review/reject tidak dapat dipicu lewat API.
-router.post('/:id/review', authorize('ADMIN_SISTEM', 'MARKETING'), (_req, _res, next) => {
-  next(new AppError(410, 'LEGACY_REVIEW_REMOVED', 'Alur review dan approval LHPP telah dihapus. Gunakan pratinjau dan finalisasi Marketing.'));
+router.post('/:id/review', authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'), (_req, _res, next) => {
+  next(new AppError(410, 'LEGACY_REVIEW_REMOVED', 'Alur review dan approval LHPP telah dihapus. Gunakan pratinjau dan finalisasi Admin Kantor.'));
 });
 router.post('/:id/submit-review', authorize('INSPECTOR'), (_req, _res, next) => {
   next(new AppError(410, 'LEGACY_REVIEW_REMOVED', 'Gunakan alur kirim finalisasi LHPP yang baru.'));
@@ -670,6 +765,38 @@ router.get('/:id/pdf', async (req, res, next) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     return res.send(pdfBuffer);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// M4-05b: Unduh LHPP DOCX (Editable format dokumen resmi)
+router.get('/:id/docx', async (req, res, next) => {
+  try {
+    const cur = await fetchFullLhppContext({ query }, req.params.id);
+    if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
+    const hasAccess = await canAccessLhpp({ query }, cur, req.user);
+    if (!hasAccess) {
+      throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengunduh LHPP milik sendiri.');
+    }
+
+    const docxBuffer = await generateLhppDocxBuffer(cur);
+    await recordAudit({
+      userId: req.user.id,
+      action: 'LHPP_DOWNLOAD_DOCX',
+      entity: 'lhpp_documents',
+      entityId: cur.id,
+      summary: { lhppNo: cur.lhpp_no || 'DRAF' },
+      ip: req.ip
+    });
+
+    const filename = cur.lhpp_no ? `${cur.lhpp_no.replace(/\//g, '-')}.docx` : `Draf-LHPP-${cur.id.slice(0, 8)}.docx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(docxBuffer);
   } catch (err) {
     return next(err);
   }

@@ -31,8 +31,6 @@ const DocumentDistributionPage = loadPage(() => import('../features/distribution
 const IssuesPage = loadPage(() => import('../features/issues/IssuesPage.jsx'), 'IssuesPage');
 
 const ROLE_ALIASES = {
-  ADMIN_KANTOR: 'MARKETING',
-  MARKETING: 'ADMIN_KANTOR',
   AHLI_K3: 'INSPECTOR',
   INSPECTOR: 'AHLI_K3',
   MANAGER: 'PIMPINAN',
@@ -111,7 +109,7 @@ export function AppRoutes() {
         <Route
           path="clients"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
               <ClientsPage />
             </RequireRole>
           }
@@ -119,7 +117,7 @@ export function AppRoutes() {
         <Route
           path="objects"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
               <ObjectsPage />
             </RequireRole>
           }
@@ -127,7 +125,7 @@ export function AppRoutes() {
         <Route
           path="orders"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
               <OrdersPage />
             </RequireRole>
           }
@@ -135,7 +133,7 @@ export function AppRoutes() {
         <Route
           path="schedule"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
               <SchedulePage />
             </RequireRole>
           }
@@ -176,7 +174,7 @@ export function AppRoutes() {
         <Route
           path="distributions"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']}>
               <DocumentDistributionPage />
             </RequireRole>
           }
@@ -184,7 +182,7 @@ export function AppRoutes() {
         <Route
           path="suket"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN']}>
               <SuketPage />
             </RequireRole>
           }
@@ -192,7 +190,7 @@ export function AppRoutes() {
         <Route
           path="reminders"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN']}>
               <RemindersPage />
             </RequireRole>
           }

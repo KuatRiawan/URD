@@ -129,7 +129,7 @@ router.get('/:id', async (req, res, next) => {
 
 router.post(
   '/',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(clientSchema),
   async (req, res, next) => {
     try {
@@ -172,7 +172,7 @@ router.post(
 
 router.patch(
   '/:id',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(clientSchema),
   async (req, res, next) => {
     try {
@@ -221,7 +221,7 @@ router.patch(
 
 router.post(
   '/:id/locations',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(locationSchema),
   async (req, res, next) => {
     try {
@@ -250,7 +250,7 @@ router.post(
 
 router.post(
   '/:id/contacts',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(contactSchema),
   async (req, res, next) => {
     try {
@@ -278,4 +278,3 @@ router.post(
 );
 
 export default router;
-

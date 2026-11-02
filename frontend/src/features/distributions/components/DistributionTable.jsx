@@ -1,4 +1,4 @@
-import { Buildings, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Buildings, DownloadSimple, PaperPlaneTilt } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import {
   formatDateTime,
@@ -25,7 +25,8 @@ export const DISPATCH_MEDIA_OPTIONS = [
 export function DistributionTable({
   distributions,
   isMarketingOrAdmin,
-  onOpenUpdateModal
+  onOpenUpdateModal,
+  onDownloadBast
 }) {
   return (
     <div className="space-y-4">
@@ -90,18 +91,28 @@ export function DistributionTable({
             </div>
 
             {/* Tombol Aksi Mobile */}
-            {isMarketingOrAdmin && item.status !== 'DITERIMA' && (
-              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+              {isMarketingOrAdmin && item.status !== 'DITERIMA' && (
                 <button
                   type="button"
                   onClick={() => onOpenUpdateModal(item)}
-                  className="w-full min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
+                  className="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
                 >
                   <PaperPlaneTilt size={15} weight="bold" />
-                  <span>Update Status Kirim</span>
+                  <span>Update Kirim</span>
                 </button>
-              </div>
-            )}
+              )}
+              {item.order_id && onDownloadBast && (
+                <button
+                  type="button"
+                  onClick={() => onDownloadBast(item.order_id, item.po_number || item.client_name)}
+                  className="min-h-[42px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  <DownloadSimple size={15} weight="bold" />
+                  <span>BAST</span>
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -201,7 +212,18 @@ export function DistributionTable({
                       {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3.5 text-right">
+                  <td className="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                    {item.order_id && onDownloadBast && (
+                      <button
+                        type="button"
+                        onClick={() => onDownloadBast(item.order_id, item.po_number || item.client_name)}
+                        title="Unduh Berita Acara Serah Terima (BAST)"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      >
+                        <DownloadSimple size={14} weight="bold" />
+                        <span>BAST</span>
+                      </button>
+                    )}
                     {isMarketingOrAdmin && item.status !== 'DITERIMA' ? (
                       <button
                         type="button"

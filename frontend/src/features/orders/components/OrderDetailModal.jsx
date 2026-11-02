@@ -44,6 +44,7 @@ export function OrderDetailModal({
   setError,
   handleOpenCsvImport,
   handleDownloadAssignmentPdf,
+  handleDownloadBastPdf,
   handleDownloadUnitPdf,
   handleSaveSchedule,
   handleAssignInspectors,
@@ -150,6 +151,15 @@ export function OrderDetailModal({
                   >
                     <DownloadSimple size={14} />
                     <span>Surat Tugas</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadBastPdf(activeOrder.id, activeOrder.po_number, activeOrder.order_no)}
+                    className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <DownloadSimple size={14} />
+                    <span>Cetak BAST</span>
                   </button>
 
                   {canManage && activeOrder.status !== 'SELESAI' && activeOrder.status !== 'DIBATALKAN' && (

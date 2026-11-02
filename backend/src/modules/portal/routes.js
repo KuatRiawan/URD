@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { query } from '../../database/pool.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
+import { recordAudit } from '../../services/audit.js';
 import { AppError } from '../../utils/http.js';
 
 const router = Router();
@@ -13,6 +14,10 @@ const createTokenSchema = Joi.object({
   label: Joi.string().max(100).allow('', null),
   expiresInDays: Joi.number().integer().min(1).max(365).default(90)
 });
+
+function hashPortalToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 // 1. Admin membuat token portal klien (Authenticated)
 router.post('/tokens', authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'), async (req, res, next) => {
@@ -26,18 +31,19 @@ router.post('/tokens', authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'), 
 
     // Token acak 32 bytes hex
     const token = crypto.randomBytes(24).toString('hex');
+    const tokenHash = hashPortalToken(token);
     const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
     const { rows } = await query(
-      `INSERT INTO client_portal_tokens (client_id, token, label, expires_at, created_by)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, client_id, token, label, expires_at, is_active, created_at`,
-      [clientId, token, label || `Portal Akses - ${clientRows[0].name}`, expiresAt, req.user.id]
+      `INSERT INTO client_portal_tokens (client_id, token, token_hash, label, expires_at, created_by)
+       VALUES ($1, NULL, $2, $3, $4, $5)
+       RETURNING id, client_id, label, expires_at, is_active, created_at`,
+      [clientId, tokenHash, label || `Portal Akses - ${clientRows[0].name}`, expiresAt, req.user.id]
     );
 
     return res.status(201).json({
       message: 'Token portal klien berhasil dibuat.',
-      portalToken: rows[0],
+      portalToken: { ...rows[0], token },
       portalUrl: `/portal/${token}`
     });
   } catch (err) {
@@ -50,7 +56,8 @@ router.get('/tokens/client/:clientId', authenticate, authorize('ADMIN_SISTEM', '
   try {
     const { clientId } = req.params;
     const { rows } = await query(
-      `SELECT t.*, u.full_name AS created_by_name
+      `SELECT t.id, t.client_id, t.label, t.expires_at, t.is_active, t.created_at,
+              t.created_by, u.full_name AS created_by_name
        FROM client_portal_tokens t
        LEFT JOIN users u ON u.id = t.created_by
        WHERE t.client_id = $1
@@ -58,6 +65,30 @@ router.get('/tokens/client/:clientId', authenticate, authorize('ADMIN_SISTEM', '
       [clientId]
     );
     return res.json({ items: rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.patch('/tokens/:id/revoke', authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `UPDATE client_portal_tokens
+       SET is_active = false
+       WHERE id = $1 AND is_active = true
+       RETURNING id, client_id, is_active`,
+      [req.params.id]
+    );
+    if (!rows[0]) throw new AppError(404, 'PORTAL_TOKEN_NOT_FOUND', 'Token portal aktif tidak ditemukan.');
+    await recordAudit({
+      userId: req.user.id,
+      action: 'PORTAL_TOKEN_REVOKE',
+      entity: 'client_portal_tokens',
+      entityId: rows[0].id,
+      summary: { clientId: rows[0].client_id },
+      ip: req.ip
+    });
+    return res.json({ portalToken: rows[0] });
   } catch (err) {
     return next(err);
   }
@@ -73,8 +104,9 @@ router.get('/access/:token', async (req, res, next) => {
       `SELECT t.*, c.name AS client_name, c.email AS client_email, c.phone AS client_phone, c.address AS client_address
        FROM client_portal_tokens t
        JOIN clients c ON c.id = t.client_id
-       WHERE t.token = $1 AND t.is_active = true`,
-      [token]
+       WHERE (t.token_hash = $1 OR (t.token_hash IS NULL AND t.token = $2))
+         AND t.is_active = true`,
+      [hashPortalToken(token), token]
     );
     const tokenData = tokRows[0];
     if (!tokenData) {
@@ -146,4 +178,3 @@ router.get('/access/:token', async (req, res, next) => {
 });
 
 export default router;
-

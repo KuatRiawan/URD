@@ -6,7 +6,8 @@ import { STATUS_TONE } from '../orderConstants.js';
 export function OrderTable({
   orders,
   openOrderDetail,
-  handleDownloadAssignmentPdf
+  handleDownloadAssignmentPdf,
+  handleDownloadBastPdf
 }) {
   return (
     <div className="space-y-4">
@@ -85,6 +86,17 @@ export function OrderTable({
                   <DownloadSimple size={15} />
                   <span className="hidden xs:inline">Surat Tugas</span>
                 </button>
+                {handleDownloadBastPdf && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadBastPdf(order.id, order.po_number, order.order_no)}
+                    title="Unduh BAST PDF"
+                    className="min-h-10 px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <DownloadSimple size={15} />
+                    <span>BAST</span>
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -177,6 +189,17 @@ export function OrderTable({
                           <DownloadSimple size={15} />
                           <span>Surat Tugas</span>
                         </button>
+                        {handleDownloadBastPdf && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadBastPdf(order.id, order.po_number, order.order_no)}
+                            title="Unduh Berita Acara Serah Terima (BAST)"
+                            className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                          >
+                            <DownloadSimple size={15} />
+                            <span>BAST</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

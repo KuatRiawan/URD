@@ -146,9 +146,17 @@ export function VerificationPage() {
                 <div>
                   <span className="text-slate-400 block font-semibold mb-0.5">Tanggal Penerbitan / Final</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {formatDate(data.publishedAt || data.finalizedAt || data.inspectionDate)}
+                    {formatDate(data.publishedAt || data.finalizedAt || data.inspectionDate || data.issuedDate)}
                   </span>
                 </div>
+                {data.validUntil && (
+                  <div>
+                    <span className="text-slate-400 block font-semibold mb-0.5">Masa Berlaku Suket K3</span>
+                    <span className="font-bold text-[#C81E1E] dark:text-red-400">
+                      s/d {formatDate(data.validUntil)}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <span className="text-slate-400 block font-semibold mb-0.5">Penerbit Dokumen</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{data.issuer}</span>

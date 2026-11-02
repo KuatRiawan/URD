@@ -1,4 +1,5 @@
 export const STATUS_TONE = {
+  TERDAFTAR: 'info',
   ORDER_BARU: 'info',
   TERJADWAL: 'info',
   DITUGASKAN: 'warning',
@@ -26,6 +27,8 @@ export const UNIT_STATUS_LABELS = {
 };
 
 export const ALLOWED_NEXT_STATUS = {
+  // TERDAFTAR adalah status awal PO saat ini; ORDER_BARU dipertahankan untuk data lama.
+  TERDAFTAR: ['TERJADWAL', 'DIBATALKAN'],
   ORDER_BARU: ['TERJADWAL', 'DIBATALKAN'],
   TERJADWAL: ['DITUGASKAN', 'DIBATALKAN'],
   DITUGASKAN: ['SEDANG_DIPERIKSA', 'TERJADWAL', 'DIBATALKAN'],

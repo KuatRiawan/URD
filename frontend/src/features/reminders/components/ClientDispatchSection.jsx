@@ -15,7 +15,8 @@ export function ClientDispatchSection({ channels, clientLog }) {
               Pengiriman Otomatis ke Klien
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Dikirim setiap hari pukul 07:00 pada H-90, H-60, H-30, H-14, dan H-0.
+              Dikirim otomatis setiap hari pukul 07:00 pada H-30, H-14, dan H-7. Unit yang
+              sudah kedaluwarsa tidak dikirimi pengingat otomatis, tindak lanjuti manual.
             </p>
           </div>
         </div>

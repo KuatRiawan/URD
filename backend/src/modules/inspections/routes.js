@@ -5,6 +5,7 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
+import { generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
 import { saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
@@ -434,12 +435,12 @@ router.get('/:id', async (req, res, next) => {
     if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Data inspeksi tidak ditemukan.');
 
     if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && insp.inspector_id !== req.user.id) {
-      const { rows: coAssigned } = await query(
-        `SELECT 1 FROM assignments
-         WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')`,
-        [insp.order_id, req.user.id]
+      const { rows: unitAssigned } = await query(
+        `SELECT 1 FROM order_objects
+         WHERE order_id = $1 AND object_id = $2 AND inspector_id = $3`,
+        [insp.order_id, insp.object_id, req.user.id]
       );
-      if (!coAssigned[0]) {
+      if (!unitAssigned[0]) {
         throw new AppError(403, 'FORBIDDEN', 'Anda tidak memiliki akses pada form inspeksi ini.');
       }
     }
@@ -494,6 +495,91 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// PRD Section 4.2 Dokumen #3: Lembar Temuan & Rekomendasi K3 (Corrective Action Notice PDF)
+router.get('/:id/recommendation-letter.pdf', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `SELECT i.*,
+              c.name AS client_name, c.address AS client_address,
+              cl.name AS location_name, cl.address AS location_address,
+              t.name AS object_name, t.serial_number, t.capacity, t.capacity_unit, t.install_location,
+              oc.name AS category_name, oc.code AS category_code,
+              u.full_name AS inspector_name,
+              ic.certificate_no AS inspector_skp_no
+       FROM inspections i
+       JOIN orders o ON o.id = i.order_id
+       JOIN clients c ON c.id = o.client_id
+       LEFT JOIN client_locations cl ON cl.id = o.location_id
+       JOIN test_objects t ON t.id = i.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN users u ON u.id = i.inspector_id
+       LEFT JOIN LATERAL (
+         SELECT certificate_no
+         FROM inspector_competencies
+         WHERE inspector_id = i.inspector_id AND category_id = t.category_id
+         ORDER BY valid_until DESC
+         LIMIT 1
+       ) ic ON TRUE
+       WHERE i.id = $1`,
+      [id]
+    );
+    const insp = rows[0];
+    if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Data inspeksi tidak ditemukan.');
+
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && insp.inspector_id !== req.user.id) {
+      const { rows: unitAssigned } = await query(
+        `SELECT 1 FROM order_objects
+         WHERE order_id = $1 AND object_id = $2 AND inspector_id = $3`,
+        [insp.order_id, insp.object_id, req.user.id]
+      );
+      if (!unitAssigned[0]) {
+        throw new AppError(403, 'FORBIDDEN', 'Anda tidak memiliki akses pada form inspeksi ini.');
+      }
+    }
+
+    const { rows: findings } = await query(
+      `SELECT * FROM inspection_findings WHERE inspection_id = $1 ORDER BY created_at ASC`,
+      [id]
+    );
+
+    const capStr = [insp.capacity, insp.capacity_unit].filter(Boolean).join(' ') || '-';
+    const letterNo = `REK-K3/URD/${new Date(insp.inspected_at || insp.created_at).getFullYear()}/${String(insp.id).slice(-4).toUpperCase()}`;
+
+    const buffer = await generateRecommendationLetterPdfBuffer({
+      inspection_id: insp.id,
+      recommendation_no: letterNo,
+      inspection_date: insp.inspected_at || insp.created_at,
+      client_name: insp.client_name,
+      company_address: insp.location_address || insp.client_address || '-',
+      object_name: insp.object_name,
+      category_name: insp.category_name,
+      serial_number: insp.serial_number,
+      capacity: capStr,
+      location: insp.install_location || insp.location_name || '-',
+      findings: findings.map((f) => ({
+        finding: f.description || '-',
+        risk_level: f.severity || 'SEDANG',
+        recommendation: f.recommendation || '-',
+        deadline: '-'
+      })),
+      conclusion: insp.conclusion || 'PERLU PERBAIKAN SEBELUM OPERASI',
+      conclusion_notes: insp.conclusion_notes || '',
+      inspector_name: insp.inspector_name,
+      inspector_skp_no: insp.inspector_skp_no || 'SKP-K3/URD'
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="rekomendasi-k3-${insp.serial_number || insp.id}.pdf"`
+    );
+    return res.send(buffer);
+  } catch (err) {
+    return next(err);
+  }
+});
+
 async function assertEditableInspection(db, id, user) {
   const { rows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
   const insp = rows[0];
@@ -523,18 +609,18 @@ async function assertInspectionOwnership(db, insp, user) {
   }
   if (insp.inspector_id === user.id) return;
 
-  // Inspector lain hanya dapat mengakses jika tercatat sebagai anggota penugasan order.
-  const { rows: coAssigned } = await db.query(
-    `SELECT 1 FROM assignments
-     WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU','DITERIMA')`,
-    [insp.order_id, user.id]
+  // Inspector lain hanya dapat mengakses jika tercatat sebagai pemeriksa yang ditugaskan pada unit ini.
+  const { rows: unitAssigned } = await db.query(
+    `SELECT 1 FROM order_objects
+     WHERE order_id = $1 AND object_id = $2 AND inspector_id = $3`,
+    [insp.order_id, insp.object_id, user.id]
   );
-  if (coAssigned[0]) return;
+  if (unitAssigned[0]) return;
 
   throw new AppError(
     403,
     'FORBIDDEN',
-    'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan yang dapat mengisi form ini.'
+    'Hanya Ahli K3 / Inspector pemeriksa yang ditugaskan pada unit ini yang dapat mengisi form ini.'
   );
 }
 

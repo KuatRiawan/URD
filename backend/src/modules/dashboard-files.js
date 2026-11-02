@@ -188,11 +188,14 @@ router.get('/summary', async (req, res, next) => {
       categoryDistributionRes,
       regionalMappingRes,
       monthlyTrendRes,
-      recentActivitiesRes
+      recentActivitiesRes,
+      unitStatusRes,
+      operationalIssuesRes,
+      documentPipelineRes
     ] = await Promise.all([
       query(`
         SELECT count(*)::int AS total,
-               count(*) FILTER (WHERE status = 'ORDER_BARU')::int AS new_orders,
+               count(*) FILTER (WHERE status IN ('ORDER_BARU','TERDAFTAR'))::int AS new_orders,
                count(*) FILTER (WHERE status IN ('TERJADWAL','DITUGASKAN','SEDANG_DIPERIKSA','MENUNGGU_LAPORAN','MENUNGGU_DOKUMEN'))::int AS active_orders,
                count(*) FILTER (WHERE status = 'SELESAI')::int AS completed_orders,
                round(avg(EXTRACT(EPOCH FROM (completed_at - created_at)) / 3600)::numeric, 1) AS avg_completion_hours
@@ -284,7 +287,33 @@ router.get('/summary', async (req, res, next) => {
         LEFT JOIN users u ON u.id = a.user_id
         ORDER BY a.created_at DESC
         LIMIT 8
-      `)
+      `),
+      query(`
+        SELECT
+          count(*)::int AS total_units,
+          count(*) FILTER (WHERE unit_status IN ('TERDAFTAR', 'TERJADWAL', 'DITUGASKAN'))::int AS waiting_inspection_units,
+          count(*) FILTER (WHERE unit_status = 'SEDANG_DIPERIKSA')::int AS inspecting_units,
+          count(*) FILTER (WHERE unit_status = 'REVISI')::int AS revision_units,
+          count(*) FILTER (WHERE unit_status IN ('LHPP_FINAL', 'LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SEBAGIAN_DOKUMEN_DIKIRIM', 'SELESAI'))::int AS completed_units
+        FROM order_objects
+      `).catch(() => ({ rows: [{ total_units: 0, waiting_inspection_units: 0, inspecting_units: 0, revision_units: 0, completed_units: 0 }] })),
+      query(`
+        SELECT
+          count(*) FILTER (WHERE status NOT IN ('SELESAI', 'TIDAK_DAPAT_DILANJUTKAN'))::int AS open_issues,
+          count(*) FILTER (WHERE status NOT IN ('SELESAI', 'TIDAK_DAPAT_DILANJUTKAN') AND priority = 'TINGGI')::int AS high_priority_issues
+        FROM operational_issues
+      `).catch(() => ({ rows: [{ open_issues: 0, high_priority_issues: 0 }] })),
+      query(`
+        SELECT
+          (SELECT count(*)::int FROM bap_documents WHERE status = 'DRAF') AS bap_draft,
+          (SELECT count(*)::int FROM bap_documents WHERE status = 'FINAL') AS bap_final,
+          (SELECT count(*)::int FROM lhpp_documents WHERE status = 'SIAP_PREVIEW') AS lhpp_ready_preview,
+          (SELECT count(*)::int FROM lhpp_documents WHERE status IN ('FINAL', 'TERBIT')) AS lhpp_published,
+          (SELECT count(*)::int FROM suket_documents WHERE status = 'TERBIT') AS suket_published,
+          (SELECT count(*)::int FROM document_distributions WHERE status IN ('BELUM_DIKIRIM', 'SIAP_DIKIRIM')) AS dist_pending,
+          (SELECT count(*)::int FROM document_distributions WHERE status = 'DIKIRIM') AS dist_dispatched,
+          (SELECT count(*)::int FROM document_distributions WHERE status = 'DITERIMA') AS dist_received
+      `).catch(() => ({ rows: [{}] }))
     ]);
 
     const overdueUnits = overdueRes?.rows?.[0]?.overdue_count || 0;
@@ -306,7 +335,15 @@ router.get('/summary', async (req, res, next) => {
         lhppReturned: lhppCounts.rows[0].returned,
         suketExpiring30d: expiringCounts.rows[0].within_30_days,
         suketExpiring90d: expiringCounts.rows[0].within_90_days,
-        overdueUnits
+        overdueUnits,
+        totalUnits: unitStatusRes?.rows?.[0]?.total_units || 0,
+        waitingInspectionUnits: unitStatusRes?.rows?.[0]?.waiting_inspection_units || 0,
+        inspectingUnits: unitStatusRes?.rows?.[0]?.inspecting_units || 0,
+        revisionUnits: unitStatusRes?.rows?.[0]?.revision_units || 0,
+        completedUnits: unitStatusRes?.rows?.[0]?.completed_units || 0,
+        openIssues: operationalIssuesRes?.rows?.[0]?.open_issues || 0,
+        highPriorityIssues: operationalIssuesRes?.rows?.[0]?.high_priority_issues || 0,
+        documentPipeline: documentPipelineRes?.rows?.[0] || {}
       },
       analytics: {
         categoryDistribution: categoryDistributionRes.rows,
@@ -328,18 +365,30 @@ router.get('/work-queue', async (req, res, next) => {
     const role = req.user.role;
     const userId = req.user.id;
     const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(role);
+    const isOperationalAdmin = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN'].includes(role);
+    const isMarketing = role === 'MARKETING';
     const queue = [];
 
+    // Tiap kategori dibatasi agar widget tetap ringkas. `count(*) OVER()` menghitung
+    // seluruh baris yang cocok SEBELUM LIMIT, sehingga jumlah total di UI tidak bohong
+    // (sebelumnya `total` hanya menyalin jumlah item yang sudah terpotong).
+    let availableTotal = 0;
+    const recordTotal = (rows) => {
+      availableTotal += Number(rows[0]?.row_total ?? rows.length) || 0;
+    };
+
     // 1. PO Baru belum dijadwalkan (khusus Admin & Pimpinan)
-    if (!isInspector) {
+    if (isOperationalAdmin || isMarketing) {
       const { rows: newOrders } = await query(`
-        SELECT o.id, o.order_no, o.po_number, o.created_at, c.name AS client_name, o.service_type
+        SELECT o.id, o.order_no, o.po_number, o.created_at, c.name AS client_name, o.service_type,
+               (count(*) OVER())::int AS row_total
         FROM orders o
         JOIN clients c ON c.id = o.client_id
-        WHERE o.status = 'ORDER_BARU'
+        WHERE o.status IN ('ORDER_BARU','TERDAFTAR')
         ORDER BY o.created_at ASC
         LIMIT 10
       `);
+      recordTotal(newOrders);
       for (const r of newOrders) {
         queue.push({
           id: `po-${r.id}`,
@@ -358,7 +407,8 @@ router.get('/work-queue', async (req, res, next) => {
     const assignmentSql = isInspector
       ? `SELECT a.id, a.order_id, a.created_at, o.order_no, o.po_number, o.service_type,
                 c.name AS client_name, s.start_at AS schedule_start,
-                count(oo.id)::int AS unit_count
+                count(oo.id)::int AS unit_count,
+                (count(*) OVER())::int AS row_total
          FROM assignments a
          JOIN orders o ON o.id = a.order_id
          JOIN clients c ON c.id = o.client_id
@@ -367,19 +417,22 @@ router.get('/work-queue', async (req, res, next) => {
          WHERE a.inspector_id = $1 AND a.status = 'MENUNGGU'
          GROUP BY a.id, a.order_id, a.created_at, o.order_no, o.po_number, o.service_type, c.name, s.start_at
          ORDER BY a.created_at ASC`
-      : `SELECT a.id, a.order_id, a.created_at, o.order_no, o.po_number, c.name AS client_name, u.full_name AS inspector_name
+      : isOperationalAdmin
+        ? `SELECT a.id, a.order_id, a.created_at, o.order_no, o.po_number, c.name AS client_name, u.full_name AS inspector_name,
+                (count(*) OVER())::int AS row_total
          FROM assignments a
          JOIN orders o ON o.id = a.order_id
          JOIN clients c ON c.id = o.client_id
          JOIN users u ON u.id = a.inspector_id
          WHERE a.status = 'MENUNGGU'
          ORDER BY a.created_at ASC
-         LIMIT 10`;
+         LIMIT 10`
+        : null;
 
-    const { rows: pendingAssignments } = await query(
-      assignmentSql,
-      isInspector ? [userId] : []
-    );
+    const { rows: pendingAssignments } = assignmentSql
+      ? await query(assignmentSql, isInspector ? [userId] : [])
+      : { rows: [] };
+    recordTotal(pendingAssignments);
     for (const r of pendingAssignments) {
       queue.push({
         id: `asg-${r.id}`,
@@ -405,7 +458,8 @@ router.get('/work-queue', async (req, res, next) => {
 
     // 3. Form pengujian lapangan masih draf
     const inspectionSql = isInspector
-      ? `SELECT i.id, i.order_id, i.created_at, o.order_no, t.name AS object_name, c.name AS client_name
+      ? `SELECT i.id, i.order_id, i.created_at, o.order_no, t.name AS object_name, c.name AS client_name,
+                (count(*) OVER())::int AS row_total
          FROM inspections i
          JOIN orders o ON o.id = i.order_id
          JOIN clients c ON c.id = o.client_id
@@ -413,7 +467,9 @@ router.get('/work-queue', async (req, res, next) => {
          WHERE i.inspector_id = $1 AND i.status = 'DRAF'
          ORDER BY i.created_at ASC
          LIMIT 10`
-      : `SELECT i.id, i.order_id, i.created_at, o.order_no, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name
+      : isOperationalAdmin
+        ? `SELECT i.id, i.order_id, i.created_at, o.order_no, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name,
+                (count(*) OVER())::int AS row_total
          FROM inspections i
          JOIN orders o ON o.id = i.order_id
          JOIN clients c ON c.id = o.client_id
@@ -421,12 +477,13 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN users u ON u.id = i.inspector_id
          WHERE i.status = 'DRAF'
          ORDER BY i.created_at ASC
-         LIMIT 10`;
+         LIMIT 10`
+        : null;
 
-    const { rows: draftInspections } = await query(
-      inspectionSql,
-      isInspector ? [userId] : []
-    );
+    const { rows: draftInspections } = inspectionSql
+      ? await query(inspectionSql, isInspector ? [userId] : [])
+      : { rows: [] };
+    recordTotal(draftInspections);
     for (const r of draftInspections) {
       queue.push({
         id: `insp-${r.id}`,
@@ -442,7 +499,8 @@ router.get('/work-queue', async (req, res, next) => {
 
     // 4. LHPP siap dipratinjau dan difinalisasi Marketing
     const lhppReviewSql = isInspector
-      ? `SELECT l.id, l.lhpp_no, l.status, l.created_at, t.name AS object_name, c.name AS client_name
+      ? `SELECT l.id, l.lhpp_no, l.status, l.created_at, t.name AS object_name, c.name AS client_name,
+                (count(*) OVER())::int AS row_total
          FROM lhpp_documents l
          JOIN inspections i ON i.id = l.inspection_id
          JOIN orders o ON o.id = i.order_id
@@ -450,7 +508,9 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN test_objects t ON t.id = i.object_id
          WHERE i.inspector_id = $1 AND l.status = 'SIAP_PREVIEW'
          ORDER BY l.created_at ASC`
-      : `SELECT l.id, l.lhpp_no, l.status, l.created_at, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name
+      : isOperationalAdmin
+        ? `SELECT l.id, l.lhpp_no, l.status, l.created_at, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name,
+                (count(*) OVER())::int AS row_total
          FROM lhpp_documents l
          JOIN inspections i ON i.id = l.inspection_id
          JOIN orders o ON o.id = i.order_id
@@ -459,12 +519,13 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN users u ON u.id = i.inspector_id
          WHERE l.status = 'SIAP_PREVIEW'
          ORDER BY l.created_at ASC
-         LIMIT 10`;
+         LIMIT 10`
+        : null;
 
-    const { rows: waitingLhpp } = await query(
-      lhppReviewSql,
-      isInspector ? [userId] : []
-    );
+    const { rows: waitingLhpp } = lhppReviewSql
+      ? await query(lhppReviewSql, isInspector ? [userId] : [])
+      : { rows: [] };
+    recordTotal(waitingLhpp);
     for (const r of waitingLhpp) {
       queue.push({
         id: `lhpp-rev-${r.id}`,
@@ -473,14 +534,15 @@ router.get('/work-queue', async (req, res, next) => {
         title: `LHPP Siap Finalisasi: ${r.object_name}`,
         description: `Klien: ${r.client_name}${!isInspector ? ` - Ahli K3: ${r.inspector_name}` : ''}`,
         createdAt: r.created_at,
-        actionLabel: ['ADMIN_KANTOR', 'MARKETING'].includes(role) ? 'Pratinjau & Finalisasi' : 'Pantau Status',
+        actionLabel: role === 'ADMIN_KANTOR' || role === 'ADMIN_SISTEM' ? 'Pratinjau & Proses' : 'Pantau Status',
         link: '/app/lhpp'
       });
     }
 
     // 5. LHPP Dikembalikan dengan Catatan Revisi
     const lhppReturnedSql = isInspector
-      ? `SELECT l.id, l.lhpp_no, l.created_at, l.review_notes, t.name AS object_name, c.name AS client_name
+      ? `SELECT l.id, l.lhpp_no, l.created_at, l.review_notes, t.name AS object_name, c.name AS client_name,
+                (count(*) OVER())::int AS row_total
          FROM lhpp_documents l
          JOIN inspections i ON i.id = l.inspection_id
          JOIN orders o ON o.id = i.order_id
@@ -488,7 +550,9 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN test_objects t ON t.id = i.object_id
          WHERE i.inspector_id = $1 AND l.status = 'DIKEMBALIKAN'
          ORDER BY l.updated_at DESC`
-      : `SELECT l.id, l.lhpp_no, l.created_at, l.review_notes, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name
+      : isOperationalAdmin
+        ? `SELECT l.id, l.lhpp_no, l.created_at, l.review_notes, t.name AS object_name, c.name AS client_name, u.full_name AS inspector_name,
+                (count(*) OVER())::int AS row_total
          FROM lhpp_documents l
          JOIN inspections i ON i.id = l.inspection_id
          JOIN orders o ON o.id = i.order_id
@@ -497,12 +561,13 @@ router.get('/work-queue', async (req, res, next) => {
          JOIN users u ON u.id = i.inspector_id
          WHERE l.status = 'DIKEMBALIKAN'
          ORDER BY l.updated_at DESC
-         LIMIT 10`;
+         LIMIT 10`
+        : null;
 
-    const { rows: returnedLhpp } = await query(
-      lhppReturnedSql,
-      isInspector ? [userId] : []
-    );
+    const { rows: returnedLhpp } = lhppReturnedSql
+      ? await query(lhppReturnedSql, isInspector ? [userId] : [])
+      : { rows: [] };
+    recordTotal(returnedLhpp);
     for (const r of returnedLhpp) {
       queue.push({
         id: `lhpp-ret-${r.id}`,
@@ -517,10 +582,11 @@ router.get('/work-queue', async (req, res, next) => {
     }
 
     // 6. Suket K3 mendekati kedaluwarsa (<= 30 hari)
-    if (!isInspector) {
+    if (!isInspector && (isOperationalAdmin || isMarketing)) {
       const { rows: expiringSuket } = await query(`
         SELECT s.id, s.suket_no, s.valid_until, t.name AS object_name, c.name AS client_name,
-               (s.valid_until - CURRENT_DATE)::int AS days_remaining
+               (s.valid_until - CURRENT_DATE)::int AS days_remaining,
+               (count(*) OVER())::int AS row_total
         FROM suket_documents s
         JOIN lhpp_documents l ON l.id = s.lhpp_id
         JOIN inspections i ON i.id = l.inspection_id
@@ -532,6 +598,7 @@ router.get('/work-queue', async (req, res, next) => {
         ORDER BY s.valid_until ASC
         LIMIT 8
       `);
+      recordTotal(expiringSuket);
       for (const r of expiringSuket) {
         queue.push({
           id: `suket-${r.id}`,
@@ -540,14 +607,144 @@ router.get('/work-queue', async (req, res, next) => {
           title: `Suket K3 Kedaluwarsa dlm ${r.days_remaining} Hari: ${r.suket_no}`,
           description: `Objek: ${r.object_name} - Klien: ${r.client_name}`,
           createdAt: r.valid_until,
-          actionLabel: 'Buat Penawaran Ulang',
+          actionLabel: isMarketing ? 'Hubungi Klien' : 'Tinjau Suket',
+          link: isMarketing ? '/app/reminders' : '/app/suket'
+        });
+      }
+    }
+
+    // 7. BAP draf perlu diproses (Admin Kantor & Admin Sistem)
+    if (isOperationalAdmin) {
+      const { rows: draftBap } = await query(`
+        SELECT b.id, b.bap_no, b.created_at,
+               t.name AS object_name, c.name AS client_name, o.order_no, o.po_number,
+               (count(*) OVER())::int AS row_total
+        FROM bap_documents b
+        JOIN inspections i ON i.id = b.inspection_id
+        JOIN orders o ON o.id = b.order_id
+        JOIN clients c ON c.id = o.client_id
+        JOIN test_objects t ON t.id = b.object_id
+        WHERE b.status = 'DRAF'
+        ORDER BY b.created_at ASC
+        LIMIT 10
+      `).catch(() => ({ rows: [] }));
+      recordTotal(draftBap);
+      for (const r of draftBap) {
+        queue.push({
+          id: `bap-${r.id}`,
+          type: 'BAP_PROCESSING',
+          urgency: 'TINGGI',
+          title: `BAP Perlu Diproses & TTD: ${r.object_name}`,
+          description: `Klien: ${r.client_name} (PO: ${r.po_number || r.order_no})`,
+          createdAt: r.created_at,
+          actionLabel: 'Buka BAP',
+          link: '/app/bap'
+        });
+      }
+    }
+
+    // 8. Suket Disnaker belum dicatat untuk LHPP yang sudah terbit (Admin Kantor & Admin Sistem)
+    if (isOperationalAdmin) {
+      const { rows: pendingSuket } = await query(`
+        SELECT l.id AS lhpp_id, l.lhpp_no, l.created_at,
+               t.name AS object_name, c.name AS client_name, o.order_no, o.po_number,
+               (count(*) OVER())::int AS row_total
+        FROM lhpp_documents l
+        JOIN inspections i ON i.id = l.inspection_id
+        JOIN orders o ON o.id = i.order_id
+        JOIN clients c ON c.id = o.client_id
+        JOIN test_objects t ON t.id = i.object_id
+        LEFT JOIN suket_documents s ON s.lhpp_id = l.id
+        WHERE l.status IN ('FINAL', 'TERBIT') AND s.id IS NULL
+        ORDER BY l.created_at ASC
+        LIMIT 10
+      `).catch(() => ({ rows: [] }));
+      recordTotal(pendingSuket);
+      for (const r of pendingSuket) {
+        queue.push({
+          id: `suket-pen-${r.lhpp_id}`,
+          type: 'SUKET_RECORDING',
+          urgency: 'SEDANG',
+          title: `Suket Disnaker Belum Dicatat: ${r.object_name}`,
+          description: `LHPP ${r.lhpp_no || '-'} terbit tapi belum memiliki registrasi Suket (Klien: ${r.client_name})`,
+          createdAt: r.created_at,
+          actionLabel: 'Catat Suket',
           link: '/app/suket'
         });
       }
     }
 
+    // 9. Dokumen siap didistribusikan (Admin Kantor & Admin Sistem)
+    if (isOperationalAdmin) {
+      const { rows: pendingDist } = await query(`
+        SELECT d.id, d.document_type, d.document_no, d.status AS dist_status,
+               d.recipient_name, d.target_destination, d.created_at,
+               t.name AS object_name, c.name AS client_name, o.po_number, o.order_no,
+               (count(*) OVER())::int AS row_total
+        FROM document_distributions d
+        JOIN orders o ON o.id = d.order_id
+        JOIN clients c ON c.id = o.client_id
+        JOIN test_objects t ON t.id = d.object_id
+        WHERE d.status IN ('BELUM_DIKIRIM', 'SIAP_DIKIRIM')
+        ORDER BY d.created_at ASC
+        LIMIT 10
+      `).catch(() => ({ rows: [] }));
+      recordTotal(pendingDist);
+      for (const r of pendingDist) {
+        queue.push({
+          id: `dist-${r.id}`,
+          type: 'DOCUMENT_DISTRIBUTION',
+          urgency: 'SEDANG',
+          title: `Dokumen Siap Dikirim: ${r.document_type} ${r.document_no}`,
+          description: `Tujuan: ${r.target_destination} (${r.recipient_name}) · Klien: ${r.client_name}`,
+          createdAt: r.created_at,
+          actionLabel: 'Proses Kirim',
+          link: '/app/distributions'
+        });
+      }
+    }
+
+    // 10. Kendala operasional lapangan terbuka (Admin Kantor, Marketing & Admin Sistem)
+    if (isOperationalAdmin || isMarketing) {
+      const { rows: openIssues } = await query(`
+        SELECT oi.id, oi.issue_no, oi.issue_type, oi.priority, oi.title, oi.created_at,
+               c.name AS client_name, o.po_number, o.order_no,
+               (count(*) OVER())::int AS row_total
+        FROM operational_issues oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN clients c ON c.id = o.client_id
+        WHERE oi.status IN ('DILAPORKAN', 'MENUNGGU_TINDAK_LANJUT')
+        ORDER BY CASE WHEN oi.priority = 'TINGGI' THEN 0 WHEN oi.priority = 'NORMAL' THEN 1 ELSE 2 END ASC, oi.created_at ASC
+        LIMIT 10
+      `).catch(() => ({ rows: [] }));
+      recordTotal(openIssues);
+      for (const r of openIssues) {
+        queue.push({
+          id: `issue-${r.id}`,
+          type: 'OPERATIONAL_ISSUE',
+          urgency: r.priority === 'TINGGI' ? 'TINGGI' : 'SEDANG',
+          title: `Kendala Lapangan: ${r.title}`,
+          description: `${r.issue_type} · Klien: ${r.client_name} (PO: ${r.po_number || r.order_no})`,
+          createdAt: r.created_at,
+          actionLabel: 'Tindak Lanjuti',
+          link: '/app/issues'
+        });
+      }
+    }
+
+    // Antrean berlabel "tindakan prioritas": pastikan yang berurgensi TINGGI
+    // tampil lebih dulu, lalu yang paling lama menunggu (FIFO) di dalam tiap tingkat.
+    const urgencyRank = { TINGGI: 0, SEDANG: 1, RENDAH: 2 };
+    queue.sort((a, b) => {
+      const byUrgency = (urgencyRank[a.urgency] ?? 9) - (urgencyRank[b.urgency] ?? 9);
+      if (byUrgency !== 0) return byUrgency;
+      return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+    });
+
     return res.json({
-      total: queue.length,
+      total: availableTotal,
+      shown: queue.length,
+      truncated: availableTotal > queue.length,
       items: queue
     });
   } catch (err) {

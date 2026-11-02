@@ -3,17 +3,58 @@ import { Link } from 'react-router';
 import {
   ArrowRight,
   CheckCircle,
-  Clock,
   WarningCircle,
-  ListChecks,
-  XCircle
+  ListChecks
 } from '@phosphor-icons/react';
 import { api } from '../../lib/api/axios.js';
 import { extractErrorMessage, formatDateTime } from '../../lib/utils/format.js';
 import { Modal } from '../../components/ui/Modal.jsx';
 
+function getItemBadge(type) {
+  switch (type) {
+    case 'OPERATIONAL_ISSUE':
+      return {
+        label: 'Kendala Lapangan',
+        className: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+      };
+    case 'BAP_PROCESSING':
+      return {
+        label: 'Proses BAP',
+        className: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20'
+      };
+    case 'SUKET_RECORDING':
+      return {
+        label: 'Pencatatan Suket',
+        className: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20'
+      };
+    case 'DOCUMENT_DISTRIBUTION':
+      return {
+        label: 'Distribusi Dokumen',
+        className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+      };
+    case 'LHPP_REVIEW':
+      return {
+        label: 'Review LHPP',
+        className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20'
+      };
+    case 'LHPP_REVISION':
+      return {
+        label: 'Revisi LHPP',
+        className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+      };
+    case 'ASSIGNMENT_CONFIRMATION':
+      return {
+        label: 'Penugasan Lapangan',
+        className: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20'
+      };
+    default:
+      return null;
+  }
+}
+
 export function WorkQueueWidget({ onRefresh }) {
   const [queue, setQueue] = useState([]);
+  const [meta, setMeta] = useState({ total: 0, shown: 0, truncated: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('ALL');
@@ -30,7 +71,13 @@ export function WorkQueueWidget({ onRefresh }) {
       setLoading(true);
       setError('');
       const res = await api.get('/dashboard/work-queue');
-      setQueue(res.data?.items || []);
+      const items = res.data?.items || [];
+      setQueue(items);
+      setMeta({
+        total: res.data?.total ?? items.length,
+        shown: res.data?.shown ?? items.length,
+        truncated: Boolean(res.data?.truncated)
+      });
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -107,112 +154,185 @@ export function WorkQueueWidget({ onRefresh }) {
   }
 
   const highCount = queue.filter((i) => i.urgency === 'TINGGI').length;
-  const filteredQueue =
-    filter === 'HIGH' ? queue.filter((i) => i.urgency === 'TINGGI') : queue;
+  const lhppBapCount = queue.filter((i) =>
+    ['LHPP_REVIEW', 'LHPP_REVISION', 'BAP_PROCESSING'].includes(i.type)
+  ).length;
+  const suketDistCount = queue.filter((i) =>
+    ['SUKET_RECORDING', 'SUKET_EXPIRATION', 'DOCUMENT_DISTRIBUTION'].includes(i.type)
+  ).length;
+  const issueCount = queue.filter((i) => i.type === 'OPERATIONAL_ISSUE').length;
+
+  const filteredQueue = queue.filter((item) => {
+    if (filter === 'HIGH') return item.urgency === 'TINGGI';
+    if (filter === 'LHPP_BAP') return ['LHPP_REVIEW', 'LHPP_REVISION', 'BAP_PROCESSING'].includes(item.type);
+    if (filter === 'SUKET_DIST') return ['SUKET_RECORDING', 'SUKET_EXPIRATION', 'DOCUMENT_DISTRIBUTION'].includes(item.type);
+    if (filter === 'ISSUES') return item.type === 'OPERATIONAL_ISSUE';
+    return true;
+  });
 
   return (
     <>
       <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-        <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="h-8 w-8 rounded-lg bg-brand-500/10 dark:bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 inline-flex items-center justify-center shrink-0 border border-brand-500/20">
               <ListChecks size={18} weight="bold" aria-hidden="true" />
             </span>
             <div>
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Antrean Tindakan Prioritas ({queue.length})
+                Antrean Tindakan Prioritas ({meta.total})
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                Tugas yang membutuhkan verifikasi, input, atau peninjauan
+                Alur kerja aktif yang membutuhkan respon, verifikasi, QC, atau distribusi
               </p>
             </div>
           </div>
 
-          {/* Tab Filter Ala Metis */}
-          <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-xs font-semibold self-start sm:self-center shadow-2xs">
+          {/* Tab Filter Operasional */}
+          <div className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 text-xs font-semibold shadow-2xs">
             <button
               type="button"
               onClick={() => setFilter('ALL')}
-              className={`px-3 py-1 rounded-md transition-colors ${
+              className={`px-2.5 py-1 rounded-md transition-colors ${
                 filter === 'ALL'
                   ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold shadow-2xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
-              Semua ({queue.length})
+              Semua ({meta.total})
             </button>
             <button
               type="button"
               onClick={() => setFilter('HIGH')}
-              className={`px-3 py-1 rounded-md transition-colors ${
+              className={`px-2.5 py-1 rounded-md transition-colors ${
                 filter === 'HIGH'
                   ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
-              Urgensi Tinggi ({highCount})
+              Tinggi ({highCount})
             </button>
+            {lhppBapCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilter('LHPP_BAP')}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  filter === 'LHPP_BAP'
+                    ? 'bg-purple-700 text-white font-bold shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                LHPP & BAP ({lhppBapCount})
+              </button>
+            )}
+            {suketDistCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilter('SUKET_DIST')}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  filter === 'SUKET_DIST'
+                    ? 'bg-indigo-700 text-white font-bold shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                Suket & Distribusi ({suketDistCount})
+              </button>
+            )}
+            {issueCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilter('ISSUES')}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  filter === 'ISSUES'
+                    ? 'bg-rose-700 text-white font-bold shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                Kendala ({issueCount})
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-80 overflow-y-auto scrollbar-thin">
-          {filteredQueue.map((item) => {
-            const isHigh = item.urgency === 'TINGGI';
-            const isInteractiveAssignment =
-              item.type === 'ASSIGNMENT_CONFIRMATION' && item.orderId && item.assignmentId;
+        <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-96 overflow-y-auto scrollbar-thin">
+          {filteredQueue.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400 text-xs">
+              Tidak ada item antrean untuk kategori filter ini.
+            </div>
+          ) : (
+            filteredQueue.map((item) => {
+              const isHigh = item.urgency === 'TINGGI';
+              const isInteractiveAssignment =
+                item.type === 'ASSIGNMENT_CONFIRMATION' && item.orderId && item.assignmentId;
+              const badge = getItemBadge(item.type);
 
-            return (
-              <div
-                key={item.id}
-                className="p-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="min-w-0 flex items-start gap-3">
-                  <span
-                    className={`mt-0.5 shrink-0 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${
-                      isHigh
-                        ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
-                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                    }`}
-                  >
-                    {item.urgency}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug truncate">
-                      {item.title}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                      {item.description}
-                    </p>
+              return (
+                <div
+                  key={item.id}
+                  className="p-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors"
+                >
+                  <div className="min-w-0 flex items-start gap-3">
+                    <div className="flex flex-col gap-1 items-start shrink-0 mt-0.5">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${
+                          isHigh
+                            ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+                            : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+                        }`}
+                      >
+                        {item.urgency}
+                      </span>
+                      {badge && (
+                        <span className={`px-1.5 py-0.2 text-[9px] font-semibold rounded ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                        {item.title}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                        {item.description}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {isInteractiveAssignment ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionError('');
-                      setShowRejectInput(false);
-                      setRejectReason('');
-                      setConfirmModalItem(item);
-                    }}
-                    className="shrink-0 self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white dark:hover:bg-[#C81E1E] dark:hover:border-[#C81E1E] dark:hover:text-white transition-all shadow-2xs cursor-pointer"
-                  >
-                    <span>{item.actionLabel}</span>
-                    <ArrowRight size={13} weight="bold" aria-hidden="true" />
-                  </button>
-                ) : (
-                  <Link
-                    to={item.link}
-                    className="shrink-0 self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white dark:hover:bg-[#C81E1E] dark:hover:border-[#C81E1E] dark:hover:text-white transition-all shadow-2xs"
-                  >
-                    <span>{item.actionLabel}</span>
-                    <ArrowRight size={13} weight="bold" aria-hidden="true" />
-                  </Link>
-                )}
-              </div>
-            );
-          })}
+                  {isInteractiveAssignment ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionError('');
+                        setShowRejectInput(false);
+                        setRejectReason('');
+                        setConfirmModalItem(item);
+                      }}
+                      className="shrink-0 self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white dark:hover:bg-[#C81E1E] dark:hover:border-[#C81E1E] dark:hover:text-white transition-all shadow-2xs cursor-pointer"
+                    >
+                      <span>{item.actionLabel}</span>
+                      <ArrowRight size={13} weight="bold" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <Link
+                      to={item.link}
+                      className="shrink-0 self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white dark:hover:bg-[#C81E1E] dark:hover:border-[#C81E1E] dark:hover:text-white transition-all shadow-2xs"
+                    >
+                      <span>{item.actionLabel}</span>
+                      <ArrowRight size={13} weight="bold" aria-hidden="true" />
+                    </Link>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
+
+        {meta.truncated && (
+          <div className="border-t border-slate-200/90 dark:border-slate-800 bg-amber-50/70 dark:bg-amber-950/20 px-5 py-2.5 text-[11px] font-medium text-amber-900 dark:text-amber-300">
+            Menampilkan {meta.shown} dari {meta.total} tindakan. Daftar diurutkan berdasarkan urgensi,
+            lalu yang paling lama menunggu. Buka menu terkait untuk menindaklanjuti sisanya.
+          </div>
+        )}
       </div>
 
       {/* Modal Konfirmasi Penugasan Lapangan Ahli K3 */}

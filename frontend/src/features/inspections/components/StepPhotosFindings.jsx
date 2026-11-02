@@ -115,8 +115,7 @@ export function StepPhotosFindings({
 
         {/* Form Upload Foto Tambahan (Mobile Card View) */}
         {isInspector && status === 'DRAF' && (
-          <form
-            onSubmit={onUploadPhoto}
+          <div
             className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-3.5 space-y-3"
           >
             <div className="flex items-center justify-between">
@@ -128,19 +127,22 @@ export function StepPhotosFindings({
 
             {/* Tombol Ambil/Pilih Foto */}
             {!photoFile ? (
-              <label className="flex items-center justify-center gap-2 w-full min-h-12 py-3 px-4 rounded-xl border border-dashed border-[#C81E1E]/40 dark:border-red-500/40 bg-white dark:bg-slate-900 hover:bg-rose-50/30 text-slate-700 dark:text-slate-200 cursor-pointer transition-all active:scale-[0.99] shadow-2xs">
+              <div
+                className="relative flex items-center justify-center gap-2 w-full min-h-12 py-3 px-4 rounded-xl border border-dashed border-[#C81E1E]/40 dark:border-red-500/40 bg-white dark:bg-slate-900 hover:bg-rose-50/30 text-slate-700 dark:text-slate-200 cursor-pointer transition-all active:scale-[0.99] shadow-2xs select-none overflow-hidden"
+              >
                 <Camera size={20} className="text-[#C81E1E]" weight="bold" />
                 <span className="text-xs font-bold">Ambil Foto dari Kamera / Pilih Galeri</span>
                 <input
                   type="file"
                   accept="image/*"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) setPhotoFile(f);
+                    e.target.value = '';
                   }}
-                  className="sr-only"
                 />
-              </label>
+              </div>
             ) : (
               <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -201,14 +203,15 @@ export function StepPhotosFindings({
 
             {/* Tombol Simpan Foto */}
             <button
-              type="submit"
+              type="button"
+              onClick={onUploadPhoto}
               disabled={submitting || !photoFile}
               className="w-full min-h-11 rounded-xl bg-[#C81E1E] hover:bg-[#a61717] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
               <Plus size={16} weight="bold" />
               <span>{submitting ? 'Mengunggah Foto...' : 'Simpan Foto ke Lembar Kerja'}</span>
             </button>
-          </form>
+          </div>
         )}
       </div>
 

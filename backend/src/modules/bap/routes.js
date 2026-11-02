@@ -382,7 +382,7 @@ router.post(
 
 router.post(
   '/:id/finalize',
-  authorize('MARKETING', 'ADMIN_SISTEM'),
+  authorize('ADMIN_KANTOR', 'ADMIN_SISTEM'),
   async (req, res, next) => {
     try {
       const { id } = req.params;

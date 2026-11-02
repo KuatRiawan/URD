@@ -15,6 +15,13 @@ const competencySchema = Joi.object({
   certificateNo: Joi.string().min(2).max(120).required(),
   validFrom: Joi.date().iso().allow(null),
   validUntil: Joi.date().iso().required()
+}).custom((value, helpers) => {
+  if (value.validFrom && new Date(value.validFrom) > new Date(value.validUntil)) {
+    return helpers.error('date.invalid');
+  }
+  return value;
+}).messages({
+  'date.invalid': 'Tanggal mulai kompetensi tidak boleh setelah tanggal berakhir.'
 });
 
 router.get('/', async (_req, res, next) => {
@@ -122,4 +129,3 @@ router.delete(
 );
 
 export default router;
-

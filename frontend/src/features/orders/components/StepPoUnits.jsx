@@ -1,4 +1,4 @@
-import { FileCsv, Trash } from '@phosphor-icons/react';
+import { Copy, FileCsv, Trash } from '@phosphor-icons/react';
 
 export function StepPoUnits({
   clientMode,
@@ -187,13 +187,35 @@ export function StepPoUnits({
                   · Kapasitas: {u.capacity || '-'} · Lokasi: {u.installLocation || '-'} ·{' '}
                   <strong className="text-[#C81E1E]">{u.quantity} Unit</strong>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeInlineUnit(idx)}
-                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 cursor-pointer"
-                >
-                  <Trash size={15} />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewUnitRow({
+                        categoryId: u.categoryId,
+                        name: u.name,
+                        manufacturer: u.manufacturer || '',
+                        serialNumber: '',
+                        capacity: u.capacity || '',
+                        installLocation: u.installLocation || '',
+                        quantity: 1,
+                        attributes: u.attributes || {}
+                      });
+                    }}
+                    title="Duplikasi spesifikasi unit ini ke form input"
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-[#C81E1E] hover:border-[#C81E1E] dark:hover:text-[#C81E1E] transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Copy size={14} weight="bold" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeInlineUnit(idx)}
+                    title="Hapus unit dari PO"
+                    className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Trash size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

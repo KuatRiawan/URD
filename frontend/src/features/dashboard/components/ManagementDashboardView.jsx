@@ -11,11 +11,14 @@ import {
   CheckCircle,
   Clock,
   DownloadSimple,
+  FileText,
   HourglassMedium,
   Plus,
   ShieldCheck,
+  Truck,
   User,
   UsersThree,
+  WarningCircle,
   Wrench
 } from '@phosphor-icons/react';
 import { PageHeader } from '../../../components/ui/PageHeader.jsx';
@@ -80,6 +83,33 @@ export function ManagementDashboardView({
           </>
         }
       />
+
+      {/* 1.5. Operational Issues Alert Banner */}
+      {Number(m.openIssues || 0) > 0 && (
+        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30 p-4 text-xs text-rose-800 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <span className="h-8 w-8 rounded-lg bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/20">
+              <WarningCircle size={18} weight="bold" />
+            </span>
+            <div>
+              <p className="font-bold text-slate-900 dark:text-slate-100">
+                Perhatian Operasional: {m.openIssues} Kendala Lapangan Terbuka
+                {Number(m.highPriorityIssues || 0) > 0 && ` (${m.highPriorityIssues} Urgensi Tinggi)`}
+              </p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                Terdapat kendala teknis atau ketidaksesuaian nameplate unit di lapangan yang memerlukan tindakan koordinasi atau klarifikasi.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/app/issues"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white text-xs font-bold transition-all shadow-2xs"
+          >
+            <span>Tinjau Kendala Lapangan</span>
+            <ArrowRight size={13} weight="bold" />
+          </Link>
+        </div>
+      )}
 
       {/* 2. Metis Horizontal Stats Counter Cards (4-column grid) */}
       <section aria-label="Metrik Operasional Utama" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -168,6 +198,92 @@ export function ManagementDashboardView({
           </div>
         </div>
       </section>
+
+      {/* 2.5. Executive Operational Pipeline Widget (Unit Progress & Document Pipeline) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Wrench size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+              <span>Pipeline Operasional: Siklus Unit &amp; Status Dokumen</span>
+            </h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Monitoring end-to-end progres per unit dari penugasan lapangan hingga distribusi dokumen resmi
+            </p>
+          </div>
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+            Total {m.totalUnits || m.activeObjects || 0} Unit Alat
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Sub-card 1: Tahapan Siklus Unit Alat */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <Clock size={14} className="text-slate-500" />
+                <span>Tahapan Siklus Unit Lapangan</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">Menunggu</p>
+                <p className="text-base font-extrabold text-slate-800 dark:text-slate-200 mt-0.5">{m.waitingInspectionUnits || 0}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">Inspeksi</p>
+                <p className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{m.inspectingUnits || 0}</p>
+              </div>
+              <div className={`p-2 rounded-lg bg-white dark:bg-slate-800 border ${Number(m.revisionUnits || 0) > 0 ? 'border-amber-300 dark:border-amber-800' : 'border-slate-200/70 dark:border-slate-700/70'}`}>
+                <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 truncate">Perlu Revisi</p>
+                <p className={`text-base font-extrabold ${Number(m.revisionUnits || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200'} mt-0.5`}>
+                  {m.revisionUnits || 0}
+                </p>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">Selesai</p>
+                <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{m.completedUnits || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-card 2: Pipeline Dokumen & Distribusi */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <FileText size={14} className="text-slate-500" />
+                <span>Dokumen Resmi &amp; Distribusi</span>
+              </span>
+              <span className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                <Truck size={13} />
+                <span>{m.docsDispatched || 0} Terkirim</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 truncate">BAP Final</p>
+                <p className="text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">{m.bapFinal || 0}</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">{m.bapDraft || 0} draft</p>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">LHPP Terbit</p>
+                <p className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{m.lhppPublished || 0}</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">{m.lhppWaitingReview || 0} QC</p>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 truncate">Suket Disnaker</p>
+                <p className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{m.suketPublished || 0}</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">tercatat</p>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">Siap Kirim</p>
+                <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{m.docsPendingDelivery || 0}</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">{m.docsDispatched || 0} terkirim</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 3. Metis Main Section: 8-Column Trend Chart & Work Queue + 4-Column Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

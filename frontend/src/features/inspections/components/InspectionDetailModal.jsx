@@ -55,12 +55,13 @@ export function InspectionDetailModal({
     setFindingForm,
     signatures,
     handleSaveDraft,
+    handleDiscardDraft,
     handleAddFinding,
     handleUploadPhoto,
     handleDeletePhoto,
     handleUploadItemInlinePhoto,
+    handleUploadNameplatePhoto,
     handleSubmitFinal,
-    handleAutoFillAllStandard,
     totalItems,
     evaluatedItems,
     missingItems,
@@ -78,6 +79,9 @@ export function InspectionDetailModal({
       onClose={onClose}
       title={`Form Inspeksi: ${activeDetail.inspection.object_name} (${activeDetail.inspection.order_no})`}
       size="xl"
+      closeOnBackdrop={false}
+      closeOnEscape={false}
+      fullScreenMobile={true}
     >
       <div className="space-y-5 text-sm">
         {isInspector && (
@@ -107,6 +111,7 @@ export function InspectionDetailModal({
           online={online}
           queuedPhotoCount={queuedPhotoCount}
           onPreviewPdf={onPreviewPdf}
+          onDiscardDraft={handleDiscardDraft}
         />
 
         <InspectionStepNav
@@ -122,6 +127,7 @@ export function InspectionDetailModal({
         {formStep === 1 && (
           <div className="space-y-6">
             <StepChecklist
+              inspection={activeDetail.inspection}
               items={activeDetail.items || []}
               draftResults={draftResults}
               setDraftResults={setDraftResults}
@@ -131,11 +137,11 @@ export function InspectionDetailModal({
               categoryCode={activeDetail.inspection?.category_code || ''}
               categoryName={activeDetail.inspection?.category_name || ''}
               onUploadInlinePhoto={handleUploadItemInlinePhoto}
+              onUploadNameplatePhoto={handleUploadNameplatePhoto}
               readOnly={!isInspector || activeDetail.inspection.status !== 'DRAF'}
               missingItems={missingItems}
               evaluatedItems={evaluatedItems}
               totalItems={totalItems}
-              onAutoFillStandard={handleAutoFillAllStandard}
               isInspector={isInspector}
               status={activeDetail.inspection.status}
               photos={activeDetail.photos || []}
@@ -220,7 +226,6 @@ export function InspectionDetailModal({
               totalItems={totalItems}
               photosCount={photosCount}
               draftConclusion={draftConclusion}
-              onAutoFillStandard={handleAutoFillAllStandard}
               onSubmitFinal={handleSubmitFinal}
               onBack={() => setFormStep(1)}
               onSaveDraft={handleSaveDraft}

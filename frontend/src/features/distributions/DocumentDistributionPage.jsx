@@ -94,6 +94,24 @@ export function DocumentDistributionPage() {
     setModalOpen(true);
   };
 
+  const handleDownloadBast = async (orderId, refName) => {
+    try {
+      const res = await api.get(`/distributions/orders/${orderId}/bast/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `BAST-${(refName || 'PO').replace(/[/\s]/g, '-')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err?.response?.data?.error?.message || 'Gagal mengunduh berkas BAST PDF.');
+    }
+  };
+
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     if (!selectedItem) return;
@@ -168,6 +186,7 @@ export function DocumentDistributionPage() {
           distributions={distributions}
           isMarketingOrAdmin={isMarketingOrAdmin}
           onOpenUpdateModal={openUpdateModal}
+          onDownloadBast={handleDownloadBast}
         />
       )}
 

@@ -22,12 +22,21 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
 
   const { primary, moreGroups } = useMemo(() => getMobileNavConfig(role), [role]);
 
+  // Sembunyikan navigasi bawah ketika lembar inspeksi lapangan sedang aktif agar tidak menghalangi form atau disentuh tidak sengaja
+  const isInspectionOpen = useMemo(() => {
+    return new URLSearchParams(location.search).has('inspectionId');
+  }, [location.search]);
+
   // Periksa apakah rute saat ini berada dalam salah satu item menu di dalam drawer "Lainnya"
   const isMoreActive = useMemo(() => {
     return moreGroups.some((group) =>
       group.items.some((item) => location.pathname.startsWith(item.to))
     );
   }, [moreGroups, location.pathname]);
+
+  if (isInspectionOpen) {
+    return null;
+  }
 
   return (
     <>

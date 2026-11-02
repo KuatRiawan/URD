@@ -97,7 +97,7 @@ export function RemindersPage() {
     setSubmitting(true);
     setError('');
     try {
-      const res = await api.post(`/reminders/units/${objectId}/renewal-order`);
+      const res = await api.post(`/reminders/units/${objectId}/create-renewal-order`);
       setFeedback(
         `PO Perpanjangan riksa uji baru (${res.data?.order?.po_number || res.data?.order?.order_no}) berhasil dibuat untuk unit ${objectName}.`
       );
@@ -119,7 +119,7 @@ export function RemindersPage() {
     setSubmitting(true);
     setError('');
     try {
-      await api.put(`/reminders/units/${validityModalUnit.object_id}/validity`, validityForm);
+      await api.patch(`/reminders/units/${validityModalUnit.object_id}/validity`, validityForm);
       setFeedback(
         `Tanggal masa berlaku & tindak lanjut unit ${validityModalUnit.object_name} berhasil diperbarui.`
       );

@@ -5,6 +5,7 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
+import { generateObjectQrStickerPdfBuffer } from '../../services/pdf-generator.js';
 import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
 
@@ -285,6 +286,43 @@ router.post(
     }
   }
 );
+
+// PRD Section 4.2 Dokumen #6: Stiker / Label QR Code Suket Siap Cetak
+router.get('/:id/qr-sticker.pdf', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `SELECT s.*,
+              t.name AS object_name, t.serial_number, t.capacity, t.capacity_unit, t.install_location,
+              oc.code AS category_code, oc.name AS category_name,
+              c.id AS client_id, c.name AS client_name
+       FROM suket_documents s
+       JOIN test_objects t ON t.id = s.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN clients c ON c.id = t.client_id
+       WHERE s.id = $1`,
+      [id]
+    );
+    const suket = rows[0];
+    if (!suket) throw new AppError(404, 'SUKET_NOT_FOUND', 'Suket K3 tidak ditemukan.');
+
+    const capStr = [suket.capacity, suket.capacity_unit].filter(Boolean).join(' ') || '-';
+    const buffer = await generateObjectQrStickerPdfBuffer({
+      ...suket,
+      capacity: capStr,
+      verification_code: suket.suket_no || suket.id
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="stiker-qr-${suket.serial_number || suket.id}.pdf"`
+    );
+    return res.send(buffer);
+  } catch (err) {
+    return next(err);
+  }
+});
 
 // M5-06: Catat status tindak lanjut perpanjangan oleh Admin
 router.post(

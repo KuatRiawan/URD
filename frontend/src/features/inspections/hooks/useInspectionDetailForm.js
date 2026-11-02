@@ -4,10 +4,10 @@ import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '../../../lib/ut
 import { compressImage } from '../../../lib/utils/image.js';
 import {
   enqueueOfflineDraft,
+  enqueueOfflinePhoto,
   getPendingSyncSummary,
   setupAutoSyncListener
 } from '../../../lib/utils/offline-sync.js';
-import { enqueuePhoto } from '../../../lib/utils/offline-queue.js';
 import { useInspectionSignatures } from './useInspectionSignatures.js';
 
 export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }) {
@@ -37,6 +37,23 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     recommendation: ''
   });
 
+  // Sinkronisasi status & ref untuk persistensi draf instan
+  const isInitializedRef = useRef(false);
+  const draftResultsRef = useRef(draftResults);
+  draftResultsRef.current = draftResults;
+  const draftConclusionRef = useRef(draftConclusion);
+  draftConclusionRef.current = draftConclusion;
+  const draftConclusionNotesRef = useRef(draftConclusionNotes);
+  draftConclusionNotesRef.current = draftConclusionNotes;
+  const draftScopesRef = useRef(draftScopes);
+  draftScopesRef.current = draftScopes;
+  const draftObjectAttributesRef = useRef(draftObjectAttributes);
+  draftObjectAttributesRef.current = draftObjectAttributes;
+  const formStepRef = useRef(formStep);
+  formStepRef.current = formStep;
+  const activeDetailRef = useRef(activeDetail);
+  activeDetailRef.current = activeDetail;
+
   const signatures = useInspectionSignatures({
     activeDetail,
     user,
@@ -56,22 +73,34 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }
     setLoading(true);
     setError('');
+    isInitializedRef.current = false;
     try {
       const { data } = await api.get(`/inspections/${id}`);
       setActiveDetail(data);
-      setDraftConclusion(data.inspection?.conclusion || '');
-      setDraftConclusionNotes(data.inspection?.conclusion_notes || '');
-      setDraftObjectAttributes(
+
+      const isDraftStatus = data.inspection?.status === 'DRAF';
+
+      // 1. Nilai standar dari server
+      const serverConclusion = data.inspection?.conclusion || '';
+      const serverConclusionNotes = data.inspection?.conclusion_notes || '';
+      const serverAttributes =
         typeof data.inspection?.object_attributes === 'object' && data.inspection?.object_attributes !== null
           ? data.inspection.object_attributes
-          : {}
-      );
-      setLastSavedAt(data.inspection?.updated_at ? new Date(data.inspection.updated_at) : null);
+          : {};
+      const initialScopes =
+        Array.isArray(data.inspection?.bap_scope_items) && data.inspection.bap_scope_items.length
+          ? data.inspection.bap_scope_items
+          : Array.isArray(data.inspection?.unit_scope_items) && data.inspection.unit_scope_items.length
+          ? data.inspection.unit_scope_items
+          : Array.isArray(data.inspection?.default_bap_scopes) &&
+            data.inspection.default_bap_scopes.length
+          ? data.inspection.default_bap_scopes
+          : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
 
-      const map = {};
+      const serverMap = {};
       for (const item of data.items || []) {
         const existing = (data.results || []).find((r) => r.item_id === item.id);
-        map[item.id] = {
+        serverMap[item.id] = {
           itemId: item.id,
           choiceValue: existing?.choice_value || null,
           numberValue:
@@ -82,38 +111,104 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           note: existing?.note || ''
         };
       }
-      setDraftResults((prev) => {
-        const merged = { ...map };
-        for (const [k, v] of Object.entries(prev || {})) {
-          if (v && (v.choiceValue || v.numberValue || v.textValue || v.note)) {
-            merged[k] = { ...merged[k], ...v };
-          }
-        }
-        return merged;
-      });
 
-      const local = loadLocalDraft(id);
-      const serverTime = data.inspection?.updated_at ? new Date(data.inspection.updated_at).getTime() : 0;
-      if (local && data.inspection?.status === 'DRAF' && local.savedAt > serverTime) {
-        if (local.results) setDraftResults(local.results);
-        if (local.conclusion) setDraftConclusion(local.conclusion);
-        if (typeof local.conclusionNotes === 'string') setDraftConclusionNotes(local.conclusionNotes);
-        setFeedback('Draf lokal berhasil dipulihkan dari perangkat.');
+      // 2. Jika status BUKAN draf (misal TERKIRIM), bersihkan draf lokal dan gunakan murni data server
+      if (!isDraftStatus) {
+        clearLocalDraft(id);
+        setDraftResults(serverMap);
+        setDraftConclusion(serverConclusion);
+        setDraftConclusionNotes(serverConclusionNotes);
+        setDraftObjectAttributes(serverAttributes);
+        setDraftScopes(initialScopes);
+        setFormStep(2);
+        setLastSavedAt(data.inspection?.updated_at ? new Date(data.inspection.updated_at) : null);
+        initSignaturesRef.current?.(data);
+        isInitializedRef.current = true;
+        return;
       }
 
-      const initialScopes =
-        Array.isArray(data.inspection?.bap_scope_items) && data.inspection.bap_scope_items.length
-          ? data.inspection.bap_scope_items
-          : Array.isArray(data.inspection?.unit_scope_items) && data.inspection.unit_scope_items.length
-          ? data.inspection.unit_scope_items
-          : Array.isArray(data.inspection?.default_bap_scopes) &&
-            data.inspection.default_bap_scopes.length
-          ? data.inspection.default_bap_scopes
-          : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
-      setDraftScopes(initialScopes);
+      // 3. Untuk status DRAF: pulihkan data lokal dari perangkat jika ada
+      const local = loadLocalDraft(id);
+      let isRestoredFromLocal = false;
+
+      // Gabungkan hasil checklist: baseline server ditimpa dengan inputan lokal terkini
+      const mergedResults = { ...serverMap };
+      if (local?.results && typeof local.results === 'object') {
+        for (const [itemId, row] of Object.entries(local.results)) {
+          if (
+            row &&
+            (row.choiceValue ||
+              (row.numberValue !== '' && row.numberValue !== null && row.numberValue !== undefined) ||
+              row.textValue ||
+              row.note)
+          ) {
+            mergedResults[itemId] = { ...(mergedResults[itemId] || {}), ...row };
+            isRestoredFromLocal = true;
+          }
+        }
+      }
+
+      // Gabungkan atribut nameplate / spesifikasi teknis
+      const mergedAttributes = {
+        ...serverAttributes,
+        ...(local?.objectAttributes && typeof local.objectAttributes === 'object' ? local.objectAttributes : {})
+      };
+      if (local?.objectAttributes && Object.keys(local.objectAttributes).length > 0) {
+        const hasLocalVal = Object.values(local.objectAttributes).some(
+          (v) => v !== '' && v !== null && v !== undefined
+        );
+        if (hasLocalVal) isRestoredFromLocal = true;
+      }
+
+      // Kesimpulan & catatan kesimpulan
+      const mergedConclusion = local?.conclusion || serverConclusion;
+      if (local?.conclusion && local.conclusion !== serverConclusion) {
+        isRestoredFromLocal = true;
+      }
+
+      const mergedConclusionNotes =
+        typeof local?.conclusionNotes === 'string' && local.conclusionNotes.length > 0
+          ? local.conclusionNotes
+          : serverConclusionNotes;
+      if (local?.conclusionNotes && local.conclusionNotes !== serverConclusionNotes) {
+        isRestoredFromLocal = true;
+      }
+
+      // Lingkup pemeriksaan
+      const mergedScopes =
+        Array.isArray(local?.scopeItems) && local.scopeItems.length
+          ? local.scopeItems
+          : initialScopes;
+
+      // Langkah tab form
+      const mergedStep = [1, 2].includes(local?.formStep) ? local.formStep : 1;
+      if (local?.formStep && local.formStep > 1) {
+        isRestoredFromLocal = true;
+      }
+
+      // Pasang semua state
+      setDraftResults(mergedResults);
+      setDraftObjectAttributes(mergedAttributes);
+      setDraftConclusion(mergedConclusion);
+      setDraftConclusionNotes(mergedConclusionNotes);
+      setDraftScopes(mergedScopes);
+      setFormStep(mergedStep);
+
+      const savedTime = local?.savedAt
+        ? new Date(local.savedAt)
+        : data.inspection?.updated_at
+        ? new Date(data.inspection.updated_at)
+        : null;
+      setLastSavedAt(savedTime);
+
+      if (isRestoredFromLocal) {
+        setFeedback(
+          'Draf riksa uji Anda berhasil dipulihkan otomatis. Anda dapat melanjutkan tanpa mengulang dari awal.'
+        );
+      }
 
       initSignaturesRef.current?.(data);
-      setFormStep((prev) => (data.inspection?.status === 'TERKIRIM' ? 2 : (prev || 1)));
+      isInitializedRef.current = true;
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memuat detail form inspeksi.');
     } finally {
@@ -143,10 +238,13 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     const handleOffline = () => setOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    const teardown = setupAutoSyncListener(() => {
+    const teardown = setupAutoSyncListener(api, ({ status, result }) => {
       refreshQueuedCount();
       if (activeDetail?.inspection?.id) {
         openDetail(activeDetail.inspection.id);
+      }
+      if (status === 'failed' && result?.errors?.length) {
+        setError(`Sinkronisasi offline gagal untuk ${result.errors.length} item. Data tetap tersimpan di perangkat.`);
       }
     });
     refreshQueuedCount();
@@ -157,8 +255,61 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     };
   }, [activeDetail?.inspection?.id, openDetail, refreshQueuedCount]);
 
-  // Debounced Autosave
+  // 1. Simpan seketika (instant) ke local storage perangkat setiap kali ada perubahan pada form
   useEffect(() => {
+    if (!isInitializedRef.current) return;
+    if (!activeDetail?.inspection?.id || activeDetail.inspection.status !== 'DRAF') return;
+
+    saveLocalDraft(activeDetail.inspection.id, {
+      results: draftResults,
+      conclusion: draftConclusion,
+      conclusionNotes: draftConclusionNotes,
+      scopeItems: draftScopes,
+      objectAttributes: draftObjectAttributes,
+      formStep,
+      savedAt: Date.now()
+    });
+  }, [
+    activeDetail?.inspection?.id,
+    activeDetail?.inspection?.status,
+    draftResults,
+    draftConclusion,
+    draftConclusionNotes,
+    draftScopes,
+    draftObjectAttributes,
+    formStep
+  ]);
+
+  // 2. Simpan seketika saat form ditutup, navigasi berpindah, atau browser di-refresh
+  useEffect(() => {
+    const flushDraft = () => {
+      if (
+        isInitializedRef.current &&
+        activeDetailRef.current?.inspection?.id &&
+        activeDetailRef.current.inspection.status === 'DRAF'
+      ) {
+        saveLocalDraft(activeDetailRef.current.inspection.id, {
+          results: draftResultsRef.current,
+          conclusion: draftConclusionRef.current,
+          conclusionNotes: draftConclusionNotesRef.current,
+          scopeItems: draftScopesRef.current,
+          objectAttributes: draftObjectAttributesRef.current,
+          formStep: formStepRef.current,
+          savedAt: Date.now()
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', flushDraft);
+    return () => {
+      window.removeEventListener('beforeunload', flushDraft);
+      flushDraft();
+    };
+  }, []);
+
+  // 3. Debounced Autosave ke backend / antrean sinkronisasi offline (setiap 2 detik hening)
+  useEffect(() => {
+    if (!isInitializedRef.current) return;
     if (!activeDetail?.inspection || activeDetail.inspection.status !== 'DRAF') return;
     const timeout = setTimeout(async () => {
       const payloadResults = (activeDetail.items || []).map((item) => {
@@ -175,20 +326,13 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         };
       });
 
-      saveLocalDraft(activeDetail.inspection.id, {
-        results: draftResults,
-        conclusion: draftConclusion,
-        conclusionNotes: draftConclusionNotes,
-        scopeItems: draftScopes,
-        savedAt: Date.now()
-      });
-
       if (!navigator.onLine) {
         await enqueueOfflineDraft(activeDetail.inspection.id, {
           conclusion: draftConclusion,
           conclusionNotes: draftConclusionNotes,
           results: payloadResults,
-          scopeItems: draftScopes
+          scopeItems: draftScopes,
+          objectAttributes: draftObjectAttributes
         });
         setLastSavedAt(new Date());
         return;
@@ -199,7 +343,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           conclusion: draftConclusion,
           conclusionNotes: draftConclusionNotes,
           results: payloadResults,
-          scopeItems: draftScopes
+          scopeItems: draftScopes,
+          objectAttributes: draftObjectAttributes
         });
         setLastSavedAt(new Date());
       } catch {
@@ -208,7 +353,15 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }, 2000);
 
     return () => clearTimeout(timeout);
-  }, [draftResults, draftConclusion, draftConclusionNotes, draftScopes, activeDetail?.inspection, activeDetail?.items]);
+  }, [
+    draftResults,
+    draftConclusion,
+    draftConclusionNotes,
+    draftScopes,
+    draftObjectAttributes,
+    activeDetail?.inspection,
+    activeDetail?.items
+  ]);
 
   const handleSaveDraft = async () => {
     if (!activeDetail?.inspection) return;
@@ -234,6 +387,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         conclusion: draftConclusion,
         conclusionNotes: draftConclusionNotes,
         scopeItems: draftScopes,
+        objectAttributes: draftObjectAttributes,
+        formStep,
         savedAt: Date.now()
       });
 
@@ -242,7 +397,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           conclusion: draftConclusion,
           conclusionNotes: draftConclusionNotes,
           results: payloadResults,
-          scopeItems: draftScopes
+          scopeItems: draftScopes,
+          objectAttributes: draftObjectAttributes
         });
         setFeedback('Tersimpan di perangkat (offline mode).');
         setLastSavedAt(new Date());
@@ -266,6 +422,21 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDiscardDraft = async () => {
+    if (!activeDetail?.inspection?.id) return;
+    const ok = await confirm({
+      title: 'Kosongkan Draf Isian?',
+      message:
+        'Apakah Anda yakin ingin mengosongkan draf di perangkat ini dan memuat ulang data asli dari server?',
+      confirmText: 'Ya, Kosongkan Draf',
+      tone: 'danger'
+    });
+    if (!ok) return;
+    clearLocalDraft(activeDetail.inspection.id);
+    await openDetail(activeDetail.inspection.id);
+    setFeedback('Draf lokal berhasil dikosongkan.');
   };
 
   const handleAddFinding = async () => {
@@ -295,7 +466,11 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     try {
       const prepared = await compressImage(photoFile);
       if (!online) {
-        await enqueuePhoto(activeDetail.inspection.id, prepared, photoCaption.trim());
+        await enqueueOfflinePhoto({
+          inspectionId: activeDetail.inspection.id,
+          file: prepared,
+          caption: photoCaption.trim()
+        });
         setPhotoFile(null);
         setPhotoCaption('');
         setFeedback('Foto disimpan offline. Akan dikirim otomatis saat tersambung internet.');
@@ -313,6 +488,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       setPhotoCaption('');
       setFeedback('Foto dokumentasi berhasil diunggah.');
       await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
     } catch (err) {
       setError(
         err.response?.data?.error?.message ||
@@ -340,6 +516,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       await api.delete(`/inspections/${activeDetail.inspection.id}/photos/${photoId}`);
       setFeedback('Foto dokumentasi berhasil dihapus.');
       await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
     } catch (err) {
       setError(
         err.response?.data?.error?.message ||
@@ -366,11 +543,49 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       });
       setFeedback(`Foto untuk butir [${item.section}] ${item.label} berhasil dilampirkan.`);
       await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
     } catch (err) {
       setError(
         err.response?.data?.error?.message ||
           err.response?.data?.message ||
           'Gagal melampirkan foto butir checklist.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUploadNameplatePhoto = async (file) => {
+    if (!activeDetail?.inspection || !file) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const prepared = await compressImage(file);
+      const caption = 'Foto Nameplate Pabrik Unit';
+      if (!online) {
+        await enqueueOfflinePhoto({
+          inspectionId: activeDetail.inspection.id,
+          file: prepared,
+          caption
+        });
+        setFeedback('Foto nameplate disimpan offline. Akan dikirim otomatis saat tersambung internet.');
+        await refreshQueuedCount();
+        return;
+      }
+      const fd = new FormData();
+      fd.append('photo', prepared);
+      fd.append('caption', caption);
+      await api.post(`/inspections/${activeDetail.inspection.id}/photos`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFeedback('Foto nameplate unit berhasil diunggah.');
+      await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal mengunggah foto nameplate.'
       );
     } finally {
       setSubmitting(false);
@@ -422,28 +637,6 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleAutoFillAllStandard = () => {
-    if (!activeDetail?.items) return;
-    const updated = { ...draftResults };
-    for (const it of activeDetail.items) {
-      const cur = updated[it.id] || {};
-      updated[it.id] = {
-        itemId: it.id,
-        choiceValue: it.input_type === 'CHOICE' ? (cur.choiceValue || 'SESUAI') : null,
-        numberValue:
-          it.input_type === 'NUMBER'
-            ? (cur.numberValue !== '' && cur.numberValue !== null && cur.numberValue !== undefined
-                ? cur.numberValue
-                : '')
-            : '',
-        textValue: it.input_type === 'TEXT' ? (cur.textValue || '') : '',
-        note: cur.note || ''
-      };
-    }
-    setDraftResults(updated);
-    setFeedback('Item pilihan ditandai Sesuai. Isi hasil ukur dan catatan teknis berdasarkan pemeriksaan lapangan.');
   };
 
   // Metrics
@@ -506,12 +699,13 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     signatures,
     openDetail,
     handleSaveDraft,
+    handleDiscardDraft,
     handleAddFinding,
     handleUploadPhoto,
     handleDeletePhoto,
     handleUploadItemInlinePhoto,
+    handleUploadNameplatePhoto,
     handleSubmitFinal,
-    handleAutoFillAllStandard,
     totalItems,
     evaluatedItems,
     missingItems,
@@ -521,4 +715,3 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     canSubmit
   };
 }
-

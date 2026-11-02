@@ -2,8 +2,10 @@ import { AppError } from '../utils/http.js';
 
 // Pemetaan peran kanonik & backward compatibility
 const ROLE_ALIASES = {
-  MARKETING: ['MARKETING', 'ADMIN_KANTOR'],
-  ADMIN_KANTOR: ['MARKETING', 'ADMIN_KANTOR'],
+  // Marketing and Admin Kantor are separate duties. Keep both legacy values
+  // accepted only when a route explicitly lists both roles.
+  MARKETING: ['MARKETING'],
+  ADMIN_KANTOR: ['ADMIN_KANTOR'],
   INSPECTOR: ['INSPECTOR', 'AHLI_K3'],
   AHLI_K3: ['INSPECTOR', 'AHLI_K3'],
   PIMPINAN: ['PIMPINAN', 'MANAGER'],
@@ -48,4 +50,3 @@ export function authorize(...allowedRoles) {
     return next();
   };
 }
-

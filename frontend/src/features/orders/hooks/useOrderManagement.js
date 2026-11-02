@@ -163,7 +163,7 @@ export function useOrderManagement() {
       manufacturer: '',
       serialNumber: '',
       capacity: '',
-      installLocation: '',
+      installLocation: newUnitRow.installLocation || '',
       quantity: 1,
       attributes: {}
     });
@@ -374,10 +374,14 @@ export function useOrderManagement() {
       return;
     }
     try {
-      const res = await api.get('/orders/conflicts', {
-        params: { inspectorIds, startAt, endAt, excludeOrderId: orderId }
-      });
-      setScheduleConflicts(res.data?.conflicts || []);
+      const results = await Promise.all(
+        inspectorIds.map((inspectorId) =>
+          api.get('/schedules/conflicts', {
+            params: { inspectorId, startAt, endAt, excludeOrderId: orderId }
+          })
+        )
+      );
+      setScheduleConflicts(results.flatMap((res) => res.data?.conflicts || []));
     } catch {
       setScheduleConflicts([]);
     }
@@ -427,14 +431,14 @@ export function useOrderManagement() {
     }
   };
 
-  const handleRespondAssignment = async (status, reason = '') => {
-    if (!detailData?.order?.id) return;
+  const handleRespondAssignment = async (assignmentId, status, reason = rejectReason) => {
+    if (!detailData?.order?.id || !assignmentId) return;
     setSubmitting(true);
     setError('');
     try {
-      await api.post(`/orders/${detailData.order.id}/assignment-response`, {
-        status,
-        reason
+      await api.post(`/orders/${detailData.order.id}/assignments/${assignmentId}/respond`, {
+        decision: status,
+        rejectReason: status === 'DITOLAK' ? reason.trim() : undefined
       });
       setFeedback(
         status === 'DITERIMA'
@@ -460,7 +464,7 @@ export function useOrderManagement() {
     setSubmitting(true);
     setError('');
     try {
-      await api.put(`/orders/${detailData.order.id}/status`, {
+      await api.patch(`/orders/${detailData.order.id}/status`, {
         status: nextStatus,
         note: statusNote || null
       });
@@ -591,6 +595,29 @@ export function useOrderManagement() {
     }
   };
 
+  const handleDownloadBastPdf = async (orderId, poNumber, orderNo) => {
+    try {
+      const res = await api.get(`/orders/${orderId}/bast.pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      const ref = (poNumber || orderNo || 'PO').replace(/[/\s]/g, '-');
+      link.setAttribute('download', `BAST-${ref}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal mengunduh PDF Berita Acara Serah Terima (BAST).'
+      );
+    }
+  };
+
   return {
     orders,
     clients,
@@ -651,6 +678,7 @@ export function useOrderManagement() {
     handleImportCsv,
     handleDownloadAssignmentPdf,
     handleDownloadBatchBapPdf,
+    handleDownloadBastPdf,
     handleDownloadUnitPdf
   };
 }

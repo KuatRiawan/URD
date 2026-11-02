@@ -1,10 +1,12 @@
 import {
   ChatCircleText,
   DownloadSimple,
+  QrCode,
   UploadSimple,
   WarningOctagon
 } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { api } from '../../../lib/api/axios.js';
 import {
   FOLLOWUP_STATUS_LABELS,
   formatDateTime,
@@ -113,6 +115,33 @@ export function SuketDetailModal({
                     <span>Lihat Arsip Scan</span>
                   </a>
                 )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await api.get(`/suket/${detailData.suket.id}/qr-sticker.pdf`, {
+                        responseType: 'blob'
+                      });
+                      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute(
+                        'download',
+                        `Stiker-QR-${(detailData.suket.serial_number || detailData.suket.id).replace(/[/\s]/g, '-')}.pdf`
+                      );
+                      document.body.appendChild(link);
+                      link.click();
+                      link.remove();
+                      window.URL.revokeObjectURL(url);
+                    } catch (err) {
+                      console.error('Failed to download QR sticker', err);
+                    }
+                  }}
+                  className="min-h-9 inline-flex items-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <QrCode size={15} className="text-[#C81E1E]" />
+                  <span>Cetak Stiker QR</span>
+                </button>
               </div>
               <button
                 type="submit"

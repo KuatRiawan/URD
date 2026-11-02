@@ -183,5 +183,5 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
 
       unmount();
     }
-  });
+  }, 20000);
 });

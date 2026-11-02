@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+import { env } from '../config/env.js';
 import { resolveAttachmentPath } from '../storage/file-storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -3018,6 +3019,438 @@ export async function generateAssignmentLetterPdfBuffer(data) {
       );
 
     drawCompanyFooter(doc, 768);
+    doc.end();
+  });
+}
+
+export async function generateBastPdfBuffer(data) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 45 });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    drawCompanyHeader(doc, 'BERITA ACARA SERAH TERIMA DOKUMEN RIKSA UJI K3');
+
+    const now = new Date(data.handover_date || data.dispatch_date || new Date());
+    const dayName = INDONESIAN_DAYS[now.getDay()];
+    const dateFormatted = `${now.getDate()} ${INDONESIAN_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+    const bastNo = data.bast_no || data.tracking_reference || `BAST/URD/${new Date().getFullYear()}/${String(data.id || Date.now()).slice(-4)}`;
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .fillColor('#1D1414')
+      .text('BERITA ACARA SERAH TERIMA DOKUMEN (BAST)', { align: 'center' })
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor('#50667A')
+      .text(`Nomor: ${bastNo}`, { align: 'center' })
+      .moveDown(1);
+
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor('#1D1414')
+      .text(
+        `Pada hari ini, ${dayName}, tanggal ${dateFormatted}, bertempat di kantor / lokasi operasional PT Upaya Riksa Daya, yang bertanda tangan di bawah ini:`,
+        45,
+        doc.y,
+        { width: 505, lineGap: 2 }
+      )
+      .moveDown(0.8);
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9.5)
+      .text('1. PIHAK PERTAMA (Yang Menyerahkan):')
+      .font('Helvetica')
+      .text(`   Nama        : ${data.dispatched_by_name || 'Admin Operasional PT Upaya Riksa Daya'}`)
+      .text('   Instansi    : PT Upaya Riksa Daya (PJK3 Bidang Riksa Uji K3)')
+      .text('   Alamat      : Jl. Pondasi No. 50 B, Kampung Ambon, Jakarta Timur')
+      .moveDown(0.5);
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9.5)
+      .text('2. PIHAK KEDUA (Yang Menerima):')
+      .font('Helvetica')
+      .text(`   Nama        : ${data.recipient_name || data.contact_name || 'Perwakilan Klien'}`)
+      .text(`   Perusahaan  : ${data.client_name || '-'}`)
+      .text(`   Alamat      : ${data.client_address || data.location_address || '-'}`)
+      .text(`   Nomor PO    : ${data.po_number || data.order_no || '-'}`)
+      .moveDown(0.8);
+
+    doc
+      .font('Helvetica')
+      .text(
+        'PIHAK PERTAMA telah menyerahkan kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan telah menerima dari PIHAK PERTAMA dalam keadaan lengkap dan baik, bundel dokumen resmi hasil Pemeriksaan dan Pengujian (Riksa Uji) K3 untuk unit peralatan sebagai berikut:',
+        { width: 505, lineGap: 2 }
+      )
+      .moveDown(0.8);
+
+    const items = data.items || data.objects || [];
+    const tableTop = doc.y;
+    doc.rect(45, tableTop, 505, 20).fill('#F3F5F8');
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .fillColor('#1D1414')
+      .text('NO', 50, tableTop + 5, { width: 25 })
+      .text('OBJEK ALAT & NO. SERI', 80, tableTop + 5, { width: 145 })
+      .text('BIDANG K3', 230, tableTop + 5, { width: 65 })
+      .text('NO. LHPP & BAP', 300, tableTop + 5, { width: 110 })
+      .text('NO. SUKET / KELENGKAPAN', 415, tableTop + 5, { width: 130 });
+
+    let currentY = tableTop + 22;
+    doc.font('Helvetica').fontSize(7.5);
+
+    if (items.length === 0) {
+      doc
+        .fillColor('#50667A')
+        .text(`Bundel dokumen resmi untuk Order ${data.order_no || data.po_number || '-'}`, 80, currentY);
+      currentY += 18;
+    } else {
+      items.forEach((item, idx) => {
+        if (currentY > 670) {
+          doc.addPage({ size: 'A4', margin: 45 });
+          currentY = 45;
+        }
+        const objDesc = `${item.object_name || item.name} (SN: ${item.serial_number || '-'})`;
+        const docsDesc = `LHPP: ${item.lhpp_no || 'Terlampir'}\nBAP: ${item.bap_no || 'Terlampir'}`;
+        const suketDesc = `${item.suket_no ? `Suket: ${item.suket_no}` : 'Suket K3 Asli'}\n(Buku LHPP + Lembar Suket)`;
+
+        doc
+          .fillColor('#1D1414')
+          .text(String(idx + 1), 50, currentY, { width: 25 })
+          .text(objDesc, 80, currentY, { width: 145 })
+          .text(item.category_code || item.category_name || 'K3', 230, currentY, { width: 65 })
+          .text(docsDesc, 300, currentY, { width: 110 })
+          .text(suketDesc, 415, currentY, { width: 130 });
+
+        currentY += 26;
+        doc.moveTo(45, currentY - 2).lineTo(550, currentY - 2).lineWidth(0.5).strokeColor('#E2E8F0').stroke();
+      });
+    }
+
+    doc.y = currentY + 10;
+    doc
+      .font('Helvetica')
+      .fontSize(8.5)
+      .fillColor('#334155')
+      .text(
+        'Catatan: Seluruh berkas asli yang diserahterimakan wajib disimpan dengan baik oleh Pihak Kedua sebagai dokumen pemenuhan regulasi Ketenagakerjaan. Jadwal riksa uji berkala selanjutnya wajib dilaksanakan sebelum masa berlaku habis.',
+        45,
+        doc.y,
+        { width: 505, lineGap: 1.5 }
+      )
+      .moveDown(1.5);
+
+    const sigY = Math.max(doc.y, 630);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#1D1414')
+      .text('Yang Menyerahkan,', 45, sigY, { width: 230, align: 'center' })
+      .text('Yang Menerima,', 320, sigY, { width: 230, align: 'center' })
+      .font('Helvetica')
+      .fontSize(8.5)
+      .fillColor('#64748B')
+      .text('PT UPAYA RIKSA DAYA', 45, sigY + 14, { width: 230, align: 'center' })
+      .text(data.client_name || 'PERWAKILAN KLIEN', 320, sigY + 14, { width: 230, align: 'center' });
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#1D1414')
+      .text(
+        data.dispatched_by_name || 'Admin Operasional URD',
+        45,
+        sigY + 70,
+        { width: 230, align: 'center' }
+      )
+      .text(
+        data.recipient_name || data.contact_name || '( ........................................ )',
+        320,
+        sigY + 70,
+        { width: 230, align: 'center' }
+      );
+
+    drawCompanyFooter(doc, 770);
+    doc.end();
+  });
+}
+
+export async function generateObjectQrStickerPdfBuffer(data) {
+  const verifyUrl = `${env.appBaseUrl || 'http://localhost:5173'}/verifikasi/${data.verification_code || data.id}`;
+  const qrBuffer = await QRCode.toBuffer(verifyUrl, { width: 72, margin: 1 });
+
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: [283.46, 212.6],
+        margin: 10
+      });
+      const chunks = [];
+      doc.on('data', (c) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      doc.rect(4, 4, 275.46, 204.6).lineWidth(2).strokeColor('#C81E1E').stroke();
+      doc.rect(7, 7, 269.46, 198.6).lineWidth(0.6).strokeColor('#C81E1E').stroke();
+
+      if (fs.existsSync(officialLogoPath)) {
+        doc.image(officialLogoPath, 12, 11, { width: 28 });
+      }
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8.5)
+        .fillColor('#C81E1E')
+        .text('PT UPAYA RIKSA DAYA', 44, 12)
+        .font('Helvetica')
+        .fontSize(5.5)
+        .fillColor('#334155')
+        .text('PJK3 SKP KEMNAKER R.I. NO. 560/URD/PJK3-RIKSALAP/2024', 44, 23)
+        .text('Telp. (021) 489 1409  |  upayariksadaya.com', 44, 30);
+
+      doc.rect(8, 38, 267.46, 15).fill('#C81E1E');
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(7.5)
+        .fillColor('#FFFFFF')
+        .text('TANDA SELESAI PEMERIKSAAN & PENGUJIAN K3', 8, 42, {
+          width: 267.46,
+          align: 'center'
+        });
+
+      doc.image(qrBuffer, 12, 58, { width: 68 });
+      doc
+        .font('Helvetica')
+        .fontSize(5)
+        .fillColor('#64748B')
+        .text('Scan untuk verifikasi', 12, 130, { width: 68, align: 'center' })
+        .text('keaslian Suket K3', 12, 137, { width: 68, align: 'center' });
+
+      const leftCol = 88;
+      const topInfo = 58;
+
+      const printRow = (label, val, y) => {
+        doc
+          .font('Helvetica')
+          .fontSize(6)
+          .fillColor('#64748B')
+          .text(label, leftCol, y, { width: 65 })
+          .font('Helvetica-Bold')
+          .fontSize(6.5)
+          .fillColor('#0F172A')
+          .text(`: ${val}`, leftCol + 60, y, { width: 125, lineBreak: false });
+      };
+
+      printRow('Nomor Seri / Tag', data.serial_number || '-', topInfo);
+      printRow('Nama Objek Alat', (data.name || data.object_name || '-').slice(0, 24), topInfo + 10);
+      printRow('Kapasitas SWL', data.capacity || '-', topInfo + 20);
+      printRow('Perusahaan Klien', (data.client_name || '-').slice(0, 24), topInfo + 30);
+      printRow('Bidang Riksa Uji', data.category_name || data.category_code || 'K3', topInfo + 40);
+      printRow('No. Suket K3', data.suket_no || 'TERCATAT DI DISNAKER', topInfo + 50);
+
+      const expDate = data.valid_until || data.next_inspection_date;
+      const expDateFormatted = expDate
+        ? new Date(expDate).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+          })
+        : 'MENUNGGU PENETAPAN';
+
+      doc.rect(leftCol, topInfo + 63, 180, 20).fill('#FEF2F2');
+      doc.rect(leftCol, topInfo + 63, 180, 20).lineWidth(0.8).strokeColor('#F87171').stroke();
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(6)
+        .fillColor('#991B1B')
+        .text('MASA BERLAKU HINGGA:', leftCol + 5, topInfo + 66)
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .fillColor('#DC2626')
+        .text(expDateFormatted, leftCol + 5, topInfo + 73);
+
+      doc
+        .font('Helvetica')
+        .fontSize(5)
+        .fillColor('#94A3B8')
+        .text(
+          'Dilarang merusak / melepas stiker ini  ·  Wajib diuji ulang berkala sesuai Permenaker',
+          8,
+          195,
+          { width: 267.46, align: 'center' }
+        );
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+export async function generateRecommendationLetterPdfBuffer(data) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 45 });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    drawCompanyHeader(doc, 'LEMBAR TEMUAN DAN REKOMENDASI K3 (CORRECTIVE ACTION NOTICE)');
+
+    const now = new Date(data.inspection_date || new Date());
+    const dateFormatted = `${now.getDate()} ${INDONESIAN_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+    const letterNo = data.recommendation_no || `REK-K3/URD/${new Date().getFullYear()}/${String(data.inspection_id || data.id || Date.now()).slice(-4)}`;
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .fillColor('#C81E1E')
+      .text('LEMBAR REKOMENDASI & TEMUAN HASIL RIKSA UJI', { align: 'center' })
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor('#50667A')
+      .text(`Nomor: ${letterNo}`, { align: 'center' })
+      .moveDown(0.8);
+
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor('#1D1414')
+      .text(
+        `Berdasarkan hasil pemeriksaan dan pengujian (Riksa Uji) K3 di lokasi kerja pada tanggal ${dateFormatted}, dengan ini disampaikan bahwa unit peralatan kerja di bawah ini:`,
+        45,
+        doc.y,
+        { width: 505, lineGap: 1.5 }
+      )
+      .moveDown(0.6);
+
+    const boxY = doc.y;
+    doc.rect(45, boxY, 505, 70).fill('#F8FAFC');
+    doc.rect(45, boxY, 505, 70).lineWidth(0.8).strokeColor('#CBD5E1').stroke();
+
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0F172A');
+    doc.text(`Perusahaan Klien : ${data.client_name || '-'}`, 55, boxY + 8);
+    doc.text(`Lokasi Unit      : ${data.install_location || data.location_address || '-'}`, 55, boxY + 22);
+    doc.text(`Nama Objek Alat  : ${data.object_name || data.name || '-'}`, 55, boxY + 36);
+    doc.text(`Nomor Seri       : ${data.serial_number || '-'}`, 55, boxY + 50);
+
+    doc.text(`Bidang K3   : ${data.category_name || data.category_code || '-'}`, 320, boxY + 8);
+    doc.text(`Kapasitas   : ${data.capacity || '-'}`, 320, boxY + 22);
+    doc.text(`Pemeriksa   : ${data.inspector_name || 'Ahli K3 PT Upaya Riksa Daya'}`, 320, boxY + 36);
+    doc.text(`Tanggal Uji : ${dateFormatted}`, 320, boxY + 50);
+
+    doc.y = boxY + 80;
+
+    doc.rect(45, doc.y, 505, 24).fill('#FEF2F2');
+    doc.rect(45, doc.y, 505, 24).lineWidth(1).strokeColor('#DC2626').stroke();
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#DC2626')
+      .text('STATUS: BELUM MEMENUHI SYARAT K3 (PERLU TINDAKAN PERBAIKAN KLIEN)', 45, doc.y + 7, {
+        width: 505,
+        align: 'center'
+      });
+
+    doc.y += 34;
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9.5)
+      .fillColor('#0F172A')
+      .text('Daftar Temuan Teknis & Rekomendasi Perbaikan Wajib:');
+    doc.moveDown(0.4);
+
+    const findings = data.findings || [];
+    const tableTop = doc.y;
+    doc.rect(45, tableTop, 505, 18).fill('#F1F5F9');
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .fillColor('#334155')
+      .text('NO', 50, tableTop + 5, { width: 25 })
+      .text('KOMPONEN / BAGIAN', 80, tableTop + 5, { width: 130 })
+      .text('URAIAN TEMUAN KERUSAKAN / KETIDAKSESUAIAN', 215, tableTop + 5, { width: 170 })
+      .text('REKOMENDASI PERBAIKAN', 390, tableTop + 5, { width: 155 });
+
+    let rowY = tableTop + 20;
+    doc.font('Helvetica').fontSize(7.5);
+
+    if (findings.length === 0) {
+      doc
+        .fillColor('#64748B')
+        .text('1', 50, rowY)
+        .text('Komponen Utama', 80, rowY)
+        .text(data.conclusion_notes || 'Ditemukan indikasi ketidaksesuaian fungsi/struktur.', 215, rowY, { width: 170 })
+        .text(data.recommendations || 'Lakukan perbaikan dan kalibrasi ulang.', 390, rowY, { width: 155 });
+      rowY += 28;
+    } else {
+      findings.forEach((f, idx) => {
+        if (rowY > 660) {
+          doc.addPage({ size: 'A4', margin: 45 });
+          rowY = 45;
+        }
+        doc
+          .fillColor('#0F172A')
+          .text(String(idx + 1), 50, rowY, { width: 25 })
+          .text(f.component || f.label || 'Komponen Operasi', 80, rowY, { width: 130 })
+          .text(f.finding || f.description || '-', 215, rowY, { width: 170 })
+          .text(f.recommendation || data.recommendations || '-', 390, rowY, { width: 155 });
+        rowY += 28;
+        doc.moveTo(45, rowY - 2).lineTo(550, rowY - 2).lineWidth(0.5).strokeColor('#E2E8F0').stroke();
+      });
+    }
+
+    doc.y = rowY + 12;
+    doc
+      .font('Helvetica')
+      .fontSize(8.5)
+      .fillColor('#334155')
+      .text(
+        'KETENTUAN K3 KEMENAKER R.I.:\n1. Unit peralatan tersebut di atas tidak dibenarkan dioperasikan dengan beban penuh atau membahayakan keselamatan tenaga kerja sebelum perbaikan diselesaikan.\n2. Pihak Manajemen Klien wajib mengirimkan bukti dokumentasi hasil perbaikan kepada PT Upaya Riksa Daya untuk verifikasi teknis lanjutan sebagai syarat pengajuan penerbitan Surat Keterangan (Suket) Kelayakan K3 ke Disnaker Provinsi.',
+        45,
+        doc.y,
+        { width: 505, lineGap: 2 }
+      )
+      .moveDown(1.5);
+
+    const sigY = Math.max(doc.y, 650);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#1D1414')
+      .text('Ahli K3 Pemeriksa,', 45, sigY, { width: 230, align: 'center' })
+      .text('Mengetahui / Menerima,', 320, sigY, { width: 230, align: 'center' })
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor('#64748B')
+      .text('PT UPAYA RIKSA DAYA', 45, sigY + 14, { width: 230, align: 'center' })
+      .text(data.client_name || 'PERWAKILAN KLIEN', 320, sigY + 14, { width: 230, align: 'center' });
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#1D1414')
+      .text(
+        data.inspector_name || 'Ahli K3 PT Upaya Riksa Daya',
+        45,
+        sigY + 65,
+        { width: 230, align: 'center' }
+      )
+      .text(
+        data.client_signer_name || data.contact_name || '( ........................................ )',
+        320,
+        sigY + 65,
+        { width: 230, align: 'center' }
+      );
+
+    drawCompanyFooter(doc, 770);
     doc.end();
   });
 }

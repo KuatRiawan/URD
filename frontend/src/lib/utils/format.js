@@ -1,7 +1,7 @@
 export const ROLE_LABELS = {
   ADMIN_SISTEM: 'Admin Sistem',
   MARKETING: 'Marketing',
-  ADMIN_KANTOR: 'Marketing',
+  ADMIN_KANTOR: 'Admin Kantor',
   INSPECTOR: 'Inspector',
   AHLI_K3: 'Inspector',
   PIMPINAN: 'Pimpinan / Manager',
@@ -10,6 +10,7 @@ export const ROLE_LABELS = {
 
 export const ROLE_OPTIONS = [
   { value: 'MARKETING', label: 'Marketing' },
+  { value: 'ADMIN_KANTOR', label: 'Admin Kantor' },
   { value: 'INSPECTOR', label: 'Inspector' },
   { value: 'PIMPINAN', label: 'Pimpinan / Manager' },
   { value: 'ADMIN_SISTEM', label: 'Admin Sistem' }

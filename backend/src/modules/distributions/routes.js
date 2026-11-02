@@ -5,6 +5,7 @@ import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { query, withTransaction } from '../../database/pool.js';
 import { recordAudit } from '../../services/audit.js';
+import { generateBastPdfBuffer } from '../../services/pdf-generator.js';
 import { AppError } from '../../utils/http.js';
 
 const router = Router();
@@ -38,6 +39,34 @@ const updateDistributionStatusSchema = Joi.object({
     .valid('EMAIL', 'WHATSAPP', 'KURIR_FISIK', 'LANGSUNG', 'PORTAL', 'LAINNYA'),
   notes: Joi.string().allow('', null)
 });
+
+async function validateDistributionDocument(db, input) {
+  const documentQuery =
+    input.documentType === 'BAP'
+      ? `SELECT b.id, b.bap_no AS document_no, b.order_id, b.object_id
+         FROM bap_documents b
+         WHERE b.id = $1 AND b.status = 'FINAL'`
+      : `SELECT l.id, l.lhpp_no AS document_no, i.order_id, i.object_id
+         FROM lhpp_documents l
+         JOIN inspections i ON i.id = l.inspection_id
+         WHERE l.id = $1 AND l.status IN ('FINAL', 'TERBIT')`;
+  const { rows } = await db.query(documentQuery, [input.documentId]);
+  const document = rows[0];
+  if (!document) {
+    throw new AppError(
+      400,
+      'DOCUMENT_NOT_READY',
+      `${input.documentType} tidak ditemukan atau belum berstatus final.`
+    );
+  }
+  if (document.document_no !== input.documentNo) {
+    throw new AppError(400, 'DOCUMENT_NUMBER_MISMATCH', 'Nomor dokumen tidak sesuai dengan dokumen yang dipilih.');
+  }
+  if (document.order_id !== input.orderId || document.object_id !== input.objectId) {
+    throw new AppError(400, 'DOCUMENT_REFERENCE_MISMATCH', 'Dokumen tidak sesuai dengan PO atau unit yang dipilih.');
+  }
+  return document;
+}
 
 // GET /api/v1/distributions - Daftar pelacakan distribusi dokumen
 router.get('/', async (req, res, next) => {
@@ -154,7 +183,7 @@ router.get('/summary', async (_req, res, next) => {
 // POST /api/v1/distributions - Catat pengiriman dokumen baru
 router.post(
   '/',
-  authorize('MARKETING', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('ADMIN_KANTOR', 'ADMIN_SISTEM'),
   validate(createDistributionSchema),
   async (req, res, next) => {
     try {
@@ -174,6 +203,31 @@ router.post(
       } = req.body;
 
       const result = await withTransaction(async (db) => {
+        await validateDistributionDocument(db, {
+          documentType,
+          documentId,
+          documentNo,
+          orderId,
+          objectId
+        });
+
+        const duplicate = await db.query(
+          `SELECT id FROM document_distributions
+           WHERE document_id = $1
+             AND target_destination = $2
+             AND lower(btrim(recipient_name)) = lower(btrim($3))
+             AND status <> 'PERLU_KIRIM_ULANG'
+           LIMIT 1`,
+          [documentId, targetDestination, recipientName]
+        );
+        if (duplicate.rows[0]) {
+          throw new AppError(
+            409,
+            'DISTRIBUTION_DUPLICATE',
+            'Dokumen ini sudah memiliki catatan distribusi aktif untuk penerima tersebut.'
+          );
+        }
+
         const { rows } = await db.query(
           `INSERT INTO document_distributions
              (document_type, document_id, document_no, order_id, object_id,
@@ -238,7 +292,7 @@ router.post(
 // PATCH /api/v1/distributions/:id/status - Perbarui status pengiriman
 router.patch(
   '/:id/status',
-  authorize('MARKETING', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('ADMIN_KANTOR', 'ADMIN_SISTEM'),
   validate(updateDistributionStatusSchema),
   async (req, res, next) => {
     try {
@@ -306,5 +360,98 @@ router.patch(
   }
 );
 
-export default router;
+// GET /api/v1/distributions/orders/:orderId/bast/pdf - Unduh Berita Acara Serah Terima (BAST) untuk Order PO
+router.get(
+  '/orders/:orderId/bast/pdf',
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER', 'MARKETING'),
+  async (req, res, next) => {
+    try {
+      const { orderId } = req.params;
 
+      const orderRes = await query(
+        `SELECT o.*, c.name AS client_name, c.address AS client_address,
+                coalesce(ct.name, '') AS contact_name,
+                coalesce(ct.phone, '') AS contact_phone,
+                u.full_name AS dispatched_by_name
+         FROM orders o
+         JOIN clients c ON c.id = o.client_id
+         LEFT JOIN client_contacts ct ON ct.client_id = c.id
+         LEFT JOIN users u ON u.id = $2
+         WHERE o.id = $1`,
+        [orderId, req.user.id]
+      );
+
+      if (!orderRes.rows.length) {
+        throw new AppError(404, 'ORDER_NOT_FOUND', 'PO tidak ditemukan.');
+      }
+      const order = orderRes.rows[0];
+
+      // Ambil seluruh unit di PO beserta nomor LHPP, BAP, dan Suket
+      const { rows: unitRows } = await query(
+        `SELECT oo.unit_status,
+                t.id AS object_id, t.name AS object_name, t.serial_number,
+                oc.code AS category_code, oc.name AS category_name,
+                b.bap_no,
+                l.lhpp_no,
+                s.suket_no, s.valid_until
+         FROM order_objects oo
+         JOIN test_objects t ON t.id = oo.object_id
+         JOIN object_categories oc ON oc.id = t.category_id
+         LEFT JOIN bap_documents b ON b.order_id = oo.order_id AND b.object_id = oo.object_id AND b.status = 'FINAL'
+         LEFT JOIN inspections i ON i.order_id = oo.order_id AND i.object_id = oo.object_id
+         LEFT JOIN lhpp_documents l ON l.inspection_id = i.id AND l.status IN ('FINAL', 'TERBIT')
+         LEFT JOIN suket_documents s ON s.object_id = oo.object_id AND s.status = 'TERBIT'
+         WHERE oo.order_id = $1
+         ORDER BY t.name ASC`,
+        [orderId]
+      );
+
+      const bastBuffer = await generateBastPdfBuffer({
+        id: order.id,
+        order_no: order.order_no,
+        po_number: order.po_number,
+        client_name: order.client_name,
+        client_address: order.client_address,
+        recipient_name: order.contact_name || order.client_name,
+        contact_name: order.contact_name,
+        dispatched_by_name: req.user.fullName || 'Admin Operasional PT Upaya Riksa Daya',
+        items: unitRows
+      });
+
+      const filename = `BAST-${(order.po_number || order.order_no).replace(/[/\s]/g, '-')}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(bastBuffer);
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// GET /api/v1/distributions/:id/bast/pdf - Unduh BAST berdasarkan catatan distribusi
+router.get(
+  '/:id/bast/pdf',
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER', 'MARKETING'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { rows } = await query(
+        `SELECT d.*, o.order_no, o.po_number, c.name AS client_name, c.address AS client_address
+         FROM document_distributions d
+         JOIN orders o ON o.id = d.order_id
+         JOIN clients c ON c.id = o.client_id
+         WHERE d.id = $1`,
+        [id]
+      );
+      if (!rows.length) {
+        throw new AppError(404, 'DISTRIBUTION_NOT_FOUND', 'Distribusi tidak ditemukan.');
+      }
+      const dist = rows[0];
+      return res.redirect(`/api/v1/distributions/orders/${dist.order_id}/bast/pdf`);
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+export default router;

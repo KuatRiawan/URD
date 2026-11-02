@@ -241,18 +241,32 @@ export function setupAutoSyncListener(apiInstance, onStatusChange) {
 
   const handleOnline = async () => {
     if (onStatusChange) onStatusChange({ status: 'syncing', message: 'Jaringan kembali aktif. Menyinkronkan data offline otomatis...' });
+  try {
     const result = await performAutoSync(apiInstance);
     if (onStatusChange) {
-      if (result.totalSynced > 0) {
+      if (result.errors.length) {
+        onStatusChange({
+          status: 'failed',
+          message: 'Sebagian data offline belum berhasil disinkronkan. Data tetap tersimpan di perangkat.',
+          result
+        });
+      } else if (result.totalSynced > 0) {
         onStatusChange({
           status: 'success',
           message: `Sinkronisasi otomatis berhasil: ${result.syncedDrafts} draf form dan ${result.syncedPhotos} foto terkirim ke server PT Upaya Riksa Daya.`,
           result
         });
       } else {
-        onStatusChange({ status: 'online', message: 'Terhubung ke server PT Upaya Riksa Daya.' });
+        onStatusChange({ status: 'online', message: 'Terhubung ke server PT Upaya Riksa Daya.', result });
       }
     }
+  } catch (error) {
+    onStatusChange?.({
+      status: 'failed',
+      message: 'Sinkronisasi offline gagal. Data tetap tersimpan di perangkat.',
+      result: { errors: [{ type: 'sync', error: error?.message }] }
+    });
+  };
   };
 
   const handleOffline = () => {
@@ -272,4 +286,3 @@ export function setupAutoSyncListener(apiInstance, onStatusChange) {
     window.removeEventListener('offline', handleOffline);
   };
 }
-

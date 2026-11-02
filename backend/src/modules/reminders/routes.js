@@ -11,7 +11,7 @@ import { notifyRoles } from '../../services/notify.js';
 import { AppError } from '../../utils/http.js';
 
 const router = Router();
-router.use(authenticate, authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN'));
+router.use(authenticate, authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN'));
 
 const STAGES = [
   { code: 'H0', maxDays: 0, label: 'Kedaluwarsa / Hari Ini' },
@@ -204,11 +204,19 @@ router.get('/', async (req, res, next) => {
               COALESCE(lat_suket.valid_until, t.next_inspection_date, lat_insp.recommended_valid_until) AS effective_valid_until,
               (COALESCE(lat_suket.valid_until, t.next_inspection_date, lat_insp.recommended_valid_until) - CURRENT_DATE)::int AS days_remaining,
               COALESCE(
-                (SELECT rf.status::text FROM renewal_followups rf WHERE rf.object_id = t.id OR rf.suket_id = lat_suket.id ORDER BY rf.created_at DESC LIMIT 1),
+                (SELECT rf.status::text
+                 FROM renewal_followups rf
+                 WHERE rf.suket_id = lat_suket.id OR rf.object_id = t.id
+                 ORDER BY rf.created_at DESC
+                 LIMIT 1),
                 lat_suket.followup_status::text,
                 'BELUM_DIHUBUNGI'
               ) AS followup_status,
-              (SELECT rf.note FROM renewal_followups rf WHERE rf.object_id = t.id OR rf.suket_id = lat_suket.id ORDER BY rf.created_at DESC LIMIT 1) AS last_followup_note
+              (SELECT rf.note
+               FROM renewal_followups rf
+               WHERE rf.suket_id = lat_suket.id OR rf.object_id = t.id
+               ORDER BY rf.created_at DESC
+               LIMIT 1) AS last_followup_note
        FROM test_objects t
        JOIN clients c ON c.id = t.client_id
        JOIN object_categories oc ON oc.id = t.category_id
@@ -290,7 +298,7 @@ router.get('/', async (req, res, next) => {
 // Perbarui tanggal masa berlaku resmi atau status tindak lanjut pada unit alat
 router.patch(
   '/units/:objectId/validity',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(unitValiditySchema),
   async (req, res, next) => {
     try {
@@ -313,7 +321,7 @@ router.patch(
           await db.query(
             `INSERT INTO renewal_followups (object_id, status, note, recorded_by)
              VALUES ($1, $2, $3, $4)`,
-            [objectId, followupStatus, note || validityNotes || null, req.user.id]
+            [objectId, followupStatus, note || validityNotes || '', req.user.id]
           );
         }
 
@@ -341,7 +349,7 @@ router.patch(
 // Buat PO / Order Perpanjangan langsung dari unit alat
 router.post(
   '/units/:objectId/create-renewal-order',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   async (req, res, next) => {
     try {
       const { objectId } = req.params;
@@ -349,14 +357,37 @@ router.post(
 
       const createdOrder = await withTransaction(async (db) => {
         const { rows: objRows } = await db.query(
-          `SELECT t.*, oc.default_bap_scopes
+          `SELECT t.*, oc.default_bap_scopes,
+                  latest_suket.id AS suket_id
            FROM test_objects t
            JOIN object_categories oc ON oc.id = t.category_id
+           LEFT JOIN LATERAL (
+             SELECT s.id
+             FROM suket_documents s
+             WHERE s.object_id = t.id AND s.status = 'TERBIT'
+             ORDER BY s.valid_until DESC NULLS LAST, s.created_at DESC
+             LIMIT 1
+           ) latest_suket ON true
            WHERE t.id = $1`,
           [objectId]
         );
         const obj = objRows[0];
         if (!obj) throw new AppError(404, 'OBJECT_NOT_FOUND', 'Unit alat tidak ditemukan.');
+
+        const { rows: existingRows } = await db.query(
+          `SELECT o.*
+           FROM orders o
+           JOIN order_objects oo ON oo.order_id = o.id
+           WHERE oo.object_id = $1
+             AND o.service_type = 'PERPANJANGAN'
+             AND o.status NOT IN ('DIBATALKAN', 'SELESAI')
+           ORDER BY o.created_at DESC
+           LIMIT 1`,
+          [objectId]
+        );
+        if (existingRows[0]) {
+          return { order: existingRows[0], reused: true };
+        }
 
         const seqRes = await db.query("SELECT nextval('order_no_seq') AS seq");
         const now = new Date();
@@ -366,8 +397,8 @@ router.post(
 
         const { rows } = await db.query(
           `INSERT INTO orders
-             (order_no, po_number, po_date, client_id, location_id, service_type, source, requested_date, notes, created_by)
-           VALUES ($1, $2, CURRENT_DATE, $3, $4, 'PERPANJANGAN', 'TELEPON', $5, $6, $7)
+             (order_no, po_number, po_date, client_id, location_id, service_type, source, requested_date, notes, renewal_of_suket, created_by)
+           VALUES ($1, $2, CURRENT_DATE, $3, $4, 'PERPANJANGAN', 'TELEPON', $5, $6, $7, $8)
            RETURNING *`,
           [
             orderNo,
@@ -376,6 +407,7 @@ router.post(
             obj.location_id || null,
             obj.next_inspection_date || now.toISOString().slice(0, 10),
             `PO Perpanjangan Riksa Uji untuk unit ${obj.name} (${obj.serial_number})`,
+            obj.suket_id,
             req.user.id
           ]
         );
@@ -390,14 +422,14 @@ router.post(
 
         await db.query(
           `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
-           VALUES ($1, NULL, 'ORDER_BARU', 'PO perpanjangan dibuat dari pengingat masa berlaku unit', $2)`,
-          [order.id, req.user.id]
+           VALUES ($1, NULL, $3, 'PO perpanjangan dibuat dari pengingat masa berlaku unit', $2)`,
+          [order.id, req.user.id, order.status]
         );
 
         await db.query(
-          `INSERT INTO renewal_followups (object_id, status, note, recorded_by)
-           VALUES ($1, 'SUDAH_JADI_PO_BARU', $2, $3)`,
-          [obj.id, `PO perpanjangan dibuat: ${order.po_number} (${order.order_no})`, req.user.id]
+          `INSERT INTO renewal_followups (suket_id, object_id, status, note, recorded_by)
+           VALUES ($1, $2, 'SUDAH_JADI_PO_BARU', $3, $4)`,
+          [obj.suket_id, obj.id, `PO perpanjangan dibuat: ${order.po_number} (${order.order_no})`, req.user.id]
         );
 
         await recordAudit(
@@ -412,10 +444,10 @@ router.post(
           db
         );
 
-        return order;
+        return { order, reused: false };
       });
 
-      return res.status(201).json({ order: createdOrder });
+      return res.status(createdOrder.reused ? 200 : 201).json(createdOrder);
     } catch (err) {
       return next(err);
     }
@@ -476,6 +508,19 @@ router.post(
         const suket = sRows[0];
         if (!suket) throw new AppError(404, 'SUKET_NOT_FOUND', 'Data Suket K3 tidak ditemukan.');
 
+        const { rows: existingRows } = await db.query(
+          `SELECT o.*
+           FROM orders o
+           WHERE o.renewal_of_suket = $1
+             AND o.status NOT IN ('DIBATALKAN', 'SELESAI')
+           ORDER BY o.created_at DESC
+           LIMIT 1`,
+          [suket.id]
+        );
+        if (existingRows[0]) {
+          return { order: existingRows[0], reused: true };
+        }
+
         const seqRes = await db.query("SELECT nextval('order_no_seq') AS seq");
         const now = new Date();
         const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -508,8 +553,8 @@ router.post(
         );
         await db.query(
           `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
-           VALUES ($1, NULL, 'ORDER_BARU', 'Order perpanjangan dibuat dari dasbor pengingat', $2)`,
-          [order.id, req.user.id]
+           VALUES ($1, NULL, $3, 'Order perpanjangan dibuat dari dasbor pengingat', $2)`,
+          [order.id, req.user.id, order.status]
         );
         await db.query(
           "UPDATE suket_documents SET followup_status = 'TERJADWAL', updated_at = now() WHERE id = $1",
@@ -532,10 +577,10 @@ router.post(
           },
           db
         );
-        return order;
+        return { order, reused: false };
       });
 
-      return res.status(201).json({ order: createdOrder });
+      return res.status(createdOrder.reused ? 200 : 201).json(createdOrder);
     } catch (err) {
       return next(err);
     }

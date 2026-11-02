@@ -39,7 +39,14 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
   let unit1FindingId;
 
   beforeAll(async () => {
-    await runMigrations({ reset: true });
+    await runMigrations({ reset: false });
+    await pool.query(`
+      TRUNCATE TABLE users, clients, file_attachments, audit_logs CASCADE;
+      ALTER SEQUENCE IF EXISTS order_no_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS lhpp_no_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS bap_no_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS suket_no_seq RESTART WITH 1;
+    `);
     await seedDatabase({ password: TEST_PW });
   });
 
@@ -185,7 +192,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .get('/api/v1/users?role=MARKETING')
         .set('Authorization', `Bearer ${tokens.ADMIN_SISTEM}`);
       expect(marketing.status).toBe(200);
-      expect(marketing.body.items.map((u) => u.email)).toContain('admin.kantor@upayariksadaya.com');
+      expect(marketing.body.items.map((u) => u.email)).not.toContain('admin.kantor@upayariksadaya.com');
       expect(marketing.body.items.map((u) => u.email)).toContain('marketing@upayariksadaya.com');
     });
 
@@ -339,7 +346,29 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         });
       expect(ordRes.status).toBe(201);
       orderId = ordRes.body.order.id;
-      expect(['ORDER_BARU', 'TERDAFTAR']).toContain(ordRes.body.order.status);
+      expect(ordRes.body.order.status).toBe('TERDAFTAR');
+
+      // PO baru harus langsung terlihat oleh Admin: KPI "PO Baru" dan antrean penjadwalan.
+      const summaryAfterCreate = await request(app)
+        .get('/api/v1/dashboard/summary')
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(summaryAfterCreate.status).toBe(200);
+      expect(summaryAfterCreate.body.metrics.newOrders).toBeGreaterThanOrEqual(1);
+
+      const queueAfterCreate = await request(app)
+        .get('/api/v1/dashboard/work-queue')
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(queueAfterCreate.status).toBe(200);
+      expect(
+        queueAfterCreate.body.items.some(
+          (item) => item.type === 'ORDER_SCHEDULING' && item.id === `po-${orderId}`
+        )
+      ).toBe(true);
+      // Jumlah total antrean harus konsisten dengan daftar yang dikirim.
+      expect(queueAfterCreate.body.total).toBeGreaterThanOrEqual(queueAfterCreate.body.shown);
+      expect(queueAfterCreate.body.truncated).toBe(
+        queueAfterCreate.body.total > queueAfterCreate.body.shown
+      );
       const orderDetail = await request(app)
         .get(`/api/v1/orders/${orderId}`)
         .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
@@ -364,6 +393,25 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .send({ inspectorIds: [userIds.AHLI_K3_LIS] });
       expect(wrongCompRes.status).toBe(400);
       expect(wrongCompRes.body.error.code).toBe('COMPETENCY_INVALID');
+
+      await query(
+        `UPDATE inspector_competencies
+         SET valid_from = '2026-12-01'
+         WHERE inspector_id = $1 AND category_id = (SELECT category_id FROM test_objects WHERE id = $2)`,
+        [userIds.AHLI_K3_PAA, objectPaaId]
+      );
+      const notYetValidRes = await request(app)
+        .post(`/api/v1/orders/${orderId}/assignments`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ inspectorIds: [userIds.AHLI_K3_PAA] });
+      expect(notYetValidRes.status).toBe(400);
+      expect(notYetValidRes.body.error.code).toBe('COMPETENCY_INVALID');
+      await query(
+        `UPDATE inspector_competencies
+         SET valid_from = NULL
+         WHERE inspector_id = $1 AND category_id = (SELECT category_id FROM test_objects WHERE id = $2)`,
+        [userIds.AHLI_K3_PAA, objectPaaId]
+      );
 
       // Tugaskan Ahli K3 PAA yang kompeten -> berhasil
       const validAsgRes = await request(app)
@@ -632,6 +680,8 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
     });
 
     it('Inspector mengirim LHPP untuk finalisasi Marketing dan Pimpinan tetap read-only', async () => {
+      // Finalisasi dan QC sekarang memakai akun Admin Kantor, bukan Marketing.
+      tokens.MARKETING = tokens.ADMIN_KANTOR;
       // Pimpinan mencoba memfinalisasi atau mengubah LHPP -> harus ditolak 403 (MANAGER_READ_ONLY)
       const pimpinanMutation = await request(app)
         .post(`/api/v1/lhpp/${lhppId}/finalize`)
@@ -658,6 +708,55 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
         .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
       expect(submitForFinalization.status).toBe(200);
       expect(submitForFinalization.body.lhpp.status).toBe('SIAP_PREVIEW');
+
+      // Marketing dapat mengembalikan LHPP yang belum layak terbit (bukan hanya memfinalisasi).
+      // Tanpa alasan yang jelas permintaan harus ditolak.
+      const returnWithoutNote = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/return`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ note: 'salah' });
+      expect(returnWithoutNote.status).toBe(400);
+
+      // Hanya Marketing/Admin Sistem yang boleh mengembalikan dokumen.
+      const returnByInspector = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/return`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`)
+        .send({ note: 'Inspector tidak berwenang mengembalikan dokumen ini.' });
+      expect(returnByInspector.status).toBe(403);
+
+      const returnRes = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/return`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ note: 'Kesimpulan unit belum sesuai temuan; mohon perbaiki analisis dan foto pendukung.' });
+      expect(returnRes.status).toBe(200);
+      expect(returnRes.body.lhpp.status).toBe('DIKEMBALIKAN');
+      expect(returnRes.body.lhpp.review_notes).toContain('mohon perbaiki analisis');
+
+      // Unit kembali ke tahap revisi dan PO tercatat menunggu laporan (bukan macet).
+      const orderAfterReturn = await request(app)
+        .get(`/api/v1/orders/${orderId}`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(orderAfterReturn.status).toBe(200);
+      expect(orderAfterReturn.body.order.status).toBe('MENUNGGU_LAPORAN');
+      expect(
+        orderAfterReturn.body.objects.find((o) => o.id === objectPaaId)?.unit_status
+      ).toBe('PERLU_REVISI');
+
+      // Dokumen yang dikembalikan tidak boleh langsung difinalisasi.
+      const finalizeWhileReturned = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/finalize`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ note: 'Coba finalisasi tanpa perbaikan' });
+      expect(finalizeWhileReturned.status).toBe(409);
+      expect(finalizeWhileReturned.body.error.code).toBe('LHPP_NOT_READY');
+
+      // Ahli K3 memperbaiki lalu mengajukan ulang; versi dokumen bertambah.
+      const resubmit = await request(app)
+        .post(`/api/v1/lhpp/${lhppId}/submit-finalization`)
+        .set('Authorization', `Bearer ${tokens.AHLI_K3_PAA}`);
+      expect(resubmit.status).toBe(200);
+      expect(resubmit.body.lhpp.status).toBe('SIAP_PREVIEW');
+      expect(resubmit.body.lhpp.version).toBeGreaterThan(returnRes.body.lhpp.version);
 
       const inspectorFinalize = await request(app)
         .post(`/api/v1/lhpp/${lhppId}/finalize`)
@@ -771,6 +870,8 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
     it('Langkah 1: Admin membuat 1 PO dengan 3 unit alat berbeda (Overhead Crane PAA, Forklift PTP, Bejana Tekan PUBT) dan menolak duplikasi nomor PO', async () => {
+      // Tahap QC/dokumen pada alur multi-unit memakai Admin Kantor.
+      tokens.MARKETING = tokens.ADMIN_KANTOR;
       const poRes = await request(app)
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
@@ -1550,6 +1651,71 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(workQueueInspector.status).toBe(200);
       expect(typeof workQueueInspector.body.total).toBe('number');
       expect(Array.isArray(workQueueInspector.body.items)).toBe(true);
+    });
+
+    it('Langkah 14: PO berstatus awal TERDAFTAR dapat dibatalkan dan tercatat di riwayat status', async () => {
+      // PO baru lahir dengan status TERDAFTAR (default DB) dan riwayat awalnya ikut tercatat.
+      const created = await request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({
+          clientId,
+          locationId,
+          contactId,
+          serviceType: 'PEMERIKSAAN_BERKALA',
+          source: 'TELEPON',
+          requestedDate: '2026-11-12',
+          objectIds: [objectPaaId]
+        });
+      expect(created.status).toBe(201);
+      const cancelOrderId = created.body.order.id;
+      expect(created.body.order.status).toBe('TERDAFTAR');
+
+      const detailBefore = await request(app)
+        .get(`/api/v1/orders/${cancelOrderId}`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(detailBefore.status).toBe(200);
+      const statusesBefore = detailBefore.body.history.map((h) => h.to_status);
+      expect(statusesBefore).toContain('TERDAFTAR');
+
+      // Batalkan PO dengan alasan; alasan wajib tersimpan agar bisa diaudit.
+      const cancelRes = await request(app)
+        .patch(`/api/v1/orders/${cancelOrderId}/status`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ status: 'DIBATALKAN', note: 'Klien membatalkan pemeriksaan tahun ini' });
+      expect(cancelRes.status).toBe(200);
+      expect(cancelRes.body.order.status).toBe('DIBATALKAN');
+      expect(cancelRes.body.order.cancel_reason).toBe('Klien membatalkan pemeriksaan tahun ini');
+
+      const detailAfter = await request(app)
+        .get(`/api/v1/orders/${cancelOrderId}`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`);
+      expect(detailAfter.status).toBe(200);
+      expect(detailAfter.body.order.status).toBe('DIBATALKAN');
+      // Unit di dalam PO ikut dibatalkan sehingga tidak muncul sebagai pekerjaan menggantung.
+      expect(detailAfter.body.objects.every((o) => o.unit_status === 'DIBATALKAN')).toBe(true);
+
+      const cancelHistory = detailAfter.body.history.find((h) => h.to_status === 'DIBATALKAN');
+      expect(cancelHistory).toBeTruthy();
+      expect(cancelHistory.from_status).toBe('TERDAFTAR');
+
+      // Status akhir bersifat terminal: tidak boleh dijadwalkan atau dipindah ke TERJADWAL lagi.
+      const rescheduleClosed = await request(app)
+        .post(`/api/v1/orders/${cancelOrderId}/schedule`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({
+          startAt: '2026-11-12T08:00:00.000Z',
+          endAt: '2026-11-12T16:00:00.000Z',
+          notes: 'Percobaan menjadwalkan PO yang sudah dibatalkan'
+        });
+      expect(rescheduleClosed.status).toBe(400);
+
+      const reopen = await request(app)
+        .patch(`/api/v1/orders/${cancelOrderId}/status`)
+        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .send({ status: 'TERJADWAL' });
+      expect(reopen.status).toBe(400);
+      expect(reopen.body.error.code).toBe('INVALID_STATUS_TRANSITION');
     });
   });
 });

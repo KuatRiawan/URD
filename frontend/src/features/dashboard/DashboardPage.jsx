@@ -47,24 +47,39 @@ export function DashboardPage() {
   useEffect(() => {
     loadSummary();
 
+    const isInspectionActive = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        return params.has('inspectionId') || Boolean(sessionStorage.getItem('urd_active_inspection_id'));
+      } catch {
+        return false;
+      }
+    };
+
     // Polling periodik otomatis setiap 30 detik agar data tetap segar tanpa membebani server
     const interval = setInterval(() => {
-      loadSummary(true);
+      if (!isInspectionActive()) {
+        loadSummary(true);
+      }
     }, 30000);
 
     // Sinkronisasi instan saat pengguna kembali membuka tab atau aplikasi dari latar belakang
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !isInspectionActive()) {
         loadSummary(true);
       }
     };
 
     const handleFocus = () => {
-      loadSummary(true);
+      if (!isInspectionActive()) {
+        loadSummary(true);
+      }
     };
 
     const handleOnline = () => {
-      loadSummary(true);
+      if (!isInspectionActive()) {
+        loadSummary(true);
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -192,8 +207,8 @@ export function DashboardPage() {
     return list.filter(matchesSearch);
   }, [fieldTab, categorizedUnits, assignedUnits, matchesSearch]);
 
-  if (loading) return <LoadingState message="Memuat ringkasan operasional PT Upaya Riksa Daya..." />;
-  if (error) return <ErrorState message={error} onRetry={() => loadSummary()} />;
+  if (loading && !data) return <LoadingState message="Memuat ringkasan operasional PT Upaya Riksa Daya..." />;
+  if (error && !data) return <ErrorState message={error} onRetry={() => loadSummary()} />;
   if (!data) return null;
 
   const isInspector = ['INSPECTOR', 'AHLI_K3'].includes(user?.role);

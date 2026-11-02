@@ -18,8 +18,6 @@ import {
 } from '@phosphor-icons/react';
 
 export const ROLE_ALIASES = {
-  ADMIN_KANTOR: 'MARKETING',
-  MARKETING: 'ADMIN_KANTOR',
   AHLI_K3: 'INSPECTOR',
   INSPECTOR: 'AHLI_K3',
   MANAGER: 'PIMPINAN',
@@ -32,7 +30,7 @@ export const NAV_ITEMS = [
     group: 'Utama',
     label: 'Dasbor Operasional',
     icon: Gauge,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/orders',
@@ -46,14 +44,14 @@ export const NAV_ITEMS = [
     group: 'Operasional',
     label: 'Data Klien',
     icon: Buildings,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/objects',
     group: 'Operasional',
     label: 'Objek Uji K3',
     icon: Cube,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/schedule',
@@ -270,7 +268,7 @@ export function getVisibleNav(role) {
     ];
   }
 
-  // 3. Menu khusus Marketing / Admin Kantor: Tertata rapi per kelompok kerja
+  // 3. Menu komersial dan operasional kantor dipisahkan dari sisi tanggung jawab.
   if (['MARKETING', 'ADMIN_KANTOR'].includes(role)) {
     return [
       {
@@ -351,7 +349,11 @@ export function getVisibleNav(role) {
         label: 'Pengaturan Akun',
         icon: Gear
       }
-    ];
+    ].filter(({ to }) =>
+      role === 'MARKETING'
+        ? !['/app/lhpp', '/app/bap', '/app/distributions', '/app/suket'].includes(to)
+        : true
+    );
   }
 
   // 4. Admin Sistem: Navigasi lengkap untuk semua modul sistem
@@ -529,4 +531,3 @@ export function getMobileNavConfig(role) {
     ]
   };
 }
-

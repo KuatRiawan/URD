@@ -52,8 +52,8 @@ export function InspectionsPage() {
     templateVersionId: ''
   });
 
-  // Modal Lembar Kerja Riksa Uji (ID aktif)
-  const [activeInspectionId, setActiveInspectionId] = useState(null);
+  // Modal Lembar Kerja Riksa Uji (ID aktif, sinkron dengan URL)
+  const activeInspectionId = searchParams.get('inspectionId') || null;
 
   // Modal Pratinjau Dokumen PDF
   const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
@@ -79,6 +79,39 @@ export function InspectionsPage() {
       setLoading(false);
     }
   }, []);
+
+  const openInspectionModal = useCallback((id) => {
+    try {
+      sessionStorage.setItem('urd_active_inspection_id', id);
+    } catch {
+      void 0;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('inspectionId', id);
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
+  const handleCloseInspection = useCallback(() => {
+    try {
+      sessionStorage.removeItem('urd_active_inspection_id');
+    } catch {
+      void 0;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('inspectionId');
+        return next;
+      },
+      { replace: true }
+    );
+    loadData();
+  }, [setSearchParams, loadData]);
 
   useEffect(() => {
     loadData();
@@ -130,7 +163,7 @@ export function InspectionsPage() {
       setFeedback('Lembar kerja inspeksi berhasil dimulai.');
       await loadData();
       if (res.data?.inspection?.id) {
-        setActiveInspectionId(res.data.inspection.id);
+        openInspectionModal(res.data.inspection.id);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memulai lembar kerja inspeksi.');
@@ -151,7 +184,7 @@ export function InspectionsPage() {
     setSubmitting(true);
     setError('');
     try {
-      await api.post(`/inspections/templates/${templateVersionId}/validate`);
+      await api.patch(`/inspections/templates/versions/${templateVersionId}/validate`);
       setFeedback('Template checklist berhasil divalidasi dan siap digunakan.');
       await loadData();
     } catch (err) {
@@ -173,7 +206,7 @@ export function InspectionsPage() {
         (i) => i.order_id === qOrderId && i.object_id === qObjectId
       );
       if (existing) {
-        setActiveInspectionId(existing.id);
+        openInspectionModal(existing.id);
         return;
       }
       if (isInspector) {
@@ -185,7 +218,7 @@ export function InspectionsPage() {
           });
           await loadData();
           if (res.data?.inspection?.id) {
-            setActiveInspectionId(res.data.inspection.id);
+            openInspectionModal(res.data.inspection.id);
           }
         } catch (err) {
           setError(
@@ -199,7 +232,7 @@ export function InspectionsPage() {
       }
     };
     runAutoOpen();
-  }, [searchParams, setSearchParams, loading, inspections, isInspector, loadData]);
+  }, [searchParams, setSearchParams, loading, inspections, isInspector, loadData, openInspectionModal]);
 
   // Pratinjau Dokumen PDF
   const handlePreviewPdf = async (endpoint, title, filename) => {
@@ -421,7 +454,7 @@ export function InspectionsPage() {
                       {/* Tombol Aksi Sentuh Penuh (Full Width Touch Target) */}
                       <button
                         type="button"
-                        onClick={() => setActiveInspectionId(item.id)}
+                        onClick={() => openInspectionModal(item.id)}
                         className={`min-h-11 w-full flex items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98] cursor-pointer shadow-xs ${
                           isDraft && isInspector
                             ? 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
@@ -516,7 +549,7 @@ export function InspectionsPage() {
                           <td className="py-3.5 px-4 text-right">
                             <button
                               type="button"
-                              onClick={() => setActiveInspectionId(item.id)}
+                              onClick={() => openInspectionModal(item.id)}
                               className={`min-h-9 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer ${
                                 item.status === 'DRAF' && isInspector
                                   ? 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
@@ -611,7 +644,7 @@ export function InspectionsPage() {
       {/* Modal 2: Lembar Kerja Riksa Uji Lapangan (4-Langkah) */}
       <InspectionDetailModal
         inspectionId={activeInspectionId}
-        onClose={() => setActiveInspectionId(null)}
+        onClose={handleCloseInspection}
         isInspector={isInspector}
         user={user}
         onSaved={loadData}

@@ -1,4 +1,4 @@
-import { CheckCircle, FileText, LockKey, FloppyDisk } from '@phosphor-icons/react';
+import { CheckCircle, FileText, FloppyDisk, LockKey, QrCode, WarningOctagon } from '@phosphor-icons/react';
 import { Notice } from '../../../components/ui/Notice.jsx';
 import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
@@ -13,7 +13,8 @@ export function InspectionHeaderSection({
   isInspector,
   online,
   queuedPhotoCount,
-  onPreviewPdf
+  onPreviewPdf,
+  onDiscardDraft
 }) {
   const inspection = activeDetail.inspection;
   const isFinal = inspection.status === 'TERKIRIM';
@@ -50,7 +51,18 @@ export function InspectionHeaderSection({
       {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
       {feedback && (
         <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <span>{feedback}</span>
+            {onDiscardDraft && isInspector && !isFinal && feedback.includes('dipulihkan') && (
+              <button
+                type="button"
+                onClick={onDiscardDraft}
+                className="text-xs font-bold underline hover:text-emerald-950 dark:hover:text-emerald-100 cursor-pointer self-start sm:self-auto shrink-0"
+              >
+                Mulai ulang dari awal
+              </button>
+            )}
+          </div>
         </Notice>
       )}
       {isInspector && !online && (
@@ -81,7 +93,7 @@ export function InspectionHeaderSection({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             {/* Kartu Dokumen BAP */}
             <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
               <div className="min-w-0 flex items-center gap-2.5">
@@ -104,7 +116,7 @@ export function InspectionHeaderSection({
                     onPreviewPdf(
                       `/bap/${inspection.bap_id}/pdf`,
                       `Pratinjau BAP - ${inspection.bap_no || 'BAP'}`,
-                      `${(inspection.bap_no || 'BAP').replace(/\//g, '-')}.pdf`
+                      `${(inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.pdf`
                     )
                   }
                   className="px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
@@ -138,7 +150,7 @@ export function InspectionHeaderSection({
                     onPreviewPdf(
                       `/lhpp/${inspection.lhpp_id}/pdf`,
                       `Pratinjau LHPP - ${inspection.lhpp_no || 'LHPP'}`,
-                      `${(inspection.lhpp_no || 'LHPP').replace(/\//g, '-')}.pdf`
+                      `${(inspection.lhpp_no || 'LHPP').replace(/[/\s]/g, '-')}.pdf`
                     )
                   }
                   className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
@@ -148,6 +160,66 @@ export function InspectionHeaderSection({
               ) : (
                 <span className="text-[11px] text-slate-400">Siap Cetak</span>
               )}
+            </div>
+
+            {/* Kartu Lembar Rekomendasi K3 */}
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <div className="min-w-0 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <WarningOctagon size={18} weight="bold" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    Rekomendasi K3
+                  </p>
+                  <p className="text-[10px] text-slate-500 truncate">
+                    Temuan &amp; Tindakan
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  onPreviewPdf(
+                    `/inspections/${inspection.id}/recommendation-letter.pdf`,
+                    `Lembar Rekomendasi K3 - ${inspection.object_name}`,
+                    `Rekomendasi-K3-${(inspection.serial_number || inspection.id).replace(/[/\s]/g, '-')}.pdf`
+                  )
+                }
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
+              >
+                Buka PDF
+              </button>
+            </div>
+
+            {/* Kartu Stiker Label QR */}
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <div className="min-w-0 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <QrCode size={18} weight="bold" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    Stiker QR Alat
+                  </p>
+                  <p className="text-[10px] text-slate-500 truncate">
+                    Label Siap Cetak
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  onPreviewPdf(
+                    `/objects/${inspection.object_id}/qr-sticker.pdf`,
+                    `Stiker QR Alat - ${inspection.object_name}`,
+                    `Stiker-QR-${(inspection.serial_number || inspection.object_id).replace(/[/\s]/g, '-')}.pdf`
+                  )
+                }
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
+              >
+                Buka PDF
+              </button>
             </div>
           </div>
         </div>

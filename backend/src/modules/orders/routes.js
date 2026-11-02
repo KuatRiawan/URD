@@ -7,7 +7,10 @@ import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
 import { recordOrderRevision } from '../../services/order-revisions.js';
 import { createNotification, notifyRoles } from '../../services/notify.js';
-import { generateAssignmentLetterPdfBuffer } from '../../services/pdf-generator.js';
+import {
+  generateAssignmentLetterPdfBuffer,
+  generateBastPdfBuffer
+} from '../../services/pdf-generator.js';
 import { computePoUnitProgress, syncOrderUnitStatus } from '../../services/workflow.js';
 import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
@@ -16,6 +19,8 @@ const router = Router();
 router.use(authenticate);
 
 const ALLOWED_TRANSITIONS = {
+  // TERDAFTAR adalah status awal PO saat ini; ORDER_BARU dipertahankan untuk data lama.
+  TERDAFTAR: ['TERJADWAL', 'DIBATALKAN'],
   ORDER_BARU: ['TERJADWAL', 'DIBATALKAN'],
   TERJADWAL: ['DITUGASKAN', 'DIBATALKAN'],
   DITUGASKAN: ['SEDANG_DIPERIKSA', 'TERJADWAL', 'DIBATALKAN'],
@@ -490,7 +495,7 @@ router.get('/:id', async (req, res, next) => {
 
 router.post(
   '/',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(createOrderSchema),
   async (req, res, next) => {
     try {
@@ -663,8 +668,8 @@ router.post(
 
         await db.query(
           `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
-           VALUES ($1, NULL, 'ORDER_BARU', $2, $3)`,
-          [order.id, `PO ${poNo} dicatat dengan ${insertedIds.length} unit alat`, req.user.id]
+           VALUES ($1, NULL, $2, $3, $4)`,
+          [order.id, order.status, `PO ${poNo} dicatat dengan ${insertedIds.length} unit alat`, req.user.id]
         );
 
         // Jika Admin langsung menugaskan Inspector saat membuat PO, buat jadwal otomatis & penugasan
@@ -709,6 +714,11 @@ router.post(
           await db.query("UPDATE orders SET status = 'DITUGASKAN', updated_at = now() WHERE id = $1", [
             order.id
           ]);
+          await db.query(
+            `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
+             VALUES ($1, $2, 'DITUGASKAN', 'Ahli K3 ditugaskan saat PO dicatat', $3)`,
+            [order.id, order.status, req.user.id]
+          );
         }
 
         await recordOrderRevision(db, {
@@ -1069,12 +1079,12 @@ router.post(
           [id, new Date(startAt).toISOString().slice(0, 10)]
         );
 
-        if (order.status === 'ORDER_BARU') {
+        if (order.status === 'ORDER_BARU' || order.status === 'TERDAFTAR') {
           await db.query("UPDATE orders SET status = 'TERJADWAL', updated_at = now() WHERE id = $1", [id]);
           await db.query(
             `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
-             VALUES ($1, 'ORDER_BARU', 'TERJADWAL', 'Jadwal pemeriksaan ditetapkan', $2)`,
-            [id, req.user.id]
+             VALUES ($1, $2, 'TERJADWAL', 'Jadwal pemeriksaan ditetapkan', $3)`,
+            [id, order.status, req.user.id]
           );
         }
 
@@ -1179,7 +1189,10 @@ router.post(
           for (const cat of reqCategories) {
             const { rows: compRows } = await db.query(
               `SELECT id FROM inspector_competencies
-               WHERE inspector_id = $1 AND category_id = $2 AND valid_until >= $3::date`,
+               WHERE inspector_id = $1
+                 AND category_id = $2
+                 AND (valid_from IS NULL OR valid_from <= $3::date)
+                 AND valid_until >= $3::date`,
               [inspectorId, cat.category_id, schedDate]
             );
             if (!compRows[0]) {
@@ -1257,7 +1270,7 @@ router.post(
           );
         }
 
-        if (order.status === 'TERJADWAL' || order.status === 'ORDER_BARU') {
+        if (order.status === 'TERJADWAL' || order.status === 'ORDER_BARU' || order.status === 'TERDAFTAR') {
           await db.query("UPDATE orders SET status = 'DITUGASKAN', updated_at = now() WHERE id = $1", [id]);
           await db.query(
             `INSERT INTO order_status_history (order_id, from_status, to_status, note, changed_by)
@@ -1525,6 +1538,65 @@ router.get('/:id/assignment-letter.pdf', async (req, res, next) => {
       `inline; filename="Surat-Tugas-${rows[0].order_no.replace(/\//g, '-')}.pdf"`
     );
     return res.send(pdfBuffer);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/:id/bast.pdf', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const orderRes = await query(
+      `SELECT o.*, c.name AS client_name, c.address AS client_address,
+              coalesce(ct.name, '') AS contact_name,
+              coalesce(ct.phone, '') AS contact_phone
+       FROM orders o
+       JOIN clients c ON c.id = o.client_id
+       LEFT JOIN client_contacts ct ON ct.client_id = c.id
+       WHERE o.id = $1`,
+      [id]
+    );
+
+    if (!orderRes.rows.length) {
+      throw new AppError(404, 'ORDER_NOT_FOUND', 'PO tidak ditemukan.');
+    }
+    const order = orderRes.rows[0];
+
+    const { rows: unitRows } = await query(
+      `SELECT oo.unit_status,
+              t.id AS object_id, t.name AS object_name, t.serial_number,
+              oc.code AS category_code, oc.name AS category_name,
+              b.bap_no,
+              l.lhpp_no,
+              s.suket_no, s.valid_until
+       FROM order_objects oo
+       JOIN test_objects t ON t.id = oo.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       LEFT JOIN bap_documents b ON b.order_id = oo.order_id AND b.object_id = oo.object_id AND b.status = 'FINAL'
+       LEFT JOIN inspections i ON i.order_id = oo.order_id AND i.object_id = oo.object_id
+       LEFT JOIN lhpp_documents l ON l.inspection_id = i.id AND l.status IN ('FINAL', 'TERBIT')
+       LEFT JOIN suket_documents s ON s.object_id = oo.object_id AND s.status = 'TERBIT'
+       WHERE oo.order_id = $1
+       ORDER BY t.name ASC`,
+      [id]
+    );
+
+    const bastBuffer = await generateBastPdfBuffer({
+      id: order.id,
+      order_no: order.order_no,
+      po_number: order.po_number,
+      client_name: order.client_name,
+      client_address: order.client_address,
+      recipient_name: order.contact_name || order.client_name,
+      contact_name: order.contact_name,
+      dispatched_by_name: req.user?.fullName || 'Admin Operasional PT Upaya Riksa Daya',
+      items: unitRows
+    });
+
+    const filename = `BAST-${(order.po_number || order.order_no).replace(/[/\s]/g, '-')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.send(bastBuffer);
   } catch (err) {
     return next(err);
   }

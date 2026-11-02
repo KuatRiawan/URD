@@ -76,15 +76,22 @@ async function loadCandidates() {
        FROM inspections i JOIN lhpp_documents l ON l.inspection_id = i.id
        WHERE i.object_id = t.id ORDER BY i.created_at DESC LIMIT 1
      ) li ON true
+     LEFT JOIN LATERAL (
+       SELECT rf.status::text AS status
+       FROM renewal_followups rf
+       WHERE rf.suket_id IN (
+         SELECT s.id FROM suket_documents s WHERE s.object_id = t.id
+       )
+          OR rf.object_id = t.id
+       ORDER BY rf.created_at DESC
+       LIMIT 1
+     ) latest_followup ON true
      WHERE t.is_active = true
        AND c.is_active = true
        AND COALESCE(ls.valid_until, t.next_inspection_date, li.recommended_valid_until) IS NOT NULL
        AND (COALESCE(ls.valid_until, t.next_inspection_date, li.recommended_valid_until) - CURRENT_DATE) <= 90
-       AND COALESCE(
-             (SELECT rf.status::text FROM renewal_followups rf
-              WHERE rf.object_id = t.id ORDER BY rf.created_at DESC LIMIT 1),
-             ''
-           ) NOT IN ('SUDAH_JADI_PO_BARU', 'DITUNDA')`
+       AND COALESCE(latest_followup.status, '')
+           NOT IN ('SUDAH_JADI_PO_BARU', 'DITUNDA')`
   );
   return rows;
 }

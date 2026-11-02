@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildLhppReportContent,
-  generateLhppPdfBuffer
+  generateBastPdfBuffer,
+  generateLhppPdfBuffer,
+  generateObjectQrStickerPdfBuffer,
+  generateRecommendationLetterPdfBuffer
 } from '../services/pdf-generator.js';
+import { generateLhppDocxBuffer } from '../services/docx-generator.js';
 
 const reportData = {
   category_code: 'PAA',
@@ -153,7 +157,8 @@ describe('LHPP PDF template output', () => {
       PTP: { section: 'A. SPESIFIKASI MESIN', fields: /kebisingan|pencahayaan/i },
       IPP: { section: 'III. HASIL INSPEKSI VISUAL & PENGUJIAN', fields: /air terminal|pembumian/i },
       LIS: { section: 'III. HASIL PEMERIKSAAN & PENGUKURAN', fields: /sumber tenaga listrik|daya penerangan/i },
-      IPK: { section: 'PEMERIKSAAN DAN PENGUJIAN INSTALASI FIRE ALARM', fields: /MCFA|sprinkler/i }
+      IPK: { section: 'PEMERIKSAAN DAN PENGUJIAN INSTALASI FIRE ALARM', fields: /MCFA|sprinkler/i },
+      LE: { section: 'III. PEMERIKSAAN VISUAL DAN PENGUJIAN', fields: /kecepatan nominal|governor/i }
     };
 
     for (const [categoryCode, expected] of Object.entries(categories)) {
@@ -194,7 +199,7 @@ describe('LHPP PDF template output', () => {
     expect(pageCount).toBeGreaterThan(1);
   });
 
-  it('appends field-specific company and Ahli K3 SKP pages for every supplied template', async () => {
+  it('appends field-specific company and Ahli K3 SKP pages for every category with supplied SKP template', async () => {
     for (const categoryCode of ['PAA', 'PUBT', 'PTP', 'IPP', 'LIS', 'IPK']) {
       const pdf = await generateLhppPdfBuffer({
         category_code: categoryCode,
@@ -209,5 +214,105 @@ describe('LHPP PDF template output', () => {
       expect(pageCount, `${categoryCode} page count`).toBeGreaterThanOrEqual(4);
       expect(imageCount, `${categoryCode} image count`).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('renders valid multi-page LHPP PDF for LE (Elevator & Eskalator) cleanly', async () => {
+    const pdf = await generateLhppPdfBuffer({
+      category_code: 'LE',
+      results: [],
+      findings: [],
+      photos: []
+    });
+    const pdfText = pdf.toString('latin1');
+    const pageCount = (pdfText.match(/\/Type \/Page\b/g) || []).length;
+
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(pageCount).toBeGreaterThanOrEqual(2);
+  });
+
+  describe('Official PRD Document Generators (BAST, QR Sticker, Recommendation Letter)', () => {
+    it('generates a valid BAST PDF buffer matching PRD Document #7 specification', async () => {
+      const bastPdf = await generateBastPdfBuffer({
+        bast_no: 'BAST/URD/2026/001',
+        date: new Date('2026-05-20'),
+        po_number: 'PO-TEST-100',
+        client_name: 'PT Mitra Sukses K3',
+        client_address: 'Kawasan Industri MM2100, Cikarang',
+        recipient_name: 'Bapak Direktur',
+        dispatched_by_name: 'Admin Operasional PT Upaya Riksa Daya',
+        items: [
+          {
+            name: 'Overhead Crane 5 Ton',
+            serial_number: 'OC-5T-001',
+            category_name: 'Pesawat Angkat & Angkut',
+            bap_no: 'BAP/URD/2026/001',
+            lhpp_no: '0001/INSP-PAA/2026',
+            suket_no: '560/SUKET-001/DISNAKER/2026',
+            status: 'TERBIT'
+          }
+        ]
+      });
+
+      expect(Buffer.isBuffer(bastPdf)).toBe(true);
+      expect(bastPdf.subarray(0, 5).toString()).toBe('%PDF-');
+      expect(bastPdf.length).toBeGreaterThan(1000);
+    });
+
+    it('generates a valid QR Sticker PDF buffer matching PRD Document #6 specification', async () => {
+      const stickerPdf = await generateObjectQrStickerPdfBuffer({
+        id: 'test-obj-id',
+        name: 'Forklift Diesel 3T',
+        serial_number: 'FL-3T-009',
+        capacity: '3 Ton',
+        client_name: 'PT Klien Logistik',
+        category_name: 'Pesawat Angkat dan Angkut',
+        suket_no: 'SUKET/560/DISNAKER/2026',
+        valid_until: '2027-05-15',
+        verification_code: 'VERIF-FL3T-2026'
+      });
+
+      expect(Buffer.isBuffer(stickerPdf)).toBe(true);
+      expect(stickerPdf.subarray(0, 5).toString()).toBe('%PDF-');
+      expect(stickerPdf.length).toBeGreaterThan(1000);
+    });
+
+    it('generates a valid Recommendation Letter PDF buffer matching PRD Document #3 specification', async () => {
+      const recPdf = await generateRecommendationLetterPdfBuffer({
+        inspection_id: 'test-insp-id',
+        recommendation_no: 'REK-K3/URD/2026/0042',
+        inspection_date: '2026-05-22',
+        client_name: 'PT Pabrik Baja',
+        company_address: 'Kawasan Industri Cilegon',
+        object_name: 'Bejana Tekan Air Receiver',
+        category_name: 'Pesawat Uap dan Bejana Tekan',
+        serial_number: 'BT-AR-1002',
+        capacity: '1000 Liter / 10 Bar',
+        location: 'Ruang Kompresor',
+        findings: [
+          {
+            finding: 'Safety valve belum dikalibrasi ulang',
+            risk_level: 'KRITIS',
+            recommendation: 'Lakukan kalibrasi ulang safety valve dan uji pop-up segera',
+            deadline: '10 Juni 2026'
+          }
+        ],
+        conclusion: 'TIDAK_MEMENUHI_SYARAT',
+        conclusion_notes: 'Wajib melakukan perbaikan safety valve sebelum operasi.',
+        inspector_name: 'Ir. Budi Santoso, Ahli K3 Spesialis',
+        inspector_skp_no: 'SKP.560/PUBT/2024'
+      });
+
+      expect(Buffer.isBuffer(recPdf)).toBe(true);
+      expect(recPdf.subarray(0, 5).toString()).toBe('%PDF-');
+      expect(recPdf.length).toBeGreaterThan(1000);
+    });
+
+    it('generates a valid DOCX buffer for LHPP report', async () => {
+      const docx = await generateLhppDocxBuffer(reportData);
+      expect(Buffer.isBuffer(docx)).toBe(true);
+      // Valid zip/docx header starts with PK\x03\x04 (0x50 0x4B 0x03 0x04)
+      expect(docx.subarray(0, 2).toString()).toBe('PK');
+      expect(docx.length).toBeGreaterThan(2000);
+    });
   });
 });

@@ -33,6 +33,12 @@ export async function seedDatabase({ password } = {}) {
         phone: '0812-8000-1101'
       },
       {
+        email: 'admin.kantor@upayariksadaya.com',
+        fullName: 'Dewi Lestari (Admin Kantor)',
+        role: 'ADMIN_KANTOR',
+        phone: '0812-8000-1104'
+      },
+      {
         email: 'ahlik3.paa@upayariksadaya.com',
         fullName: 'Ir. Budi Santoso (Ahli K3 Spesialis)',
         role: 'INSPECTOR',
@@ -40,28 +46,18 @@ export async function seedDatabase({ password } = {}) {
         employeeNo: 'URD-AK3-001'
       },
       {
+        email: 'ahlik3.listrik@upayariksadaya.com',
+        fullName: 'Rizky Pratama, S.T. (Inspector Listrik & Petir)',
+        role: 'INSPECTOR',
+        phone: '0812-8000-1103',
+        employeeNo: 'URD-AK3-002'
+      },
+      {
         email: 'pimpinan@upayariksadaya.com',
         fullName: 'Kuat Riawan (Pimpinan)',
         role: 'PIMPINAN',
         phone: '0812-8000-1100'
-      },
-      ...(env.isTest
-        ? [
-            {
-              email: 'admin.kantor@upayariksadaya.com',
-              fullName: 'Siti Rahmawati (Marketing / PO Officer)',
-              role: 'MARKETING',
-              phone: '0812-8000-1101'
-            },
-            {
-              email: 'ahlik3.listrik@upayariksadaya.com',
-              fullName: 'Rizky Pratama, S.T. (Inspector Listrik & Petir)',
-              role: 'INSPECTOR',
-              phone: '0812-8000-1103',
-              employeeNo: 'URD-AK3-002'
-            }
-          ]
-        : [])
+      }
     ];
 
     const userByEmail = {};

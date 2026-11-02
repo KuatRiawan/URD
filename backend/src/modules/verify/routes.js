@@ -93,6 +93,43 @@ router.get('/:code', async (req, res, next) => {
       });
     }
 
+    // 3. Cek di tabel suket_documents (Pencatatan Surat Keterangan K3 Resmi)
+    const { rows: suketRows } = await query(
+      `SELECT s.id, s.suket_no, s.status,
+              to_char(s.issued_date, 'YYYY-MM-DD') AS issued_date,
+              to_char(s.valid_until, 'YYYY-MM-DD') AS valid_until,
+              s.issuer,
+              t.name AS object_name, t.serial_number, oc.name AS category_name, oc.code AS category_code,
+              c.name AS client_name
+       FROM suket_documents s
+       JOIN test_objects t ON t.id = s.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN clients c ON c.id = t.client_id
+       WHERE (UPPER(coalesce(s.suket_no,'')) = $1 OR UPPER(t.serial_number) = $1 OR s.id::text = $2) AND s.status = 'TERBIT'
+       LIMIT 1`,
+      [rawCode, req.params.code]
+    );
+
+    if (suketRows[0]) {
+      const doc = suketRows[0];
+      return res.json({
+        verified: true,
+        documentType: 'SUKET',
+        documentTitle: 'Surat Keterangan (Suket) K3 Disnaker',
+        documentNo: doc.suket_no,
+        issuedDate: doc.issued_date,
+        validUntil: doc.valid_until,
+        issuer: doc.issuer,
+        unit: {
+          name: doc.object_name,
+          serialNumber: doc.serial_number,
+          category: `${doc.category_code} - ${doc.category_name}`
+        },
+        clientName: doc.client_name,
+        status: 'TERBIT_RESMI'
+      });
+    }
+
     return res.status(404).json({
       verified: false,
       message: 'Dokumen dengan kode verifikasi tersebut tidak ditemukan atau belum resmi diterbitkan.'

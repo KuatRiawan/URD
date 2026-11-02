@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useDialogFocus(open, dialogRef, onClose) {
+export function useDialogFocus(open, dialogRef, onClose, closeOnEscape = true) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -14,6 +14,7 @@ export function useDialogFocus(open, dialogRef, onClose) {
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
+        if (!closeOnEscape) return;
         onCloseRef.current?.();
         return;
       }
@@ -37,5 +38,5 @@ export function useDialogFocus(open, dialogRef, onClose) {
       window.removeEventListener('keydown', handleKeyDown);
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
     };
-  }, [open, dialogRef]);
+  }, [open, dialogRef, closeOnEscape]);
 }

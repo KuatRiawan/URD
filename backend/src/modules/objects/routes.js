@@ -6,6 +6,7 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
+import { generateObjectQrStickerPdfBuffer } from '../../services/pdf-generator.js';
 import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
 
@@ -329,9 +330,51 @@ router.get('/:id/qr', async (req, res, next) => {
   }
 });
 
+// PRD Section 4.2 Dokumen #6: Stiker / Label QR Code Objek Alat Siap Cetak
+router.get('/:id/qr-sticker.pdf', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `SELECT t.id, t.name, t.serial_number, t.capacity, t.capacity_unit, t.install_location,
+              c.name AS client_name, oc.name AS category_name, oc.code AS category_code,
+              s.suket_no, s.issued_date, s.valid_until
+       FROM test_objects t
+       JOIN clients c ON c.id = t.client_id
+       LEFT JOIN object_categories oc ON oc.id = t.category_id
+       LEFT JOIN LATERAL (
+         SELECT suket_no, issued_date, valid_until
+         FROM suket_documents
+         WHERE object_id = t.id AND status = 'TERBIT'
+         ORDER BY issued_date DESC NULLS LAST, created_at DESC
+         LIMIT 1
+       ) s ON TRUE
+       WHERE t.id = $1`,
+      [id]
+    );
+    const obj = rows[0];
+    if (!obj) throw new AppError(404, 'OBJECT_NOT_FOUND', 'Objek uji tidak ditemukan.');
+
+    const capStr = [obj.capacity, obj.capacity_unit].filter(Boolean).join(' ') || '-';
+    const buffer = await generateObjectQrStickerPdfBuffer({
+      ...obj,
+      capacity: capStr,
+      verification_code: obj.suket_no || obj.serial_number || obj.id
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="stiker-qr-${obj.serial_number || obj.id}.pdf"`
+    );
+    return res.send(buffer);
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.post(
   '/',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(objectSchema),
   async (req, res, next) => {
     try {
@@ -400,7 +443,7 @@ router.post(
 
 router.patch(
   '/:id',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(objectSchema),
   async (req, res, next) => {
     try {
@@ -475,7 +518,7 @@ router.patch(
 // M1-09: Impor CSV dengan validasi per baris
 router.post(
   '/import-csv',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(csvImportSchema),
   async (req, res, next) => {
     try {

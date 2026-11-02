@@ -139,7 +139,7 @@ export function SuketPage() {
     setSubmitting(true);
     setError('');
     try {
-      await api.put(`/suket/${detailData.suket.id}`, {
+      await api.patch(`/suket/${detailData.suket.id}`, {
         suketNo: editForm.suketNo || null,
         status: editForm.status,
         issuedDate: editForm.issuedDate || null,

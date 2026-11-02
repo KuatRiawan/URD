@@ -16,7 +16,7 @@ const createUserSchema = Joi.object({
   email: Joi.string().email().required(),
   fullName: Joi.string().min(2).max(120).required(),
   role: Joi.string()
-    .valid('ADMIN_SISTEM', 'MARKETING', 'INSPECTOR', 'PIMPINAN')
+    .valid('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'PIMPINAN')
     .required(),
   phone: Joi.string().allow('', null),
   password: Joi.string().min(8).max(128).required(),
@@ -44,14 +44,8 @@ router.get('/', async (req, res, next) => {
       conds.push(`(lower(full_name) LIKE $${params.length} OR lower(email::text) LIKE $${params.length})`);
     }
     if (role) {
-      const roleGroup = {
-        MARKETING: ['MARKETING', 'ADMIN_KANTOR'],
-        INSPECTOR: ['INSPECTOR', 'AHLI_K3'],
-        PIMPINAN: ['PIMPINAN', 'MANAGER'],
-        ADMIN_SISTEM: ['ADMIN_SISTEM']
-      }[role] || [role];
-      params.push(roleGroup);
-      conds.push(`role = ANY($${params.length}::text[])`);
+      params.push(role);
+      conds.push(`role = $${params.length}`);
     }
     const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
@@ -186,4 +180,3 @@ router.patch('/:id', validate(updateUserSchema), async (req, res, next) => {
 });
 
 export default router;
-

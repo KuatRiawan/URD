@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import {
   ArrowRight,
   ClipboardText,
@@ -40,16 +40,59 @@ export function InspectorDashboardView({
   setRejectReason,
   actionLoading
 }) {
-  const [activeInspectionId, setActiveInspectionId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeInspectionId = searchParams.get('inspectionId') || null;
   const [openingInspection, setOpeningInspection] = useState(false);
   const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [previewPdfTitle, setPreviewPdfTitle] = useState('');
   const [previewPdfFilename, setPreviewPdfFilename] = useState('');
 
+  // Pulihkan sesi inspeksi jika halaman di-reload oleh browser mobile saat mengambil foto (hanya pada initial mount)
+  useEffect(() => {
+    const urlId = searchParams.get('inspectionId');
+    if (urlId) {
+      try {
+        sessionStorage.setItem('urd_active_inspection_id', urlId);
+      } catch {
+        void 0;
+      }
+    } else {
+      try {
+        const storedId = sessionStorage.getItem('urd_active_inspection_id');
+        if (storedId) {
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('inspectionId', storedId);
+              return next;
+            },
+            { replace: true }
+          );
+        }
+      } catch {
+        void 0;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleOpenInspection = async (u) => {
-    if (u.inspection_id) {
-      setActiveInspectionId(u.inspection_id);
+    const targetId = u.inspection_id;
+    if (targetId) {
+      try {
+        sessionStorage.setItem('urd_active_inspection_id', targetId);
+      } catch {
+        void 0;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('inspectionId', targetId);
+          return next;
+        },
+        { replace: true }
+      );
       return;
     }
     try {
@@ -58,10 +101,23 @@ export function InspectorDashboardView({
         orderId: u.order_id,
         objectId: u.object_id
       });
-      if (res.data?.inspection?.id) {
-        setActiveInspectionId(res.data.inspection.id);
+      const newId = res.data?.inspection?.id;
+      if (newId) {
+        try {
+          sessionStorage.setItem('urd_active_inspection_id', newId);
+        } catch {
+          void 0;
+        }
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('inspectionId', newId);
+            return next;
+          },
+          { replace: true }
+        );
       }
-      if (loadSummary) loadSummary();
+      if (loadSummary) loadSummary(true);
     } catch (err) {
       alert(
         err.response?.data?.error?.message ||
@@ -71,6 +127,23 @@ export function InspectorDashboardView({
     } finally {
       setOpeningInspection(false);
     }
+  };
+
+  const handleCloseInspection = () => {
+    try {
+      sessionStorage.removeItem('urd_active_inspection_id');
+    } catch {
+      void 0;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('inspectionId');
+        return next;
+      },
+      { replace: true }
+    );
+    if (loadSummary) loadSummary(true);
   };
 
   const handlePreviewPdf = async (endpoint, title, filename) => {
@@ -692,14 +765,11 @@ export function InspectorDashboardView({
       {activeInspectionId && (
         <InspectionDetailModal
           inspectionId={activeInspectionId}
-          onClose={() => {
-            setActiveInspectionId(null);
-            if (loadSummary) loadSummary();
-          }}
+          onClose={handleCloseInspection}
           isInspector={true}
           user={user}
           onSaved={() => {
-            if (loadSummary) loadSummary();
+            if (loadSummary) loadSummary(true);
           }}
           onPreviewPdf={handlePreviewPdf}
         />

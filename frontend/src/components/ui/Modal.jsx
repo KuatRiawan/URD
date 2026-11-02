@@ -21,11 +21,13 @@ export function Modal({
   footer,
   maxWidth,
   size = 'md',
-  closeOnBackdrop = true
+  closeOnBackdrop = true,
+  closeOnEscape = true,
+  fullScreenMobile = false
 }) {
   const visible = Boolean(open ?? isOpen);
   const panelRef = useRef(null);
-  useDialogFocus(visible, panelRef, onClose);
+  useDialogFocus(visible, panelRef, onClose, closeOnEscape);
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -40,19 +42,26 @@ export function Modal({
   if (!visible) return null;
 
   const widthClass = maxWidth || SIZE_CLASSES[size] || SIZE_CLASSES.md;
+  const isMobileFull = fullScreenMobile || size === 'xl';
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end sm:items-center sm:justify-center sm:p-6"
+      className={`fixed inset-0 z-50 overflow-hidden flex flex-col ${
+        isMobileFull ? 'justify-stretch h-full' : 'justify-end'
+      } sm:items-center sm:justify-center sm:p-6`}
       role="dialog"
       aria-modal="true"
-        aria-label={title || 'Dialog'}
+      aria-label={title || 'Dialog'}
     >
-      {/* Backdrop Gelap */}
+      {/* Backdrop Gelap (hanya aktif di luar panel pada desktop atau modal non-fullscreen) */}
       <div
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] transition-opacity animate-fade-in"
-        onClick={() => {
-            if (closeOnBackdrop) onClose?.();
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] transition-opacity animate-fade-in ${
+          isMobileFull ? 'hidden sm:block' : ''
+        }`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && closeOnBackdrop) {
+            onClose?.();
+          }
         }}
         aria-hidden="true"
       />
@@ -60,12 +69,18 @@ export function Modal({
       {/* Panel Bottom Sheet Mobile & Centered Dialog Desktop */}
       <div
         ref={panelRef}
-        className={`relative w-full ${widthClass} rounded-t-[28px] sm:rounded-2xl bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[90vh] overscroll-contain pb-safe z-10`}
+        className={`relative w-full ${widthClass} ${
+          isMobileFull
+            ? 'h-full sm:h-auto min-h-0 max-h-none sm:max-h-[90vh] rounded-none sm:rounded-2xl border-0 sm:border'
+            : 'rounded-t-[28px] sm:rounded-2xl max-h-[92dvh] sm:max-h-[90vh] border-t sm:border'
+        } bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overscroll-contain pb-safe z-10`}
       >
-        {/* Indikator Handle Bar Lembar Bawah Mobile */}
-        <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
-          <span className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
-        </div>
+        {/* Indikator Handle Bar Lembar Bawah Mobile (hanya jika bukan layar penuh) */}
+        {!isMobileFull && (
+          <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
+            <span className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+          </div>
+        )}
 
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-5 sm:px-6 py-3.5 sm:py-4 shrink-0">
           <div className="min-w-0 pr-2">

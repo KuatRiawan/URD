@@ -1,7 +1,19 @@
 import { useState } from 'react';
-import { ArrowRight, Camera, CaretDown, CaretUp, Check, CheckCircle, SlidersHorizontal, X } from '@phosphor-icons/react';
+import {
+  ArrowRight,
+  Camera,
+  CaretDown,
+  CaretUp,
+  Check,
+  CheckCircle,
+  IdentificationBadge,
+  SlidersHorizontal,
+  WarningCircle,
+  X
+} from '@phosphor-icons/react';
 
 export function StepChecklist({
+  inspection = {},
   items = [],
   draftResults = {},
   setDraftResults,
@@ -9,18 +21,23 @@ export function StepChecklist({
   setDraftObjectAttributes,
   attributeSchema = [],
   categoryCode = '',
+  _categoryName = '',
   onUploadInlinePhoto,
+  onUploadNameplatePhoto,
   readOnly,
   missingItems,
   evaluatedItems,
   totalItems,
-  onAutoFillStandard,
   isInspector,
   status,
   photos = [],
   onNext
 }) {
   const [showTechSpecs, setShowTechSpecs] = useState(true);
+  const nameplatePhotoAttached = photos.some((p) =>
+    (p.caption || '').toLowerCase().includes('nameplate')
+  );
+
   const sections = [];
   const sectionMap = new Map();
   for (const item of items) {
@@ -34,6 +51,127 @@ export function StepChecklist({
 
   return (
     <div className="space-y-4">
+      {/* 1. Verifikasi Fisik Nameplate Unit (Object & Nameplate Matching) */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-md bg-[#C81E1E] text-white flex items-center justify-center text-xs font-bold shrink-0">
+              <IdentificationBadge size={14} weight="bold" />
+            </span>
+            <div>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                Verifikasi Fisik Nameplate Unit
+              </h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Tahap 1: Cocokkan pelat pabrik fisik dengan data PO sebelum uji fungsi
+              </p>
+            </div>
+          </div>
+          <span
+            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+              nameplatePhotoAttached
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+            }`}
+          >
+            {nameplatePhotoAttached ? 'Foto Terlampir' : 'Perlu Foto Nameplate'}
+          </span>
+        </div>
+
+        <div className="p-4 bg-slate-50/40 dark:bg-slate-900/40 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama Objek</span>
+              <p className="font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
+                {inspection?.object_name || '-'}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">No. Seri PO / Sistem</span>
+              <p className="font-mono font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
+                {inspection?.serial_number || '-'}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kapasitas / SWL</span>
+              <p className="font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
+                {inspection?.capacity || '-'}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lokasi / Bay</span>
+              <p className="font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
+                {inspection?.install_location || inspection?.location_name || '-'}
+              </p>
+            </div>
+          </div>
+
+          {/* Bar Aksi Cepat Nameplate */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              {nameplatePhotoAttached ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle size={16} weight="fill" />
+                    <span>Foto Nameplate Terlampir</span>
+                  </span>
+                  {!readOnly && (
+                    <div className="relative inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-xl cursor-pointer active:scale-95 transition-all select-none overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <Camera size={14} weight="bold" />
+                      <span>Ganti / Tambah</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={readOnly}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && onUploadNameplatePhoto) {
+                            onUploadNameplatePhoto(file);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className="relative inline-flex items-center gap-2 text-xs font-bold text-white bg-[#C81E1E] hover:bg-[#a61717] px-3.5 py-2 rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all select-none overflow-hidden"
+                >
+                  <Camera size={16} weight="bold" />
+                  <span>Ambil / Unggah Foto Nameplate</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={readOnly}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && onUploadNameplatePhoto) {
+                        onUploadNameplatePhoto(file);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <a
+                href={`/app/issues?orderId=${encodeURIComponent(inspection?.order_id || '')}&objectId=${encodeURIComponent(inspection?.object_id || '')}&inspectionId=${encodeURIComponent(inspection?.id || '')}&issueType=UNIT_MISMATCH`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline p-1"
+              >
+                <WarningCircle size={14} weight="bold" />
+                <span>Nomor Seri / Objek Tidak Sesuai? Laporkan</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Parameter Spesifikasi Teknis & Pengukuran Fisik Unit (Bab II LHPP) */}
       {attributeSchema.length > 0 && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
@@ -109,14 +247,9 @@ export function StepChecklist({
         </div>
 
         {isInspector && status === 'DRAF' && missingItems > 0 && (
-          <button
-            type="button"
-            onClick={onAutoFillStandard}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a61717] font-bold text-xs shrink-0 shadow-xs transition-colors cursor-pointer"
-          >
-            <CheckCircle size={15} weight="bold" />
-            <span>Tandai Item Pilihan Sesuai</span>
-          </button>
+          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+            Setiap item harus diisi berdasarkan pemeriksaan aktual.
+          </span>
         )}
       </div>
 
@@ -314,24 +447,25 @@ export function StepChecklist({
 
                         {/* Tombol Kamera Lapangan Cepat (Bisa Kamera Langsung atau Galeri HP) */}
                         {isInspector && status === 'DRAF' && (
-                          <label
+                          <div
                             title="Ambil Foto dari Kamera atau Pilih dari Galeri"
-                            className="min-h-[44px] md:min-h-9 px-3 rounded-xl md:rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-center transition-colors shadow-2xs shrink-0"
+                            className="relative min-h-[44px] md:min-h-9 px-3 rounded-xl md:rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-center transition-colors shadow-2xs shrink-0 select-none overflow-hidden"
                           >
                             <Camera size={16} weight="bold" />
                             <input
                               type="file"
                               accept="image/*"
-                              className="sr-only"
+                              disabled={readOnly}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                               onChange={(e) => {
                                 const f = e.target.files?.[0];
                                 if (f) {
                                   onUploadInlinePhoto(item, f);
-                                  e.target.value = '';
                                 }
+                                e.target.value = '';
                               }}
                             />
-                          </label>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -359,4 +493,3 @@ export function StepChecklist({
     </div>
   );
 }
-

@@ -24,6 +24,18 @@ export function getErrorMessage(err, fallback = 'Terjadi kendala saat memproses 
   return err?.response?.data?.error?.message || err?.message || fallback;
 }
 
+// Backend selalu mengirim galat dalam bentuk { error: { code, message } }.
+// Sebagian besar komponen membaca error.response.data.message, sehingga tanpa
+// normalisasi ini pengguna hanya melihat pesan generik dan tidak tahu penyebab
+// kegagalan sebenarnya (mis. alasan penolakan jadwal atau aturan status PO).
+export function normalizeErrorPayload(error) {
+  const payload = error?.response?.data;
+  if (payload && typeof payload === 'object' && !payload.message && payload.error?.message) {
+    payload.message = payload.error.message;
+  }
+  return error;
+}
+
 export async function performRefresh() {
   if (!refreshPromise) {
     refreshPromise = api
@@ -67,9 +79,9 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         setAccessToken(null);
         if (onUnauthorizedCallback) onUnauthorizedCallback();
-        return Promise.reject(refreshErr);
+        return Promise.reject(normalizeErrorPayload(refreshErr));
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(normalizeErrorPayload(error));
   }
 );

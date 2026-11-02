@@ -16,8 +16,8 @@ export function LhppPage() {
   const { user } = useAuth();
   const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
-  const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +123,7 @@ export function LhppPage() {
     setSubmitting(true);
     setError('');
     try {
-      await api.patch(`/lhpp/${detailLhpp.id}/draft`, {
+      await api.put(`/lhpp/${detailLhpp.id}/draft`, {
         methodSummary: draftForm.methodSummary,
         technicalNotes: draftForm.technicalNotes,
         recommendations: draftForm.recommendations,
@@ -182,6 +182,29 @@ export function LhppPage() {
       await loadData();
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memfinalisasi dokumen LHPP.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReturnLhpp = async (note) => {
+    if (!detailLhpp) return false;
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.post(`/lhpp/${detailLhpp.id}/return`, { note });
+      setFeedback(
+        'LHPP dikembalikan ke Ahli K3 untuk diperbaiki. Unit alat kembali ke tahap revisi dan catatan Anda terkirim sebagai notifikasi.'
+      );
+      await openDetail(detailLhpp.id);
+      await loadData();
+      return true;
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          'Gagal mengembalikan dokumen LHPP untuk revisi.'
+      );
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -388,6 +411,7 @@ export function LhppPage() {
         deliveryForm={deliveryForm}
         setDeliveryForm={setDeliveryForm}
         handleFinalizeLhpp={handleFinalizeLhpp}
+        handleReturnLhpp={handleReturnLhpp}
         handlePreviewPdf={handlePreviewPdf}
         handleDownloadPdf={handleDownloadPdf}
         handlePreviewBapPdf={handlePreviewBapPdf}

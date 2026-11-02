@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import {
+  ArrowCounterClockwise,
   CheckCircle,
   DownloadSimple,
   Eye
@@ -30,6 +32,7 @@ export function LhppDetailModal({
   deliveryForm,
   setDeliveryForm,
   handleFinalizeLhpp,
+  handleReturnLhpp,
   handlePreviewPdf,
   handleDownloadPdf,
   handlePreviewBapPdf,
@@ -40,6 +43,23 @@ export function LhppDetailModal({
   handleDeletePhoto,
   handleRecordDelivery
 }) {
+  const [returnMode, setReturnMode] = useState(false);
+  const [returnNote, setReturnNote] = useState('');
+  const [returnError, setReturnError] = useState('');
+
+  const submitReturn = async () => {
+    if (returnNote.trim().length < 10) {
+      setReturnError('Catatan revisi minimal 10 karakter agar Ahli K3 tahu bagian yang harus diperbaiki.');
+      return;
+    }
+    setReturnError('');
+    const ok = await handleReturnLhpp(returnNote.trim());
+    if (ok) {
+      setReturnMode(false);
+      setReturnNote('');
+    }
+  };
+
   return (
     <Modal
       open={open}
@@ -76,16 +96,35 @@ export function LhppDetailModal({
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {['SIAP_PREVIEW', 'DIKEMBALIKAN'].includes(detailLhpp.status) && canManage && (
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={handleFinalizeLhpp}
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
-                >
-                  <CheckCircle size={16} weight="bold" />
-                  <span>Finalisasi LHPP & Terbitkan BAP Unit</span>
-                </button>
+              {detailLhpp.status === 'SIAP_PREVIEW' && canManage && (
+                <>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => {
+                      setReturnError('');
+                      setReturnMode((v) => !v);
+                    }}
+                    className="min-h-10 inline-flex items-center gap-1.5 rounded border border-rose-300 dark:border-rose-800 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                  >
+                    <ArrowCounterClockwise size={16} weight="bold" />
+                    <span>Kembalikan untuk Revisi</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={handleFinalizeLhpp}
+                    className="min-h-10 inline-flex items-center gap-1.5 rounded bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle size={16} weight="bold" />
+                    <span>Finalisasi LHPP & Terbitkan BAP Unit</span>
+                  </button>
+                </>
+              )}
+              {detailLhpp.status === 'DIKEMBALIKAN' && (
+                <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-400">
+                  Menunggu perbaikan Ahli K3. Dokumen tidak dapat difinalisasi sebelum diajukan ulang.
+                </span>
               )}
               <button
                 type="button"
@@ -105,6 +144,50 @@ export function LhppDetailModal({
               </button>
             </div>
           </div>
+
+          {returnMode && (
+            <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-rose-900 dark:text-rose-300">
+                  Catatan Perbaikan untuk Ahli K3 *
+                </label>
+                <p className="text-[11px] text-rose-800/90 dark:text-rose-400/90 mt-0.5">
+                  Jelaskan data atau kesimpulan yang harus diperbaiki. Unit alat akan kembali ke tahap
+                  revisi dan dokumen tidak dapat difinalisasi sampai Ahli K3 mengajukannya kembali.
+                </p>
+              </div>
+              <textarea
+                rows={3}
+                value={returnNote}
+                onChange={(e) => setReturnNote(e.target.value)}
+                placeholder="Contoh: Kesimpulan unit Overhead Crane seharusnya TIDAK MEMENUHI SYARAT karena temuan limit switch tidak berfungsi."
+                className="w-full rounded-lg border border-rose-300 dark:border-rose-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+              />
+              {returnError && (
+                <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-400">{returnError}</p>
+              )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnMode(false);
+                    setReturnError('');
+                  }}
+                  className="min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting || returnNote.trim().length < 10}
+                  onClick={submitReturn}
+                  className="min-h-10 rounded-lg bg-rose-700 hover:bg-rose-800 px-3.5 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {submitting ? 'Mengirim...' : 'Kembalikan ke Ahli K3'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Visual Stepper: Pipeline Penerbitan Dokumen (LHPP -> BAP -> Distribusi) */}
           <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700">

@@ -179,7 +179,7 @@ describe('Search and Work Queue API Modules', () => {
           ]
         };
       }
-      if (sql.includes("o.status = 'ORDER_BARU'")) {
+      if (sql.includes("o.status IN ('ORDER_BARU','TERDAFTAR')")) {
         return {
           rows: [
             {
@@ -188,7 +188,8 @@ describe('Search and Work Queue API Modules', () => {
               po_number: 'PO-NEW-01',
               created_at: new Date().toISOString(),
               client_name: 'PT Klien Baru',
-              service_type: 'PERTAMA'
+              service_type: 'PERTAMA',
+              row_total: 1
             }
           ]
         };
@@ -203,7 +204,8 @@ describe('Search and Work Queue API Modules', () => {
               order_no: 'ORD-001',
               po_number: 'PO-01',
               client_name: 'PT Klien A',
-              inspector_name: 'Budi Santoso'
+              inspector_name: 'Budi Santoso',
+              row_total: 1
             }
           ]
         };
@@ -218,7 +220,8 @@ describe('Search and Work Queue API Modules', () => {
               order_no: 'ORD-001',
               object_name: 'Forklift',
               client_name: 'PT Klien A',
-              inspector_name: 'Budi Santoso'
+              inspector_name: 'Budi Santoso',
+              row_total: 1
             }
           ]
         };
@@ -233,7 +236,8 @@ describe('Search and Work Queue API Modules', () => {
               created_at: new Date().toISOString(),
               object_name: 'Boiler',
               client_name: 'PT Klien A',
-              inspector_name: 'Budi Santoso'
+              inspector_name: 'Budi Santoso',
+              row_total: 1
             }
           ]
         };
@@ -250,7 +254,8 @@ describe('Search and Work Queue API Modules', () => {
               valid_until: new Date(Date.now() + 10 * 86400000).toISOString(),
               object_name: 'Boiler',
               client_name: 'PT Klien A',
-              days_remaining: 10
+              days_remaining: 10,
+              row_total: 1
             }
           ]
         };
@@ -264,11 +269,90 @@ describe('Search and Work Queue API Modules', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(5);
+    expect(res.body.shown).toBe(5);
+    expect(res.body.truncated).toBe(false);
     expect(res.body.items.some((i) => i.type === 'ORDER_SCHEDULING')).toBe(true);
     expect(res.body.items.some((i) => i.type === 'ASSIGNMENT_CONFIRMATION')).toBe(true);
     expect(res.body.items.some((i) => i.type === 'INSPECTION_DRAFT')).toBe(true);
     expect(res.body.items.some((i) => i.type === 'LHPP_REVIEW')).toBe(true);
     expect(res.body.items.some((i) => i.type === 'SUKET_EXPIRING')).toBe(true);
+
+    querySpy.mockRestore();
+  });
+
+  it('antrean pekerjaan melaporkan jumlah sebenarnya saat daftar terpotong dan mengurutkan urgensi tertinggi lebih dulu', async () => {
+    const draftRow = {
+      id: 'insp-1',
+      order_id: 'ord-1',
+      created_at: new Date('2026-10-01T08:00:00.000Z').toISOString(),
+      order_no: 'ORD-001',
+      object_name: 'Forklift',
+      client_name: 'PT Klien A',
+      inspector_name: 'Budi Santoso'
+    };
+    const revisionRow = {
+      id: 'lhpp-ret-1',
+      lhpp_no: 'LHPP-REV',
+      created_at: new Date('2026-10-05T08:00:00.000Z').toISOString(),
+      review_notes: 'Lengkapi foto',
+      object_name: 'Boiler',
+      client_name: 'PT Klien A',
+      inspector_name: 'Budi Santoso'
+    };
+
+    const querySpy = vi.spyOn(poolModule, 'query').mockImplementation(async (sql) => {
+      if (sql.includes('FROM users WHERE id = $1')) {
+        return {
+          rows: [
+            {
+              id: adminId,
+              email: 'admin.kantor@upayariksadaya.com',
+              full_name: 'Admin URD',
+              role: 'ADMIN_KANTOR',
+              phone: '08123456789',
+              is_active: true
+            }
+          ]
+        };
+      }
+      if (sql.includes("o.status IN ('ORDER_BARU','TERDAFTAR')")) {
+        // 10 baris dikirim, tetapi sebenarnya ada 34 PO menunggu penjadwalan.
+        return {
+          rows: Array.from({ length: 10 }, (_, i) => ({
+            id: `ord-new-${i}`,
+            order_no: `ORD-NEW-${i}`,
+            po_number: `PO-NEW-${i}`,
+            created_at: new Date('2026-09-01T08:00:00.000Z').toISOString(),
+            client_name: 'PT Klien Baru',
+            service_type: 'PERTAMA',
+            row_total: 34
+          }))
+        };
+      }
+      if (sql.includes("i.status = 'DRAF'")) {
+        return { rows: [{ ...draftRow, row_total: 1 }] };
+      }
+      if (sql.includes("l.status = 'DIKEMBALIKAN'")) {
+        return { rows: [{ ...revisionRow, row_total: 1 }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app)
+      .get('/api/v1/dashboard/work-queue')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    // Jumlah total harus mencerminkan seluruh pekerjaan, bukan hanya yang tampil.
+    expect(res.body.total).toBe(36);
+    expect(res.body.shown).toBe(12);
+    expect(res.body.truncated).toBe(true);
+
+    // Urgensi TINGGI (LHPP perlu revisi) harus tampil sebelum SEDANG (draf inspeksi),
+    // walaupun draf inspeksi lebih dulu dimasukkan ke antrean.
+    const types = res.body.items.map((i) => i.type);
+    expect(types.indexOf('LHPP_REVISION')).toBeLessThan(types.indexOf('INSPECTION_DRAFT'));
+    expect(res.body.items[0].urgency).toBe('TINGGI');
 
     querySpy.mockRestore();
   });

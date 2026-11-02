@@ -51,7 +51,6 @@ export function StepSignatures({
   totalItems,
   photosCount,
   draftConclusion,
-  onAutoFillStandard,
   onSubmitFinal,
   onBack,
   onSaveDraft,
@@ -416,13 +415,6 @@ export function StepSignatures({
               <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
                 Perhatian: Masih ada {missingItems} butir checklist yang belum terisi di Langkah 1.
               </span>
-              <button
-                type="button"
-                onClick={onAutoFillStandard}
-                className="px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold text-xs shrink-0 shadow-xs cursor-pointer transition-colors"
-              >
-                Tandai Semua Sesuai Standar
-              </button>
             </div>
           )}
         </div>
@@ -509,4 +501,3 @@ export function StepSignatures({
     </div>
   );
 }
-

@@ -78,6 +78,7 @@ export function OrdersPage() {
     handleImportCsv,
     handleDownloadAssignmentPdf,
     handleDownloadBatchBapPdf,
+    handleDownloadBastPdf,
     handleDownloadUnitPdf
   } = useOrderManagement();
 
@@ -269,6 +270,7 @@ export function OrdersPage() {
             openOrderDetail(id);
           }}
           handleDownloadAssignmentPdf={handleDownloadAssignmentPdf}
+          handleDownloadBastPdf={handleDownloadBastPdf}
         />
       )}
 
@@ -336,6 +338,7 @@ export function OrdersPage() {
         handleOpenCsvImport={handleOpenCsvImport}
         handleDownloadBatchBapPdf={handleDownloadBatchBapPdf}
         handleDownloadAssignmentPdf={handleDownloadAssignmentPdf}
+        handleDownloadBastPdf={handleDownloadBastPdf}
         handleDownloadUnitPdf={handleDownloadUnitPdf}
         handleSaveSchedule={handleSaveSchedule}
         handleAssignInspectors={handleAssignInspectors}
