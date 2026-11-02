@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowRight, CheckCircle } from '@phosphor-icons/react';
+import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
 import { PO_WIZARD_STEPS } from '../orderConstants.js';
@@ -32,8 +33,11 @@ export function CreatePoWizardModal({
   handleCreateOrder,
   submitting,
   error,
-  setError
+  setError,
+  user: propUser
 }) {
+  const { user: authUser } = useAuth();
+  const currentUser = propUser || authUser;
   return (
     <Modal
       open={open}
@@ -102,6 +106,7 @@ export function CreatePoWizardModal({
             createForm={createForm}
             setCreateForm={setCreateForm}
             inspectors={inspectors}
+            user={currentUser}
           />
         )}
 
@@ -111,6 +116,7 @@ export function CreatePoWizardModal({
             clientMode={clientMode}
             clients={clients}
             inspectors={inspectors}
+            user={currentUser}
           />
         )}
 

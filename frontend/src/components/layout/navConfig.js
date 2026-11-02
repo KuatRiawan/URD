@@ -44,21 +44,21 @@ export const NAV_ITEMS = [
     group: 'Operasional',
     label: 'Data Klien',
     icon: Buildings,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/objects',
     group: 'Operasional',
     label: 'Objek Uji K3',
     icon: Cube,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/schedule',
     group: 'Operasional',
     label: 'Jadwal & Penugasan',
     icon: CalendarCheck,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/inspections',
@@ -72,21 +72,21 @@ export const NAV_ITEMS = [
     group: 'Dokumen & Sertifikasi',
     label: 'Dokumen LHPP',
     icon: Scroll,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/bap',
     group: 'Dokumen & Sertifikasi',
     label: 'Berita Acara (BAP)',
     icon: ClipboardText,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/distributions',
     group: 'Dokumen & Sertifikasi',
     label: 'Distribusi Dokumen',
     icon: ShareNetwork,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/history',
@@ -100,7 +100,7 @@ export const NAV_ITEMS = [
     group: 'Dokumen & Sertifikasi',
     label: 'Registri Suket K3',
     icon: ShieldCheck,
-    roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
+    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER']
   },
   {
     to: '/app/reminders',
@@ -268,8 +268,62 @@ export function getVisibleNav(role) {
     ];
   }
 
-  // 3. Menu komersial dan operasional kantor dipisahkan dari sisi tanggung jawab.
-  if (['MARKETING', 'ADMIN_KANTOR'].includes(role)) {
+  // 3. Menu Komersial (Marketing): CRM, PO Multi-Unit, Client Relationship, Repeat Order Suket
+  if (role === 'MARKETING') {
+    return [
+      {
+        to: '/app/dashboard',
+        group: 'Utama',
+        label: 'Dasbor Komersial',
+        icon: Gauge
+      },
+      {
+        to: '/app/orders',
+        group: 'Komersial & CRM',
+        label: 'PO & Order Pemeriksaan',
+        icon: ClipboardText
+      },
+      {
+        to: '/app/clients',
+        group: 'Komersial & CRM',
+        label: 'Data Klien & PIC',
+        icon: Buildings
+      },
+      {
+        to: '/app/objects',
+        group: 'Komersial & CRM',
+        label: 'Basis Objek Uji K3',
+        icon: Cube
+      },
+      {
+        to: '/app/reminders',
+        group: 'Peluang & Layanan',
+        label: 'Pengingat Suket Klien',
+        icon: Alarm
+      },
+      {
+        to: '/app/history',
+        group: 'Peluang & Layanan',
+        label: 'Riwayat Pengujian Klien',
+        icon: ClockCounterClockwise
+      },
+      {
+        to: '/app/issues',
+        group: 'Peluang & Layanan',
+        label: 'Kendala Operasional',
+        icon: WarningOctagon
+      },
+      {
+        to: '/app/settings',
+        group: 'Akun',
+        label: 'Pengaturan Akun',
+        icon: Gear
+      }
+    ];
+  }
+
+  // 4. Menu Operasional Kantor (Admin Kantor): Jantung operasional, jadwal, penugasan SKP, QC, registri Suket, BAST
+  if (role === 'ADMIN_KANTOR') {
     return [
       {
         to: '/app/dashboard',
@@ -279,69 +333,69 @@ export function getVisibleNav(role) {
       },
       {
         to: '/app/orders',
-        group: 'Order & Klien',
-        label: 'PO & Order Pemeriksaan',
+        group: 'Operasional & Jadwal',
+        label: 'PO & Order Masuk',
         icon: ClipboardText
       },
       {
-        to: '/app/clients',
-        group: 'Order & Klien',
-        label: 'Data Klien',
-        icon: Buildings
+        to: '/app/schedule',
+        group: 'Operasional & Jadwal',
+        label: 'Jadwal & Penugasan K3',
+        icon: CalendarCheck
       },
       {
         to: '/app/objects',
-        group: 'Order & Klien',
+        group: 'Operasional & Jadwal',
         label: 'Objek Uji K3',
         icon: Cube
       },
       {
-        to: '/app/schedule',
-        group: 'Pelaksanaan',
-        label: 'Jadwal & Penugasan',
-        icon: CalendarCheck
+        to: '/app/clients',
+        group: 'Operasional & Jadwal',
+        label: 'Data Klien',
+        icon: Buildings
       },
       {
         to: '/app/issues',
-        group: 'Pelaksanaan',
-        label: 'Kendala Operasional',
+        group: 'Operasional & Jadwal',
+        label: 'Kendala Lapangan',
         icon: WarningOctagon
       },
       {
         to: '/app/lhpp',
-        group: 'Penerbitan Dokumen',
-        label: 'Penerbitan Dokumen (LHPP)',
+        group: 'QC & Penerbitan Dokumen',
+        label: 'Dokumen LHPP (QC)',
         icon: Scroll
       },
       {
         to: '/app/bap',
-        group: 'Penerbitan Dokumen',
+        group: 'QC & Penerbitan Dokumen',
         label: 'Berita Acara (BAP)',
         icon: ClipboardText
       },
       {
-        to: '/app/distributions',
-        group: 'Penerbitan Dokumen',
-        label: 'Distribusi Dokumen',
-        icon: ShareNetwork
-      },
-      {
         to: '/app/suket',
-        group: 'Pemantauan',
-        label: 'Registri Suket K3',
+        group: 'QC & Penerbitan Dokumen',
+        label: 'Registri Suket Disnaker',
         icon: ShieldCheck
       },
       {
-        to: '/app/reminders',
-        group: 'Pemantauan',
-        label: 'Pengingat Perpanjangan',
-        icon: Alarm
+        to: '/app/distributions',
+        group: 'QC & Penerbitan Dokumen',
+        label: 'Distribusi & BAST',
+        icon: ShareNetwork
       },
       {
         to: '/app/history',
-        group: 'Pemantauan',
+        group: 'QC & Penerbitan Dokumen',
         label: 'Riwayat Pengujian',
         icon: ClockCounterClockwise
+      },
+      {
+        to: '/app/reminders',
+        group: 'QC & Penerbitan Dokumen',
+        label: 'Pengingat Perpanjangan',
+        icon: Alarm
       },
       {
         to: '/app/settings',
@@ -349,14 +403,112 @@ export function getVisibleNav(role) {
         label: 'Pengaturan Akun',
         icon: Gear
       }
-    ].filter(({ to }) =>
-      role === 'MARKETING'
-        ? !['/app/lhpp', '/app/bap', '/app/distributions', '/app/suket'].includes(to)
-        : true
-    );
+    ];
   }
 
-  // 4. Admin Sistem: Navigasi lengkap untuk semua modul sistem
+  // 5. Admin Sistem: Navigasi lengkap untuk semua modul sistem
+  if (role === 'ADMIN_SISTEM') {
+    return [
+      {
+        to: '/app/dashboard',
+        group: 'Utama',
+        label: 'Dasbor Sistem',
+        icon: Gauge
+      },
+      {
+        to: '/app/users',
+        group: 'Administrasi Sistem',
+        label: 'Manajemen Pengguna',
+        icon: Users
+      },
+      {
+        to: '/app/audit-logs',
+        group: 'Administrasi Sistem',
+        label: 'Log Audit Lengkap',
+        icon: Article
+      },
+      {
+        to: '/app/orders',
+        group: 'Operasional Lapangan',
+        label: 'PO & Order Pemeriksaan',
+        icon: ClipboardText
+      },
+      {
+        to: '/app/schedule',
+        group: 'Operasional Lapangan',
+        label: 'Jadwal & Penugasan',
+        icon: CalendarCheck
+      },
+      {
+        to: '/app/inspections',
+        group: 'Operasional Lapangan',
+        label: 'Form Pengujian Lapangan',
+        icon: FileText
+      },
+      {
+        to: '/app/objects',
+        group: 'Operasional Lapangan',
+        label: 'Objek Uji K3',
+        icon: Cube
+      },
+      {
+        to: '/app/clients',
+        group: 'Operasional Lapangan',
+        label: 'Data Klien',
+        icon: Buildings
+      },
+      {
+        to: '/app/lhpp',
+        group: 'Dokumen & Sertifikasi',
+        label: 'Dokumen LHPP',
+        icon: Scroll
+      },
+      {
+        to: '/app/bap',
+        group: 'Dokumen & Sertifikasi',
+        label: 'Berita Acara (BAP)',
+        icon: ClipboardText
+      },
+      {
+        to: '/app/distributions',
+        group: 'Dokumen & Sertifikasi',
+        label: 'Distribusi Dokumen & BAST',
+        icon: ShareNetwork
+      },
+      {
+        to: '/app/suket',
+        group: 'Dokumen & Sertifikasi',
+        label: 'Registri Suket K3',
+        icon: ShieldCheck
+      },
+      {
+        to: '/app/history',
+        group: 'Dokumen & Sertifikasi',
+        label: 'Riwayat Pengujian',
+        icon: ClockCounterClockwise
+      },
+      {
+        to: '/app/reminders',
+        group: 'Pemantauan & Pengaturan',
+        label: 'Pengingat Perpanjangan',
+        icon: Alarm
+      },
+      {
+        to: '/app/issues',
+        group: 'Pemantauan & Pengaturan',
+        label: 'Kendala Operasional',
+        icon: WarningOctagon
+      },
+      {
+        to: '/app/settings',
+        group: 'Pemantauan & Pengaturan',
+        label: 'Pengaturan Sistem',
+        icon: Gear
+      }
+    ];
+  }
+
+  // Fallback default berdasarkan roles di NAV_ITEMS
   return NAV_ITEMS.filter((item) => {
     const alias = ROLE_ALIASES[role];
     return item.roles.includes(role) || (alias && item.roles.includes(alias));
@@ -489,7 +641,78 @@ export function getMobileNavConfig(role) {
     };
   }
 
-  // Default: Marketing / Admin Kantor
+  if (role === 'MARKETING') {
+    return {
+      primary: [
+        { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
+        { to: '/app/orders', label: 'Order PO', icon: ClipboardText },
+        { to: '/app/clients', label: 'Data Klien', icon: Buildings },
+        { to: '/app/reminders', label: 'Pengingat Suket', icon: Alarm }
+      ],
+      moreGroups: [
+        {
+          title: 'Komersial & Objek Uji',
+          items: [
+            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
+            { to: '/app/history', label: 'Riwayat Pengujian Klien', icon: ClockCounterClockwise }
+          ]
+        },
+        {
+          title: 'Layanan & Kendala',
+          items: [
+            { to: '/app/issues', label: 'Kendala Operasional', icon: WarningOctagon }
+          ]
+        },
+        {
+          title: 'Akun & Notifikasi',
+          items: [
+            { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
+            { to: '/app/settings', label: 'Pengaturan Akun', icon: Gear }
+          ]
+        }
+      ]
+    };
+  }
+
+  if (role === 'ADMIN_KANTOR') {
+    return {
+      primary: [
+        { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
+        { to: '/app/orders', label: 'PO Masuk', icon: ClipboardText },
+        { to: '/app/schedule', label: 'Jadwal K3', icon: CalendarCheck },
+        { to: '/app/lhpp', label: 'QC Dokumen', icon: Scroll }
+      ],
+      moreGroups: [
+        {
+          title: 'Penerbitan Dokumen & BAST',
+          items: [
+            { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText },
+            { to: '/app/suket', label: 'Registri Suket Disnaker', icon: ShieldCheck },
+            { to: '/app/distributions', label: 'Distribusi & BAST', icon: ShareNetwork },
+            { to: '/app/history', label: 'Riwayat Pengujian', icon: ClockCounterClockwise }
+          ]
+        },
+        {
+          title: 'Operasional & Master Data',
+          items: [
+            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
+            { to: '/app/clients', label: 'Data Klien', icon: Buildings },
+            { to: '/app/issues', label: 'Kendala Lapangan', icon: WarningOctagon },
+            { to: '/app/reminders', label: 'Pengingat Perpanjangan', icon: Alarm }
+          ]
+        },
+        {
+          title: 'Akun & Notifikasi',
+          items: [
+            { to: '/app/notifications', label: 'Notifikasi', icon: Bell },
+            { to: '/app/settings', label: 'Pengaturan Akun', icon: Gear }
+          ]
+        }
+      ]
+    };
+  }
+
+  // Fallback default
   return {
     primary: [
       { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
@@ -499,7 +722,7 @@ export function getMobileNavConfig(role) {
     ],
     moreGroups: [
       {
-        title: 'Data Klien & Alat K3',
+        title: 'Operasional & Data Klien',
         items: [
           { to: '/app/clients', label: 'Data Klien', icon: Buildings },
           { to: '/app/objects', label: 'Objek Uji K3', icon: Cube }

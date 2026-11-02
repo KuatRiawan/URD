@@ -5,6 +5,7 @@ import {
   ClipboardText,
   DownloadSimple,
   FileCsv,
+  Info,
   UserCheck,
   Warning,
   XCircle
@@ -28,6 +29,8 @@ export function OrderDetailModal({
   unitProgress,
   nextStatuses,
   canManage,
+  canManageSchedule: propCanManageSchedule,
+  canManageStatus: propCanManageStatus,
   user,
   inspectors,
   scheduleConflicts,
@@ -53,6 +56,8 @@ export function OrderDetailModal({
   checkConflicts
 }) {
   const [activeTab, setActiveTab] = useState('UNITS');
+  const canManageSchedule = propCanManageSchedule ?? ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const canManageStatus = propCanManageStatus ?? ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
 
   const totalUnits = unitProgress?.totalUnits || (detailData?.objects || []).length || 0;
   const completedUnits = unitProgress?.completed || 0;
@@ -322,7 +327,7 @@ export function OrderDetailModal({
           {/* ======================================================== */}
           {activeTab === 'SCHEDULE' && (
             <div className="space-y-4">
-              {canManage && (
+              {canManageSchedule && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Formulir Pengaturan Jadwal */}
                   <form
@@ -464,44 +469,61 @@ export function OrderDetailModal({
                   </form>
                 </div>
               )}
-              {!canManage && (
+              {!canManageSchedule && (
                 <div className="space-y-4">
+                  {user?.role === 'MARKETING' && (
+                    <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5 shadow-2xs">
+                      <Info size={18} weight="bold" className="shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                      <div className="space-y-1">
+                        <span className="font-bold">Mode Pemantauan Jadwal &amp; Ahli K3</span>
+                        <p className="text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
+                          Sesuai SOP PT Upaya Riksa Daya, penetapan jadwal resmi inspeksi dan penugasan Ahli K3 berlisensi SKP Kemnaker dikelola oleh <strong>Admin Kantor</strong>. Tim Marketing dapat memantau kesiapan tim dan progres jadwal pada panel di bawah ini.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                      Jadwal Pemeriksaan
+                      Jadwal Pemeriksaan Lapangan
                     </h4>
                     {detailData?.schedule ? (
                       <>
-                        <p className="text-xs text-slate-800 dark:text-slate-200">
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                           {formatDateTime(detailData.schedule.start_at)} sampai {formatDateTime(detailData.schedule.end_at)}
                         </p>
                         {detailData.schedule.notes && (
-                          <p className="text-xs text-slate-600 dark:text-slate-400">Catatan: {detailData.schedule.notes}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">Catatan Khusus: {detailData.schedule.notes}</p>
                         )}
                       </>
                     ) : (
                       <p className="text-xs text-slate-600 dark:text-slate-400">
-                        Jadwal rinci belum dicatat. Target PO: {formatDate(activeOrder.requested_date)}.
+                        Jadwal rinci belum ditetapkan oleh Admin Kantor. Target permintaan klien: <strong>{formatDate(activeOrder.requested_date)}</strong>.
                       </p>
                     )}
                   </section>
                   <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                      Penugasan Ahli K3
+                      Penugasan Ahli K3 (Inspector)
                     </h4>
                     {(detailData?.assignments || []).length ? (
-                      detailData.assignments.map((assignment) => (
-                        <p key={assignment.id} className="text-xs text-slate-800 dark:text-slate-200">
-                          {assignment.full_name} · {assignment.status}
-                        </p>
-                      ))
+                      <div className="space-y-1.5">
+                        {detailData.assignments.map((assignment) => (
+                          <div key={assignment.id} className="text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                            <span className="font-bold">{assignment.full_name}</span>
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 font-semibold">
+                              {assignment.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <p className="text-xs text-slate-600 dark:text-slate-400">Belum ada Inspector yang ditugaskan.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Menunggu verifikasi SKP dan penugasan oleh Admin Kantor.</p>
                     )}
                     <div className="pt-2 border-t border-slate-100 dark:border-slate-700 space-y-1">
+                      <div className="text-[11px] font-bold uppercase text-slate-500 mb-1">Status Alokasi per Unit Alat:</div>
                       {(detailData?.objects || []).map((object) => (
                         <p key={object.order_object_id} className="text-xs text-slate-700 dark:text-slate-300">
-                          {object.name} · {object.unit_inspector_name || 'Belum ditugaskan'} · {object.proposed_date ? formatDate(object.proposed_date) : 'Belum dijadwalkan'}
+                          • {object.name} · {object.unit_inspector_name || 'Belum ditugaskan'} · {object.proposed_date ? formatDate(object.proposed_date) : 'Belum dijadwalkan'}
                         </p>
                       ))}
                     </div>
@@ -560,7 +582,7 @@ export function OrderDetailModal({
               )}
 
               {/* Transisi Status Order */}
-              {canManage && nextStatuses?.length > 0 && (
+              {canManageStatus && nextStatuses?.length > 0 && (
                 <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3 bg-slate-50 dark:bg-slate-800/40">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Perbarui Status Tahapan PO
@@ -593,7 +615,7 @@ export function OrderDetailModal({
                   </div>
                 </div>
               )}
-              {!canManage && (
+              {!canManageStatus && (
                 <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Riwayat Status PO

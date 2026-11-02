@@ -672,8 +672,9 @@ router.post(
           [order.id, order.status, `PO ${poNo} dicatat dengan ${insertedIds.length} unit alat`, req.user.id]
         );
 
-        // Jika Admin langsung menugaskan Inspector saat membuat PO, buat jadwal otomatis & penugasan
-        if (Array.isArray(b.inspectorIds) && b.inspectorIds.length > 0) {
+        // Jika Admin Sistem / Admin Kantor langsung menugaskan Inspector saat membuat PO, buat jadwal otomatis & penugasan
+        // Catatan: Marketing tidak berwenang menugaskan Ahli K3; PO oleh Marketing tetap berstatus menunggu jadwal/verifikasi Admin Kantor
+        if (['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(req.user.role) && Array.isArray(b.inspectorIds) && b.inspectorIds.length > 0) {
           const baseDateStr = b.requestedDate
             ? b.requestedDate instanceof Date
               ? b.requestedDate.toISOString().slice(0, 10)

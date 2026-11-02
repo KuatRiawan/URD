@@ -61,7 +61,7 @@ describe('MobileBottomNav and MobileNavDrawer Integration', () => {
       '/app/notifications', '/app/settings', '/app/users'
     ]);
 
-    for (const role of ['ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN', 'ADMIN_SISTEM']) {
+    for (const role of ['MARKETING', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN', 'ADMIN_SISTEM']) {
       const config = getMobileNavConfig(role);
       const routes = [
         ...config.primary.map(({ to }) => to),

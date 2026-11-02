@@ -42,7 +42,7 @@ export const PO_WIZARD_STEPS = [
   'Info PO & Layanan',
   'Data Klien & PIC',
   'Unit Alat K3',
-  'Jadwal & Ahli K3',
+  'Target Waktu & Catatan PO',
   'Review & Simpan'
 ];
 

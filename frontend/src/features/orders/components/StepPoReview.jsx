@@ -4,8 +4,10 @@ export function StepPoReview({
   createForm,
   clientMode,
   clients,
-  inspectors
+  inspectors,
+  user
 }) {
+  const isMarketing = user?.role === 'MARKETING';
   return (
     <div className="space-y-4">
       <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
@@ -65,12 +67,14 @@ export function StepPoReview({
           <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
             <div className="text-slate-400 text-[11px] mb-1 font-semibold uppercase">Tim Ahli K3</div>
             <div className="text-slate-700 dark:text-slate-300">
-              {createForm.inspectorIds.length > 0
-                ? createForm.inspectorIds
-                    .map((id) => inspectors.find((i) => i.id === id)?.fullName)
-                    .filter(Boolean)
-                    .join(', ')
-                : 'Belum ditentukan (dapat dijadwalkan kemudian)'}
+              {isMarketing
+                ? 'Diproses oleh Admin Kantor (Verifikasi SKP & Penugasan Resmi)'
+                : createForm.inspectorIds.length > 0
+                  ? createForm.inspectorIds
+                      .map((id) => inspectors.find((i) => i.id === id)?.fullName)
+                      .filter(Boolean)
+                      .join(', ')
+                  : 'Belum ditentukan (dapat dijadwalkan kemudian)'}
             </div>
           </div>
 

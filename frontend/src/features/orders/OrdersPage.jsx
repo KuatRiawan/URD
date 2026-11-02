@@ -16,7 +16,10 @@ import { useOrderManagement } from './hooks/useOrderManagement.js';
 
 export function OrdersPage() {
   const { user } = useAuth();
-  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
+  const canCreatePo = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
+  const canManageSchedule = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const canManageStatus = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const canManage = canCreatePo;
 
   const {
     orders,
@@ -300,6 +303,7 @@ export function OrdersPage() {
         submitting={submitting}
         error={error}
         setError={setError}
+        user={user}
       />
 
       {/* Modal Detail & Pengelolaan PO */}
@@ -321,6 +325,8 @@ export function OrdersPage() {
         unitProgress={unitProgress}
         nextStatuses={nextStatuses}
         canManage={canManage}
+        canManageSchedule={canManageSchedule}
+        canManageStatus={canManageStatus}
         user={user}
         inspectors={inspectors}
         scheduleConflicts={scheduleConflicts}
