@@ -262,15 +262,21 @@ router.patch(
 router.post(
   '/:id/scan',
   authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
-  uploadMiddleware.single('file'),
+  (req, res, next) => {
+    uploadMiddleware.any()(req, res, (err) => {
+      if (err) return next(err);
+      next();
+    });
+  },
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      if (!req.file) throw new AppError(400, 'NO_FILE', 'Berkas pindaian Suket wajib dipilih.');
+      const uploadedFile = req.file || (req.files && req.files[0]);
+      if (!uploadedFile) throw new AppError(400, 'NO_FILE', 'Berkas pindaian Suket wajib dipilih.');
       const saved = await saveUploadedFile({
-        buffer: req.file.buffer,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
+        buffer: uploadedFile.buffer,
+        originalName: uploadedFile.originalname,
+        mimeType: uploadedFile.mimetype,
         ownerType: 'SUKET',
         ownerId: id,
         caption: 'Berkas Pindaian Suket K3',

@@ -73,12 +73,13 @@ function InspectorWorkloadCard({ workload = [] }) {
                 </p>
               </div>
               <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(insp.active_assignments || 0) > 3
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                  Number(insp.active_assignments || 0) > 3
                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
                     : Number(insp.active_assignments || 0) > 0
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                  }`}
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
+                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                }`}
               >
                 {insp.active_assignments || 0} tugas aktif
               </span>
@@ -735,10 +736,11 @@ export function ManagementDashboardView({
                     key={p}
                     type="button"
                     onClick={() => setPeriod(p)}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${period === p
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      period === p
                         ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold shadow-2xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                      }`}
+                    }`}
                   >
                     {p}
                   </button>

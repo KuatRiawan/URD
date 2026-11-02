@@ -164,6 +164,7 @@ export function SuketPage() {
     setError('');
     try {
       const fd = new FormData();
+      fd.append('file', file);
       fd.append('scan', file);
       await api.post(`/suket/${detailData.suket.id}/scan`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
