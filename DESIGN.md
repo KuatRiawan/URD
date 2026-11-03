@@ -266,3 +266,4 @@ Sebelum mengirimkan kode baru (*commit/PR*), pastikan:
 
 ---
 *Dokumen ini merupakan panduan resmi desain antarmuka PT Upaya Riksa Daya. Setiap penambahan fitur baru wajib merujuk pada standar yang tercantum di atas.*
+
