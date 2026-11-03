@@ -10,6 +10,7 @@ import { recordAudit } from '../../services/audit.js';
 import { notifyRoles, createNotification } from '../../services/notify.js';
 import { generateLhppPdfBuffer } from '../../services/pdf-generator.js';
 import { generateLhppDocxBuffer } from '../../services/docx-generator.js';
+import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { syncOrderUnitStatus } from '../../services/workflow.js';
 import { resolveAttachmentPath, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
@@ -465,10 +466,11 @@ router.post(
 
         const seqRes = await db.query("SELECT nextval('lhpp_no_seq') AS seq");
         const now = new Date();
-        const romanMonth = ROMAN_MONTHS[now.getMonth()];
-        const year = now.getFullYear();
-        const seqStr = String(seqRes.rows[0].seq).padStart(4, '0');
-        const lhppNo = `${seqStr}/INSP-${cur.category_code}/PJK3-URD/${romanMonth}/${year}`;
+        const lhppNo = await formatDocumentNumber('lhpp', {
+          counter: seqRes.rows[0].seq,
+          categoryCode: cur.category_code,
+          date: now
+        });
         const verificationCode = `URD-${crypto
           .randomBytes(5)
           .toString('hex')
@@ -538,8 +540,11 @@ router.post(
 
         // TERBITKAN BAP SECARA OTOMATIS SETELAH LHPP SELESAI
         const seqBapRes = await db.query("SELECT nextval('bap_no_seq') AS seq");
-        const rmBap = ROMAN_MONTHS[now.getMonth()];
-        const generatedBapNo = `BAP/URD/${rmBap}/${year}/${String(seqBapRes.rows[0].seq).padStart(4, '0')}`;
+        const generatedBapNo = await formatDocumentNumber('bap', {
+          counter: seqBapRes.rows[0].seq,
+          categoryCode: cur.category_code,
+          date: now
+        });
 
         const { rows: sigRows } = await db.query(
           'SELECT * FROM inspection_signatures WHERE inspection_id = $1',

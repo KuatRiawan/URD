@@ -39,55 +39,38 @@ export function BrandBlock({ compact = false }) {
   );
 }
 
-export function UserCard({ user, collapsed = false, onLogout }) {
+export function SidebarLogout({ collapsed = false, onLogout }) {
   if (collapsed) {
     return (
-      <div className="border-t border-slate-800 p-2 flex flex-col items-center gap-2">
-        <span
-          title={`${user?.fullName} (${ROLE_LABELS[user?.role] || user?.role})`}
-          className="relative h-9 w-9 inline-flex items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white shadow-2xs"
-        >
-          {getInitials(user?.fullName)}
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-950" />
-        </span>
+      <div className="border-t border-slate-800 p-2 flex justify-center">
         <button
           type="button"
           onClick={onLogout}
           title="Keluar Sesi"
           aria-label="Keluar Sesi"
-          className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+          className="h-10 w-10 inline-flex items-center justify-center rounded-xl text-slate-400 hover:bg-rose-950/60 hover:text-rose-400 border border-transparent hover:border-rose-800/60 transition-colors cursor-pointer"
         >
-          <SignOut size={16} aria-hidden="true" />
+          <SignOut size={20} aria-hidden="true" />
         </button>
       </div>
     );
   }
 
   return (
-    <div className="border-t border-slate-800 p-3.5 bg-slate-900/60">
-      <div className="flex items-center gap-3">
-        <span className="relative h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white shadow-2xs">
-          {getInitials(user?.fullName)}
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-950" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold text-white">{user?.fullName}</p>
-          <p className="truncate text-[11px] text-slate-400 font-medium">
-            {ROLE_LABELS[user?.role] || user?.role}
-          </p>
-        </div>
-      </div>
+    <div className="border-t border-slate-800/90 p-3 bg-slate-950">
       <button
         type="button"
         onClick={onLogout}
-        className="mt-3 w-full h-8.5 inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700/80 bg-slate-800/60 text-xs font-semibold text-slate-200 hover:bg-rose-600 hover:border-rose-600 hover:text-white transition-colors cursor-pointer"
+        className="w-full h-9 inline-flex items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900/80 text-xs font-semibold text-slate-300 hover:bg-rose-900/40 hover:border-rose-800/80 hover:text-rose-200 transition-colors cursor-pointer"
       >
-        <SignOut size={14} aria-hidden="true" />
+        <SignOut size={16} aria-hidden="true" />
         <span>Keluar Sesi</span>
       </button>
     </div>
   );
 }
+
+export const UserCard = SidebarLogout;
 
 export function SidebarNav({ items, collapsed = false, onNavigate }) {
   const groups = [];

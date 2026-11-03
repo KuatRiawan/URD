@@ -1,4 +1,4 @@
-import { CheckCircle, FileText, FloppyDisk, LockKey, QrCode, WarningOctagon } from '@phosphor-icons/react';
+import { CheckCircle, FileText, FloppyDisk, LockKey, QrCode, WarningCircle, WarningOctagon } from '@phosphor-icons/react';
 import { Notice } from '../../../components/ui/Notice.jsx';
 import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
@@ -49,6 +49,19 @@ export function InspectionHeaderSection({
       </div>
 
       {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
+      {activeDetail.revisions?.length > 0 && !isFinal && (
+        <div className="rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-3.5 space-y-1 shadow-2xs">
+          <div className="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 font-bold text-xs">
+            <WarningCircle size={16} weight="bold" />
+            <span>
+              Catatan Revisi dari Admin Kantor (Revisi #{activeDetail.revisions[0].revision_no}):
+            </span>
+          </div>
+          <p className="text-xs text-rose-900 dark:text-rose-200 pl-5 leading-relaxed">
+            {activeDetail.revisions[0].reason}
+          </p>
+        </div>
+      )}
       {feedback && (
         <Notice tone="success" onClose={() => setFeedback('')}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

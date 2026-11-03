@@ -12,7 +12,7 @@ export function ObjectFilterBar({
   onResetPage
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
       <div className="relative">
         <MagnifyingGlass
           size={16}
@@ -28,7 +28,7 @@ export function ObjectFilterBar({
             setQ(e.target.value);
           }}
           placeholder="Cari nama alat, merek, atau nomor seri..."
-          className="w-full min-h-10 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
         />
       </div>
       <div>
@@ -39,7 +39,7 @@ export function ObjectFilterBar({
             onResetPage();
             setCategoryId(e.target.value);
           }}
-          className="w-full min-h-10 rounded border border-slate-200 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 px-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
         >
           <option value="">Semua Kategori Objek K3</option>
           {categories.map((cat) => (
@@ -57,7 +57,7 @@ export function ObjectFilterBar({
             onResetPage();
             setClientId(e.target.value);
           }}
-          className="w-full min-h-10 rounded border border-slate-200 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 px-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
         >
           <option value="">Semua Perusahaan Klien</option>
           {clients.map((cl) => (

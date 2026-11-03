@@ -54,37 +54,37 @@ export function AuditLogPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Log Audit Sistem (Immutable Append-Only)"
-        subtitle={`Rekam jejak seluruh perubahan data, autentikasi, persetujuan LHPP, dan penerbitan Suket K3 (${total} entri tercatat).`}
+        title="Log Audit Operasional"
+        subtitle={`Rekam jejak seluruh perubahan data, autentikasi, persetujuan dokumen, dan penerbitan Suket K3 (${total} entri tercatat).`}
         actions={
-          <div className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-xs font-bold text-emerald-900 dark:text-emerald-300">
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
             <ShieldCheck size={16} weight="bold" />
-            <span>Dilindungi Trigger Immutable PostgreSQL</span>
+            <span>Jejak Audit Terverifikasi</span>
           </div>
         }
       />
 
       {error && <ErrorBanner message={error} onRetry={loadLogs} />}
 
-      <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col sm:flex-row gap-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
         <div className="relative flex-1">
           <MagnifyingGlass
-            size={18}
+            size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             type="search"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            placeholder="Filter kode aksi (contoh: LOGIN_SUCCESS, ORDER_CREATED, LHPP_APPROVED)..."
-            className="w-full min-h-11 pl-10 pr-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-[#C81E1E] focus:outline-none"
+            placeholder="Cari kode aksi (contoh: LOGIN_SUCCESS, ORDER_CREATED, LHPP_APPROVED)..."
+            className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[#C81E1E] focus:outline-none transition-colors"
           />
         </div>
         <select
           aria-label="Filter Entitas Audit"
           value={entityFilter}
           onChange={(e) => setEntityFilter(e.target.value)}
-          className="min-h-11 px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+          className="h-9 px-3 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-[#C81E1E] focus:outline-none transition-colors"
         >
           <option value="">Semua Modul Entitas</option>
           <option value="users">Pengguna (users)</option>

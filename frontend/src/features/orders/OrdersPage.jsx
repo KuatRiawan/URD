@@ -43,6 +43,8 @@ export function OrdersPage() {
     clientMode,
     setClientMode,
     clientObjects,
+    clientLocations,
+    clientContacts,
     createForm,
     setCreateForm,
     newUnitRow,
@@ -82,7 +84,11 @@ export function OrdersPage() {
     handleDownloadAssignmentPdf,
     handleDownloadBatchBapPdf,
     handleDownloadBastPdf,
-    handleDownloadUnitPdf
+    handleDownloadUnitPdf,
+    page,
+    setPage,
+    limit,
+    total
   } = useOrderManagement();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -213,18 +219,18 @@ export function OrdersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="PO & Order Pemeriksaan Riksa Uji K3"
-        subtitle="Pengelolaan Purchase Order resmi, pendaftaran alat K3 multi-unit, alokasi Ahli K3, dan pemantauan progres berkas LHPP"
+        title="PO & Order Pemeriksaan"
+        subtitle="Pendaftaran dan monitoring Purchase Order riksa uji K3."
         actions={
           canManage && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => handleOpenCsvImport(null)}
-                className="min-h-11 inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
               >
-                <FileCsv size={16} weight="bold" />
-                <span>Impor Unit CSV</span>
+                <FileCsv size={15} weight="bold" />
+                <span className="truncate">Impor CSV</span>
               </button>
               <button
                 type="button"
@@ -233,10 +239,10 @@ export function OrdersPage() {
                   setCreateOpen(true);
                   setPoWizardStep(1);
                 }}
-                className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+                className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
               >
-                <Plus size={16} weight="bold" />
-                <span>Buat PO / Order Baru</span>
+                <Plus size={15} weight="bold" />
+                <span className="truncate">+ Buat PO</span>
               </button>
             </div>
           )
@@ -274,6 +280,11 @@ export function OrdersPage() {
           }}
           handleDownloadAssignmentPdf={handleDownloadAssignmentPdf}
           handleDownloadBastPdf={handleDownloadBastPdf}
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          user={user}
         />
       )}
 
@@ -289,6 +300,8 @@ export function OrdersPage() {
         setClientMode={setClientMode}
         clients={clients}
         clientObjects={clientObjects}
+        clientLocations={clientLocations}
+        clientContacts={clientContacts}
         categories={categories}
         inspectors={inspectors}
         newUnitRow={newUnitRow}

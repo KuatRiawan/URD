@@ -60,10 +60,10 @@ export function ObjectQrModal({ qrModal, onClose }) {
             type="button"
             onClick={handleDownloadSticker}
             disabled={downloading}
-            className="w-full min-h-[40px] inline-flex items-center justify-center gap-2 rounded-xl bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-xs disabled:opacity-60"
+            className="w-full h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs disabled:opacity-60"
           >
-            <DownloadSimple size={16} weight="bold" />
-            <span>{downloading ? 'Menyiapkan PDF...' : 'Cetak Stiker Label QR (PDF)'}</span>
+            <DownloadSimple size={15} weight="bold" />
+            <span>{downloading ? 'Menyiapkan...' : 'Cetak Stiker Label QR (PDF)'}</span>
           </button>
         </div>
       </div>

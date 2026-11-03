@@ -89,10 +89,10 @@ export function SuketTable({ items, onOpenDetail }) {
                 <button
                   type="button"
                   onClick={() => onOpenDetail(item.id)}
-                  className="w-full min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 dark:bg-slate-700 text-xs font-bold text-white hover:bg-neutral-800 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                  className="w-full h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
                 >
                   <Eye size={15} />
-                  <span>Kelola Suket K3</span>
+                  <span>Detail Suket K3</span>
                 </button>
               </div>
             </div>
@@ -167,10 +167,10 @@ export function SuketTable({ items, onOpenDetail }) {
                       <button
                         type="button"
                         onClick={() => onOpenDetail(item.id)}
-                        className="min-h-9 inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        className="h-8 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
                       >
-                        <Eye size={15} />
-                        <span>Kelola</span>
+                        <Eye size={14} />
+                        <span>Detail</span>
                       </button>
                     </td>
                   </tr>

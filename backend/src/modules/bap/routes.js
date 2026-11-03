@@ -9,6 +9,7 @@ import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
 import { notifyRoles } from '../../services/notify.js';
 import { generateBapPdfBuffer } from '../../services/pdf-generator.js';
+import { generateBapDocxBuffer } from '../../services/docx-generator.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
 import {
   resolveAttachmentPath,
@@ -647,6 +648,29 @@ router.get('/:id/pdf', async (req, res, next) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     return res.send(buf);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/:id/docx', async (req, res, next) => {
+  try {
+    const bap = await fetchFullBapContext({ query }, req.params.id);
+    if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
+    const hasAccess = await canAccessBap({ query }, bap, req.user);
+    if (!hasAccess) {
+      throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
+    }
+    const docxBuffer = await generateBapDocxBuffer(bap);
+    const filename = bap.bap_no
+      ? `${bap.bap_no.replace(/\//g, '-')}.docx`
+      : `Draf-BAP-${bap.id.slice(0, 8)}.docx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(docxBuffer);
   } catch (err) {
     return next(err);
   }

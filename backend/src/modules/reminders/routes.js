@@ -492,7 +492,7 @@ router.get('/client-log', async (req, res, next) => {
 // M5-05: Tombol cepat membuat order perpanjangan dari pengingat Suket K3
 router.post(
   '/:suketId/create-renewal-order',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'),
   async (req, res, next) => {
     try {
       const { suketId } = req.params;

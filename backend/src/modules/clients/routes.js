@@ -33,6 +33,16 @@ const contactSchema = Joi.object({
   email: Joi.string().email().allow('', null)
 });
 
+const updateContactSchema = Joi.object({
+  name: Joi.string().min(2).max(120),
+  position: Joi.string().max(100).allow('', null),
+  phone: Joi.string().max(40).allow('', null),
+  email: Joi.string().email().allow('', null),
+  isPrimary: Joi.boolean(),
+  isReminderRecipient: Joi.boolean(),
+  isActive: Joi.boolean()
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
@@ -121,6 +131,74 @@ router.get('/:id', async (req, res, next) => {
       locations: locations.rows,
       contacts: contacts.rows,
       objects: objects.rows
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/:id/equipment-history', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
+      const { rows: allowed } = await query(
+        `SELECT 1 FROM orders o
+         JOIN assignments a ON a.order_id = o.id
+         WHERE o.client_id = $1 AND a.inspector_id = $2 AND a.status IN ('MENUNGGU', 'DITERIMA')
+         LIMIT 1`,
+        [id, req.user.id]
+      );
+      if (!allowed[0]) {
+        throw new AppError(403, 'FORBIDDEN', 'Klien ini tidak termasuk dalam penugasan Anda.');
+      }
+    }
+
+    const { rows: clientRows } = await query('SELECT id, name FROM clients WHERE id = $1', [id]);
+    if (!clientRows[0]) throw new AppError(404, 'CLIENT_NOT_FOUND', 'Data klien tidak ditemukan.');
+
+    const { rows } = await query(
+      `SELECT t.id, t.client_id, t.location_id, t.category_id, t.name, t.brand, t.model,
+              t.serial_number, t.manufacture_year, t.capacity, t.install_location,
+              t.previous_permit_no, t.attributes, t.is_active, t.created_at,
+              oc.code AS category_code, oc.name AS category_name,
+              cl.name AS location_name, cl.address AS location_address, cl.city AS location_city,
+              s.suket_no, s.issued_date AS suket_issued_date, s.valid_until AS suket_valid_until, s.status AS suket_status,
+              last_insp.inspected_at AS last_inspected_at, last_insp.conclusion AS last_conclusion,
+              last_ord.po_number AS last_po_number, last_ord.order_no AS last_order_no
+       FROM test_objects t
+       JOIN object_categories oc ON oc.id = t.category_id
+       LEFT JOIN client_locations cl ON cl.id = t.location_id
+       LEFT JOIN LATERAL (
+         SELECT s1.suket_no, s1.issued_date, s1.valid_until, s1.status
+         FROM suket_documents s1
+         WHERE s1.object_id = t.id
+         ORDER BY s1.valid_until DESC NULLS LAST, s1.created_at DESC
+         LIMIT 1
+       ) s ON true
+       LEFT JOIN LATERAL (
+         SELECT i1.inspected_at, i1.conclusion
+         FROM inspections i1
+         WHERE i1.object_id = t.id AND i1.inspected_at IS NOT NULL
+         ORDER BY i1.inspected_at DESC
+         LIMIT 1
+       ) last_insp ON true
+       LEFT JOIN LATERAL (
+         SELECT o1.po_number, o1.order_no
+         FROM order_objects oo1
+         JOIN orders o1 ON o1.id = oo1.order_id
+         WHERE oo1.object_id = t.id
+         ORDER BY o1.created_at DESC
+         LIMIT 1
+       ) last_ord ON true
+       WHERE t.client_id = $1 AND t.is_active = true
+       ORDER BY t.created_at DESC`,
+      [id]
+    );
+
+    return res.json({
+      client: clientRows[0],
+      items: rows,
+      total: rows.length
     });
   } catch (err) {
     return next(err);
@@ -271,6 +349,115 @@ router.post(
         ip: req.ip
       });
       return res.status(201).json({ contact: rows[0] });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+router.patch(
+  '/:id/contacts/:contactId',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  validate(updateContactSchema),
+  async (req, res, next) => {
+    try {
+      const { id, contactId } = req.params;
+      const { name, position, phone, email, isPrimary, isReminderRecipient, isActive } = req.body;
+
+      if (isPrimary) {
+        await query('UPDATE client_contacts SET is_primary = false WHERE client_id = $1', [id]);
+      }
+
+      const updates = [];
+      const params = [contactId, id];
+
+      if (name !== undefined) {
+        params.push(name.trim());
+        updates.push(`name = $${params.length}`);
+      }
+      if (position !== undefined) {
+        params.push(position ? position.trim() : null);
+        updates.push(`position = $${params.length}`);
+      }
+      if (phone !== undefined) {
+        params.push(phone ? phone.trim() : null);
+        updates.push(`phone = $${params.length}`);
+      }
+      if (email !== undefined) {
+        params.push(email ? email.trim() : null);
+        updates.push(`email = $${params.length}`);
+      }
+      if (isPrimary !== undefined) {
+        params.push(Boolean(isPrimary));
+        updates.push(`is_primary = $${params.length}`);
+      }
+      if (isReminderRecipient !== undefined) {
+        params.push(Boolean(isReminderRecipient));
+        updates.push(`is_reminder_recipient = $${params.length}`);
+      }
+      if (isActive !== undefined) {
+        params.push(Boolean(isActive));
+        updates.push(`is_active = $${params.length}`);
+      }
+
+      updates.push(`updated_at = now()`);
+
+      const { rows } = await query(
+        `UPDATE client_contacts
+         SET ${updates.join(', ')}
+         WHERE id = $1 AND client_id = $2
+         RETURNING *`,
+        params
+      );
+
+      if (rows.length === 0) {
+        throw new AppError(404, 'CONTACT_NOT_FOUND', 'Kontak PIC klien tidak ditemukan.');
+      }
+
+      await recordAudit({
+        userId: req.user.id,
+        action: 'CLIENT_CONTACT_UPDATE',
+        entity: 'client_contacts',
+        entityId: contactId,
+        summary: { clientId: id, updates: req.body },
+        ip: req.ip
+      });
+
+      return res.json({ contact: rows[0] });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+router.delete(
+  '/:id/contacts/:contactId',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  async (req, res, next) => {
+    try {
+      const { id, contactId } = req.params;
+      const { rows } = await query(
+        `UPDATE client_contacts
+         SET is_active = false, updated_at = now()
+         WHERE id = $1 AND client_id = $2
+         RETURNING *`,
+        [contactId, id]
+      );
+
+      if (rows.length === 0) {
+        throw new AppError(404, 'CONTACT_NOT_FOUND', 'Kontak PIC klien tidak ditemukan.');
+      }
+
+      await recordAudit({
+        userId: req.user.id,
+        action: 'CLIENT_CONTACT_DELETE',
+        entity: 'client_contacts',
+        entityId: contactId,
+        summary: { clientId: id },
+        ip: req.ip
+      });
+
+      return res.json({ message: 'Kontak PIC berhasil dinonaktifkan.', contact: rows[0] });
     } catch (err) {
       return next(err);
     }

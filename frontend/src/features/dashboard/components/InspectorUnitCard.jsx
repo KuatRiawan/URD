@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import {
   Building,
   CheckCircle,
   ClipboardText,
   Eye,
+  FilePdf,
   MapPin,
   Phone,
   Play,
@@ -11,6 +13,7 @@ import {
   WhatsappLogo,
   XCircle
 } from '@phosphor-icons/react';
+import { api } from '../../../lib/api/axios.js';
 import { StatusBadge } from '../../../components/ui/Badge.jsx';
 import { formatDate, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.js';
 
@@ -33,6 +36,31 @@ export function InspectorUnitCard({
 
   const contactPhone = u.contact_phone || u.client_phone;
   const waNumber = contactPhone ? contactPhone.replace(/\D/g, '').replace(/^0/, '62') : null;
+  const [downloadingLetter, setDownloadingLetter] = useState(false);
+
+  const handleDownloadLetter = async (e) => {
+    e.stopPropagation();
+    try {
+      setDownloadingLetter(true);
+      const res = await api.get(`/orders/${u.order_id}/assignment-letter.pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `Surat-Tugas-${(u.po_number || u.order_no || u.order_id).replace(/\//g, '-')}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      alert('Gagal mengunduh berkas Surat Tugas. Pastikan Anda telah ditugaskan pada order ini.');
+    } finally {
+      setDownloadingLetter(false);
+    }
+  };
 
   const getCategoryTheme = (code) => {
     switch (code) {
@@ -94,13 +122,25 @@ export function InspectorUnitCard({
 
         {/* Info PO & Perusahaan Klien */}
         <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800/80 p-3 space-y-1.5 text-xs">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
               PO: {u.po_number || u.order_no}
             </span>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadLetter}
+                disabled={downloadingLetter}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-rose-400 transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+                title="Unduh / Buka Surat Tugas Resmi (PDF)"
+              >
+                <FilePdf size={13} className="text-brand-600 dark:text-rose-400 shrink-0" weight="bold" />
+                <span>{downloadingLetter ? 'Mengunduh...' : 'Surat Tugas (PDF)'}</span>
+              </button>
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                {SERVICE_TYPE_LABELS[u.service_type] || u.service_type}
+              </span>
+            </div>
           </div>
           <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
             <Building size={14} className="text-slate-400 shrink-0" />

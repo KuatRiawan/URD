@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import {
@@ -15,6 +16,7 @@ import { ClientFormModal } from './components/ClientFormModal.jsx';
 import { ClientDetailModal } from './components/ClientDetailModal.jsx';
 
 export function ClientsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
@@ -34,6 +36,7 @@ export function ClientsPage() {
     address: '',
     email: '',
     phone: '',
+    internalNotes: '',
     isActive: true
   });
   const [formErr, setFormErr] = useState('');
@@ -74,6 +77,7 @@ export function ClientsPage() {
       address: '',
       email: '',
       phone: '',
+      internalNotes: '',
       isActive: true
     });
     setFormErr('');
@@ -89,6 +93,7 @@ export function ClientsPage() {
       address: client.address || '',
       email: client.email || '',
       phone: client.phone || '',
+      internalNotes: client.internal_notes || '',
       isActive: client.is_active
     });
     setFormErr('');
@@ -184,20 +189,77 @@ export function ClientsPage() {
     }
   };
 
+  const handleUpdateContact = async (contactId, form) => {
+    if (!detailData?.client?.id || !contactId) return;
+    try {
+      await api.patch(`/clients/${detailData.client.id}/contacts/${contactId}`, form);
+      setSubFeedback('Kontak PIC berhasil diperbarui.');
+      openDetail(detailData.client.id);
+    } catch (err) {
+      setSubFeedback(extractErrorMessage(err));
+    }
+  };
+
+  const handleDeleteContact = async (contactId) => {
+    if (!detailData?.client?.id || !contactId) return;
+    try {
+      await api.delete(`/clients/${detailData.client.id}/contacts/${contactId}`);
+      setSubFeedback('Kontak PIC berhasil dinonaktifkan.');
+      openDetail(detailData.client.id);
+    } catch (err) {
+      setSubFeedback(extractErrorMessage(err));
+    }
+  };
+
+  const handleSetPrimaryContact = async (contactId) => {
+    if (!detailData?.client?.id || !contactId) return;
+    try {
+      await api.patch(`/clients/${detailData.client.id}/contacts/${contactId}`, { isPrimary: true });
+      setSubFeedback('PIC Utama berhasil diperbarui.');
+      openDetail(detailData.client.id);
+    } catch (err) {
+      setSubFeedback(extractErrorMessage(err));
+    }
+  };
+
+  const handleSetReminderRecipientContact = async (contactId) => {
+    if (!detailData?.client?.id || !contactId) return;
+    try {
+      await api.patch(`/clients/${detailData.client.id}/contacts/${contactId}`, { isReminderRecipient: true });
+      setSubFeedback('Penerima Reminder K3 berhasil diperbarui.');
+      openDetail(detailData.client.id);
+    } catch (err) {
+      setSubFeedback(extractErrorMessage(err));
+    }
+  };
+
+  const handleCreateRenewalOrder = async (objectId, objectName) => {
+    if (!detailData?.client?.id || !objectId) return;
+    try {
+      const res = await api.post(`/reminders/units/${objectId}/create-renewal-order`);
+      const order = res.data?.order || res.data;
+      setSubFeedback(`Draft PO Perpanjangan berhasil dibuat: ${order.po_number || order.order_no || ''}`);
+      setDetailData(null);
+      navigate('/app/orders');
+    } catch (err) {
+      setSubFeedback(extractErrorMessage(err));
+    }
+  };
+
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Manajemen Data Klien"
-        subtitle="Database perusahaan pengguna jasa K3 beserta lokasi cabang dan kontak PIC"
+        title="Data Klien & PIC"
+        subtitle="Direktori perusahaan klien, lokasi site, dan kontak PIC."
         actions={
           canEdit && (
             <button
               type="button"
               onClick={openCreate}
-              className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#991B1B] shadow-xs cursor-pointer"
+              className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] shadow-xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
             >
-              <Plus size={16} weight="bold" aria-hidden="true" />
-              <span>Tambah Klien Baru</span>
+              <Plus size={15} weight="bold" aria-hidden="true" />
+              <span>Tambah Klien</span>
             </button>
           )
         }
@@ -259,6 +321,11 @@ export function ClientsPage() {
         picForm={picForm}
         setPicForm={setPicForm}
         onAddContact={handleAddContact}
+        onUpdateContact={handleUpdateContact}
+        onDeleteContact={handleDeleteContact}
+        onSetPrimaryContact={handleSetPrimaryContact}
+        onSetReminderRecipientContact={handleSetReminderRecipientContact}
+        onCreateRenewalOrder={handleCreateRenewalOrder}
       />
     </div>
   );

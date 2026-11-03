@@ -1,8 +1,8 @@
-import { Eye, FilePdf } from '@phosphor-icons/react';
+import { Eye, FileDoc, FilePdf } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
-export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onOpenDetail }) {
+export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx, onOpenDetail }) {
   return (
     <div className="space-y-4">
       {/* Tampilan Mobile: Kartu Berita Acara BAP */}
@@ -76,14 +76,14 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onOpenDetail })
               <button
                 type="button"
                 onClick={() => onOpenDetail(b.id)}
-                className="flex-1 min-h-[42px] inline-flex items-center justify-center rounded-xl bg-slate-900 dark:bg-slate-700 text-xs font-bold text-white hover:bg-neutral-800 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
               >
-                Buka BAP
+                Detail BAP
               </button>
               <button
                 type="button"
                 onClick={() => onPreviewPdf(b.id, b.bap_no)}
-                className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
               >
                 <Eye size={15} />
                 <span>Pratinjau</span>
@@ -91,11 +91,23 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onOpenDetail })
               <button
                 type="button"
                 onClick={() => onDownloadPdf(b.id, b.bap_no)}
-                className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
+                className="h-9 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                title="Unduh Berita Acara (PDF)"
               >
                 <FilePdf size={15} weight="bold" />
                 <span>PDF</span>
               </button>
+              {onDownloadDocx && (
+                <button
+                  type="button"
+                  onClick={() => onDownloadDocx(b.id, b.bap_no)}
+                  className="h-9 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                  title="Unduh Berita Acara (Word .docx)"
+                >
+                  <FileDoc size={15} weight="bold" />
+                  <span>DOCX</span>
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -156,29 +168,41 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onOpenDetail })
                       </div>
                     )}
                   </td>
-                  <td className="py-3.5 px-4 text-right space-x-2">
+                  <td className="py-3.5 px-4 text-right space-x-1.5">
                     <button
                       type="button"
                       onClick={() => onPreviewPdf(b.id, b.bap_no)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+                      className="h-8 inline-flex items-center gap-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
                     >
-                      <Eye size={15} />
+                      <Eye size={14} />
                       <span>Pratinjau</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onDownloadPdf(b.id, b.bap_no)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-[#C81E1E] dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors cursor-pointer"
+                      className="h-8 inline-flex items-center gap-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                      title="Unduh PDF BAP Resmi"
                     >
-                      <FilePdf size={15} weight="bold" />
+                      <FilePdf size={14} weight="bold" />
                       <span>PDF</span>
                     </button>
+                    {onDownloadDocx && (
+                      <button
+                        type="button"
+                        onClick={() => onDownloadDocx(b.id, b.bap_no)}
+                        className="h-8 inline-flex items-center gap-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                        title="Unduh Word (.docx) BAP Resmi"
+                      >
+                        <FileDoc size={14} weight="bold" />
+                        <span>DOCX</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => onOpenDetail(b.id)}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
+                      className="h-8 inline-flex items-center gap-1 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
                     >
-                      Buka BAP
+                      Detail
                     </button>
                   </td>
                 </tr>

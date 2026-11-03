@@ -6,6 +6,7 @@ import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
 import { generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
+import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
 import { saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
@@ -1100,9 +1101,10 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
       if (shouldAutoFinalize) {
         const seqRes = await db.query("SELECT nextval('bap_no_seq') AS seq");
         const now = new Date();
-        const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-        const rm = romanMonths[now.getMonth()];
-        const generatedBapNo = `BAP/URD/${rm}/${now.getFullYear()}/${String(seqRes.rows[0].seq).padStart(4, '0')}`;
+        const generatedBapNo = await formatDocumentNumber('bap', {
+          counter: seqRes.rows[0].seq,
+          date: now
+        });
 
         const { rows: bapRows } = await db.query(
           `INSERT INTO bap_documents

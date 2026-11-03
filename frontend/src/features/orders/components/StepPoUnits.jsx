@@ -17,39 +17,97 @@ export function StepPoUnits({
       {/* Opsi 1: Pilih dari unit terdaftar */}
       {clientMode === 'EXISTING' && (
         <div>
-          <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-            A. Pilih dari Unit Alat Klien yang Sudah Terdaftar ({createForm.objectIds.length} dipilih)
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+              A. Ambil dari Riwayat Alat Klien Terdaftar ({createForm.objectIds.length} dipilih)
+            </label>
+            {clientObjects.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allIds = clientObjects.map((o) => o.id);
+                    const allSelected = allIds.every((id) => createForm.objectIds.includes(id));
+                    allIds.forEach((id) => {
+                      if (allSelected) {
+                        if (createForm.objectIds.includes(id)) toggleObjectSelection(id);
+                      } else {
+                        if (!createForm.objectIds.includes(id)) toggleObjectSelection(id);
+                      }
+                    });
+                  }}
+                  className="text-[11px] font-bold text-brand-600 dark:text-rose-400 hover:underline cursor-pointer"
+                >
+                  {clientObjects.every((o) => createForm.objectIds.includes(o.id))
+                    ? 'Batal Pilih Semua'
+                    : 'Pilih Semua Unit'}
+                </button>
+              </div>
+            )}
+          </div>
           {!createForm.clientId ? (
             <p className="text-xs text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-md p-3">
-              Pilih perusahaan klien terlebih dahulu pada Langkah 2 untuk menampilkan unit terdaftar.
+              Pilih perusahaan klien terlebih dahulu pada Langkah 2 untuk menampilkan riwayat unit terdaftar.
             </p>
           ) : clientObjects.length === 0 ? (
             <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-md p-3">
-              Klien ini belum memiliki unit terdaftar sebelumnya. Silakan tambahkan unit baru di bawah.
+              Klien ini belum memiliki unit terdaftar sebelumnya. Silakan tambahkan unit baru pada bagian B di bawah.
             </p>
           ) : (
-            <div className="max-h-40 overflow-y-auto border border-slate-300 dark:border-slate-700 rounded-md divide-y divide-slate-200 dark:divide-slate-800">
-              {clientObjects.map((obj) => (
-                <label
-                  key={obj.id}
-                  className="flex items-center gap-3 px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={createForm.objectIds.includes(obj.id)}
-                    onChange={() => toggleObjectSelection(obj.id)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#C81E1E]"
-                  />
-                  <div className="flex-1">
-                    <span className="font-bold text-slate-900 dark:text-white">{obj.name}</span>
-                    <span className="ml-2 text-slate-500 font-mono">({obj.serial_number})</span>
-                    <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
-                      {obj.category_code}
-                    </span>
-                  </div>
-                </label>
-              ))}
+            <div className="max-h-52 overflow-y-auto border border-slate-300 dark:border-slate-700 rounded-lg divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              {clientObjects.map((obj) => {
+                const isSelected = createForm.objectIds.includes(obj.id);
+                return (
+                  <label
+                    key={obj.id}
+                    className={`flex items-start gap-3 p-2.5 text-xs transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-rose-50/60 dark:bg-rose-950/20'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleObjectSelection(obj.id)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-900 dark:text-white truncate">
+                          {obj.name}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                          {obj.category_code}
+                        </span>
+                        {obj.serial_number && (
+                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                            SN: {obj.serial_number}
+                          </span>
+                        )}
+                        {obj.capacity && (
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            · Cap: {obj.capacity}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {obj.suket_no ? (
+                          <span className="font-mono">
+                            Suket: {obj.suket_no}
+                            {obj.suket_valid_until && ` (s/d ${new Date(obj.suket_valid_until).toLocaleDateString('id-ID')})`}
+                          </span>
+                        ) : (
+                          <span>Belum ada suket tercatat</span>
+                        )}
+                        {obj.last_po_number && (
+                          <span>· PO Lalu: {obj.last_po_number}</span>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           )}
         </div>

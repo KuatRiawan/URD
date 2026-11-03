@@ -1,5 +1,6 @@
 import { DownloadSimple, Eye, CaretRight, ClipboardText } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { PaginationBar } from '../../../components/feedback/StateViews.jsx';
 import { formatDate, formatDateTime, ORDER_STATUS_LABELS, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.js';
 import { STATUS_TONE } from '../orderConstants.js';
 
@@ -7,14 +8,25 @@ export function OrderTable({
   orders,
   openOrderDetail,
   handleDownloadAssignmentPdf,
-  handleDownloadBastPdf
+  handleDownloadBastPdf,
+  page,
+  limit = 15,
+  total = 0,
+  onPageChange,
+  user
 }) {
+  const isMarketing = user?.role === 'MARKETING';
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+  const detailLabel = isMarketing || isPimpinan ? 'Detail PO' : 'Kelola PO';
+
   return (
     <div className="space-y-4">
       {/* Tampilan Mobile: Kartu Responsif Touch-Friendly */}
       <div className="sm:hidden space-y-3">
         {orders.map((order) => {
           const prog = order.unitProgress || {};
+          const hasAssignments = Array.isArray(order.assignments) && order.assignments.length > 0;
+          const isCompleted = order.status === 'SELESAI';
           return (
             <div
               key={order.id}
@@ -72,26 +84,28 @@ export function OrderTable({
                 <button
                   type="button"
                   onClick={() => openOrderDetail(order.id)}
-                  className="flex-1 min-h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all cursor-pointer shadow-xs"
+                  className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
                 >
                   <Eye size={15} weight="bold" />
-                  <span>Buka Detail PO</span>
+                  <span>{detailLabel}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadAssignmentPdf(order.id, order.order_no)}
-                  title="Unduh Surat Tugas PDF"
-                  className="min-h-10 px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <DownloadSimple size={15} />
-                  <span className="hidden xs:inline">Surat Tugas</span>
-                </button>
-                {handleDownloadBastPdf && (
+                {!isMarketing && hasAssignments && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadAssignmentPdf(order.id, order.order_no)}
+                    title="Unduh Surat Tugas PDF"
+                    className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <DownloadSimple size={15} />
+                    <span className="hidden xs:inline">Surat Tugas</span>
+                  </button>
+                )}
+                {isCompleted && handleDownloadBastPdf && (
                   <button
                     type="button"
                     onClick={() => handleDownloadBastPdf(order.id, order.po_number, order.order_no)}
                     title="Unduh BAST PDF"
-                    className="min-h-10 px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer"
+                    className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
                   >
                     <DownloadSimple size={15} />
                     <span>BAST</span>
@@ -121,6 +135,8 @@ export function OrderTable({
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
               {orders.map((order) => {
                 const prog = order.unitProgress || {};
+                const hasAssignments = Array.isArray(order.assignments) && order.assignments.length > 0;
+                const isCompleted = order.status === 'SELESAI';
                 return (
                   <tr
                     key={order.id}
@@ -171,32 +187,34 @@ export function OrderTable({
                       </Badge>
                     </td>
                     <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex items-center gap-1.5">
+                      <div className="inline-flex items-center gap-1.5 justify-end">
                         <button
                           type="button"
                           onClick={() => openOrderDetail(order.id)}
-                          className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                          className="min-h-9 inline-flex items-center gap-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-3 py-1.5 text-xs font-bold hover:bg-neutral-800 dark:hover:bg-white transition-colors cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-slate-500"
                         >
                           <Eye size={15} />
-                          <span>Kelola PO</span>
+                          <span>{detailLabel}</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadAssignmentPdf(order.id, order.order_no)}
-                          title="Unduh Surat Tugas PDF"
-                          className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-700 dark:border-slate-600 bg-slate-800 dark:bg-slate-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 dark:hover:bg-slate-600 cursor-pointer"
-                        >
-                          <DownloadSimple size={15} />
-                          <span>Surat Tugas</span>
-                        </button>
-                        {handleDownloadBastPdf && (
+                        {!isMarketing && hasAssignments && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAssignmentPdf(order.id, order.order_no)}
+                            title="Unduh Surat Tugas Ahli K3 (PDF)"
+                            className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-slate-500"
+                          >
+                            <DownloadSimple size={14} className="text-slate-500" />
+                            <span>Surat Tugas</span>
+                          </button>
+                        )}
+                        {isCompleted && handleDownloadBastPdf && (
                           <button
                             type="button"
                             onClick={() => handleDownloadBastPdf(order.id, order.po_number, order.order_no)}
                             title="Unduh Berita Acara Serah Terima (BAST)"
-                            className="min-h-9 inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                            className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500"
                           >
-                            <DownloadSimple size={15} />
+                            <DownloadSimple size={14} className="text-emerald-600 dark:text-emerald-400" />
                             <span>BAST</span>
                           </button>
                         )}
@@ -209,6 +227,8 @@ export function OrderTable({
           </table>
         </div>
       </div>
+
+      <PaginationBar page={page} limit={limit} total={total} onPageChange={onPageChange} />
     </div>
   );
 }

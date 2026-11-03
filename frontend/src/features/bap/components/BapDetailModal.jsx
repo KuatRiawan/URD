@@ -1,5 +1,6 @@
 import {
   Eye,
+  FileDoc,
   FilePdf,
   LockKey,
   LockKeyOpen,
@@ -34,6 +35,7 @@ export function BapDetailModal({
   handleReopenBap,
   handlePreviewPdf,
   handleDownloadPdf,
+  handleDownloadDocx,
   handleDownloadBatchPoPdf,
   submitting,
   navigate
@@ -373,6 +375,16 @@ export function BapDetailModal({
                     <FilePdf size={16} weight="bold" />
                     Unduh / Cetak PDF BAP Unit Ini
                   </button>
+                  {handleDownloadDocx && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadDocx(selectedBap.id, selectedBap.bap_no)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200/60 dark:border-blue-800/60 rounded-md cursor-pointer"
+                    >
+                      <FileDoc size={16} weight="bold" />
+                      Unduh Word (.docx)
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() =>

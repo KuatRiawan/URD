@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus, UploadSimple } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import {
@@ -17,6 +18,7 @@ import { ObjectCsvModal } from './components/ObjectCsvModal.jsx';
 import { ObjectQrModal } from './components/ObjectQrModal.jsx';
 
 export function ObjectsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
@@ -166,20 +168,33 @@ export function ObjectsPage() {
     }
   };
 
+  const handleCreateRenewalOrder = async (objectId, objectName) => {
+    if (!objectId) return;
+    try {
+      setLoading(true);
+      const res = await api.post(`/reminders/units/${objectId}/create-renewal-order`);
+      navigate('/app/orders');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Daftar Objek Uji K3"
-        subtitle="Registri alat, pesawat, instalasi, dan riwayat pemeriksaan K3 PT Upaya Riksa Daya."
+        title="Basis Objek Uji K3"
+        subtitle="Registri alat, pesawat, dan instalasi riksa uji K3."
         actions={
           canEdit && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setCsvOpen(true)}
-                className="min-h-11 inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                className="h-9 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
               >
-                <UploadSimple size={16} weight="bold" aria-hidden="true" />
+                <UploadSimple size={15} weight="bold" aria-hidden="true" />
                 <span>Impor CSV</span>
               </button>
               <button
@@ -201,9 +216,9 @@ export function ObjectsPage() {
                   setFormErr('');
                   setFormOpen(true);
                 }}
-                className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#991B1B] shadow-xs cursor-pointer"
+                className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] shadow-xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
               >
-                <Plus size={16} weight="bold" aria-hidden="true" />
+                <Plus size={15} weight="bold" aria-hidden="true" />
                 <span>Tambah Objek Uji</span>
               </button>
             </div>
@@ -240,6 +255,8 @@ export function ObjectsPage() {
           setPage={setPage}
           openQr={openQr}
           openDetail={openDetail}
+          canCreateRenewal={canEdit}
+          onCreateRenewal={handleCreateRenewalOrder}
         />
       )}
 

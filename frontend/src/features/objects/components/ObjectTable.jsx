@@ -76,7 +76,7 @@ export function ObjectTable({
                 type="button"
                 onClick={() => openQr(obj.id)}
                 aria-label={`QR Code ${obj.name}`}
-                className="min-h-[42px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="h-9 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 <QrCode size={16} />
                 <span>QR</span>
@@ -84,7 +84,7 @@ export function ObjectTable({
               <button
                 type="button"
                 onClick={() => openDetail(obj.id)}
-                className="flex-1 min-h-[42px] inline-flex items-center justify-center rounded-xl bg-slate-900 dark:bg-slate-700 text-xs font-bold text-white hover:bg-neutral-800 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 Riwayat &amp; Berkas
               </button>
@@ -150,7 +150,7 @@ export function ObjectTable({
                       type="button"
                       onClick={() => openQr(obj.id)}
                       aria-label={`Tampilkan QR Code ${obj.name}`}
-                      className="min-h-9 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 inline-flex items-center gap-1 font-semibold transition-colors cursor-pointer"
+                      className="h-8.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 inline-flex items-center gap-1 font-semibold text-xs transition-colors cursor-pointer"
                     >
                       <QrCode size={15} aria-hidden="true" />
                       <span>QR</span>
@@ -158,7 +158,7 @@ export function ObjectTable({
                     <button
                       type="button"
                       onClick={() => openDetail(obj.id)}
-                      className="min-h-9 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white font-semibold hover:bg-neutral-800 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                      className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-xs transition-colors cursor-pointer"
                     >
                       Riwayat &amp; Berkas
                     </button>

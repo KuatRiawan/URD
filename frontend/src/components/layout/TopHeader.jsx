@@ -375,8 +375,12 @@ export function TopHeader({
             aria-label="Menu profil pengguna"
             className="h-9 p-0.5 sm:pl-1.5 sm:pr-2.5 inline-flex items-center gap-2 rounded-full sm:rounded-lg border border-transparent sm:border-slate-200 dark:sm:border-slate-700 bg-transparent sm:bg-white dark:sm:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors sm:shadow-2xs cursor-pointer"
           >
-            <span className="h-8 w-8 sm:h-7 sm:w-7 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs sm:text-[11px] font-extrabold text-white shadow-xs ring-2 ring-slate-100 dark:ring-slate-800">
-              {getInitials(user?.fullName)}
+            <span className="h-8 w-8 sm:h-7 sm:w-7 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs sm:text-[11px] font-extrabold text-white shadow-xs ring-2 ring-slate-100 dark:ring-slate-800 overflow-hidden">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+              ) : (
+                getInitials(user?.fullName)
+              )}
             </span>
             <span className="hidden sm:block text-left">
               <span className="block text-xs font-bold text-slate-900 dark:text-white leading-none">
@@ -391,12 +395,21 @@ export function TopHeader({
 
           {userMenuOpen && (
             <div className="absolute right-0 mt-1.5 w-56 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-pop z-50 animate-pop-in">
-              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.fullName}</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email || '-'}</p>
-                <span className="inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  {ROLE_LABELS[user?.role] || user?.role}
+              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2.5">
+                <span className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs font-extrabold text-white overflow-hidden shadow-xs">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+                  ) : (
+                    getInitials(user?.fullName)
+                  )}
                 </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.fullName}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email || '-'}</p>
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {ROLE_LABELS[user?.role] || user?.role}
+                  </span>
+                </div>
               </div>
 
               <div className="py-1">

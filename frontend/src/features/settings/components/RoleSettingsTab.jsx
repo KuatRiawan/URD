@@ -1,65 +1,13 @@
 import { CheckCircle } from '@phosphor-icons/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
+import { SuperAdminConsole } from './SuperAdminConsole.jsx';
 
 export function RoleSettingsTab({ user, meData }) {
   return (
     <div className="space-y-6">
       {/* A. Role: ADMIN_SISTEM */}
-      {user?.role === 'ADMIN_SISTEM' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Legalitas &amp; Lisensi PJK3</CardTitle>
-              <CardDescription>Identitas perusahaan yang terdaftar di Kementerian Ketenagakerjaan RI</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Nama Lembaga</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">PT Upaya Riksa Daya</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Jenis Layanan</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">PJK3 Bidang Riksa Uji K3</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Nomor SKP PJK3</span>
-                <span className="font-mono font-bold text-brand-600 dark:text-rose-400">
-                  560/URD/PJK3-RIKSALAP/2024
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Wilayah Kerja Operasional</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">Seluruh Wilayah Republik Indonesia</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Integritas Sistem &amp; Audit Trail</CardTitle>
-              <CardDescription>Status proteksi tabel dan keandalan data transaksi</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Status Trigger Audit Log</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <CheckCircle size={14} weight="fill" />
-                  trg_audit_logs_immutable (Aktif)
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Database Engine</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">PostgreSQL Pool (Parameterized SQL)</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Retensi Log Audit</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">365 Hari (Append-Only)</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {user?.role === 'ADMIN_SISTEM' && <SuperAdminConsole />}
 
       {/* B. Role: AHLI_K3 */}
       {user?.role === 'AHLI_K3' && (
@@ -187,41 +135,101 @@ export function RoleSettingsTab({ user, meData }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Otorisasi &amp; Approval Gate</CardTitle>
-              <CardDescription>Hak persetujuan akhir laporan dan dokumen kepatuhan K3</CardDescription>
+              <CardTitle>Monitoring Operasional &amp; Executive Oversight</CardTitle>
+              <CardDescription>Hak pengawasan kinerja, kepatuhan K3, dan evaluasi ketercapaian SLA</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Persetujuan Laporan LHPP</span>
+                <span className="text-slate-500 dark:text-slate-400">Mode Akses Dashboard</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <CheckCircle size={14} weight="fill" />
-                  Hak Otorisasi Final
+                  Read-Only Executive Monitoring
                 </span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Pengembalian LHPP Revisi</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">Didukung Catatan Koreksi</span>
+                <span className="text-slate-500 dark:text-slate-400">Kewenangan Review/QC Teknis</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Admin Kantor (Operasional)</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400">Audit Rekapitulasi Riksa Uji</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">Akses Eksekutif Nasional</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Akses Eksekutif Penuh</span>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Tanda Tangan Pengesahan Digital</CardTitle>
-              <CardDescription>Keabsahan hukum dokumen hasil pemeriksaan PT Upaya Riksa Daya</CardDescription>
+              <CardTitle>Integritas Tata Kelola PJK3</CardTitle>
+              <CardDescription>Pemisahan tanggung jawab operasional dan fungsi pengawasan independen</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                Setiap dokumen LHPP yang disetujui Pimpinan secara otomatis dibubuhkan nomor unik terverifikasi, tanggal pengesahan, serta kode QR verifikasi publik yang sah di hadapan Pengawas Ketenagakerjaan (Disnaker).
+                Sesuai tata kelola operasional URD, Pimpinan berperan sebagai pihak pengawas independen (Executive Oversight) untuk memastikan beban kerja Inspector seimbang, SLA penyelesaian laporan terjaga, dan tidak terjadi bottleneck pada penerbitan Suket Disnaker.
               </p>
-              <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50">
-                <span className="font-bold text-rose-900 dark:text-rose-300 block">Kepatuhan Regulasi K3</span>
-                <span className="text-[11px] text-rose-800/80 dark:text-rose-400/80 mt-0.5 block">
-                  Mengacu pada Permenaker No. 08/2020 (PAA), Permenaker No. 38/2016 (PTP), dan Permenaker No. 37/2016 (PUBT).
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50">
+                <span className="font-bold text-emerald-900 dark:text-emerald-300 block">Kepatuhan Regulasi &amp; SOP</span>
+                <span className="text-[11px] text-emerald-800/80 dark:text-emerald-400/80 mt-0.5 block">
+                  Finalisasi teknis dilakukan oleh Admin Kantor dan Ahli K3 bersertifikat Kemnaker R.I. tanpa intervensi komersial.
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* E. Role: MARKETING */}
+      {user?.role === 'MARKETING' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Kewenangan &amp; Ruang Lingkup Komersial</CardTitle>
+              <CardDescription>Hak akses dan wewenang operasional peran Marketing</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs">
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 dark:text-slate-400">Pendaftaran PO &amp; Multi-Unit</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle size={14} weight="fill" />
+                  Akses Penuh
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 dark:text-slate-400">Database Klien &amp; Kontak PIC</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle size={14} weight="fill" />
+                  Kelola &amp; Tetapkan PIC
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 dark:text-slate-400">PO Perpanjangan / Repeat Order</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle size={14} weight="fill" />
+                  Otomatis dari Histori
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 dark:text-slate-400">Follow-Up &amp; Dispatch Pengingat</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle size={14} weight="fill" />
+                  Catat &amp; Evaluasi H-30/14/7
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Batasan Kepatuhan Regulasi K3</CardTitle>
+              <CardDescription>Pemisahan tanggung jawab komersial dan independensi teknis</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs">
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                Untuk menjamin objektivitas pengujian sesuai regulasi Kemnaker R.I. dan standar PJK3 PT Upaya Riksa Daya, Marketing tidak memiliki kewenangan mengubah data teknis hasil inspeksi lapangan, nilai pengukuran, atau keputusan kelayakan alat.
+              </p>
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">Independensi Hasil Riksa Uji</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 block">
+                  Keputusan teknis dan penerbitan berkas LHPP merupakan wewenang mutlak Ahli K3 dan Quality Control Admin Kantor.
                 </span>
               </div>
             </CardContent>

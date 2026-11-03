@@ -58,7 +58,7 @@ export function IndonesiaMapWidget({ regions = [] }) {
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden flex flex-col justify-between">
       {/* Header Kartu */}
-      <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-4 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span className="h-8 w-8 rounded-lg bg-brand-500/10 dark:bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-brand-500/20 flex items-center justify-center shrink-0">
             <MapPin size={18} weight="bold" aria-hidden="true" />
@@ -67,13 +67,10 @@ export function IndonesiaMapWidget({ regions = [] }) {
             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
               Sebaran Wilayah Lokasi Pengujian
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Peta geospasial sebaran site klien, unit alat, dan inspeksi K3 di Indonesia
-            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-semibold self-start sm:self-center">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs font-semibold w-full sm:w-auto justify-between sm:justify-start">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
             <Buildings size={14} weight="bold" />
             <span>{regions.length} Wilayah Site</span>
@@ -86,9 +83,9 @@ export function IndonesiaMapWidget({ regions = [] }) {
       </div>
 
       {/* Area Peta Vektor SVG Indonesia (Natural Earth 34 Provinsi) */}
-      <div className="relative p-3 sm:p-5 bg-gradient-to-b from-slate-50/50 via-slate-100/30 to-slate-50/50 dark:from-slate-950/50 dark:via-slate-900/30 dark:to-slate-950/50 overflow-hidden">
+      <div className="relative p-2.5 sm:p-5 bg-gradient-to-b from-slate-50/50 via-slate-100/30 to-slate-50/50 dark:from-slate-950/50 dark:via-slate-900/30 dark:to-slate-950/50 overflow-hidden">
         {/* Overlay Informasi Wilayah Hover & Kompas */}
-        <div className="absolute top-4 left-4 z-10 pointer-events-none">
+        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 pointer-events-none">
           {hoveredProv && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-xs text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all">
               <Crosshair size={13} className="text-[#C81E1E]" weight="bold" />
@@ -102,7 +99,7 @@ export function IndonesiaMapWidget({ regions = [] }) {
           <span>U (Utara)</span>
         </div>
 
-        <div className="relative w-full aspect-[2.8/1] select-none">
+        <div className="relative w-full aspect-[2.1/1] sm:aspect-[2.8/1] select-none">
           <svg
             viewBox="-10 -10 720 255"
             className="w-full h-full filter drop-shadow-xs"
@@ -173,8 +170,17 @@ export function IndonesiaMapWidget({ regions = [] }) {
                   key={`${r.region_name}-${r.idx}`}
                   className="cursor-pointer group"
                   onClick={() => setActivePin(isActive ? null : r)}
+                  onTouchStart={() => setActivePin(isActive ? null : r)}
                   onMouseEnter={() => setActivePin(r)}
                 >
+                  {/* Invisible Touch Hit-Box Target (Min 28px SVG space for easy mobile tapping) */}
+                  <circle
+                    cx={r.x}
+                    cy={r.y}
+                    r={14}
+                    fill="transparent"
+                  />
+
                   {/* Cincin Lingkar Luar */}
                   <circle
                     cx={r.x}
@@ -217,10 +223,10 @@ export function IndonesiaMapWidget({ regions = [] }) {
             })}
           </svg>
 
-          {/* Floating Tooltip Interaktif untuk Pin yang Aktif */}
+          {/* Floating Tooltip Interaktif untuk Pin yang Aktif (Desktop/Tablet) */}
           {activePin && (
             <div
-              className="absolute z-20 pointer-events-none transition-all duration-150 -translate-x-1/2 -translate-y-full"
+              className="hidden sm:block absolute z-20 pointer-events-none transition-all duration-150 -translate-x-1/2 -translate-y-full"
               style={{
                 left: `${((activePin.x + 10) / 720) * 100}%`,
                 top: `${((activePin.y + 10) / 255) * 100}%`,
@@ -250,11 +256,28 @@ export function IndonesiaMapWidget({ regions = [] }) {
             </div>
           )}
         </div>
+
+        {/* Banner Info Pin Aktif Khusus Tampilan Mobile */}
+        {activePin && (
+          <div className="sm:hidden mt-2 p-2.5 rounded-lg bg-slate-900 text-white text-xs flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-1.5 font-bold truncate">
+              <MapPin size={14} className="text-rose-400 shrink-0" weight="fill" />
+              <span className="truncate">{activePin.region_name}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">
+              <span className="font-bold text-white">{activePin.units} Unit</span>
+              <span>·</span>
+              <span>{activePin.clients} Klien</span>
+              <span>·</span>
+              <span>{activePin.orders} PO</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Daftar Site Wilayah Aktif di Bawah Peta */}
-      <div className="border-t border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+      <div className="border-t border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-3 sm:p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-2.5">
           {mappedRegions.map((reg) => {
             const isSelected = activePin?.region_name === reg.region_name;
             return (
@@ -262,23 +285,24 @@ export function IndonesiaMapWidget({ regions = [] }) {
                 key={reg.region_name}
                 type="button"
                 onClick={() => setActivePin(isSelected ? null : reg)}
-                className={`text-left p-2.5 rounded-lg border transition-all flex flex-col justify-between ${
+                className={`text-left p-2 sm:p-2.5 rounded-lg border transition-all flex flex-col justify-between cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E] ${
                   isSelected
                     ? 'border-brand-500 bg-brand-50/40 dark:bg-rose-950/20 ring-1 ring-brand-500'
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-1.5">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                    <span className="h-2 w-2 rounded-full bg-[#C81E1E] shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#C81E1E] shrink-0" />
                     <span className="truncate">{reg.region_name}</span>
                   </span>
                   <span className="text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 shrink-0">
                     {reg.units} Unit
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-1 pt-1 border-t border-slate-100 dark:border-slate-800/80">
                   <span>{reg.clients} Klien</span>
+                  <span>·</span>
                   <span>{reg.orders} Order</span>
                 </div>
               </button>

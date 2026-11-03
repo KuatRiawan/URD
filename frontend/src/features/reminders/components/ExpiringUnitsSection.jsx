@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ArrowsClockwise,
   CalendarPlus,
@@ -5,7 +6,7 @@ import {
   WarningOctagon,
   WhatsappLogo
 } from '@phosphor-icons/react';
-import { EmptyState } from '../../../components/feedback/StateViews.jsx';
+import { EmptyState, PaginationBar } from '../../../components/feedback/StateViews.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { FOLLOWUP_STATUS_LABELS, formatDate } from '../../../lib/utils/format.js';
 
@@ -17,6 +18,9 @@ export function ExpiringUnitsSection({
   onOpenValidityModal,
   onCreateRenewalOrder
 }) {
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const displayUnits = datedUnits.slice((page - 1) * pageSize, page * pageSize);
   return (
     <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
       <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -39,7 +43,7 @@ export function ExpiringUnitsSection({
         <>
           {/* Tampilan Mobile: Kartu Responsif Touch-Friendly */}
           <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800 p-3 sm:p-4 space-y-3">
-            {datedUnits.map((item) => (
+            {displayUnits.map((item) => (
               <div
                 key={item.object_id}
                 className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
@@ -115,23 +119,23 @@ export function ExpiringUnitsSection({
 
                 {/* Tombol Aksi Mobile */}
                 {canManage && (
-                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
+                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                     <button
                       type="button"
                       disabled={submitting}
                       onClick={() => onCreateRenewalOrder(item.object_id, item.object_name)}
-                      className="w-full min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
+                      className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs"
                     >
-                      <ArrowsClockwise size={15} />
-                      <span>Buat PO Perpanjangan</span>
+                      <ArrowsClockwise size={14} />
+                      <span className="truncate">PO Perpanjangan</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onOpenValidityModal(item)}
-                      className="w-full min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                     >
-                      <CalendarPlus size={15} />
-                      <span>Catat Tindak Lanjut</span>
+                      <CalendarPlus size={14} />
+                      <span className="truncate">Tindak Lanjut</span>
                     </button>
                   </div>
                 )}
@@ -153,7 +157,7 @@ export function ExpiringUnitsSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                {datedUnits.map((item) => (
+                {displayUnits.map((item) => (
                   <tr key={item.object_id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3.5 px-4 text-xs">
                       <Badge
@@ -213,19 +217,19 @@ export function ExpiringUnitsSection({
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <span
-                          title="Pengingat perpanjangan dikirimkan secara terjadwal otomatis melalui WhatsApp Business API dan Email resmi PT Upaya Riksa Daya"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold"
+                          title="Pengingat terkirim otomatis melalui WhatsApp & Email"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold"
                         >
                           <WhatsappLogo size={13} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
                           <EnvelopeSimple size={13} weight="bold" className="text-blue-600 dark:text-blue-400" />
-                          <span>Otomatis (WABA + Email)</span>
+                          <span>WA · Email</span>
                         </span>
                         {canManage && (
                           <>
                             <button
                               type="button"
                               onClick={() => onOpenValidityModal(item)}
-                              className="min-h-9 inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                              className="min-h-9 inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
                             >
                               <CalendarPlus size={14} />
                               <span>Catat Tindak Lanjut</span>
@@ -234,7 +238,7 @@ export function ExpiringUnitsSection({
                               type="button"
                               disabled={submitting}
                               onClick={() => onCreateRenewalOrder(item.object_id, item.object_name)}
-                              className="min-h-9 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 dark:bg-slate-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                              className="min-h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
                             >
                               <ArrowsClockwise size={15} />
                               <span>Buat PO Perpanjangan</span>
@@ -248,6 +252,13 @@ export function ExpiringUnitsSection({
               </tbody>
             </table>
           </div>
+
+          <PaginationBar
+            page={page}
+            limit={pageSize}
+            total={datedUnits.length}
+            onPageChange={setPage}
+          />
         </>
       )}
     </section>

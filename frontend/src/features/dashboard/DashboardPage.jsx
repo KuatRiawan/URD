@@ -5,6 +5,7 @@ import { api } from '../../lib/api/axios.js';
 import { extractErrorMessage } from '../../lib/utils/format.js';
 import { InspectorDashboardView } from './components/InspectorDashboardView.jsx';
 import { ManagementDashboardView } from './components/ManagementDashboardView.jsx';
+import { MarketingDashboardView } from './components/MarketingDashboardView.jsx';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -236,6 +237,19 @@ export function DashboardPage() {
         rejectReason={rejectReason}
         setRejectReason={setRejectReason}
         actionLoading={actionLoading}
+      />
+    );
+  }
+
+  if (user?.role === 'MARKETING') {
+    return (
+      <MarketingDashboardView
+        user={user}
+        data={data}
+        loadSummary={loadSummary}
+        refreshing={refreshing}
+        period={period}
+        setPeriod={setPeriod}
       />
     );
   }

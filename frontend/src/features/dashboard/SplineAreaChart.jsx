@@ -322,6 +322,8 @@ export function SplineAreaChart({ monthlyTrend = [], period = '30D' }) {
               fill="transparent"
               className="cursor-pointer"
               onMouseEnter={() => setHoverIndex(i)}
+              onTouchStart={() => setHoverIndex(i)}
+              onClick={() => setHoverIndex(hoverIndex === i ? null : i)}
             />
           );
         })}

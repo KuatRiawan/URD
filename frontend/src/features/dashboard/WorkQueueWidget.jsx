@@ -193,9 +193,9 @@ export function WorkQueueWidget({ onRefresh }) {
             <button
               type="button"
               onClick={() => setFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
                 filter === 'ALL'
-                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold shadow-2xs'
+                  ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >

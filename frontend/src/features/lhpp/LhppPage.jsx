@@ -239,6 +239,50 @@ export function LhppPage() {
     }
   };
 
+  const handleDownloadDocx = async (lhppId, lhppNo) => {
+    try {
+      const res = await api.get(`/lhpp/${lhppId}/docx`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        })
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${(lhppNo || 'LHPP').replace(/\//g, '-')}.docx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengunduh berkas Word (.docx) LHPP.');
+    }
+  };
+
+  const handleDownloadRecommendationsPdf = async (inspectionId, lhppNo) => {
+    if (!inspectionId) return;
+    try {
+      const res = await api.get(`/inspections/${inspectionId}/recommendation-letter.pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `Lembar-Temuan-Rekomendasi-${(lhppNo || inspectionId).replace(/\//g, '-')}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || 'Gagal mengunduh Lembar Temuan & Rekomendasi K3 (PDF).'
+      );
+    }
+  };
+
   const handlePreviewBapPdf = async (bapId, bapNo) => {
     try {
       const res = await api.get(`/bap/${bapId}/pdf`, { responseType: 'blob' });
@@ -348,14 +392,14 @@ export function LhppPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Laporan Hasil Pemeriksaan dan Pengujian (LHPP) - Pusat Penerbitan Dokumen"
-        subtitle="Penyusunan narasi teknis LHPP, finalisasi pengesahan Ahli K3, penerbitan BAP terpadu, pratinjau dan unduh PDF resmi ber-QR verifikasi, serta pencatatan distribusi dokumen."
+        title="Dokumen LHPP &amp; BAP"
+        subtitle="Penyusunan narasi teknis, pengesahan dokumen resmi, dan penerbitan berkas PDF ber-QR verifikasi."
         actions={
           <select
             aria-label="Filter Status LHPP"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100"
+            className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[#C81E1E] transition-colors"
           >
             <option value="">Semua Status LHPP</option>
             {Object.entries(LHPP_STATUS_LABELS).map(([k, v]) => (
@@ -414,6 +458,8 @@ export function LhppPage() {
         handleReturnLhpp={handleReturnLhpp}
         handlePreviewPdf={handlePreviewPdf}
         handleDownloadPdf={handleDownloadPdf}
+        handleDownloadDocx={handleDownloadDocx}
+        handleDownloadRecommendationsPdf={handleDownloadRecommendationsPdf}
         handlePreviewBapPdf={handlePreviewBapPdf}
         handleDownloadBapPdf={handleDownloadBapPdf}
         handleSaveDraft={handleSaveDraft}

@@ -15,8 +15,7 @@ export function ClientDispatchSection({ channels, clientLog }) {
               Pengiriman Otomatis ke Klien
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Dikirim otomatis setiap hari pukul 07:00 pada H-30, H-14, dan H-7. Unit yang
-              sudah kedaluwarsa tidak dikirimi pengingat otomatis, tindak lanjuti manual.
+              Pengiriman otomatis berkala H-30, H-14, dan H-7 ke kontak PIC klien.
             </p>
           </div>
         </div>
@@ -33,10 +32,8 @@ export function ClientDispatchSection({ channels, clientLog }) {
       </div>
       {channels && (channels.email !== 'AKTIF' || channels.whatsapp !== 'AKTIF') && (
         <div className="px-5 pt-4">
-          <Notice tone="warning" title="Kanal belum terhubung">
-            Kanal berstatus Simulasi hanya dicatat pada log dan tidak dikirim ke klien.
-            Isi pengaturan SMTP dan token WhatsApp pada berkas .env server untuk mengaktifkan
-            pengiriman nyata.
+          <Notice tone="warning" title="Kanal Pengiriman Simulasi">
+            Kanal WhatsApp atau Email belum aktif pada server. Notifikasi reminder dicatat pada log internal tanpa mengirim pesan keluar.
           </Notice>
         </div>
       )}

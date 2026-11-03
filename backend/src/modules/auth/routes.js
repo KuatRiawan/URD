@@ -8,6 +8,7 @@ import { query, withTransaction } from '../../database/pool.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
+import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError } from '../../utils/http.js';
 
 const router = Router();
@@ -238,7 +239,8 @@ const updateProfileSchema = Joi.object({
     'string.max': 'Nama lengkap maksimal 120 karakter.',
     'any.required': 'Nama lengkap wajib diisi.'
   }),
-  phone: Joi.string().allow('', null)
+  phone: Joi.string().allow('', null),
+  avatarUrl: Joi.string().max(2000000).allow('', null)
 });
 
 const changePasswordSchema = Joi.object({
@@ -256,6 +258,7 @@ router.get('/me', authenticate, async (req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT id, email, full_name AS "fullName", role, phone, is_active AS "isActive",
+              avatar_url AS "avatarUrl",
               last_login_at AS "lastLoginAt", created_at AS "createdAt"
        FROM users WHERE id = $1`,
       [req.user.id]
@@ -304,13 +307,16 @@ router.get('/me', authenticate, async (req, res, next) => {
 
 router.put('/profile', authenticate, validate(updateProfileSchema), async (req, res, next) => {
   try {
-    const { fullName, phone } = req.body;
+    const { fullName, phone, avatarUrl } = req.body;
     const { rows } = await query(
       `UPDATE users
-       SET full_name = $1, phone = $2, updated_at = now()
-       WHERE id = $3
-       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive"`,
-      [fullName.trim(), phone ? phone.trim() : null, req.user.id]
+       SET full_name = $1,
+           phone = $2,
+           avatar_url = CASE WHEN $3::text IS NOT NULL THEN $3::text ELSE avatar_url END,
+           updated_at = now()
+       WHERE id = $4
+       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive", avatar_url AS "avatarUrl"`,
+      [fullName.trim(), phone ? phone.trim() : null, avatarUrl !== undefined ? avatarUrl : null, req.user.id]
     );
 
     await recordAudit({
@@ -318,13 +324,50 @@ router.put('/profile', authenticate, validate(updateProfileSchema), async (req, 
       action: 'USER_UPDATE_PROFILE',
       entity: 'users',
       entityId: req.user.id,
-      summary: { fullName: fullName.trim(), phone: phone || null },
+      summary: { fullName: fullName.trim(), phone: phone || null, hasAvatar: Boolean(rows[0]?.avatarUrl) },
       ip: req.ip
     });
 
     return res.json({
       message: 'Profil pengguna berhasil diperbarui.',
       user: rows[0]
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/avatar', authenticate, uploadMiddleware.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw new AppError(400, 'NO_FILE', 'Berkas foto profil wajib diunggah.');
+    }
+    const attachment = await saveUploadedFile({
+      buffer: req.file.buffer,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      ownerType: 'USER_AVATAR',
+      ownerId: req.user.id,
+      uploadedBy: req.user.id
+    });
+    const avatarUrl = `/api/v1/dashboard/files/${attachment.id}`;
+    const { rows } = await query(
+      `UPDATE users SET avatar_url = $1, updated_at = now() WHERE id = $2
+       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive", avatar_url AS "avatarUrl"`,
+      [avatarUrl, req.user.id]
+    );
+    await recordAudit({
+      userId: req.user.id,
+      action: 'USER_UPDATE_AVATAR',
+      entity: 'users',
+      entityId: req.user.id,
+      summary: { fileId: attachment.id },
+      ip: req.ip
+    });
+    return res.json({
+      message: 'Foto profil berhasil diperbarui.',
+      user: rows[0],
+      avatarUrl
     });
   } catch (err) {
     return next(err);

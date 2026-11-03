@@ -71,15 +71,15 @@ export function ClientTable({
               <button
                 type="button"
                 onClick={() => onOpenDetail(c.id)}
-                className="flex-1 min-h-[42px] inline-flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
-                Lokasi &amp; PIC
+                Detail &amp; Alat
               </button>
               {canEdit && (
                 <button
                   type="button"
                   onClick={() => onOpenEdit(c)}
-                  className="min-h-[42px] px-4 inline-flex items-center justify-center rounded-xl bg-slate-900 dark:bg-slate-700 text-xs font-bold text-white hover:bg-neutral-800 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                  className="h-9 px-3.5 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                 >
                   Ubah
                 </button>
@@ -124,19 +124,19 @@ export function ClientTable({
                       label={c.is_active ? 'Aktif' : 'Nonaktif'}
                     />
                   </td>
-                  <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+                  <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                     <button
                       type="button"
                       onClick={() => onOpenDetail(c.id)}
-                      className="min-h-9 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
                     >
-                      Lokasi &amp; PIC
+                      Detail &amp; Alat
                     </button>
                     {canEdit && (
                       <button
                         type="button"
                         onClick={() => onOpenEdit(c)}
-                        className="min-h-9 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 font-semibold text-white hover:bg-neutral-800 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                        className="h-8.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
                       >
                         Ubah
                       </button>

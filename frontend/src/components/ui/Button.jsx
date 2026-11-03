@@ -1,22 +1,25 @@
 import { forwardRef } from 'react';
 
-const VARIANTS = {
+export const VARIANTS = {
   primary:
-    'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 focus-visible:ring-brand-600 shadow-2xs',
+    'bg-[#C81E1E] text-white hover:bg-[#a11616] active:bg-[#851111] focus-visible:ring-2 focus-visible:ring-[#C81E1E] shadow-2xs cursor-pointer',
   secondary:
-    'bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 active:bg-slate-950 focus-visible:ring-slate-900 shadow-2xs',
+    'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white focus-visible:ring-2 focus-visible:ring-slate-400 shadow-2xs cursor-pointer',
   outline:
-    'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white active:bg-slate-100 dark:active:bg-slate-600 focus-visible:ring-slate-400 shadow-2xs',
+    'border border-slate-300 dark:border-slate-700 bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer',
   ghost:
-    'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white active:bg-slate-200 dark:active:bg-slate-700 focus-visible:ring-slate-400',
+    'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer',
   danger:
-    'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 focus-visible:ring-rose-600 shadow-2xs'
+    'border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 focus-visible:ring-2 focus-visible:ring-rose-500 shadow-2xs cursor-pointer',
+  soft:
+    'bg-rose-50 text-[#C81E1E] hover:bg-rose-100 active:bg-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60 border border-rose-200/60 dark:border-rose-900/40 focus-visible:ring-2 focus-visible:ring-[#C81E1E] cursor-pointer'
 };
 
-const SIZES = {
-  sm: 'min-h-9 px-3 py-1.5 text-xs gap-1.5',
-  md: 'min-h-11 px-4 py-2 text-xs font-bold gap-2',
-  lg: 'min-h-12 px-5 py-2.5 text-sm font-bold gap-2.5'
+export const SIZES = {
+  xs: 'h-7 px-2.5 text-[11px] font-semibold gap-1 rounded-md',
+  sm: 'h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg',
+  md: 'h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-lg',
+  lg: 'h-10 px-4 text-sm font-semibold gap-2 rounded-lg'
 };
 
 export const Button = forwardRef(function Button(
@@ -43,7 +46,7 @@ export const Button = forwardRef(function Button(
       ref={ref}
       type={type}
       disabled={isDisabled}
-      className={`inline-flex items-center justify-center rounded-lg font-bold tracking-tight transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 select-none ${variantClass} ${sizeClass} ${className}`}
+      className={`inline-flex items-center justify-center tracking-tight transition-all duration-150 focus-visible:outline-hidden select-none disabled:opacity-40 disabled:cursor-not-allowed ${variantClass} ${sizeClass} ${className}`}
       {...props}
     >
       {loading ? (
@@ -57,11 +60,11 @@ export const Button = forwardRef(function Button(
       ) : (
         <>
           {Icon && iconPosition === 'left' && (
-            <Icon size={size === 'sm' ? 15 : 18} aria-hidden="true" className="shrink-0" />
+            <Icon size={size === 'xs' ? 13 : size === 'sm' ? 14 : size === 'lg' ? 18 : 16} aria-hidden="true" className="shrink-0" />
           )}
           <span>{children}</span>
           {Icon && iconPosition === 'right' && (
-            <Icon size={size === 'sm' ? 15 : 18} aria-hidden="true" className="shrink-0" />
+            <Icon size={size === 'xs' ? 13 : size === 'sm' ? 14 : size === 'lg' ? 18 : 16} aria-hidden="true" className="shrink-0" />
           )}
         </>
       )}

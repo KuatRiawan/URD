@@ -6,7 +6,7 @@ import { ErrorBoundary } from '../feedback/ErrorBoundary.jsx';
 import { FeedbackProvider, useConfirm } from '../ui/FeedbackProvider.jsx';
 import { GlobalSearchDialog } from '../search/GlobalSearchDialog.jsx';
 import { getVisibleNav } from './navConfig.js';
-import { BrandBlock, SidebarNav, UserCard } from './SidebarNav.jsx';
+import { BrandBlock, SidebarNav, SidebarLogout } from './SidebarNav.jsx';
 import { TopHeader } from './TopHeader.jsx';
 import { MobileBottomNav } from './MobileBottomNav.jsx';
 
@@ -134,7 +134,7 @@ function LayoutShell() {
 
         <SidebarNav items={visibleNav} collapsed={collapsed} />
 
-        <UserCard user={user} collapsed={collapsed} onLogout={handleLogout} />
+        <SidebarLogout collapsed={collapsed} onLogout={handleLogout} />
       </aside>
 
       {/* Konten Utama */}

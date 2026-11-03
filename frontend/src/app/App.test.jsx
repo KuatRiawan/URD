@@ -119,18 +119,18 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
 
   it('renders all internal feature pages without blank screens when authenticated as ADMIN_SISTEM', async () => {
     const pagesToVerify = [
-      { path: '/app/orders', heading: /PO & Order Pemeriksaan Riksa Uji K3/i },
-      { path: '/app/schedule', heading: /Jadwal Pemeriksaan & Matriks Kompetensi Ahli K3/i },
+      { path: '/app/orders', heading: /PO & Order Pemeriksaan/i },
+      { path: '/app/schedule', heading: /Jadwal/i },
       { path: '/app/inspections', heading: /Form Inspeksi Lapangan & Checklist K3/i },
-      { path: '/app/bap', heading: /Berita Acara Riksa Uji \(BAP\)/i },
-      { path: '/app/lhpp', heading: /Laporan Hasil Pemeriksaan dan Pengujian \(LHPP\)/i },
+      { path: '/app/bap', heading: /Berita Acara/i },
+      { path: '/app/lhpp', heading: /LHPP/i },
       { path: '/app/distributions', heading: /Distribusi Dokumen K3/i },
-      { path: '/app/suket', heading: /Registri Surat Keterangan \(Suket\) K3/i },
-      { path: '/app/history', heading: /Riwayat Pengujian Unit K3/i },
-      { path: '/app/reminders', heading: /Pengingat Perpanjangan Unit K3, Suket & SKP Ahli K3/i },
-      { path: '/app/users', heading: /Manajemen Pengguna Internal \(RBAC\)/i },
-      { path: '/app/notifications', heading: /Pusat Notifikasi Operasional/i },
-      { path: '/app/audit-logs', heading: /Log Audit Sistem \(Immutable Append-Only\)/i },
+      { path: '/app/suket', heading: /Registri Suket/i },
+      { path: '/app/history', heading: /Riwayat Pengujian/i },
+      { path: '/app/reminders', heading: /Pengingat/i },
+      { path: '/app/users', heading: /Manajemen Pengguna/i },
+      { path: '/app/notifications', heading: /Notifikasi/i },
+      { path: '/app/audit-logs', heading: /Log Audit/i },
       { path: '/app/settings', heading: /Pengaturan/i }
     ];
 

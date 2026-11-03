@@ -25,6 +25,7 @@ import orderRoutes from './modules/orders/routes.js';
 import reminderRoutes from './modules/reminders/routes.js';
 import scheduleRoutes from './modules/scheduling/routes.js';
 import suketRoutes from './modules/suket/routes.js';
+import systemSettingsRoutes from './modules/system-settings/routes.js';
 import userRoutes from './modules/users/routes.js';
 import { AppError } from './utils/http.js';
 
@@ -112,6 +113,7 @@ app.use('/api/v1/audit-logs', auditRoutes);
 app.use('/api/v1/dashboard', dashboardAndFileRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/verify', verifyRoutes);
+app.use('/api/v1/system-settings', systemSettingsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

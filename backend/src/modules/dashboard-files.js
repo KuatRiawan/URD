@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 async function inspectorCanAccessAttachment(file, inspectorId) {
+  if (file.owner_type === 'USER_AVATAR') return true;
   const accessQueries = {
     OBJECT: `SELECT EXISTS (
       SELECT 1 FROM order_objects oo
@@ -174,6 +175,171 @@ router.get('/summary', async (req, res, next) => {
         myAssignments: myAssignments.rows,
         assignedUnits: assignedUnits.rows,
         recentActivities: recentActivitiesRes.rows
+      });
+    }
+
+    if (role === 'MARKETING') {
+      const [
+        clientRes,
+        orderStatsRes,
+        expiringStatsRes,
+        pendingFollowupsRes,
+        renewedClientsRes,
+        recentOrdersRes,
+        urgentExpiringRes,
+        recentActivitiesRes,
+        regionalMappingRes,
+        monthlyTrendRes
+      ] = await Promise.all([
+        query(`SELECT count(*)::int AS count FROM clients WHERE is_active = true`),
+        query(`
+          SELECT
+            count(*)::int AS total,
+            count(*) FILTER (WHERE status IN ('ORDER_BARU', 'TERDAFTAR'))::int AS new_orders,
+            count(*) FILTER (WHERE status IN ('TERJADWAL', 'DITUGASKAN', 'SEDANG_DIPERIKSA', 'MENUNGGU_LAPORAN', 'MENUNGGU_DOKUMEN'))::int AS active_orders,
+            count(*) FILTER (WHERE status IN ('ORDER_BARU', 'TERDAFTAR'))::int AS awaiting_schedule,
+            count(*) FILTER (WHERE status = 'SEDANG_DIPERIKSA')::int AS in_progress_orders,
+            count(*) FILTER (WHERE status = 'SELESAI')::int AS completed_orders
+          FROM orders
+        `),
+        query(`
+          SELECT
+            count(*) FILTER (WHERE days_remaining BETWEEN 0 AND 30)::int AS within_30_days,
+            count(*) FILTER (WHERE days_remaining BETWEEN 0 AND 7)::int AS h7_count,
+            count(*) FILTER (WHERE days_remaining BETWEEN 8 AND 14)::int AS h14_count,
+            count(*) FILTER (WHERE days_remaining BETWEEN 15 AND 30)::int AS h30_count
+          FROM (
+            SELECT (COALESCE(s.valid_until, t.next_inspection_date) - CURRENT_DATE)::int AS days_remaining
+            FROM test_objects t
+            LEFT JOIN suket_documents s ON s.object_id = t.id AND s.status = 'TERBIT'
+            WHERE t.is_active = true AND COALESCE(s.valid_until, t.next_inspection_date) IS NOT NULL
+          ) sub
+        `),
+        query(`
+          SELECT count(DISTINCT t.id)::int AS count
+          FROM test_objects t
+          JOIN clients c ON c.id = t.client_id
+          LEFT JOIN LATERAL (
+            SELECT s.valid_until FROM suket_documents s
+            WHERE s.object_id = t.id AND s.status = 'TERBIT'
+            ORDER BY s.valid_until DESC NULLS LAST LIMIT 1
+          ) s ON true
+          LEFT JOIN LATERAL (
+            SELECT rf.status FROM renewal_followups rf
+            WHERE rf.object_id = t.id OR rf.suket_id IN (SELECT id FROM suket_documents WHERE object_id = t.id)
+            ORDER BY rf.created_at DESC LIMIT 1
+          ) rf ON true
+          WHERE t.is_active = true AND c.is_active = true
+            AND COALESCE(s.valid_until, t.next_inspection_date) IS NOT NULL
+            AND (COALESCE(s.valid_until, t.next_inspection_date) - CURRENT_DATE) <= 90
+            AND COALESCE(rf.status, 'BELUM_DITINDAKLANJUTI') NOT IN ('SUDAH_JADI_PO_BARU', 'DITUNDA')
+        `),
+        query(`
+          SELECT count(DISTINCT client_id)::int AS count
+          FROM orders
+          WHERE service_type = 'PERPANJANGAN' OR renewal_of_suket IS NOT NULL
+        `),
+        query(`
+          SELECT o.id, o.order_no, o.po_number, o.service_type, o.status, o.created_at,
+                 c.name AS client_name,
+                 (SELECT count(*)::int FROM order_objects oo WHERE oo.order_id = o.id) AS unit_count
+          FROM orders o
+          JOIN clients c ON c.id = o.client_id
+          ORDER BY o.created_at DESC
+          LIMIT 6
+        `),
+        query(`
+          SELECT t.id, t.name, t.serial_number, t.capacity, oc.code AS category_code,
+                 c.name AS client_name, c.id AS client_id,
+                 (SELECT cc.name FROM client_contacts cc WHERE cc.client_id = c.id AND cc.is_active = true ORDER BY cc.is_reminder_recipient DESC, cc.is_primary DESC, cc.created_at DESC LIMIT 1) AS contact_name,
+                 (SELECT cc.phone FROM client_contacts cc WHERE cc.client_id = c.id AND cc.is_active = true ORDER BY cc.is_reminder_recipient DESC, cc.is_primary DESC, cc.created_at DESC LIMIT 1) AS contact_phone,
+                 COALESCE(s.valid_until, t.next_inspection_date) AS valid_until,
+                 (COALESCE(s.valid_until, t.next_inspection_date) - CURRENT_DATE)::int AS days_remaining,
+                 COALESCE(rf.status, 'BELUM_DITINDAKLANJUTI') AS followup_status
+          FROM test_objects t
+          JOIN clients c ON c.id = t.client_id
+          JOIN object_categories oc ON oc.id = t.category_id
+          LEFT JOIN LATERAL (
+            SELECT s1.valid_until FROM suket_documents s1
+            WHERE s1.object_id = t.id AND s1.status = 'TERBIT'
+            ORDER BY s1.valid_until DESC NULLS LAST LIMIT 1
+          ) s ON true
+          LEFT JOIN LATERAL (
+            SELECT rf1.status FROM renewal_followups rf1
+            WHERE rf1.object_id = t.id OR rf1.suket_id IN (SELECT id FROM suket_documents WHERE object_id = t.id)
+            ORDER BY rf1.created_at DESC LIMIT 1
+          ) rf ON true
+          WHERE t.is_active = true
+            AND COALESCE(s.valid_until, t.next_inspection_date) IS NOT NULL
+            AND (COALESCE(s.valid_until, t.next_inspection_date) - CURRENT_DATE) BETWEEN -30 AND 60
+          ORDER BY days_remaining ASC
+          LIMIT 8
+        `),
+        query(`
+          SELECT a.id, a.action, a.entity, a.entity_id, a.summary, a.created_at,
+                 u.full_name AS user_name, u.role AS user_role
+          FROM audit_logs a
+          LEFT JOIN users u ON u.id = a.user_id
+          WHERE u.role = 'MARKETING' OR a.user_id = $1
+          ORDER BY a.created_at DESC
+          LIMIT 8
+        `, [req.user.id]),
+        query(`
+          SELECT coalesce(nullif(trim(cl.city), ''), 'Pusat / Jabodetabek') AS region_name,
+                 count(DISTINCT o.id)::int AS order_count,
+                 count(oo.id)::int AS unit_count,
+                 count(DISTINCT c.id)::int AS client_count
+          FROM orders o
+          JOIN clients c ON c.id = o.client_id
+          LEFT JOIN client_locations cl ON cl.id = o.location_id
+          LEFT JOIN order_objects oo ON oo.order_id = o.id
+          GROUP BY 1
+          ORDER BY unit_count DESC, order_count DESC
+          LIMIT 8
+        `),
+        query(`
+          SELECT to_char(d, 'YYYY-MM') AS month_key,
+                 to_char(d, 'Mon') AS month_label,
+                 coalesce(count(o.id), 0)::int AS order_count,
+                 coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+          FROM generate_series(
+            date_trunc('month', now() - interval '5 months'),
+            date_trunc('month', now()),
+            interval '1 month'
+          ) d
+          LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+          GROUP BY d
+          ORDER BY d ASC
+        `)
+      ]);
+
+      const ordStats = orderStatsRes.rows[0] || {};
+      const expStats = expiringStatsRes.rows[0] || {};
+
+      return res.json({
+        role,
+        metrics: {
+          managedClients: clientRes.rows[0]?.count || 0,
+          newOrders: ordStats.new_orders || 0,
+          activeOrders: ordStats.active_orders || 0,
+          awaitingScheduleOrders: ordStats.awaiting_schedule || 0,
+          inProgressOrders: ordStats.in_progress_orders || 0,
+          completedOrders: ordStats.completed_orders || 0,
+          totalOrders: ordStats.total || 0,
+          expiringUnitsCount: expStats.within_30_days || 0,
+          remindersH7: expStats.h7_count || 0,
+          remindersH14: expStats.h14_count || 0,
+          remindersH30: expStats.h30_count || 0,
+          pendingFollowupsCount: pendingFollowupsRes.rows[0]?.count || 0,
+          renewedClientsCount: renewedClientsRes.rows[0]?.count || 0
+        },
+        recentOrders: recentOrdersRes.rows,
+        urgentExpiringUnits: urgentExpiringRes.rows,
+        recentActivities: recentActivitiesRes.rows,
+        analytics: {
+          monthlyTrend: monthlyTrendRes.rows,
+          regionalMapping: regionalMappingRes.rows
+        }
       });
     }
 

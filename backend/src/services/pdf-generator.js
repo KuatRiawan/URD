@@ -5,6 +5,7 @@ import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { env } from '../config/env.js';
 import { resolveAttachmentPath } from '../storage/file-storage.js';
+import { getCompanyProfile } from './system-settings-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const officialLogoPath = path.resolve(__dirname, '../../../logo-urd.png');
@@ -21,20 +22,26 @@ function getLhppSkpAppendixPaths(categoryCode) {
   ).filter((filePath) => fs.existsSync(filePath));
 }
 
-function drawCompanyHeader(doc, subtitle) {
+function drawCompanyHeader(doc, subtitle, profile = null) {
   if (fs.existsSync(officialLogoPath)) {
     doc.image(officialLogoPath, 45, 36, { width: 68 });
   }
+  const companyName = profile?.company_name || 'PT UPAYA RIKSA DAYA';
+  const tagline = profile?.tagline || 'Perusahaan Jasa K3 (PJK3) Bidang Pemeriksaan dan Pengujian';
+  const email = profile?.email || 'urd@upayariksadaya.com';
+  const phone = profile?.phone || '(021) 489 1409';
+  const web = profile?.website ? profile.website.replace(/^https?:\/\//, '') : 'upayariksadaya.com';
+
   doc
     .fillColor('#1D1414')
     .font('Helvetica-Bold')
     .fontSize(14)
-    .text('PT UPAYA RIKSA DAYA', 125, 40)
+    .text(companyName, 125, 40)
     .font('Helvetica')
     .fontSize(9)
     .fillColor('#324A6D')
-    .text('Perusahaan Jasa K3 (PJK3) Bidang Pemeriksaan dan Pengujian', 125, 58)
-    .text('Email: urd@upayariksadaya.com  |  Telp: (021) 489 1409  |  upayariksadaya.com', 125, 71);
+    .text(tagline, 125, 58)
+    .text(`Email: ${email}  |  Telp: ${phone}  |  ${web}`, 125, 71);
 
   doc
     .moveTo(45, 94)
@@ -55,19 +62,22 @@ function drawCompanyHeader(doc, subtitle) {
   }
 }
 
-function drawCompanyFooter(doc, yPos = 770) {
+function drawCompanyFooter(doc, yPos = 770, profile = null) {
   doc
     .moveTo(45, yPos)
     .lineTo(550, yPos)
     .lineWidth(0.8)
     .strokeColor('#C8D5DC')
     .stroke();
+  const companyName = profile?.company_name || 'PT Upaya Riksa Daya';
+  const email = profile?.email || 'urd@upayariksadaya.com';
+  const phone = profile?.phone || '(021) 489 1409';
   doc
     .font('Helvetica')
     .fontSize(7.5)
     .fillColor('#324A6D')
     .text(
-      'PT Upaya Riksa Daya | PJK3 Pemeriksaan & Pengujian K3 | urd@upayariksadaya.com | (021) 489 1409',
+      `${companyName} | PJK3 Pemeriksaan & Pengujian K3 | ${email} | ${phone}`,
       45,
       yPos + 5,
       { align: 'center', width: 505 }
@@ -127,7 +137,8 @@ const TEMPLATE_BAP_COLUMNS = [
   ]
 ];
 
-function renderSingleBapPage(doc, bap, qrBuffer) {
+function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
+  const companyName = companyProfile?.company_name || 'PT. UPAYA RIKSA DAYA';
   // 1. Kop sesuai template resmi Berita Acara Riksa Uji PT. UPAYA RIKSA DAYA
   // Bar merah marun di sisi kiri + Nama PT. UPAYA RIKSA DAYA + Logo resmi di kanan atas
   doc.rect(45, 42, 260, 16).fillColor('#8B262B').fill();
@@ -136,7 +147,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .font('Times-Roman')
     .fontSize(12.5)
     .fillColor('#1D1414')
-    .text('PT. UPAYA RIKSA DAYA', 315, 43, { width: 145, align: 'left' });
+    .text(companyName.toUpperCase(), 315, 43, { width: 145, align: 'left' });
 
   doc
     .moveTo(315, 58)
@@ -186,7 +197,7 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     .fontSize(10)
     .fillColor('#1D1414')
     .text(
-      `Pada hari ini ${dayName}, Tanggal ${dayNum} Bulan ${monthName} Tahun ${yearFull} telah dilaksanakan pekerjaan pemeriksaan dan pengujian (riksa uji) oleh PT. Upaya Riksa Daya pada :`,
+      `Pada hari ini ${dayName}, Tanggal ${dayNum} Bulan ${monthName} Tahun ${yearFull} telah dilaksanakan pekerjaan pemeriksaan dan pengujian (riksa uji) oleh ${companyName} pada :`,
       45,
       118,
       { width: 505, lineGap: 2 }
@@ -444,41 +455,30 @@ function renderSingleBapPage(doc, bap, qrBuffer) {
     );
 
   const footerAddrTop = closingTop + 48;
+  const addrText = companyProfile?.address || 'Jl. Pondasi No. 50B Kel. Kayu Putih Kec. Pulo Gadung Jakarta Timur 13210';
+  const phoneText = companyProfile?.phone ? `ph. ${companyProfile.phone}` : 'ph. 021.4891409, 4715699, 47861912 Fax. 021.47865925';
+  const emailText = companyProfile?.email ? `Email. ${companyProfile.email}` : 'Email. urd@upayariksadaya.com, upayariksadaya@gmail.com';
+  const webText = companyProfile?.website ? `Website. ${companyProfile.website.replace(/^https?:\/\//, '')}` : 'Website. www.upayariksadaya.com';
+
   doc
     .font('Times-Roman')
     .fontSize(7.8)
     .fillColor('#1D1414')
-    .text(
-      'Jl. Pondasi No. 50B Kel. Kayu Putih Kec. Pulo Gadung Jakarta Timur 13210',
-      45,
-      footerAddrTop,
-      { align: 'center', width: 505 }
-    )
-    .text(
-      'ph. 021.4891409, 4715699, 47861912 Fax. 021.47865925',
-      45,
-      footerAddrTop + 10,
-      { align: 'center', width: 505 }
-    )
-    .text(
-      'Email. urd@upayariksadaya.com, upayariksadaya@gmail.com',
-      45,
-      footerAddrTop + 20,
-      { align: 'center', width: 505 }
-    )
-    .text('Website.www.upayariksadaya.com', 45, footerAddrTop + 30, {
-      align: 'center',
-      width: 505
-    });
+    .text(addrText, 45, footerAddrTop, { align: 'center', width: 505 })
+    .text(phoneText, 45, footerAddrTop + 10, { align: 'center', width: 505 })
+    .text(emailText, 45, footerAddrTop + 20, { align: 'center', width: 505 })
+    .text(webText, 45, footerAddrTop + 30, { align: 'center', width: 505 });
 }
 
 export async function generateBapPdfBuffer(bapInput) {
+  const companyProfile = await getCompanyProfile().catch(() => null);
+  const companyName = companyProfile?.company_name || 'PT UPAYA RIKSA DAYA';
   const bapList = Array.isArray(bapInput) ? bapInput : [bapInput];
   const qrBuffers = await Promise.all(
     bapList.map((b) => {
       const qrText = b.verification_code
         ? `https://upayariksadaya.com/verifikasi/${b.verification_code}`
-        : `PT UPAYA RIKSA DAYA | BAP: ${b.bap_no || 'DRAF'} | PO: ${b.po_number || b.order_no || '-'} | SN: ${b.serial_number || '-'}`;
+        : `${companyName} | BAP: ${b.bap_no || 'DRAF'} | PO: ${b.po_number || b.order_no || '-'} | SN: ${b.serial_number || '-'}`;
       return QRCode.toBuffer(qrText, { width: 84, margin: 1 });
     })
   );
@@ -492,7 +492,7 @@ export async function generateBapPdfBuffer(bapInput) {
 
     bapList.forEach((bap, idx) => {
       if (idx > 0) doc.addPage();
-      renderSingleBapPage(doc, bap, qrBuffers[idx]);
+      renderSingleBapPage(doc, bap, qrBuffers[idx], companyProfile);
     });
 
     doc.end();
@@ -2948,6 +2948,7 @@ export async function generateLhppPdfBuffer(data, options = {}) {
 }
 
 export async function generateAssignmentLetterPdfBuffer(data) {
+  const companyProfile = await getCompanyProfile().catch(() => null);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 45 });
     const chunks = [];
@@ -2955,7 +2956,7 @@ export async function generateAssignmentLetterPdfBuffer(data) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    drawCompanyHeader(doc, 'SURAT TUGAS PEMERIKSAAN DAN PENGUJIAN K3');
+    drawCompanyHeader(doc, 'SURAT TUGAS PEMERIKSAAN DAN PENGUJIAN K3', companyProfile);
 
     doc
       .font('Helvetica')
@@ -3024,6 +3025,7 @@ export async function generateAssignmentLetterPdfBuffer(data) {
 }
 
 export async function generateBastPdfBuffer(data) {
+  const companyProfile = await getCompanyProfile().catch(() => null);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 45 });
     const chunks = [];
@@ -3031,7 +3033,7 @@ export async function generateBastPdfBuffer(data) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    drawCompanyHeader(doc, 'BERITA ACARA SERAH TERIMA DOKUMEN RIKSA UJI K3');
+    drawCompanyHeader(doc, 'BERITA ACARA SERAH TERIMA DOKUMEN RIKSA UJI K3', companyProfile);
 
     const now = new Date(data.handover_date || data.dispatch_date || new Date());
     const dayName = INDONESIAN_DAYS[now.getDay()];
@@ -3294,6 +3296,7 @@ export async function generateObjectQrStickerPdfBuffer(data) {
 }
 
 export async function generateRecommendationLetterPdfBuffer(data) {
+  const companyProfile = await getCompanyProfile().catch(() => null);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 45 });
     const chunks = [];
@@ -3301,7 +3304,7 @@ export async function generateRecommendationLetterPdfBuffer(data) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    drawCompanyHeader(doc, 'LEMBAR TEMUAN DAN REKOMENDASI K3 (CORRECTIVE ACTION NOTICE)');
+    drawCompanyHeader(doc, 'LEMBAR TEMUAN DAN REKOMENDASI K3 (CORRECTIVE ACTION NOTICE)', companyProfile);
 
     const now = new Date(data.inspection_date || new Date());
     const dateFormatted = `${now.getDate()} ${INDONESIAN_MONTHS[now.getMonth()]} ${now.getFullYear()}`;

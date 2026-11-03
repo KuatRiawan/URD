@@ -729,6 +729,18 @@ router.post(
           reason: 'PO dicatat pertama kali'
         });
 
+        // Notifikasi internal ke Admin Kantor dan Admin Sistem untuk penjadwalan & penugasan
+        await notifyRoles(
+          {
+            roles: ['ADMIN_KANTOR', 'ADMIN_SISTEM'],
+            type: 'ORDER_NEW',
+            title: `PO Baru Didaftarkan: ${order.po_number || order.order_no}`,
+            body: `PO ${order.po_number || order.order_no} berhasil didaftarkan (${insertedIds.length} unit alat). Menunggu verifikasi jadwal dan penugasan Ahli K3.`,
+            link: '/app/orders'
+          },
+          db
+        );
+
         await recordAudit(
           {
             userId: req.user.id,

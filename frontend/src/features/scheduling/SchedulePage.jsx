@@ -108,8 +108,8 @@ export function SchedulePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jadwal Pemeriksaan & Matriks Kompetensi Ahli K3"
-        subtitle="Pantau agenda inspeksi lapangan beserta masa berlaku SKP penunjukan Ahli K3 di setiap bidang riksa uji."
+        title="Jadwal &amp; Penugasan Tim K3"
+        subtitle="Agenda inspeksi lapangan dan masa berlaku SKP penunjukan Ahli K3."
       />
 
       {feedback && (

@@ -24,7 +24,8 @@ export function SettingsPage() {
   // State Profil
   const [profileForm, setProfileForm] = useState({
     fullName: user?.fullName || '',
-    phone: user?.phone || ''
+    phone: user?.phone || '',
+    avatarUrl: user?.avatarUrl || ''
   });
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(null);
@@ -52,7 +53,8 @@ export function SettingsPage() {
           setMeData(data.user);
           setProfileForm({
             fullName: data.user.fullName || '',
-            phone: data.user.phone || ''
+            phone: data.user.phone || '',
+            avatarUrl: data.user.avatarUrl || ''
           });
         }
       } catch {
@@ -65,6 +67,31 @@ export function SettingsPage() {
     };
   }, []);
 
+  const handleAvatarUpload = async (file) => {
+    if (!file) return;
+    setProfileLoading(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const { data } = await api.post('/auth/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setProfileForm((prev) => ({ ...prev, avatarUrl: data.avatarUrl }));
+      updateUser(data.user);
+      setProfileSuccess('Foto profil berhasil diunggah.');
+    } catch (err) {
+      setProfileError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal mengunggah foto profil.'
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setProfileLoading(true);
@@ -74,7 +101,8 @@ export function SettingsPage() {
     try {
       const { data } = await api.put('/auth/profile', {
         fullName: profileForm.fullName,
-        phone: profileForm.phone
+        phone: profileForm.phone,
+        avatarUrl: profileForm.avatarUrl || null
       });
       updateUser(data.user);
       setProfileSuccess('Profil berhasil diperbarui.');
@@ -131,6 +159,8 @@ export function SettingsPage() {
         return 'Operasional Kantor';
       case 'PIMPINAN':
         return 'Kebijakan & Approval';
+      case 'MARKETING':
+        return 'Kewenangan Komersial';
       default:
         return 'Konfigurasi Peran';
     }
@@ -146,6 +176,8 @@ export function SettingsPage() {
         return 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800';
       case 'PIMPINAN':
         return 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+      case 'MARKETING':
+        return 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
       default:
         return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
     }
@@ -154,8 +186,8 @@ export function SettingsPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <PageHeader
-        title="Pengaturan"
-        subtitle="Kelola profil akun, keamanan otentikasi, tampilan visual antarmuka, serta kredensial operasional di PT Upaya Riksa Daya."
+        title="Pengaturan Akun"
+        subtitle="Kelola profil akun, keamanan otentikasi, dan preferensi tampilan."
       />
 
       {/* Navigasi Tab Pengaturan */}
@@ -223,6 +255,7 @@ export function SettingsPage() {
           profileSuccess={profileSuccess}
           profileError={profileError}
           onUpdateProfile={handleUpdateProfile}
+          onAvatarUpload={handleAvatarUpload}
           getRoleBadgeColor={getRoleBadgeColor}
         />
       )}

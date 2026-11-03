@@ -72,15 +72,15 @@ export function PaginationBar({ page, limit, total, onPageChange }) {
   return (
     <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 transition-colors">
       <span>
-        Halaman <strong className="text-slate-900 dark:text-white">{page}</strong> dari{' '}
-        <strong className="text-slate-900 dark:text-white">{totalPages}</strong> (Total {total} data)
+        Halaman <strong className="text-slate-900 dark:text-white font-bold">{page}</strong> dari{' '}
+        <strong className="text-slate-900 dark:text-white font-bold">{totalPages}</strong> (Total {total} data)
       </span>
       <div className="flex items-center gap-2">
         <button
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="h-9 px-3 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors"
+          className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
         >
           Sebelumnya
         </button>
@@ -88,7 +88,7 @@ export function PaginationBar({ page, limit, total, onPageChange }) {
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="h-9 px-3 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors"
+          className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
         >
           Berikutnya
         </button>

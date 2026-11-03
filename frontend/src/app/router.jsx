@@ -166,7 +166,7 @@ export function AppRoutes() {
         <Route
           path="history"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
               <HistoryPage />
             </RequireRole>
           }

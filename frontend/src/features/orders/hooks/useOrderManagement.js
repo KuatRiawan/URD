@@ -11,6 +11,9 @@ export function useOrderManagement() {
   const [feedback, setFeedback] = useState('');
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit] = useState(15);
+  const [total, setTotal] = useState(0);
 
   // State Modal Buat PO Wizard
   const [createOpen, setCreateOpen] = useState(false);
@@ -80,13 +83,14 @@ export function useOrderManagement() {
     try {
       const [ordersRes, clientsRes, inspectorsRes, catsRes] = await Promise.all([
         api.get('/orders', {
-          params: { q: q || undefined, status: statusFilter || undefined, limit: 50 }
+          params: { q: q || undefined, status: statusFilter || undefined, page, limit }
         }),
         api.get('/clients', { params: { limit: 100 } }).catch(() => ({ data: { items: [] } })),
         api.get('/inspectors').catch(() => ({ data: { items: [] } })),
         api.get('/objects/categories').catch(() => ({ data: { categories: [] } }))
       ]);
       setOrders(ordersRes.data?.items || []);
+      setTotal(ordersRes.data?.total || 0);
       setClients(clientsRes.data?.items || []);
       setInspectors(inspectorsRes.data?.items || []);
       setCategories(catsRes.data?.categories || []);
@@ -101,7 +105,7 @@ export function useOrderManagement() {
         setLoading(false);
       }
     }
-  }, [q, statusFilter]);
+  }, [q, statusFilter, page, limit]);
 
   useEffect(() => {
     loadOrders();
@@ -114,10 +118,15 @@ export function useOrderManagement() {
       return;
     }
     try {
-      const res = await api.get('/objects', { params: { clientId, limit: 100 } });
+      const res = await api.get(`/clients/${clientId}/equipment-history`);
       setClientObjects(res.data?.items || []);
     } catch {
-      setClientObjects([]);
+      try {
+        const fallback = await api.get('/objects', { params: { clientId, limit: 100 } });
+        setClientObjects(fallback.data?.items || []);
+      } catch {
+        setClientObjects([]);
+      }
     }
   };
 
@@ -679,6 +688,10 @@ export function useOrderManagement() {
     handleDownloadAssignmentPdf,
     handleDownloadBatchBapPdf,
     handleDownloadBastPdf,
-    handleDownloadUnitPdf
+    handleDownloadUnitPdf,
+    page,
+    setPage,
+    limit,
+    total
   };
 }

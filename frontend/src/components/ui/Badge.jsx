@@ -26,6 +26,7 @@ export function statusTone(status) {
     case 'SESUAI':
     case 'SETUJU_PERPANJANG':
     case 'ORDER_PERPANJANGAN_DIBUAT':
+    case 'SUDAH_JADI_PO_BARU':
     case 'DIPERPANJANG':
       return 'success';
     case 'DIBATALKAN':
@@ -41,6 +42,7 @@ export function statusTone(status) {
     case 'NONAKTIF':
     case 'MENOLAK':
     case 'TIDAK_DIPERPANJANG':
+    case 'TIDAK_LANJUT':
       return 'danger';
     case 'MEMENUHI_SYARAT_DENGAN_CATATAN':
     case 'MAYOR':
@@ -49,6 +51,8 @@ export function statusTone(status) {
     case 'MENUNGGU_LHPP':
     case 'MENUNGGU_SUKET':
     case 'MENUNGGU_PO':
+    case 'MENUNGGU_KEPUTUSAN':
+    case 'MENUNGGU_KONFIRMASI_KLIEN':
     case 'DALAM_PROSES':
       return 'warning';
     case 'TERJADWAL':
@@ -57,6 +61,7 @@ export function statusTone(status) {
     case 'DALAM_PELAKSANAAN':
     case 'DITUGASKAN':
     case 'SEDANG_DIPERIKSA':
+    case 'SEDANG_PENAWARAN':
     case 'SUDAH_DIHUBUNGI':
     case 'DIAJUKAN':
       return 'info';

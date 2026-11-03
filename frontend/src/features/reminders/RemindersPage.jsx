@@ -141,15 +141,15 @@ export function RemindersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Pengingat Perpanjangan Unit K3, Suket &amp; SKP Ahli K3"
-        subtitle="Pantau unit alat yang akan kedaluwarsa, jatuh tempo pemeriksaan, sudah kedaluwarsa, maupun unit yang belum memiliki tanggal masa berlaku resmi."
+        title="Pengingat Suket Klien"
+        subtitle="Monitoring siklus jatuh tempo H-30, H-14, H-7 dan perpanjangan Suket K3."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <select
               aria-label="Jendela Hari Pengingat"
               value={daysWindow}
               onChange={(e) => setDaysWindow(Number(e.target.value))}
-              className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 cursor-pointer"
+              className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               <option value={30}>Jendela H-30 Hari</option>
               <option value={60}>Jendela H-60 Hari</option>
@@ -162,10 +162,10 @@ export function RemindersPage() {
                 type="button"
                 disabled={submitting}
                 onClick={handleRunDispatch}
-                className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
+                className="h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
               >
-                <BellRinging size={16} weight="bold" />
-                <span>Jalankan Dispatch Pengingat</span>
+                <BellRinging size={15} weight="bold" />
+                <span>Jalankan Dispatch</span>
               </button>
             )}
           </div>

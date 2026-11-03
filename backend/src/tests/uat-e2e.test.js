@@ -74,6 +74,7 @@ describe('URD Phase 1: End-to-End Operational UAT Test Suite', () => {
 
     // Bersihkan data transaksi uji spesifik jika ada dari run sebelumnya (urutan aman cascade FK)
     await pool.query(`
+      UPDATE orders SET renewal_of_suket = NULL WHERE po_number LIKE 'PO-URD-UAT%' OR client_id IN (SELECT id FROM clients WHERE name = 'PT Demo UAT URD');
       DELETE FROM client_reminder_log WHERE object_id IN (SELECT id FROM test_objects WHERE client_id IN (SELECT id FROM clients WHERE name = 'PT Demo UAT URD'));
       DELETE FROM renewal_followups WHERE object_id IN (SELECT id FROM test_objects WHERE client_id IN (SELECT id FROM clients WHERE name = 'PT Demo UAT URD'));
       DELETE FROM operational_issues WHERE order_id IN (SELECT id FROM orders WHERE po_number = 'PO-URD-UAT-001');

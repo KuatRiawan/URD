@@ -91,9 +91,17 @@ export const SUKET_STATUS_LABELS = {
 };
 
 export const FOLLOWUP_STATUS_LABELS = {
+  BELUM_DITINDAKLANJUTI: 'Belum Ditindaklanjuti',
   BELUM_DIHUBUNGI: 'Belum Dihubungi',
   SUDAH_DIHUBUNGI: 'Sudah Dihubungi',
+  SEDANG_PENAWARAN: 'Sedang Penawaran',
+  MENUNGGU_KEPUTUSAN: 'Menunggu Keputusan',
+  MENUNGGU_KONFIRMASI_KLIEN: 'Menunggu Konfirmasi',
+  MENUNGGU_PO: 'Menunggu PO',
+  SUDAH_JADI_PO_BARU: 'Sudah Jadi PO Baru',
   SETUJU_PERPANJANG: 'Setuju Perpanjang',
+  DITUNDA: 'Ditunda',
+  TIDAK_LANJUT: 'Tidak Dilanjutkan',
   MENOLAK: 'Menolak',
   TERJADWAL: 'Terjadwal'
 };

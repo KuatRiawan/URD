@@ -161,25 +161,25 @@ export function IssuesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Kendala Operasional"
-        subtitle="Catat hambatan lapangan, tentukan penanggung jawab, dan ikuti tindak lanjutnya."
-        actions={canCreate ? <button type="button" onClick={openCreate} className="min-h-11 rounded-lg bg-[#C81E1E] px-4 text-sm font-bold text-white hover:bg-[#a11616] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-600">Laporkan Kendala</button> : null}
+        subtitle="Pencatatan dan tindak lanjut kendala operasional."
+        actions={canCreate ? <button type="button" onClick={openCreate} className="h-9 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E] cursor-pointer shadow-2xs">Laporkan Kendala</button> : null}
       />
       {feedback && <Notice tone="success" onClose={() => setFeedback('')}>{feedback}</Notice>}
       {error && <ErrorBanner message={error} onRetry={load} />}
 
-      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row">
+      <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row items-stretch sm:items-end">
         <label className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
           Cari laporan
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nomor kendala, PO, unit, atau judul" className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nomor kendala, PO, unit, atau judul..." className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400" />
         </label>
         <label className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 sm:w-64">
           Status
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400">
             <option value="">Semua status</option>
             {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        <button type="button" onClick={load} aria-label="Muat ulang laporan" className="min-h-11 self-end rounded-md border border-slate-300 px-3 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><ArrowClockwise size={18} /></button>
+        <button type="button" onClick={load} aria-label="Muat ulang laporan" className="h-9 self-stretch sm:self-auto px-3 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"><ArrowClockwise size={16} /></button>
       </div>
 
       {loading ? <LoadingState message="Memuat laporan kendala..." /> : items.length === 0 ? (
@@ -187,23 +187,23 @@ export function IssuesPage() {
       ) : (
         <div className="space-y-3">
           {items.map((issue) => (
-            <article key={issue.id} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <article key={issue.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    {issue.priority === 'TINGGI' && <WarningCircle size={18} className="text-red-600" aria-label="Prioritas tinggi" />}
-                    <span className="text-xs font-bold text-slate-500">{issue.issue_no}</span>
-                    <span className="rounded border border-slate-200 px-2 py-1 text-xs font-semibold dark:border-slate-700">{STATUS_LABELS[issue.status] || issue.status}</span>
+                    {issue.priority === 'TINGGI' && <WarningCircle size={16} className="text-red-600" aria-label="Prioritas tinggi" />}
+                    <span className="text-xs font-mono font-bold text-slate-500">{issue.issue_no}</span>
+                    <span className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-semibold dark:border-slate-700">{STATUS_LABELS[issue.status] || issue.status}</span>
                     {issue.priority === 'TINGGI' && <span className="text-xs font-bold text-red-700 dark:text-red-300">Prioritas tinggi</span>}
                   </div>
-                  <h2 className="mt-2 text-base font-bold text-slate-900 dark:text-white">{issue.title}</h2>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{TYPE_LABELS[issue.issue_type]} · {issue.client_name} · PO {issue.po_number || issue.order_no}</p>
-                  <p className="mt-1 text-xs text-slate-500">{issue.serial_number || 'Tanpa unit spesifik'} · Dilaporkan oleh {issue.reporter_name} · {new Date(issue.created_at).toLocaleString('id-ID')}</p>
-                  <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{issue.description}</p>
+                  <h2 className="mt-1.5 text-sm sm:text-base font-bold text-slate-900 dark:text-white">{issue.title}</h2>
+                  <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">{TYPE_LABELS[issue.issue_type]} · {issue.client_name} · PO {issue.po_number || issue.order_no}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{issue.serial_number || 'Tanpa unit spesifik'} · Dilaporkan oleh {issue.reporter_name} · {new Date(issue.created_at).toLocaleString('id-ID')}</p>
+                  <p className="mt-2.5 whitespace-pre-wrap text-xs sm:text-sm text-slate-700 dark:text-slate-200">{issue.description}</p>
                   <p className="mt-2 text-xs text-slate-500">Penanggung jawab: {issue.assignee_name || 'Belum ditentukan'}</p>
                 </div>
-                <button type="button" onClick={() => setSelected(selected?.id === issue.id ? null : issue)} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                  {selected?.id === issue.id ? 'Tutup rincian' : 'Rincian & tindak lanjut'} <ArrowUpRight size={16} />
+                <button type="button" onClick={() => setSelected(selected?.id === issue.id ? null : issue)} className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                  {selected?.id === issue.id ? 'Tutup rincian' : 'Rincian & tindak lanjut'} <ArrowUpRight size={14} />
                 </button>
               </div>
               {selected?.id === issue.id && <IssueDetails issue={issue} canUpdate={canUpdate} saving={saving} onUpdate={updateIssue} />}

@@ -207,7 +207,7 @@ export function getVisibleNav(role) {
       },
       {
         to: '/app/issues',
-        group: 'Pelaksanaan',
+        group: 'Monitoring Operasional',
         label: 'Kendala Operasional',
         icon: WarningOctagon
       },
@@ -647,13 +647,13 @@ export function getMobileNavConfig(role) {
         { to: '/app/dashboard', label: 'Dasbor', icon: Gauge },
         { to: '/app/orders', label: 'Order PO', icon: ClipboardText },
         { to: '/app/clients', label: 'Data Klien', icon: Buildings },
-        { to: '/app/reminders', label: 'Pengingat Suket', icon: Alarm }
+        { to: '/app/reminders', label: 'Pengingat', icon: Alarm }
       ],
       moreGroups: [
         {
           title: 'Komersial & Objek Uji',
           items: [
-            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
+            { to: '/app/objects', label: 'Basis Objek Uji K3', icon: Cube },
             { to: '/app/history', label: 'Riwayat Pengujian Klien', icon: ClockCounterClockwise }
           ]
         },

@@ -31,6 +31,8 @@ export function DashboardPoCreator({ open, onClose }) {
         setClientMode={orderManagement.setClientMode}
         clients={orderManagement.clients}
         clientObjects={orderManagement.clientObjects}
+        clientLocations={orderManagement.clientLocations}
+        clientContacts={orderManagement.clientContacts}
         categories={orderManagement.categories}
         inspectors={orderManagement.inspectors}
         newUnitRow={orderManagement.newUnitRow}

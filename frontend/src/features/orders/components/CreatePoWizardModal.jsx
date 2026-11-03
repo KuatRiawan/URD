@@ -20,6 +20,8 @@ export function CreatePoWizardModal({
   setClientMode,
   clients,
   clientObjects,
+  clientLocations = [],
+  clientContacts = [],
   categories,
   inspectors,
   newUnitRow,
@@ -42,7 +44,7 @@ export function CreatePoWizardModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Buat Purchase Order (PO) & Daftarkan Unit Alat K3"
+      title="Buat Purchase Order (PO)"
       size="xl"
     >
       <div className="space-y-5 text-slate-800 dark:text-slate-200">
@@ -80,6 +82,8 @@ export function CreatePoWizardModal({
             clientMode={clientMode}
             setClientMode={setClientMode}
             clients={clients}
+            clientLocations={clientLocations}
+            clientContacts={clientContacts}
             handleClientChange={handleClientChange}
             setError={setError}
           />
@@ -129,16 +133,16 @@ export function CreatePoWizardModal({
                 setError('');
                 setPoWizardStep((prev) => prev - 1);
               }}
-              className="min-h-11 inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              className="h-9 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
             >
-              <ArrowLeft size={16} weight="bold" />
-              <span>Kembali ke Langkah {poWizardStep - 1}</span>
+              <ArrowLeft size={15} weight="bold" />
+              <span>Kembali</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
             >
               Batal
             </button>
@@ -148,20 +152,20 @@ export function CreatePoWizardModal({
             <button
               type="button"
               onClick={handleWizardNext}
-              className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-5 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+              className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-4 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-xs"
             >
-              <span>Lanjut: {PO_WIZARD_STEPS[poWizardStep]}</span>
-              <ArrowRight size={16} weight="bold" />
+              <span>Lanjut</span>
+              <ArrowRight size={15} weight="bold" />
             </button>
           ) : (
             <button
               type="button"
               disabled={submitting}
               onClick={handleCreateOrder}
-              className="min-h-11 inline-flex items-center gap-2 rounded-md bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
+              className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-5 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              <CheckCircle size={17} weight="bold" />
-              <span>{submitting ? 'Menyimpan PO...' : 'Konfirmasi & Simpan Purchase Order'}</span>
+              <CheckCircle size={16} weight="bold" />
+              <span>{submitting ? 'Menyimpan...' : 'Simpan Purchase Order'}</span>
             </button>
           )}
         </div>

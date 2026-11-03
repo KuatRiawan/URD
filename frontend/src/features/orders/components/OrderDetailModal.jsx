@@ -62,6 +62,8 @@ export function OrderDetailModal({
   const totalUnits = unitProgress?.totalUnits || (detailData?.objects || []).length || 0;
   const completedUnits = unitProgress?.completed || 0;
   const progressPercent = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
+  const hasAssignments = (detailData?.assignments || activeOrder?.assignments || []).length > 0;
+  const isCompleted = activeOrder?.status === 'SELESAI';
 
   const titleText = activeOrder
     ? activeOrder.po_number?.toUpperCase().startsWith('PO')
@@ -149,23 +151,27 @@ export function OrderDetailModal({
 
                 {/* Tombol Aksi Dokumen PO Tingkat Atas */}
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadAssignmentPdf(activeOrder.id, activeOrder.order_no)}
-                    className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                  >
-                    <DownloadSimple size={14} />
-                    <span>Surat Tugas</span>
-                  </button>
+                  {hasAssignments && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAssignmentPdf(activeOrder.id, activeOrder.order_no)}
+                      className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    >
+                      <DownloadSimple size={14} />
+                      <span>Surat Tugas</span>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadBastPdf(activeOrder.id, activeOrder.po_number, activeOrder.order_no)}
-                    className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                  >
-                    <DownloadSimple size={14} />
-                    <span>Cetak BAST</span>
-                  </button>
+                  {isCompleted && handleDownloadBastPdf && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadBastPdf(activeOrder.id, activeOrder.po_number, activeOrder.order_no)}
+                      className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+                    >
+                      <DownloadSimple size={14} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>Cetak BAST</span>
+                    </button>
+                  )}
 
                   {canManage && activeOrder.status !== 'SELESAI' && activeOrder.status !== 'DIBATALKAN' && (
                     <button
@@ -393,7 +399,7 @@ export function OrderDetailModal({
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full min-h-10 rounded-xl bg-slate-900 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-neutral-800 dark:hover:bg-slate-600 cursor-pointer"
+                      className="w-full h-9 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-2xs"
                     >
                       Simpan Jadwal Inspeksi
                     </button>

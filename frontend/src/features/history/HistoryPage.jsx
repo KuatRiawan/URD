@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { LoadingState, ErrorState, EmptyState } from '../../components/feedback/StateViews.jsx';
+import { LoadingState, ErrorState, EmptyState, PaginationBar } from '../../components/feedback/StateViews.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
 import { HistoryFilterBar } from './components/HistoryFilterBar.jsx';
@@ -13,6 +13,10 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [limit] = useState(15);
+  const [total, setTotal] = useState(0);
+
   const [search, setSearch] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -22,7 +26,7 @@ export function HistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = { limit: 100 };
+      const params = { page, limit };
       if (search.trim()) params.q = search.trim();
       if (clientFilter) params.clientId = clientFilter;
       if (categoryFilter) params.categoryId = categoryFilter;
@@ -33,6 +37,7 @@ export function HistoryPage() {
         api.get('/objects/categories')
       ]);
       setItems(histRes.data.items || []);
+      setTotal(histRes.data.total || 0);
       setClients(cliRes.data.items || []);
       setCategories(catRes.data.categories || []);
     } catch (err) {
@@ -40,11 +45,16 @@ export function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, clientFilter, categoryFilter]);
+  }, [page, limit, search, clientFilter, categoryFilter]);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  const handleFilterChange = (setter) => (val) => {
+    setPage(1);
+    setter(val);
+  };
 
   const downloadPdf = async (endpoint, filename) => {
     try {
@@ -64,20 +74,23 @@ export function HistoryPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Riwayat Pengujian Unit K3"
-        subtitle="Jejak historis pemeriksaan dan pengujian setiap unit alat lintas Purchase Order (PO), lengkap dengan BAP, LHPP, temuan, masa berlaku, dan status penyerahan."
+        title="Riwayat Pengujian Klien"
+        subtitle="Arsip riksa uji unit alat, BAP, LHPP, dan masa berlaku."
       />
 
       <HistoryFilterBar
         search={search}
-        setSearch={setSearch}
+        setSearch={handleFilterChange(setSearch)}
         clientFilter={clientFilter}
-        setClientFilter={setClientFilter}
+        setClientFilter={handleFilterChange(setClientFilter)}
         categoryFilter={categoryFilter}
-        setCategoryFilter={setCategoryFilter}
+        setCategoryFilter={handleFilterChange(setCategoryFilter)}
         clients={clients}
         categories={categories}
-        onSearchSubmit={fetchHistory}
+        onSearchSubmit={() => {
+          setPage(1);
+          fetchHistory();
+        }}
       />
 
       {loading ? (
@@ -90,11 +103,19 @@ export function HistoryPage() {
           description="Riwayat pengujian unit akan tercatat secara otomatis setiap kali pemeriksaan dilaksanakan pada suatu PO."
         />
       ) : (
-        <HistoryTable
-          items={items}
-          downloadPdf={downloadPdf}
-          onSelectRecord={setSelectedRecord}
-        />
+        <div className="space-y-4">
+          <HistoryTable
+            items={items}
+            downloadPdf={downloadPdf}
+            onSelectRecord={setSelectedRecord}
+          />
+          <PaginationBar
+            page={page}
+            limit={limit}
+            total={total}
+            onPageChange={setPage}
+          />
+        </div>
       )}
 
       <HistoryDetailModal

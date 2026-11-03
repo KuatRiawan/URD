@@ -3,7 +3,10 @@ import {
   ArrowCounterClockwise,
   CheckCircle,
   DownloadSimple,
-  Eye
+  Eye,
+  FileDoc,
+  FilePdf,
+  WarningOctagon
 } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
@@ -35,6 +38,8 @@ export function LhppDetailModal({
   handleReturnLhpp,
   handlePreviewPdf,
   handleDownloadPdf,
+  handleDownloadDocx,
+  handleDownloadRecommendationsPdf,
   handlePreviewBapPdf,
   handleDownloadBapPdf,
   handleSaveDraft,
@@ -138,10 +143,38 @@ export function LhppDetailModal({
                 type="button"
                 onClick={() => handleDownloadPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
                 className="min-h-10 inline-flex items-center gap-1.5 rounded bg-slate-800 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600 cursor-pointer"
+                title="Unduh berkas PDF LHPP resmi"
               >
-                <DownloadSimple size={16} />
-                <span>Unduh LHPP Resmi (PDF)</span>
+                <FilePdf size={16} weight="bold" />
+                <span>PDF LHPP</span>
               </button>
+              {handleDownloadDocx && (
+                <button
+                  type="button"
+                  onClick={() => handleDownloadDocx(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
+                  title="Unduh berkas Word (.docx) LHPP"
+                >
+                  <FileDoc size={16} weight="bold" />
+                  <span>Word (.docx)</span>
+                </button>
+              )}
+              {detailLhpp.inspection_id && handleDownloadRecommendationsPdf && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDownloadRecommendationsPdf(
+                      detailLhpp.inspection_id,
+                      detailLhpp.lhpp_no || 'LHPP'
+                    )
+                  }
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 cursor-pointer"
+                  title="Unduh Lembar Temuan & Rekomendasi K3 (PDF)"
+                >
+                  <WarningOctagon size={16} weight="bold" />
+                  <span>Lembar Temuan</span>
+                </button>
+              )}
             </div>
           </div>
 
