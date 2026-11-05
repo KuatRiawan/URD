@@ -21,13 +21,14 @@ export function ExpiringUnitsSection({
   const [page, setPage] = useState(1);
   const pageSize = 15;
   const displayUnits = datedUnits.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <WarningOctagon size={20} className="text-[#C81E1E]" weight="bold" />
-          <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-            Unit Alat Mendekati Jatuh Tempo / Kedaluwarsa ({datedUnits.length})
+          <WarningOctagon size={18} className="text-[#C81E1E]" weight="bold" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            Unit Alat Mendekati Jatuh Tempo ({datedUnits.length})
           </h2>
         </div>
       </div>
@@ -36,7 +37,7 @@ export function ExpiringUnitsSection({
         <div className="p-6">
           <EmptyState
             title="Tidak ada unit jatuh tempo dalam jendela ini"
-            description="Unit yang memiliki tanggal masa berlaku atau jadwal pemeriksaan berikutnya dalam jendela hari ini akan tampil di sini."
+            description="Unit yang memiliki tanggal masa berlaku atau jadwal riksa uji berikutnya dalam jendela hari ini akan tampil di sini."
           />
         </div>
       ) : (
@@ -124,15 +125,15 @@ export function ExpiringUnitsSection({
                       type="button"
                       disabled={submitting}
                       onClick={() => onCreateRenewalOrder(item.object_id, item.object_name)}
-                      className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs"
+                      className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
                     >
                       <ArrowsClockwise size={14} />
-                      <span className="truncate">PO Perpanjangan</span>
+                      <span className="truncate">+ PO Baru</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onOpenValidityModal(item)}
-                      className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                     >
                       <CalendarPlus size={14} />
                       <span className="truncate">Tindak Lanjut</span>
@@ -222,26 +223,26 @@ export function ExpiringUnitsSection({
                         >
                           <WhatsappLogo size={13} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
                           <EnvelopeSimple size={13} weight="bold" className="text-blue-600 dark:text-blue-400" />
-                          <span>WA · Email</span>
+                          <span>WA / Email</span>
                         </span>
                         {canManage && (
                           <>
                             <button
                               type="button"
                               onClick={() => onOpenValidityModal(item)}
-                              className="min-h-9 inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+                              className="h-8.5 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
                             >
                               <CalendarPlus size={14} />
-                              <span>Catat Tindak Lanjut</span>
+                              <span>Tindak Lanjut</span>
                             </button>
                             <button
                               type="button"
                               disabled={submitting}
                               onClick={() => onCreateRenewalOrder(item.object_id, item.object_name)}
-                              className="min-h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
+                              className="h-8.5 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
                             >
-                              <ArrowsClockwise size={15} />
-                              <span>Buat PO Perpanjangan</span>
+                              <ArrowsClockwise size={14} />
+                              <span>+ Buat PO Perpanjangan</span>
                             </button>
                           </>
                         )}

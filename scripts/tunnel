@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+PORT="${1:-5173}"
+
+echo "=========================================================="
+echo "🌐 PT Upaya Riksa Daya - Ngrok Public Tunnel"
+echo "=========================================================="
+echo "Membuka tunnel ngrok untuk port $PORT..."
+echo "Pastikan service berikut sudah berjalan:"
+echo "  1. PostgreSQL (port 5433) : npm run db:start"
+echo "  2. Backend    (port 4000) : npm run dev:backend"
+echo "  3. Frontend   (port 5173) : npm run dev:frontend"
+echo "=========================================================="
+echo ""
+
+ngrok http "$PORT"
+

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import {
   ClipboardText,
+  CloudCheck,
   Eye,
   FileText,
   MagnifyingGlass,
@@ -22,13 +23,15 @@ import { CONCLUSION_LABELS, formatDateTime } from '../../lib/utils/format.js';
 import { StartInspectionModal } from './components/StartInspectionModal.jsx';
 import { InspectionDetailModal } from './components/InspectionDetailModal.jsx';
 import { PdfPreviewModal } from './components/PdfPreviewModal.jsx';
+import { OfflineSyncDrawer } from './components/OfflineSyncDrawer.jsx';
 
 export function InspectionsPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const isInspector = ['AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'].includes(user?.role);
-  const canValidateTemplate = ['ADMIN_SISTEM', 'PIMPINAN'].includes(user?.role);
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+  const canValidateTemplate = user?.role === 'ADMIN_SISTEM';
 
   const [inspections, setInspections] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -37,6 +40,7 @@ export function InspectionsPage() {
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
 
   // Navigasi Tab Segmented: Lembar Kerja vs Master Template
   const [activeTab, setActiveTab] = useState('worksheets'); // 'worksheets' | 'templates'
@@ -119,7 +123,9 @@ export function InspectionsPage() {
 
   const filteredInspections = useMemo(() => {
     return inspections.filter((item) => {
-      if (statusFilter !== 'ALL' && item.status !== statusFilter) {
+      if (statusFilter === 'REVISI') {
+        if (item.status !== 'DRAF' || !(Number(item.revision_no) > 0)) return false;
+      } else if (statusFilter !== 'ALL' && item.status !== statusFilter) {
         return false;
       }
       if (!searchQuery.trim()) return true;
@@ -268,25 +274,93 @@ export function InspectionsPage() {
     }
   };
 
+  const inspectionMetrics = useMemo(() => {
+    const total = inspections.length;
+    const draftCount = inspections.filter((i) => i.status === 'DRAF' && !(Number(i.revision_no) > 0)).length;
+    const revisionCount = inspections.filter((i) => i.status === 'DRAF' && Number(i.revision_no) > 0).length;
+    const submittedCount = inspections.filter((i) => i.status === 'TERKIRIM').length;
+    return { total, draftCount, revisionCount, submittedCount };
+  }, [inspections]);
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-8">
       {/* Header Halaman */}
       <PageHeader
-        title="Form Inspeksi Lapangan & Checklist K3"
-        subtitle="Lembar pemeriksaan teknis unit alat K3, pencatatan temuan ketidakpatuhan, dan berita acara lapangan."
+        title={isPimpinan ? 'Monitoring Pengujian Lapangan & Checklist K3' : 'Form Inspeksi Lapangan & Checklist K3'}
+        subtitle={
+          isPimpinan
+            ? 'Pemantauan progres pengisian lembar pemeriksaan teknis unit alat K3, temuan lapangan, dan status pengiriman ke QC.'
+            : 'Lembar pemeriksaan teknis unit alat K3, pencatatan temuan ketidakpatuhan, dan berita acara lapangan.'
+        }
         actions={
-          isInspector && (
-            <button
-              type="button"
-              onClick={() => setStartModalOpen(true)}
-              className="min-h-11 inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[#C81E1E] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#a11616] active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <Plus size={16} weight="bold" />
-              <span>Mulai Inspeksi Baru</span>
-            </button>
-          )
+          isInspector ? (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setSyncDrawerOpen(true)}
+                className="min-h-11 inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 transition-all"
+                title="Kelola draf offline dan antrean sinkronisasi"
+              >
+                <CloudCheck size={18} className="text-emerald-600" weight="bold" />
+                <span>Offline &amp; Sinkronisasi</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStartModalOpen(true)}
+                className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[#C81E1E] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#a11616] active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <Plus size={16} weight="bold" />
+                <span>Mulai Inspeksi Baru</span>
+              </button>
+            </div>
+          ) : null
         }
       />
+
+      {/* Ringkasan Metrik Pengujian Lapangan */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { key: 'ALL', label: 'Total Lembar Uji', value: inspectionMetrics.total, sub: 'Semua status form', tone: 'slate' },
+          { key: 'DRAF', label: 'Proses Lapangan (Draf)', value: inspectionMetrics.draftCount, sub: 'Sedang diisi Ahli K3', tone: 'blue' },
+          { key: 'REVISI', label: 'Perlu Revisi Teknis', value: inspectionMetrics.revisionCount, sub: 'Dikembalikan oleh QC', tone: 'amber' },
+          { key: 'TERKIRIM', label: 'Terkirim ke QC', value: inspectionMetrics.submittedCount, sub: 'Siap proses BAP/LHPP', tone: 'emerald' }
+        ].map((card) => {
+          const isSelected = statusFilter === card.key && activeTab === 'worksheets';
+          return (
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => {
+                setActiveTab('worksheets');
+                setStatusFilter(card.key);
+              }}
+              className={`text-left p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                isSelected
+                  ? 'border-[#C81E1E] bg-rose-50/40 dark:bg-rose-950/20'
+                  : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+              }`}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {card.label}
+              </p>
+              <p
+                className={`text-2xl font-extrabold tabular-nums mt-1 ${
+                  card.tone === 'amber' && card.value > 0
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : card.tone === 'emerald' && card.value > 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : card.tone === 'blue' && card.value > 0
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-slate-900 dark:text-slate-100'
+                }`}
+              >
+                {card.value}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{card.sub}</p>
+            </button>
+          );
+        })}
+      </div>
 
       {feedback && (
         <Notice tone="success" onClose={() => setFeedback('')}>
@@ -351,8 +425,9 @@ export function InspectionsPage() {
               className="py-2.5 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#C81E1E]/20"
             >
               <option value="ALL">Semua Status Form</option>
-              <option value="DRAF">DRAF (Belum Selesai)</option>
-              <option value="TERKIRIM">TERKIRIM (Final Lapangan)</option>
+              <option value="TERKIRIM">TERKIRIM (Siap Tinjau QC)</option>
+              <option value="REVISI">DALAM REVISI (Dikembalikan ke Inspector)</option>
+              <option value="DRAF">DRAF (Proses Pengujian Lapangan)</option>
             </select>
           </div>
 
@@ -532,9 +607,16 @@ export function InspectionsPage() {
                             )}
                           </td>
                           <td className="py-3.5 px-4 text-xs">
-                            <Badge tone={item.status === 'TERKIRIM' ? 'success' : 'warning'}>
-                              {item.status}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Badge tone={item.status === 'TERKIRIM' ? 'success' : 'warning'}>
+                                {item.status}
+                              </Badge>
+                              {Number(item.revision_no) > 0 && (
+                                <Badge tone={item.status === 'DRAF' ? 'danger' : 'neutral'}>
+                                  Revisi #{item.revision_no}
+                                </Badge>
+                              )}
+                            </div>
                             {item.bap_no && (
                               <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-red-400">
                                 BAP: {item.bap_no} ({item.bap_status})
@@ -659,6 +741,13 @@ export function InspectionsPage() {
         pdfUrl={previewPdfUrl}
         filename={previewPdfFilename}
         onPrint={handlePrintPdf}
+      />
+
+      {/* Drawer 4: Status Penyimpanan Offline & Antrean Sinkronisasi */}
+      <OfflineSyncDrawer
+        open={syncDrawerOpen}
+        onClose={() => setSyncDrawerOpen(false)}
+        onSyncSuccess={loadData}
       />
     </div>
   );

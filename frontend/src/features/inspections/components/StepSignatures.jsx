@@ -119,7 +119,7 @@ export function StepSignatures({
                       value={inspectorSigName}
                       onChange={(e) => setInspectorSigName(e.target.value)}
                       placeholder="Nama lengkap Ahli K3..."
-                      className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                      className="w-full min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
@@ -132,7 +132,7 @@ export function StepSignatures({
                       value={inspectorSigTitle}
                       onChange={(e) => setInspectorSigTitle(e.target.value)}
                       placeholder="Jabatan..."
-                      className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                      className="w-full min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -141,7 +141,10 @@ export function StepSignatures({
                   <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
                     Goreskan Tanda Tangan di Kotak:
                   </span>
-                  <div className="rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center">
+                  <div
+                    style={{ touchAction: 'none' }}
+                    className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center shadow-inner"
+                  >
                     <canvas
                       ref={inspectorCanvasRef}
                       width={300}
@@ -265,7 +268,7 @@ export function StepSignatures({
                       value={clientSigName}
                       onChange={(e) => setClientSigName(e.target.value)}
                       placeholder="Nama penanggung jawab..."
-                      className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                      className="w-full min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
@@ -278,7 +281,7 @@ export function StepSignatures({
                       value={clientSigTitle}
                       onChange={(e) => setClientSigTitle(e.target.value)}
                       placeholder="Jabatan..."
-                      className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                      className="w-full min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -287,7 +290,10 @@ export function StepSignatures({
                   <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
                     Goreskan Tanda Tangan PIC Klien di Kotak:
                   </span>
-                  <div className="rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center">
+                  <div
+                    style={{ touchAction: 'none' }}
+                    className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center shadow-inner"
+                  >
                     <canvas
                       ref={clientCanvasRef}
                       width={300}
@@ -445,21 +451,21 @@ export function StepSignatures({
           <button
             type="button"
             onClick={onBack}
-            className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-4 py-2 cursor-pointer shadow-2xs"
+            className="min-h-11 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 px-4 py-2 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
           >
-            <ArrowLeft size={15} weight="bold" />
+            <ArrowLeft size={16} weight="bold" />
             <span>Kembali ke Ceklist &amp; Foto</span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {isInspector && (
               <button
                 type="button"
                 disabled={submitting}
                 onClick={onSaveDraft}
-                className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
+                className="min-h-11 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
               >
-                <FloppyDisk size={15} />
+                <FloppyDisk size={16} />
                 <span>Simpan Draf</span>
               </button>
             )}
@@ -478,20 +484,24 @@ export function StepSignatures({
                   ? 'Pilih kesimpulan pemeriksaan terlebih dahulu'
                   : 'Kirim dan terbitkan dokumen resmi BAP & LHPP'
               }
-              className="min-h-10 px-5 py-2 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="min-h-11 flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
             >
               {submitting ? (
-                <CircleNotch size={15} weight="bold" className="animate-spin" />
+                <CircleNotch size={16} weight="bold" className="animate-spin" />
               ) : (
-                <PaperPlaneTilt size={15} weight="bold" />
+                <PaperPlaneTilt size={16} weight="bold" />
               )}
               <span>
                 {submitting
                   ? 'Memproses Penerbitan BAP & LHPP...'
                   : missingItems > 0
                   ? `Lengkapi ${missingItems} Butir Terlebih Dahulu`
+                  : !draftConclusion
+                  ? 'Pilih Kesimpulan Terlebih Dahulu'
                   : !inspectorSig
                   ? 'Tanda Tangan Ahli K3 Diperlukan'
+                  : !clientSig
+                  ? 'Tanda Tangan Klien Diperlukan'
                   : 'Konfirmasi & Terbitkan BAP dan LHPP'}
               </span>
             </button>

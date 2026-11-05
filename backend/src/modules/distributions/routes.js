@@ -134,6 +134,11 @@ router.get('/', async (req, res, next) => {
     params.push(limit, offset);
     const { rows } = await query(
       `SELECT d.*,
+              d.target_destination AS recipient_target,
+              d.tracking_reference AS tracking_number,
+              d.dispatch_date AS dispatched_at,
+              CASE WHEN d.document_type = 'BAP' THEN d.document_no ELSE NULL END AS bap_no,
+              CASE WHEN d.document_type = 'LHPP' THEN d.document_no ELSE NULL END AS lhpp_no,
               o.order_no, o.po_number,
               c.name AS client_name,
               t.name AS object_name, t.serial_number,
@@ -301,11 +306,36 @@ router.patch(
 
       const result = await withTransaction(async (db) => {
         const cur = await db.query(
-          'SELECT * FROM document_distributions WHERE id = $1',
+          'SELECT * FROM document_distributions WHERE id = $1 FOR UPDATE',
           [id]
         );
         if (!cur.rows.length) {
           throw new AppError(404, 'DISTRIBUTION_NOT_FOUND', 'Catatan distribusi tidak ditemukan.');
+        }
+        const existing = cur.rows[0];
+        const nextMedia = dispatchMedia || existing.dispatch_media;
+        const nextRef =
+          trackingReference !== undefined && String(trackingReference).trim() !== ''
+            ? String(trackingReference).trim()
+            : existing.tracking_reference;
+        const nextNotes =
+          notes !== undefined && String(notes).trim() !== ''
+            ? String(notes).trim()
+            : existing.notes;
+
+        if (status === 'DITERIMA' && !nextRef && !nextNotes) {
+          throw new AppError(
+            400,
+            'DELIVERY_EVIDENCE_REQUIRED',
+            'Cantumkan nomor bukti serah terima / resi atau catatan penerima sebelum menandai dokumen DITERIMA.'
+          );
+        }
+        if (status === 'DIKIRIM' && nextMedia === 'KURIR_FISIK' && !nextRef && !nextNotes) {
+          throw new AppError(
+            400,
+            'TRACKING_REFERENCE_REQUIRED',
+            'Pengiriman via Kurir Fisik wajib mencantumkan nomor resi/AWB atau keterangan pengiriman.'
+          );
         }
 
         const { rows } = await db.query(
@@ -314,11 +344,25 @@ router.patch(
                tracking_reference = COALESCE($2, tracking_reference),
                dispatch_media = COALESCE($3, dispatch_media),
                notes = COALESCE($4, notes),
+               dispatch_date = CASE WHEN $1 IN ('DIKIRIM', 'DITERIMA') THEN COALESCE(dispatch_date, CURRENT_DATE) ELSE dispatch_date END,
+               dispatched_by = $5,
                updated_at = now()
-           WHERE id = $5
-           RETURNING *`,
-          [status, trackingReference || null, dispatchMedia || null, notes || null, id]
+           WHERE id = $6
+           RETURNING *,
+                     target_destination AS recipient_target,
+                     tracking_reference AS tracking_number,
+                     dispatch_date AS dispatched_at`,
+          [status, nextRef || null, nextMedia || null, nextNotes || null, req.user.id, id]
         );
+
+        if (status === 'DIKIRIM') {
+          await db.query(
+            `UPDATE order_objects
+             SET unit_status = 'SEBAGIAN_DOKUMEN_DIKIRIM', updated_at = now()
+             WHERE order_id = $1 AND object_id = $2 AND unit_status IN ('BAP_FINAL', 'SIAP_DISTRIBUSI')`,
+            [rows[0].order_id, rows[0].object_id]
+          );
+        }
 
         // Jika status menjadi DITERIMA untuk seluruh distribusi wajib suatu unit, cek apakah unit selesai
         if (status === 'DITERIMA') {
@@ -375,7 +419,13 @@ router.get(
                 u.full_name AS dispatched_by_name
          FROM orders o
          JOIN clients c ON c.id = o.client_id
-         LEFT JOIN client_contacts ct ON ct.client_id = c.id
+         LEFT JOIN LATERAL (
+           SELECT name, phone
+           FROM client_contacts
+           WHERE client_id = c.id
+           ORDER BY is_primary DESC NULLS LAST, created_at ASC
+           LIMIT 1
+         ) ct ON true
          LEFT JOIN users u ON u.id = $2
          WHERE o.id = $1`,
         [orderId, req.user.id]
@@ -386,7 +436,7 @@ router.get(
       }
       const order = orderRes.rows[0];
 
-      // Ambil seluruh unit di PO beserta nomor LHPP, BAP, dan Suket
+      // Ambil seluruh unit di PO beserta nomor LHPP, BAP, dan Suket tanpa duplikasi baris
       const { rows: unitRows } = await query(
         `SELECT oo.unit_status,
                 t.id AS object_id, t.name AS object_name, t.serial_number,
@@ -397,10 +447,30 @@ router.get(
          FROM order_objects oo
          JOIN test_objects t ON t.id = oo.object_id
          JOIN object_categories oc ON oc.id = t.category_id
-         LEFT JOIN bap_documents b ON b.order_id = oo.order_id AND b.object_id = oo.object_id AND b.status = 'FINAL'
-         LEFT JOIN inspections i ON i.order_id = oo.order_id AND i.object_id = oo.object_id
-         LEFT JOIN lhpp_documents l ON l.inspection_id = i.id AND l.status IN ('FINAL', 'TERBIT')
-         LEFT JOIN suket_documents s ON s.object_id = oo.object_id AND s.status = 'TERBIT'
+         LEFT JOIN LATERAL (
+           SELECT bap_no
+           FROM bap_documents
+           WHERE order_id = oo.order_id AND object_id = oo.object_id AND status = 'FINAL'
+           ORDER BY finalized_at DESC NULLS LAST, updated_at DESC
+           LIMIT 1
+         ) b ON true
+         LEFT JOIN LATERAL (
+           SELECT lhpp_doc.lhpp_no
+           FROM inspections i
+           JOIN lhpp_documents lhpp_doc ON lhpp_doc.inspection_id = i.id
+           WHERE i.order_id = oo.order_id
+             AND i.object_id = oo.object_id
+             AND lhpp_doc.status IN ('FINAL', 'TERBIT')
+           ORDER BY lhpp_doc.finalized_at DESC NULLS LAST, lhpp_doc.updated_at DESC
+           LIMIT 1
+         ) l ON true
+         LEFT JOIN LATERAL (
+           SELECT suket_no, valid_until
+           FROM suket_documents
+           WHERE object_id = oo.object_id AND status = 'TERBIT'
+           ORDER BY issued_date DESC NULLS LAST, created_at DESC
+           LIMIT 1
+         ) s ON true
          WHERE oo.order_id = $1
          ORDER BY t.name ASC`,
         [orderId]
@@ -418,9 +488,19 @@ router.get(
         items: unitRows
       });
 
+      await recordAudit({
+        userId: req.user.id,
+        action: 'BAST_PDF_GENERATE',
+        entity: 'orders',
+        entityId: order.id,
+        summary: { orderNo: order.order_no, unitCount: unitRows.length },
+        ip: req.ip
+      });
+
       const filename = `BAST-${(order.po_number || order.order_no).replace(/[/\s]/g, '-')}.pdf`;
+      const disposition = req.query.download === '1' ? 'attachment' : 'inline';
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
       return res.send(bastBuffer);
     } catch (err) {
       return next(err);

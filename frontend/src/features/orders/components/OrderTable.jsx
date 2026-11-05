@@ -62,11 +62,32 @@ export function OrderTable({
                     {SERVICE_TYPE_LABELS[order.service_type] || order.service_type}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Progres Alat</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {prog.completed || 0} / {prog.totalUnits || order.object_count || 0} Unit Selesai
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Progres Alat</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {prog.completed || 0} / {prog.totalUnits || order.object_count || 0} Unit Selesai
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        (prog.totalUnits || order.object_count) > 0 &&
+                        (prog.completed || 0) === (prog.totalUnits || order.object_count)
+                          ? 'bg-emerald-500'
+                          : 'bg-[#C81E1E]'
+                      }`}
+                      style={{
+                        width: `${
+                          (prog.totalUnits || order.object_count) > 0
+                            ? Math.round(
+                                ((prog.completed || 0) / (prog.totalUnits || order.object_count)) * 100
+                              )
+                            : 0
+                        }%`
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 dark:text-slate-400">Tgl PO</span>
@@ -158,8 +179,35 @@ export function OrderTable({
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">Sumber: {order.source}</div>
                     </td>
                     <td className="py-3.5 px-4 text-xs text-slate-700 dark:text-slate-300">
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        {prog.completed || 0} / {prog.totalUnits || order.object_count || 0} Unit Selesai
+                      <div className="flex items-center justify-between gap-2 font-bold text-slate-900 dark:text-white">
+                        <span>{prog.completed || 0} / {prog.totalUnits || order.object_count || 0} Unit Selesai</span>
+                        <span className="text-[11px] font-mono text-slate-500 font-normal">
+                          {(prog.totalUnits || order.object_count) > 0
+                            ? Math.round(
+                                ((prog.completed || 0) / (prog.totalUnits || order.object_count)) * 100
+                              )
+                            : 0}
+                          %
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden my-1.5">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            (prog.totalUnits || order.object_count) > 0 &&
+                            (prog.completed || 0) === (prog.totalUnits || order.object_count)
+                              ? 'bg-emerald-500'
+                              : 'bg-[#C81E1E]'
+                          }`}
+                          style={{
+                            width: `${
+                              (prog.totalUnits || order.object_count) > 0
+                                ? Math.round(
+                                    ((prog.completed || 0) / (prog.totalUnits || order.object_count)) * 100
+                                  )
+                                : 0
+                            }%`
+                          }}
+                        />
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">
                         {order.start_at ? formatDateTime(order.start_at) : 'Belum dijadwalkan'}

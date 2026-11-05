@@ -7,22 +7,39 @@ import { query } from '../database/pool.js';
 
 describe('Marketing Workflow & Features Verification', () => {
   let marketingToken;
-  let marketingUserId;
+  let _marketingUserId;
   let clientId;
   let contactId;
 
   beforeAll(async () => {
-    const { rows: users } = await query("SELECT id, role, full_name FROM users WHERE role = 'MARKETING' LIMIT 1");
+    let { rows: users } = await query("SELECT id, role, full_name FROM users WHERE role = 'MARKETING' AND is_active = true LIMIT 1");
+    if (!users[0]) {
+      const ins = await query(
+        `INSERT INTO users (email, password_hash, full_name, role, is_active)
+         VALUES ('marketing.wf@upayariksadaya.com', '$2b$10$abcdefghijklmnopqrstuu', 'Siti Marketing', 'MARKETING', true)
+         ON CONFLICT (email) DO UPDATE SET is_active = true, role = 'MARKETING'
+         RETURNING id, role, full_name`
+      );
+      users = ins.rows;
+    }
     const mkt = users[0];
-    marketingUserId = mkt?.id;
+    _marketingUserId = mkt.id;
     marketingToken = jwt.sign(
       { sub: mkt.id, role: 'MARKETING', fullName: mkt.full_name, tokenVersion: 1 },
       env.jwtSecret,
       { expiresIn: '1h' }
     );
 
-    const { rows: clients } = await query('SELECT id FROM clients WHERE is_active = true LIMIT 1');
-    clientId = clients[0]?.id;
+    let { rows: clients } = await query('SELECT id FROM clients WHERE is_active = true LIMIT 1');
+    if (!clients[0]) {
+      const insCli = await query(
+        `INSERT INTO clients (name, address, is_active)
+         VALUES ('PT Test Client Marketing', 'Jakarta', true)
+         RETURNING id`
+      );
+      clients = insCli.rows;
+    }
+    clientId = clients[0].id;
   });
 
   describe('1. Marketing Dashboard Summary & Analytics', () => {

@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import {
   ChatCircleText,
   DownloadSimple,
+  Eye,
   QrCode,
   UploadSimple,
   WarningOctagon
@@ -12,6 +14,7 @@ import {
   formatDateTime,
   SUKET_STATUS_LABELS
 } from '../../../lib/utils/format.js';
+import { PdfPreviewModal } from '../../inspections/components/PdfPreviewModal.jsx';
 
 export function SuketDetailModal({
   open,
@@ -27,7 +30,32 @@ export function SuketDetailModal({
   setFollowupForm,
   handleAddFollowup
 }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewTitle, setPreviewTitle] = useState('');
+  const [previewFilename, setPreviewFilename] = useState('');
+
   if (!detailData?.suket) return null;
+
+  const openAuthenticatedPreview = async (endpoint, title, filename) => {
+    try {
+      const res = await api.get(endpoint, { responseType: 'blob' });
+      const contentType = res.headers['content-type'] || 'application/pdf';
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: contentType }));
+      setPreviewUrl(url);
+      setPreviewTitle(title);
+      setPreviewFilename(filename);
+      setPreviewOpen(true);
+    } catch (err) {
+      console.error('Failed to preview document', err);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewOpen(false);
+  };
 
   return (
     <Modal
@@ -105,42 +133,34 @@ export function SuketDetailModal({
                   />
                 </label>
                 {detailData.suket.scan_file_id && (
-                  <a
-                    href={`/api/v1/dashboard/files/${detailData.suket.scan_file_id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="min-h-9 inline-flex items-center gap-1 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openAuthenticatedPreview(
+                        `/dashboard/files/${detailData.suket.scan_file_id}`,
+                        `Arsip Scan Suket K3: ${detailData.suket.suket_no || detailData.suket.object_name}`,
+                        `Scan-Suket-${(detailData.suket.suket_no || detailData.suket.id).replace(/[/\s]/g, '-')}.pdf`
+                      )
+                    }
+                    className="min-h-9 inline-flex items-center gap-1 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 cursor-pointer"
                   >
-                    <DownloadSimple size={15} />
-                    <span>Lihat Arsip Scan</span>
-                  </a>
+                    <Eye size={15} />
+                    <span>Pratinjau Scan Suket</span>
+                  </button>
                 )}
                 <button
                   type="button"
-                  onClick={async () => {
-                    try {
-                      const res = await api.get(`/suket/${detailData.suket.id}/qr-sticker.pdf`, {
-                        responseType: 'blob'
-                      });
-                      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.setAttribute(
-                        'download',
-                        `Stiker-QR-${(detailData.suket.serial_number || detailData.suket.id).replace(/[/\s]/g, '-')}.pdf`
-                      );
-                      document.body.appendChild(link);
-                      link.click();
-                      link.remove();
-                      window.URL.revokeObjectURL(url);
-                    } catch (err) {
-                      console.error('Failed to download QR sticker', err);
-                    }
-                  }}
+                  onClick={() =>
+                    openAuthenticatedPreview(
+                      `/suket/${detailData.suket.id}/qr-sticker.pdf`,
+                      `Pratinjau Stiker QR Unit: ${detailData.suket.object_name}`,
+                      `Stiker-QR-${(detailData.suket.serial_number || detailData.suket.id).replace(/[/\s]/g, '-')}.pdf`
+                    )
+                  }
                   className="min-h-9 inline-flex items-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
                 >
                   <QrCode size={15} className="text-[#C81E1E]" />
-                  <span>Cetak Stiker QR</span>
+                  <span>Pratinjau &amp; Cetak Stiker QR</span>
                 </button>
               </div>
               <button
@@ -177,7 +197,7 @@ export function SuketDetailModal({
                 )}
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                {f.contacted_by_name} · {formatDateTime(f.created_at)}
+                {f.recorded_by_name || f.contacted_by_name || 'Admin Kantor'} · {formatDateTime(f.created_at)}
               </div>
             </div>
           ))}
@@ -229,6 +249,21 @@ export function SuketDetailModal({
           )}
         </div>
       </div>
+
+      <PdfPreviewModal
+        open={previewOpen}
+        onClose={closePreview}
+        pdfUrl={previewUrl}
+        title={previewTitle}
+        filename={previewFilename}
+        onPrint={() => {
+          const iframe = document.getElementById('inspection-pdf-preview-iframe');
+          if (iframe?.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+        }}
+      />
     </Modal>
   );
 }

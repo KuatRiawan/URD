@@ -5,6 +5,7 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
+import { createNotification } from '../../services/notify.js';
 import { generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
 import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
@@ -78,7 +79,8 @@ const signatureSchema = Joi.object({
 });
 
 const reopenSchema = Joi.object({
-  reason: Joi.string().min(5).max(500).required()
+  reason: Joi.string().min(5).max(500).required(),
+  targetSection: Joi.string().max(80).allow('', null).optional()
 });
 
 // Daftar template beserta versi aktif dan butirnya
@@ -245,6 +247,9 @@ router.get('/', async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
     const status = (req.query.status || '').trim();
+    const orderId = (req.query.orderId || '').trim();
+    const categoryCode = (req.query.categoryCode || '').trim();
+    const q = (req.query.q || '').trim();
     const conds = [];
     const params = [];
 
@@ -258,9 +263,33 @@ router.get('/', async (req, res, next) => {
       params.push(status);
       conds.push(`i.status = $${params.length}`);
     }
+    if (orderId) {
+      params.push(orderId);
+      conds.push(`i.order_id = $${params.length}`);
+    }
+    if (categoryCode) {
+      params.push(categoryCode);
+      conds.push(`oc.code = $${params.length}`);
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      conds.push(
+        `(o.order_no ILIKE $${params.length} OR coalesce(o.po_number, '') ILIKE $${params.length} OR c.name ILIKE $${params.length} OR t.name ILIKE $${params.length} OR coalesce(t.serial_number, '') ILIKE $${params.length} OR u.full_name ILIKE $${params.length})`
+      );
+    }
 
     const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-    const countRes = await query(`SELECT count(*)::int AS total FROM inspections i ${whereSql}`, params);
+    const countRes = await query(
+      `SELECT count(*)::int AS total
+       FROM inspections i
+       JOIN orders o ON o.id = i.order_id
+       JOIN clients c ON c.id = o.client_id
+       JOIN test_objects t ON t.id = i.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN users u ON u.id = i.inspector_id
+       ${whereSql}`,
+      params
+    );
 
     params.push(limit, offset);
     const { rows } = await query(
@@ -1196,15 +1225,27 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
 // M3-11: Pembukaan kunci form melalui revisi tercatat
 router.post(
   '/:id/reopen',
-  authorize('ADMIN_SISTEM', 'PIMPINAN', 'AHLI_K3'),
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'AHLI_K3'),
   validate(reopenSchema),
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { reason } = req.body;
+      const { reason, targetSection } = req.body;
+      const cleanSection = targetSection ? String(targetSection).trim() : '';
+      const formattedReason = cleanSection
+        ? `[Bagian: ${cleanSection}] ${reason.trim()}`
+        : reason.trim();
 
       const reopened = await withTransaction(async (db) => {
-        const { rows } = await db.query('SELECT * FROM inspections WHERE id = $1', [id]);
+        const { rows } = await db.query(
+          `SELECT i.*, t.name AS object_name, o.order_no
+           FROM inspections i
+           JOIN test_objects t ON t.id = i.object_id
+           JOIN orders o ON o.id = i.order_id
+           WHERE i.id = $1
+           FOR UPDATE OF i`,
+          [id]
+        );
         const insp = rows[0];
         if (!insp) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Inspeksi tidak ditemukan.');
         if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && insp.inspector_id !== req.user.id) {
@@ -1215,10 +1256,10 @@ router.post(
         }
 
         const { rows: lhpp } = await db.query(
-          'SELECT status FROM lhpp_documents WHERE inspection_id = $1',
+          'SELECT id, status FROM lhpp_documents WHERE inspection_id = $1 FOR UPDATE',
           [id]
         );
-        if (lhpp[0]?.status === 'TERBIT') {
+        if (['TERBIT', 'FINAL'].includes(lhpp[0]?.status)) {
           throw new AppError(
             409,
             'LHPP_ALREADY_PUBLISHED',
@@ -1238,8 +1279,8 @@ router.post(
           [
             id,
             nextRev,
-            reason.trim(),
-            { inspection: insp, results: curResults },
+            formattedReason,
+            { inspection: insp, results: curResults, targetSection: cleanSection || null },
             req.user.id
           ]
         );
@@ -1252,13 +1293,48 @@ router.post(
           [nextRev, id]
         );
 
+        // Jika terdapat draf LHPP yang belum final, kembalikan statusnya ke DIKEMBALIKAN dengan catatan revisi
+        if (lhpp[0]) {
+          await db.query(
+            `UPDATE lhpp_documents
+             SET status = 'DIKEMBALIKAN',
+                 review_notes = $1,
+                 reviewed_by = $2,
+                 reviewed_at = now(),
+                 updated_at = now()
+             WHERE id = $3`,
+            [formattedReason, req.user.id, lhpp[0].id]
+          );
+        }
+
+        // Sinkronisasi status pada level unit terkait saja tanpa memblokir unit lain di PO yang sama
+        await syncOrderUnitStatus(db, {
+          orderId: insp.order_id,
+          objectId: insp.object_id,
+          unitStatus: 'PERLU_REVISI',
+          actorId: req.user.id
+        });
+
+        if (insp.inspector_id && insp.inspector_id !== req.user.id) {
+          await createNotification(
+            {
+              userId: insp.inspector_id,
+              type: 'INSPECTION_REVISION_REQUESTED',
+              title: `Revisi Inspeksi: ${insp.object_name}`,
+              body: `Catatan revisi (${insp.order_no}): ${formattedReason}`,
+              link: '/app/inspections'
+            },
+            db
+          );
+        }
+
         await recordAudit(
           {
             userId: req.user.id,
             action: 'INSPECTION_REOPEN_REVISION',
             entity: 'inspections',
             entityId: id,
-            summary: { revisionNo: nextRev, reason: reason.trim() },
+            summary: { revisionNo: nextRev, reason: formattedReason, targetSection: cleanSection || null },
             ip: req.ip
           },
           db

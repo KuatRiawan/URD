@@ -43,6 +43,7 @@ export function ClientsPage() {
   const [saving, setSaving] = useState(false);
 
   const [detailData, setDetailData] = useState(null);
+  const [portalTokens, setPortalTokens] = useState([]);
   const [locForm, setLocForm] = useState({ name: '', address: '', city: '' });
   const [picForm, setPicForm] = useState({ name: '', position: '', phone: '', email: '' });
   const [subFeedback, setSubFeedback] = useState('');
@@ -128,8 +129,12 @@ export function ClientsPage() {
       setSubFeedback('');
       setPortalUrl('');
       setPortalCopied(false);
-      const { data } = await api.get(`/clients/${clientId}`);
+      const [{ data }, tokenRes] = await Promise.all([
+        api.get(`/clients/${clientId}`),
+        api.get(`/portal/tokens/client/${clientId}`).catch(() => ({ data: { items: [] } }))
+      ]);
       setDetailData(data);
+      setPortalTokens(tokenRes.data?.items || []);
     } catch (err) {
       setError(extractErrorMessage(err));
     }
@@ -233,7 +238,7 @@ export function ClientsPage() {
     }
   };
 
-  const handleCreateRenewalOrder = async (objectId, objectName) => {
+  const handleCreateRenewalOrder = async (objectId, _objectName) => {
     if (!detailData?.client?.id || !objectId) return;
     try {
       const res = await api.post(`/reminders/units/${objectId}/create-renewal-order`);
@@ -246,11 +251,20 @@ export function ClientsPage() {
     }
   };
 
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+  const activeClientsCount = items.filter((c) => c.is_active !== false).length;
+  const totalClientObjects = items.reduce((acc, c) => acc + Number(c.object_count || 0), 0);
+  const totalClientOrders = items.reduce((acc, c) => acc + Number(c.order_count || 0), 0);
+
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Data Klien & PIC"
-        subtitle="Direktori perusahaan klien, lokasi site, dan kontak PIC."
+        title={isPimpinan ? 'Monitoring Portofolio Klien' : 'Data Klien & PIC'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan direktori mitra perusahaan, sebaran lokasi site operasional, dan kepatuhan keselamatan kerja.'
+            : 'Direktori perusahaan klien, lokasi site, dan kontak PIC.'
+        }
         actions={
           canEdit && (
             <button
@@ -264,6 +278,46 @@ export function ClientsPage() {
           )
         }
       />
+
+      {/* Ringkasan Portofolio Mitra Klien */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Total Mitra Klien
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+            {total || items.length}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Perusahaan terdaftar</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Klien Berstatus Aktif
+          </p>
+          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
+            {activeClientsCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Pada halaman saat ini</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Populasi Alat Klien
+          </p>
+          <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums mt-1">
+            {totalClientObjects}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit alat dimiliki klien</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Volume Order PO
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+            {totalClientOrders}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Akumulasi PO riksa uji</p>
+        </div>
+      </div>
 
       <ClientFilterBar
         q={q}
@@ -307,6 +361,7 @@ export function ClientsPage() {
 
       <ClientDetailModal
         detailData={detailData}
+        portalTokens={portalTokens}
         onClose={() => setDetailData(null)}
         canEdit={canEdit}
         subFeedback={subFeedback}

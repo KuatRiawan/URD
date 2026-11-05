@@ -31,13 +31,20 @@ export function UpdateDistributionModal({
         <form onSubmit={onSubmit} className="space-y-4 text-xs">
           <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-3.5 space-y-1.5 border border-slate-200 dark:border-slate-700">
             <p className="font-bold text-slate-900 dark:text-white">
-              {DISTRIBUTION_DOC_TYPE_LABELS[selectedItem.document_type] || selectedItem.document_type}
+              {DISTRIBUTION_DOC_TYPE_LABELS[selectedItem.document_type] || selectedItem.document_type}{' '}
+              {selectedItem.document_no ? `(${selectedItem.document_no})` : ''}
             </p>
             <p className="text-slate-600 dark:text-slate-400">
-              Penerima: <strong className="text-slate-800 dark:text-slate-200">{DISTRIBUTION_TARGET_LABELS[selectedItem.recipient_target]}</strong> ({selectedItem.client_name})
+              Penerima:{' '}
+              <strong className="text-slate-800 dark:text-slate-200">
+                {DISTRIBUTION_TARGET_LABELS[selectedItem.target_destination || selectedItem.recipient_target] ||
+                  selectedItem.target_destination ||
+                  selectedItem.recipient_target}
+              </strong>{' '}
+              ({selectedItem.recipient_name || selectedItem.client_name})
             </p>
             <p className="text-slate-500 dark:text-slate-400 font-mono">
-              No. PO: {selectedItem.po_number || '-'} | Unit: {selectedItem.object_name} (SN: {selectedItem.serial_number})
+              No. PO: {selectedItem.po_number || selectedItem.order_no || '-'} | Unit: {selectedItem.object_name} (SN: {selectedItem.serial_number})
             </p>
           </div>
 

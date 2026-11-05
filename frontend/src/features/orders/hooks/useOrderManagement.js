@@ -500,8 +500,30 @@ export function useOrderManagement() {
     setCsvModalOpen(true);
   };
 
-  const handleImportCsv = () => {
+  const handleImportCsv = async () => {
     if (!csvText.trim()) return;
+
+    if (csvTargetOrderId) {
+      setSubmitting(true);
+      setError('');
+      try {
+        const res = await api.post(`/orders/${csvTargetOrderId}/import-units-csv`, { csvText });
+        setCsvModalOpen(false);
+        setFeedback(`Berhasil mengimpor ${res.data?.importedCount || 0} unit alat ke PO.`);
+        await openOrderDetail(csvTargetOrderId);
+        loadOrders();
+      } catch (err) {
+        setError(
+          err.response?.data?.error?.message ||
+            err.response?.data?.message ||
+            'Gagal mengimpor unit CSV ke PO.'
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const lines = csvText.trim().split('\n');
     if (lines.length < 2) {
       setError('Format CSV tidak valid. Harus ada header dan minimal 1 baris data.');
@@ -539,6 +561,95 @@ export function useOrderManagement() {
     }));
     setCsvModalOpen(false);
     setFeedback(`Berhasil mengimpor ${parsedUnits.length} unit alat K3 dari CSV.`);
+  };
+
+  const handleUpdateOrder = async (orderId, updateData) => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await api.patch(`/orders/${orderId}`, updateData);
+      setFeedback('Data Purchase Order berhasil diperbarui.');
+      await openOrderDetail(orderId);
+      loadOrders();
+      return res.data;
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal memperbarui data PO.'
+      );
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddUnitsToOrder = async (orderId, units) => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await api.post(`/orders/${orderId}/units`, { units });
+      setFeedback(`Berhasil menambahkan ${res.data?.addedObjectIds?.length || units.length} unit ke PO.`);
+      await openOrderDetail(orderId);
+      loadOrders();
+      return res.data;
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal menambahkan unit ke PO.'
+      );
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUploadPoAttachment = async (orderId, file, caption) => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (caption) formData.append('caption', caption);
+      const res = await api.post(`/orders/${orderId}/po-attachment`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFeedback('Lampiran dokumen PO resmi berhasil diunggah.');
+      await openOrderDetail(orderId);
+      loadOrders();
+      return res.data;
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal mengunggah lampiran PO.'
+      );
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateOrderUnit = async (orderId, objectId, unitData) => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await api.patch(`/orders/${orderId}/units/${objectId}`, unitData);
+      setFeedback('Data unit alat pada PO berhasil diperbarui.');
+      await openOrderDetail(orderId);
+      loadOrders();
+      return res.data;
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal memperbarui data unit alat.'
+      );
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDownloadAssignmentPdf = async (orderId, orderNo) => {
@@ -689,6 +800,10 @@ export function useOrderManagement() {
     handleDownloadBatchBapPdf,
     handleDownloadBastPdf,
     handleDownloadUnitPdf,
+    handleUpdateOrder,
+    handleAddUnitsToOrder,
+    handleUploadPoAttachment,
+    handleUpdateOrderUnit,
     page,
     setPage,
     limit,

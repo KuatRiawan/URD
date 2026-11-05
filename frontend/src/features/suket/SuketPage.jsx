@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { MagnifyingGlass, Plus } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CalendarCheck,
+  CheckCircle,
+  Clock,
+  MagnifyingGlass,
+  Plus,
+  ShieldCheck,
+  WarningCircle
+} from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
@@ -59,7 +67,11 @@ export function SuketPage() {
     try {
       const [suketRes, objRes, lhppRes] = await Promise.all([
         api.get('/suket', {
-          params: { q: q || undefined, status: statusFilter || undefined, limit: 50 }
+          params: {
+            q: q || undefined,
+            status: (statusFilter === 'EXPIRING_SOON' ? undefined : statusFilter) || undefined,
+            limit: 50
+          }
         }),
         api.get('/objects', { params: { limit: 100 } }).catch(() => ({ data: { items: [] } })),
         api.get('/lhpp', { params: { limit: 100 } }).catch(() => ({ data: { items: [] } }))
@@ -198,11 +210,38 @@ export function SuketPage() {
     }
   };
 
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+
+  const stats = useMemo(() => {
+    const total = items.length;
+    const inDisnaker = items.filter((i) => ['DIAJUKAN', 'DALAM_PROSES'].includes(i.status)).length;
+    const activeSuket = items.filter(
+      (i) => i.status === 'TERBIT' && (i.days_remaining === null || i.days_remaining >= 0)
+    ).length;
+    const expiringSuket = items.filter(
+      (i) => i.days_remaining !== null && i.days_remaining !== undefined && i.days_remaining <= 30
+    ).length;
+    return { total, inDisnaker, activeSuket, expiringSuket };
+  }, [items]);
+
+  const displayedItems = useMemo(() => {
+    if (statusFilter === 'EXPIRING_SOON') {
+      return items.filter(
+        (i) => i.days_remaining !== null && i.days_remaining !== undefined && i.days_remaining <= 30
+      );
+    }
+    return items;
+  }, [items, statusFilter]);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Registri Suket K3"
-        subtitle="Penerbitan Suket K3 di Disnaker dan pengawasan masa berlaku sertifikasi unit."
+        title={isPimpinan ? 'Monitoring Registri Suket K3' : 'Registri Suket K3'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan berkas pengesahan Disnaker, penerbitan sertifikasi keselamatan unit, dan siklus kedaluwarsa Suket K3.'
+            : 'Penerbitan Suket K3 di Disnaker dan pengawasan masa berlaku sertifikasi unit.'
+        }
         actions={
           canManage && (
             <button
@@ -217,6 +256,49 @@ export function SuketPage() {
         }
       />
 
+      {/* Ringkasan Status Registri Suket K3 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <ShieldCheck size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Suket K3</div>
+            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Berkas</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+            <Clock size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Proses di Disnaker</div>
+            <div className="text-base font-extrabold text-blue-700 dark:text-blue-400">{stats.inDisnaker} Berkas</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Suket Terbit Aktif</div>
+            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.activeSuket} Unit</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+            <WarningCircle size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Habis &le; 30 Hari / Expired</div>
+            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">{stats.expiringSuket} Unit</div>
+          </div>
+        </div>
+      </div>
+
       {feedback && (
         <Notice tone="success" onClose={() => setFeedback('')}>
           {feedback}
@@ -224,6 +306,30 @@ export function SuketPage() {
       )}
 
       {error && <ErrorBanner message={error} onRetry={loadData} />}
+
+      {/* Segmented Filter Bar: Status Penerbitan Suket */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-2xl overflow-x-auto">
+        {[
+          { key: '', label: `Semua Suket (${stats.total})` },
+          { key: 'BERKAS_DISIAPKAN', label: 'Proses Berkas' },
+          { key: 'DIAJUKAN', label: `Di Disnaker (${stats.inDisnaker})` },
+          { key: 'TERBIT', label: `Suket Terbit (${stats.activeSuket})` },
+          { key: 'EXPIRING_SOON', label: `Segera Habis \u2264 30 Hari (${stats.expiringSuket})` }
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setStatusFilter(tab.key)}
+            className={`py-2 px-3.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+              statusFilter === tab.key
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
         <div className="relative flex-1">
@@ -261,8 +367,13 @@ export function SuketPage() {
           title="Belum ada data Suket K3"
           description="Catat pengajuan dan penerbitan Suket K3 Disnaker untuk memantau masa berlaku berkala."
         />
+      ) : displayedItems.length === 0 ? (
+        <EmptyState
+          title="Tidak ada data Suket K3 pada filter ini"
+          description="Pilih tab status lain di atas untuk melihat berkas Suket K3."
+        />
       ) : (
-        <SuketTable items={items} onOpenDetail={openDetail} />
+        <SuketTable items={displayedItems} onOpenDetail={openDetail} />
       )}
 
       <CreateSuketModal

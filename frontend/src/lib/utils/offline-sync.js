@@ -4,9 +4,10 @@
 // tersinkronisasi ke server begitu jaringan kembali aktif.
 
 const DB_NAME = 'urd-offline-sync';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_PHOTOS = 'photos';
 const STORE_DRAFTS = 'drafts';
+const STORE_SYNC_LOGS = 'sync_logs';
 
 function openSyncDb() {
   return new Promise((resolve, reject) => {
@@ -22,6 +23,9 @@ function openSyncDb() {
       }
       if (!db.objectStoreNames.contains(STORE_DRAFTS)) {
         db.createObjectStore(STORE_DRAFTS, { keyPath: 'inspectionId' });
+      }
+      if (!db.objectStoreNames.contains(STORE_SYNC_LOGS)) {
+        db.createObjectStore(STORE_SYNC_LOGS, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -163,12 +167,79 @@ export async function getPendingSyncSummary() {
 }
 
 // -----------------------------------------------------------------------------
+// PENGELOLAAN LOG RIWAYAT SINKRONISASI
+// -----------------------------------------------------------------------------
+
+export async function recordSyncLog(entry) {
+  const log = {
+    id: 'sync_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    timestamp: Date.now(),
+    status: entry.status || (entry.errors?.length ? 'FAILED' : 'SUCCESS'),
+    syncedDrafts: entry.syncedDrafts || 0,
+    syncedPhotos: entry.syncedPhotos || 0,
+    totalSynced: (entry.syncedDrafts || 0) + (entry.syncedPhotos || 0),
+    errors: entry.errors || [],
+    trigger: entry.trigger || 'MANUAL'
+  };
+  try {
+    await runDb(STORE_SYNC_LOGS, 'readwrite', (store) => store.add(log));
+  } catch {
+    try {
+      const existing = JSON.parse(localStorage.getItem('urd_sync_logs') || '[]');
+      existing.unshift(log);
+      localStorage.setItem('urd_sync_logs', JSON.stringify(existing.slice(0, 30)));
+    } catch {
+      // fallback best-effort
+    }
+  }
+  return log;
+}
+
+export async function listSyncLogs() {
+  try {
+    const list = await runDb(STORE_SYNC_LOGS, 'readonly', (store) => store.getAll());
+    if (list && list.length) {
+      return list.sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
+    }
+  } catch {
+    // fallback
+  }
+  try {
+    const raw = localStorage.getItem('urd_sync_logs');
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // fallback
+  }
+  return [];
+}
+
+export async function clearSyncLogs() {
+  try {
+    await runDb(STORE_SYNC_LOGS, 'readwrite', (store) => store.clear());
+  } catch {
+    // fallback
+  }
+  try {
+    localStorage.removeItem('urd_sync_logs');
+  } catch {
+    // fallback
+  }
+}
+
+export async function exportOfflineDraftJson(inspectionId) {
+  const drafts = await listOfflineDrafts();
+  const draft = drafts.find((d) => d.inspectionId === inspectionId);
+  if (!draft) return null;
+  return JSON.stringify(draft, null, 2);
+}
+
+// -----------------------------------------------------------------------------
 // MESIN SINKRONISASI OTOMATIS (AUTO-SYNC ENGINE)
 // -----------------------------------------------------------------------------
 
 let isSyncing = false;
 
-export async function performAutoSync(apiInstance) {
+export async function performAutoSync(apiInstance, trigger = 'AUTO') {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return { skipped: true, reason: 'offline' };
   }
@@ -220,11 +291,24 @@ export async function performAutoSync(apiInstance) {
       }
     }
 
-    return {
-      success: true,
+    const totalSynced = syncedDrafts + syncedPhotos;
+    const finalStatus = errors.length === 0 ? 'SUCCESS' : (totalSynced > 0 ? 'PARTIAL' : 'FAILED');
+
+    // Catat log riwayat sinkronisasi
+    await recordSyncLog({
+      status: finalStatus,
       syncedDrafts,
       syncedPhotos,
-      totalSynced: syncedDrafts + syncedPhotos,
+      errors,
+      trigger
+    }).catch(() => {});
+
+    return {
+      success: true,
+      status: finalStatus,
+      syncedDrafts,
+      syncedPhotos,
+      totalSynced,
       errors
     };
   } finally {

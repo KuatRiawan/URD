@@ -18,13 +18,15 @@ export function CreateObjectModal({
       open={open}
       onClose={onClose}
       title="Tambah Objek Uji K3 Baru"
-      maxWidth="max-w-2xl"
+      subtitle="Pendaftaran identitas unit alat untuk riksa uji keselamatan dan kesehatan kerja."
+      size="lg"
     >
-      <form onSubmit={handleSaveObject} className="space-y-3.5 text-xs text-slate-800 dark:text-slate-200">
+      <form onSubmit={handleSaveObject} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
         {formErr && <Notice tone="error">{formErr}</Notice>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
-            <label htmlFor="obj-client" className="block font-bold mb-1">
+            <label htmlFor="obj-client" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
               Perusahaan Klien *
             </label>
             <select
@@ -32,9 +34,9 @@ export function CreateObjectModal({
               required
               value={formData.clientId}
               onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
             >
-              <option value="">-- Pilih Klien --</option>
+              <option value="">-- Pilih Perusahaan Klien --</option>
               {clients.map((cl) => (
                 <option key={cl.id} value={cl.id}>
                   {cl.name}
@@ -43,8 +45,8 @@ export function CreateObjectModal({
             </select>
           </div>
           <div>
-            <label htmlFor="obj-cat" className="block font-bold mb-1">
-              Kategori Objek K3 *
+            <label htmlFor="obj-cat" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Bidang / Kategori Objek K3 *
             </label>
             <select
               id="obj-cat"
@@ -53,7 +55,7 @@ export function CreateObjectModal({
               onChange={(e) =>
                 setFormData({ ...formData, categoryId: Number(e.target.value), attributes: {} })
               }
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
             >
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -64,10 +66,10 @@ export function CreateObjectModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
-            <label htmlFor="obj-name" className="block font-bold mb-1">
-              Nama Alat / Objek Uji *
+            <label htmlFor="obj-name" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Nama Objek / Unit Alat *
             </label>
             <input
               id="obj-name"
@@ -76,12 +78,12 @@ export function CreateObjectModal({
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Contoh: Overhead Travelling Crane 10 Ton"
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label htmlFor="obj-sn" className="block font-bold mb-1">
-              Nomor Seri (Unik per Klien) *
+            <label htmlFor="obj-sn" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Nomor Seri / Tag Pabrik *
             </label>
             <input
               id="obj-sn"
@@ -89,14 +91,15 @@ export function CreateObjectModal({
               required
               value={formData.serialNumber}
               onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono text-slate-900 dark:text-slate-100"
+              placeholder="Contoh: CR-2024-001"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           <div>
-            <label htmlFor="obj-brand" className="block font-bold mb-1">
+            <label htmlFor="obj-brand" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
               Merek / Pabrikan
             </label>
             <input
@@ -104,11 +107,12 @@ export function CreateObjectModal({
               type="text"
               value={formData.brand}
               onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
+              placeholder="Contoh: Demag / Mitsubishi"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label htmlFor="obj-model" className="block font-bold mb-1">
+            <label htmlFor="obj-model" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
               Tipe / Model
             </label>
             <input
@@ -116,11 +120,12 @@ export function CreateObjectModal({
               type="text"
               value={formData.model}
               onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
+              placeholder="Contoh: ZKKE-5T"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label htmlFor="obj-year" className="block font-bold mb-1">
+            <label htmlFor="obj-year" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
               Tahun Pembuatan
             </label>
             <input
@@ -130,15 +135,16 @@ export function CreateObjectModal({
               max="2100"
               value={formData.manufactureYear}
               onChange={(e) => setFormData({ ...formData, manufactureYear: e.target.value })}
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
+              placeholder="2022"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           <div>
-            <label htmlFor="obj-cap" className="block font-bold mb-1">
-              Kapasitas
+            <label htmlFor="obj-cap" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Kapasitas / Beban SWL
             </label>
             <input
               id="obj-cap"
@@ -146,24 +152,24 @@ export function CreateObjectModal({
               value={formData.capacity}
               onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
               placeholder="Contoh: 10 Ton / 1250 kVA"
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label htmlFor="obj-loc" className="block font-bold mb-1">
-              Lokasi Pemasangan
+            <label htmlFor="obj-loc" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Lokasi Pemasangan / Site
             </label>
             <input
               id="obj-loc"
               type="text"
               value={formData.installLocation}
               onChange={(e) => setFormData({ ...formData, installLocation: e.target.value })}
-              placeholder="Contoh: Hall Produksi Bay B"
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
+              placeholder="Contoh: Workshop Bay 2"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label htmlFor="obj-prev" className="block font-bold mb-1">
+            <label htmlFor="obj-prev" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
               No. Suket Sebelumnya
             </label>
             <input
@@ -171,14 +177,15 @@ export function CreateObjectModal({
               type="text"
               value={formData.previousPermitNo}
               onChange={(e) => setFormData({ ...formData, previousPermitNo: e.target.value })}
-              className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono text-slate-900 dark:text-slate-100"
+              placeholder="566/123/DISNAKER/2023"
+              className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
         {/* Atribut khusus per jenis objek (Standar LHPP K3) */}
         {selectedCatMeta?.attribute_schema?.length > 0 && (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3.5 space-y-3">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white">
                 Spesifikasi Teknis Tambahan ({selectedCatMeta.name})
@@ -187,7 +194,7 @@ export function CreateObjectModal({
                 Sesuai Template LHPP K3
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {selectedCatMeta.attribute_schema.map((attr) => (
                 <div key={attr.key}>
                   <label htmlFor={`attr-${attr.key}`} className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -204,7 +211,7 @@ export function CreateObjectModal({
                         attributes: { ...formData.attributes, [attr.key]: e.target.value }
                       })
                     }
-                    className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                    className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
                   />
                 </div>
               ))}
@@ -212,18 +219,18 @@ export function CreateObjectModal({
           </div>
         )}
 
-        <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-700">
+        <div className="pt-3 flex justify-end gap-2.5 border-t border-slate-200 dark:border-slate-800">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 px-4 py-2 rounded border border-slate-300 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-2xs transition-colors"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="min-h-11 px-4 py-2 rounded bg-[#C81E1E] font-bold text-white hover:bg-[#991B1B] cursor-pointer"
+            className="h-9 px-4 rounded-lg bg-[#C81E1E] font-bold text-xs text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-2xs transition-colors"
           >
             {saving ? 'Menyimpan...' : 'Simpan Objek Uji'}
           </button>
@@ -232,4 +239,3 @@ export function CreateObjectModal({
     </Modal>
   );
 }
-

@@ -39,8 +39,8 @@ export function ObjectQrModal({ qrModal, onClose }) {
       title="Kode QR Identitas Objek K3"
       maxWidth="max-w-sm"
     >
-      <div className="text-center space-y-3 text-xs text-slate-800 dark:text-slate-200">
-        <div className="inline-block p-2 bg-white rounded-lg border border-slate-200 dark:border-slate-700 mx-auto shadow-sm">
+      <div className="text-center space-y-3.5 text-xs text-slate-800 dark:text-slate-200">
+        <div className="inline-block p-3 bg-white rounded-xl border border-slate-200 dark:border-slate-700 mx-auto shadow-xs">
           <img
             src={qrModal.qrDataUrl}
             alt={`QR Code ${qrModal.object.name}`}
@@ -49,9 +49,11 @@ export function ObjectQrModal({ qrModal, onClose }) {
             className="mx-auto"
           />
         </div>
-        <p className="font-bold text-sm text-slate-900 dark:text-white">{qrModal.object.name}</p>
-        <p className="font-mono text-slate-500 dark:text-slate-400">S/N: {qrModal.object.serial_number}</p>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <div>
+          <p className="font-bold text-sm text-slate-900 dark:text-white">{qrModal.object.name}</p>
+          <p className="font-mono text-slate-500 dark:text-slate-400 mt-0.5">S/N: {qrModal.object.serial_number}</p>
+        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed px-2">
           Pindai menggunakan perangkat staf atau kamera HP untuk membuka data riwayat alat ini.
         </p>
 
@@ -60,14 +62,13 @@ export function ObjectQrModal({ qrModal, onClose }) {
             type="button"
             onClick={handleDownloadSticker}
             disabled={downloading}
-            className="w-full h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs disabled:opacity-60"
+            className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-4 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs disabled:opacity-60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
           >
             <DownloadSimple size={15} weight="bold" />
-            <span>{downloading ? 'Menyiapkan...' : 'Cetak Stiker Label QR (PDF)'}</span>
+            <span>{downloading ? 'Menyiapkan berkas...' : 'Cetak Stiker Label QR (PDF)'}</span>
           </button>
         </div>
       </div>
     </Modal>
   );
 }
-

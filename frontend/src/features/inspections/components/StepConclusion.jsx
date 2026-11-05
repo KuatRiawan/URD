@@ -54,7 +54,7 @@ export function StepConclusion({
               badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
             },
             {
-              id: 'MEMENUHI_SYARAT_DENGAN_PERBAIKAN',
+              id: 'MEMENUHI_SYARAT_DENGAN_CATATAN',
               title: 'Memenuhi dengan Catatan',
               desc: 'Laik operasi bersyarat. Wajib menindaklanjuti rekomendasi perbaikan minor dari Ahli K3.',
               icon: WarningCircle,

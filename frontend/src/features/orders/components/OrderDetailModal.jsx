@@ -1,15 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CalendarPlus,
+  Check,
   CheckCircle,
   ClipboardText,
   DownloadSimple,
   FileCsv,
+  FileText,
   Info,
+  Pencil,
+  Plus,
+  UploadSimple,
   UserCheck,
   Warning,
+  X,
   XCircle
 } from '@phosphor-icons/react';
+import { api } from '../../../lib/api/axios.js';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
@@ -33,6 +40,8 @@ export function OrderDetailModal({
   canManageStatus: propCanManageStatus,
   user,
   inspectors,
+  categories = [],
+  clients: _clients = [],
   scheduleConflicts,
   scheduleForm,
   setScheduleForm,
@@ -53,11 +62,145 @@ export function OrderDetailModal({
   handleAssignInspectors,
   handleRespondAssignment,
   handleStatusChange,
-  checkConflicts
+  checkConflicts,
+  handleUpdateOrder,
+  handleAddUnitsToOrder,
+  handleUploadPoAttachment,
+  handleUpdateOrderUnit
 }) {
   const [activeTab, setActiveTab] = useState('UNITS');
   const canManageSchedule = propCanManageSchedule ?? ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
   const canManageStatus = propCanManageStatus ?? ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+
+  const [editingPo, setEditingPo] = useState(false);
+  const [poForm, setPoForm] = useState({
+    poNumber: '',
+    poDate: '',
+    serviceType: 'PEMERIKSAAN_BERKALA',
+    source: 'DOKUMEN_PO',
+    requestedDate: '',
+    notes: ''
+  });
+
+  const [addingUnits, setAddingUnits] = useState(false);
+  const [addUnitMode, setAddUnitMode] = useState('INLINE'); // 'INLINE' | 'EXISTING'
+  const [clientEquipments, setClientEquipments] = useState([]);
+  const [selectedEquipIds, setSelectedEquipIds] = useState([]);
+  const [loadingEquip, setLoadingEquip] = useState(false);
+  const [inlineUnit, setInlineUnit] = useState({
+    categoryId: 1,
+    name: '',
+    brand: '',
+    model: '',
+    serialNumber: '',
+    capacity: '',
+    installLocation: '',
+    quantity: 1,
+    unitNotes: ''
+  });
+
+  const [editingUnitId, setEditingUnitId] = useState(null);
+  const [editUnitForm, setEditUnitForm] = useState({
+    proposedDate: '',
+    unitNotes: ''
+  });
+
+  useEffect(() => {
+    if (activeOrder) {
+      setPoForm({
+        poNumber: activeOrder.po_number || '',
+        poDate: activeOrder.po_date ? new Date(activeOrder.po_date).toISOString().slice(0, 10) : '',
+        serviceType: activeOrder.service_type || 'PEMERIKSAAN_BERKALA',
+        source: activeOrder.source || 'DOKUMEN_PO',
+        requestedDate: activeOrder.requested_date ? new Date(activeOrder.requested_date).toISOString().slice(0, 10) : '',
+        notes: activeOrder.notes || ''
+      });
+    }
+  }, [activeOrder]);
+
+  useEffect(() => {
+    if (addingUnits && addUnitMode === 'EXISTING' && activeOrder?.client_id) {
+      setLoadingEquip(true);
+      api
+        .get(`/clients/${activeOrder.client_id}/equipment-history`)
+        .then((res) => {
+          const allItems = res.data?.items || [];
+          const existingObjIds = new Set((detailData?.objects || []).map((o) => o.id));
+          setClientEquipments(allItems.filter((eq) => !existingObjIds.has(eq.id)));
+        })
+        .catch(() => {
+          api
+            .get('/objects', { params: { clientId: activeOrder.client_id, limit: 100 } })
+            .then((res2) => {
+              const allItems = res2.data?.items || [];
+              const existingObjIds = new Set((detailData?.objects || []).map((o) => o.id));
+              setClientEquipments(allItems.filter((eq) => !existingObjIds.has(eq.id)));
+            })
+            .catch(() => setClientEquipments([]));
+        })
+        .finally(() => setLoadingEquip(false));
+    }
+  }, [addingUnits, addUnitMode, activeOrder?.client_id, detailData?.objects]);
+
+  const handlePoFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!handleUpdateOrder || !activeOrder?.id) return;
+    try {
+      await handleUpdateOrder(activeOrder.id, poForm);
+      setEditingPo(false);
+    } catch {
+      // error handled by hook
+    }
+  };
+
+  const handleAddUnitsSubmit = async (e) => {
+    e.preventDefault();
+    if (!handleAddUnitsToOrder || !activeOrder?.id) return;
+    try {
+      if (addUnitMode === 'EXISTING') {
+        if (selectedEquipIds.length === 0) {
+          setError('Pilih minimal 1 unit alat klien yang ingin ditambahkan.');
+          return;
+        }
+        const unitsPayload = selectedEquipIds.map((objId) => ({ objectId: objId, quantity: 1 }));
+        await handleAddUnitsToOrder(activeOrder.id, unitsPayload);
+        setSelectedEquipIds([]);
+      } else {
+        if (!inlineUnit.name?.trim()) {
+          setError('Nama jenis alat wajib diisi.');
+          return;
+        }
+        await handleAddUnitsToOrder(activeOrder.id, [inlineUnit]);
+        setInlineUnit({
+          categoryId: categories[0]?.id || 1,
+          name: '',
+          brand: '',
+          model: '',
+          serialNumber: '',
+          capacity: '',
+          installLocation: '',
+          quantity: 1,
+          unitNotes: ''
+        });
+      }
+      setAddingUnits(false);
+    } catch {
+      // error handled by hook
+    }
+  };
+
+  const handleSaveUnitRow = async (objectId) => {
+    if (!handleUpdateOrderUnit || !activeOrder?.id) return;
+    try {
+      await handleUpdateOrderUnit(activeOrder.id, objectId, {
+        proposedDate: editUnitForm.proposedDate || null,
+        unitNotes: editUnitForm.unitNotes || null
+      });
+      setEditingUnitId(null);
+    } catch {
+      // error handled by hook
+    }
+  };
 
   const totalUnits = unitProgress?.totalUnits || (detailData?.objects || []).length || 0;
   const completedUnits = unitProgress?.completed || 0;
@@ -174,14 +317,190 @@ export function OrderDetailModal({
                   )}
 
                   {canManage && activeOrder.status !== 'SELESAI' && activeOrder.status !== 'DIBATALKAN' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditingPo(!editingPo)}
+                        className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      >
+                        <Pencil size={14} />
+                        <span>{editingPo ? 'Tutup Edit PO' : 'Ubah Data PO'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCsvImport(activeOrder.id)}
+                        className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      >
+                        <FileCsv size={14} />
+                        <span>Impor Unit CSV</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Ubah Rincian PO */}
+              {editingPo && (
+                <form
+                  onSubmit={handlePoFormSubmit}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-4 space-y-3.5"
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <Pencil size={14} className="text-[#C81E1E]" />
+                      <span>Ubah Rincian Purchase Order</span>
+                    </h4>
                     <button
                       type="button"
-                      onClick={() => handleOpenCsvImport(activeOrder.id)}
-                      className="min-h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      onClick={() => setEditingPo(false)}
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
-                      <FileCsv size={14} />
-                      <span>Impor Unit CSV</span>
+                      <X size={16} />
                     </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        Nomor PO Klien *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={poForm.poNumber}
+                        onChange={(e) => setPoForm({ ...poForm, poNumber: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        Tanggal Dokumen PO
+                      </label>
+                      <input
+                        type="date"
+                        value={poForm.poDate}
+                        onChange={(e) => setPoForm({ ...poForm, poDate: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        Jenis Layanan Pemeriksaan *
+                      </label>
+                      <select
+                        value={poForm.serviceType}
+                        onChange={(e) => setPoForm({ ...poForm, serviceType: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 cursor-pointer"
+                      >
+                        <option value="PEMERIKSAAN_PERTAMA">Pemeriksaan Pertama (Alat Baru)</option>
+                        <option value="PEMERIKSAAN_BERKALA">Pemeriksaan Berkala (Rutin)</option>
+                        <option value="PERPANJANGAN">Perpanjangan Suket K3</option>
+                        <option value="PEMERIKSAAN_ULANG">Pemeriksaan Ulang / Re-audit</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        Sumber Order *
+                      </label>
+                      <select
+                        value={poForm.source}
+                        onChange={(e) => setPoForm({ ...poForm, source: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 cursor-pointer"
+                      >
+                        <option value="DOKUMEN_PO">Dokumen PO Resmi</option>
+                        <option value="EMAIL">Email Penawaran</option>
+                        <option value="WHATSAPP">WhatsApp</option>
+                        <option value="TELEPON">Telepon</option>
+                        <option value="LANGSUNG">Kunjungan Langsung</option>
+                        <option value="LAINNYA">Lainnya</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        Target Tanggal Riksa Diminta
+                      </label>
+                      <input
+                        type="date"
+                        value={poForm.requestedDate}
+                        onChange={(e) => setPoForm({ ...poForm, requestedDate: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        Catatan Khusus PO
+                      </label>
+                      <input
+                        type="text"
+                        value={poForm.notes}
+                        onChange={(e) => setPoForm({ ...poForm, notes: e.target.value })}
+                        placeholder="Contoh: APD lengkap wajib, gerbang timur..."
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPo(false)}
+                      className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="h-8 px-4 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
+                    >
+                      {submitting ? 'Menyimpan...' : 'Simpan Perubahan PO'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Lampiran Dokumen PO Resmi */}
+              <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Lampiran Dokumen PO Resmi
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {detailData?.order?.po_attachment_name || activeOrder.po_attachment_name || 'Belum ada berkas PO yang diunggah'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {(detailData?.order?.po_attachment_id || activeOrder.po_attachment_id) && (
+                    <a
+                      href={`/api/v1/files/${detailData?.order?.po_attachment_id || activeOrder.po_attachment_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                    >
+                      <DownloadSimple size={13} />
+                      <span>Unduh Berkas</span>
+                    </a>
+                  )}
+                  {canManage && activeOrder.status !== 'SELESAI' && activeOrder.status !== 'DIBATALKAN' && (
+                    <label className="h-8 px-3 inline-flex items-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer">
+                      <UploadSimple size={13} />
+                      <span>{detailData?.order?.po_attachment_id || activeOrder.po_attachment_id ? 'Ganti Berkas' : 'Unggah Berkas PO'}</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f && handleUploadPoAttachment) {
+                            handleUploadPoAttachment(activeOrder.id, f, 'Lampiran Dokumen PO');
+                          }
+                        }}
+                      />
+                    </label>
                   )}
                 </div>
               </div>
@@ -245,7 +564,215 @@ export function OrderDetailModal({
                       Daftar Unit Alat ({(detailData?.objects || []).length} Unit)
                     </h4>
                   </div>
+                  {canManage && activeOrder.status !== 'SELESAI' && activeOrder.status !== 'DIBATALKAN' && (
+                    <button
+                      type="button"
+                      onClick={() => setAddingUnits(!addingUnits)}
+                      className="h-8 px-3 inline-flex items-center gap-1.5 rounded-xl bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a11616] cursor-pointer shadow-2xs transition-colors"
+                    >
+                      <Plus size={14} weight="bold" />
+                      <span>{addingUnits ? 'Tutup Form Unit' : 'Tambah Unit Alat'}</span>
+                    </button>
+                  )}
                 </div>
+
+                {/* Form Tambah Unit Alat ke PO Berjalan */}
+                {addingUnits && (
+                  <form
+                    onSubmit={handleAddUnitsSubmit}
+                    className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20 space-y-3.5 text-xs"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-rose-100 dark:border-rose-900/40">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAddUnitMode('INLINE')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            addUnitMode === 'INLINE'
+                              ? 'bg-[#C81E1E] text-white shadow-2xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          Daftar Unit Baru
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAddUnitMode('EXISTING')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            addUnitMode === 'EXISTING'
+                              ? 'bg-[#C81E1E] text-white shadow-2xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          Pilih Unit Klien Terdaftar
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAddingUnits(false)}
+                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    {addUnitMode === 'INLINE' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                            Bidang / Kategori Alat *
+                          </label>
+                          <select
+                            value={inlineUnit.categoryId}
+                            onChange={(e) =>
+                              setInlineUnit({ ...inlineUnit, categoryId: Number(e.target.value) })
+                            }
+                            className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 cursor-pointer"
+                          >
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.code} - {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                            Nama / Jenis Alat *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: Overhead Crane 10 Ton"
+                            value={inlineUnit.name}
+                            onChange={(e) => setInlineUnit({ ...inlineUnit, name: e.target.value })}
+                            className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                            Nomor Seri (Serial Number)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Kosongkan jika auto-generate"
+                            value={inlineUnit.serialNumber}
+                            onChange={(e) =>
+                              setInlineUnit({ ...inlineUnit, serialNumber: e.target.value })
+                            }
+                            className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                            Kapasitas / Kapasitas Kerja
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: 10 Ton / 500 kVA"
+                            value={inlineUnit.capacity}
+                            onChange={(e) => setInlineUnit({ ...inlineUnit, capacity: e.target.value })}
+                            className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                            Lokasi Pemasangan / Area Pabrik
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: Bay 2 Workshop Utama"
+                            value={inlineUnit.installLocation}
+                            onChange={(e) =>
+                              setInlineUnit({ ...inlineUnit, installLocation: e.target.value })
+                            }
+                            className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                            Jumlah Unit
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={inlineUnit.quantity}
+                            onChange={(e) =>
+                              setInlineUnit({ ...inlineUnit, quantity: Number(e.target.value) || 1 })
+                            }
+                            className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {loadingEquip ? (
+                          <p className="text-[11px] text-slate-500 italic py-2">
+                            Memuat daftar unit alat klien...
+                          </p>
+                        ) : clientEquipments.length === 0 ? (
+                          <p className="text-[11px] text-slate-500 italic py-2">
+                            Tidak ada unit alat klien lain yang belum masuk ke PO ini.
+                          </p>
+                        ) : (
+                          <div className="max-h-48 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800">
+                            {clientEquipments.map((eq) => {
+                              const checked = selectedEquipIds.includes(eq.id);
+                              return (
+                                <label
+                                  key={eq.id}
+                                  className="flex items-center gap-2.5 p-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setSelectedEquipIds((prev) =>
+                                        checked ? prev.filter((id) => id !== eq.id) : [...prev, eq.id]
+                                      );
+                                    }}
+                                    className="h-4 w-4 rounded border-slate-300 text-[#C81E1E]"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-slate-900 dark:text-white">
+                                        {eq.name}
+                                      </span>
+                                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-semibold">
+                                        {eq.category_code}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 font-mono">
+                                      SN: {eq.serial_number || '-'} · Kapasitas: {eq.capacity || '-'}
+                                    </p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-rose-100 dark:border-rose-900/40">
+                      <button
+                        type="button"
+                        onClick={() => setAddingUnits(false)}
+                        className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="h-8 px-4 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-2xs"
+                      >
+                        {submitting ? 'Menyimpan...' : 'Simpan Unit ke PO'}
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 <div className="space-y-2.5">
                   {(detailData?.objects || []).map((obj) => (
@@ -272,6 +799,16 @@ export function OrderDetailModal({
                               Lokasi: {obj.install_location}
                             </p>
                           )}
+                          {obj.proposed_date && (
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                              Target Usulan Riksa: {formatDate(obj.proposed_date)}
+                            </p>
+                          )}
+                          {obj.unit_notes && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                              Catatan: {obj.unit_notes}
+                            </p>
+                          )}
                         </div>
                         <Badge
                           tone={
@@ -286,9 +823,64 @@ export function OrderDetailModal({
                         </Badge>
                       </div>
 
-                      {/* Baris Dokumen Unduhan Bersih */}
-                      {(obj.bap_id || obj.lhpp_id) && (
-                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-2">
+                      {/* Form Edit Usulan Jadwal & Catatan Unit */}
+                      {editingUnitId === obj.id ? (
+                        <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 space-y-2.5 text-xs">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            Ubah Target Jadwal &amp; Catatan Unit
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                                Target Usulan Riksa
+                              </label>
+                              <input
+                                type="date"
+                                value={editUnitForm.proposedDate}
+                                onChange={(e) =>
+                                  setEditUnitForm({ ...editUnitForm, proposedDate: e.target.value })
+                                }
+                                className="w-full h-8 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                                Catatan Unit
+                              </label>
+                              <input
+                                type="text"
+                                value={editUnitForm.unitNotes}
+                                onChange={(e) =>
+                                  setEditUnitForm({ ...editUnitForm, unitNotes: e.target.value })
+                                }
+                                placeholder="Catatan teknis alat..."
+                                className="w-full h-8 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingUnitId(null)}
+                              className="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="button"
+                              disabled={submitting}
+                              onClick={() => handleSaveUnitRow(obj.id)}
+                              className="h-7 px-3 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a11616]"
+                            >
+                              Simpan
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Baris Dokumen Unduhan & Aksi Unit */}
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {obj.bap_id && (
                             <button
                               type="button"
@@ -320,7 +912,24 @@ export function OrderDetailModal({
                             </button>
                           )}
                         </div>
-                      )}
+
+                        {(canManage || user?.role === 'AHLI_K3') && editingUnitId !== obj.id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingUnitId(obj.id);
+                              setEditUnitForm({
+                                proposedDate: obj.proposed_date ? new Date(obj.proposed_date).toISOString().slice(0, 10) : '',
+                                unitNotes: obj.unit_notes || ''
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                          >
+                            <Pencil size={12} />
+                            <span>Ubah Usulan/Catatan</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -484,6 +1093,17 @@ export function OrderDetailModal({
                         <span className="font-bold">Mode Pemantauan Jadwal &amp; Ahli K3</span>
                         <p className="text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
                           Sesuai SOP PT Upaya Riksa Daya, penetapan jadwal resmi inspeksi dan penugasan Ahli K3 berlisensi SKP Kemnaker dikelola oleh <strong>Admin Kantor</strong>. Tim Marketing dapat memantau kesiapan tim dan progres jadwal pada panel di bawah ini.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {['PIMPINAN', 'MANAGER'].includes(user?.role) && (
+                    <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-xs text-slate-800 dark:text-slate-200 flex items-start gap-2.5 shadow-2xs">
+                      <Info size={18} weight="bold" className="shrink-0 mt-0.5 text-[#C81E1E]" />
+                      <div className="space-y-1">
+                        <span className="font-bold">Mode Pengawasan Manajemen (Monitoring)</span>
+                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                          Penetapan jadwal resmi inspeksi dan penugasan Ahli K3 berlisensi SKP Kemnaker dikelola oleh <strong>Admin Kantor</strong>. Pimpinan memantau beban penugasan, kesiapan teknis tim, dan target tanggal pemeriksaan.
                         </p>
                       </div>
                     </div>

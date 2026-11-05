@@ -1,4 +1,4 @@
-import { Buildings, MapPin, Cube } from '@phosphor-icons/react';
+import { Buildings, Cube, Eye, MapPin, Pencil } from '@phosphor-icons/react';
 import { StatusBadge } from '../../../components/ui/Badge.jsx';
 import { PaginationBar } from '../../../components/feedback/StateViews.jsx';
 
@@ -18,7 +18,8 @@ export function ClientTable({
         {items.map((c) => (
           <div
             key={c.id}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
+            onClick={() => onOpenDetail(c.id)}
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
           >
             {/* Header Kartu: Nama & Status */}
             <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
@@ -57,31 +58,36 @@ export function ClientTable({
               <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1">
                   <Buildings size={13} />
-                  <span>{c.location_count || 0} Lokasi</span>
+                  <span>{c.location_count || 0} Lokasi Site</span>
                 </span>
                 <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
                   <Cube size={13} />
-                  <span>{c.object_count || 0} Objek Uji</span>
+                  <span>{c.object_count || 0} Objek Uji K3</span>
                 </span>
               </div>
             </div>
 
             {/* Tombol Aksi Mobile */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+            <div
+              className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => onOpenDetail(c.id)}
-                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
               >
-                Detail &amp; Alat
+                <Eye size={15} />
+                <span>Detail &amp; Alat</span>
               </button>
               {canEdit && (
                 <button
                   type="button"
                   onClick={() => onOpenEdit(c)}
-                  className="h-9 px-3.5 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
                 >
-                  Ubah
+                  <Pencil size={14} />
+                  <span>Ubah</span>
                 </button>
               )}
             </div>
@@ -89,58 +95,70 @@ export function ClientTable({
         ))}
       </div>
 
-      {/* Tampilan Desktop & Tablet: Tabel Tabular Lengkap */}
-      <div className="hidden sm:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+      {/* Tampilan Desktop & Tablet: Tabel Lengkap */}
+      <div className="hidden sm:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400">
-                <th className="py-3 px-4 font-bold">Nama Perusahaan</th>
-                <th className="py-3 px-4 font-bold">Bidang Usaha</th>
-                <th className="py-3 px-4 font-bold">NPWP</th>
-                <th className="py-3 px-4 font-bold">Lokasi / Alat</th>
-                <th className="py-3 px-4 font-bold">Status</th>
-                <th className="py-3 px-4 font-bold text-right">Tindakan</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                <th className="py-3 px-4">Nama Perusahaan Klien</th>
+                <th className="py-3 px-4">Bidang Industri</th>
+                <th className="py-3 px-4">NPWP</th>
+                <th className="py-3 px-4">Lokasi &amp; Objek Alat</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Tindakan</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {items.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="py-3 px-4">
+                <tr
+                  key={c.id}
+                  onClick={() => onOpenDetail(c.id)}
+                  className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
+                >
+                  <td className="py-3.5 px-4">
                     <p className="font-bold text-slate-900 dark:text-slate-100">{c.name}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs mt-0.5">
                       {c.address || '-'}
                     </p>
                   </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{c.industry || '-'}</td>
-                  <td className="py-3 px-4 font-mono text-slate-900 dark:text-slate-200">{c.npwp || '-'}</td>
-                  <td className="py-3 px-4">
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{c.location_count}</span> lokasi ·{' '}
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{c.object_count}</span> objek
+                  <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-medium">
+                    {c.industry || '-'}
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-3.5 px-4 font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    {c.npwp || '-'}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{c.location_count || 0}</span> Lokasi ·{' '}
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{c.object_count || 0}</span> Objek Uji
+                  </td>
+                  <td className="py-3.5 px-4">
                     <StatusBadge
                       status={c.is_active ? 'SESUAI' : 'DIBATALKAN'}
                       label={c.is_active ? 'Aktif' : 'Nonaktif'}
                     />
                   </td>
-                  <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => onOpenDetail(c.id)}
-                      className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
-                    >
-                      Detail &amp; Alat
-                    </button>
-                    {canEdit && (
+                  <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <div className="inline-flex items-center gap-1.5 justify-end">
                       <button
                         type="button"
-                        onClick={() => onOpenEdit(c)}
-                        className="h-8.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+                        onClick={() => onOpenDetail(c.id)}
+                        className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
                       >
-                        Ubah
+                        <Eye size={14} />
+                        <span>Detail &amp; Alat</span>
                       </button>
-                    )}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenEdit(c)}
+                          className="h-8.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
+                        >
+                          <Pencil size={13} />
+                          <span>Ubah</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

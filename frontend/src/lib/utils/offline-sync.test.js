@@ -4,7 +4,11 @@ import {
   listOfflineDrafts,
   removeOfflineDraft,
   performAutoSync,
-  getPendingSyncSummary
+  getPendingSyncSummary,
+  recordSyncLog,
+  listSyncLogs,
+  clearSyncLogs,
+  exportOfflineDraftJson
 } from './offline-sync.js';
 
 describe('Offline Sync Utility (PT Upaya Riksa Daya)', () => {
@@ -112,6 +116,35 @@ describe('Offline Sync Utility (PT Upaya Riksa Daya)', () => {
       value: true,
       configurable: true
     });
+  });
+
+  it('records, lists, and clears sync history logs and exports draft JSON', async () => {
+    const entry = {
+      status: 'SUCCESS',
+      syncedDrafts: 2,
+      syncedPhotos: 3,
+      errors: [],
+      trigger: 'MANUAL'
+    };
+
+    const recorded = await recordSyncLog(entry);
+    expect(recorded.id).toBeDefined();
+    expect(recorded.status).toBe('SUCCESS');
+
+    const logs = await listSyncLogs();
+    expect(logs.length).toBeGreaterThanOrEqual(1);
+    expect(logs[0].totalSynced).toBe(5);
+
+    // Test JSON export helper
+    const testId = 'insp-export-test';
+    await enqueueOfflineDraft(testId, { testField: 'val123' });
+    const jsonStr = await exportOfflineDraftJson(testId);
+    expect(jsonStr).toContain('val123');
+
+    // Test clear logs
+    await clearSyncLogs();
+    const logsAfterClear = await listSyncLogs();
+    expect(logsAfterClear.length).toBe(0);
   });
 });
 

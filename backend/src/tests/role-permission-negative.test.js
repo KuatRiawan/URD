@@ -411,4 +411,84 @@ describe('Negative Permission & Security Enforcement Test Suite', () => {
     expect(auditRes.status).toBe(200);
     expect(Array.isArray(auditRes.body.items)).toBe(true);
   });
+
+  // ---------------------------------------------------------------------------
+  // Skenario 13: Pimpinan / Manager berhasil mengakses seluruh endpoint monitoring,
+  // analitik unit-level tanpa double-counting, work-queue, dan ekspor CSV
+  // ---------------------------------------------------------------------------
+  it('13. Pimpinan (PIMPINAN) mendapatkan metrik unit-level akurat, work-queue monitoring, ekspor CSV, dan akses penuh ke seluruh modul pemantauan', async () => {
+    const summaryRes = await request(app)
+      .get('/api/v1/dashboard/summary?period=30D')
+      .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+    expect(summaryRes.status).toBe(200);
+
+    const m = summaryRes.body.metrics;
+    expect(m).toBeDefined();
+    expect(typeof m.totalUnits).toBe('number');
+    expect(typeof m.unscheduledUnits).toBe('number');
+    expect(typeof m.scheduledUnits).toBe('number');
+    expect(typeof m.waitingInspectionUnits).toBe('number');
+    expect(typeof m.inspectingUnits).toBe('number');
+    expect(typeof m.waitingDocUnits).toBe('number');
+    expect(typeof m.revisionUnits).toBe('number');
+    expect(typeof m.completedUnits).toBe('number');
+    expect(m.unscheduledUnits + m.scheduledUnits).toBe(m.waitingInspectionUnits);
+    expect(
+      m.waitingInspectionUnits + m.inspectingUnits + m.waitingDocUnits + m.revisionUnits + m.completedUnits
+    ).toBe(m.totalUnits);
+
+    expect(Array.isArray(summaryRes.body.recentOrders)).toBe(true);
+    if (summaryRes.body.recentOrders.length > 0) {
+      expect(summaryRes.body.recentOrders[0].unitProgress).toBeDefined();
+    }
+
+    expect(Array.isArray(summaryRes.body.inspectorWorkload)).toBe(true);
+    if (summaryRes.body.inspectorWorkload.length > 0) {
+      expect(typeof summaryRes.body.inspectorWorkload[0].assigned_units).toBe('number');
+      expect(typeof summaryRes.body.inspectorWorkload[0].valid_skp_count).toBe('number');
+    }
+
+    const wqRes = await request(app)
+      .get('/api/v1/dashboard/work-queue')
+      .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+    expect(wqRes.status).toBe(200);
+    expect(Array.isArray(wqRes.body.items)).toBe(true);
+    for (const item of wqRes.body.items) {
+      expect(item.actionLabel).not.toBe('Jadwalkan & Tugaskan');
+      expect(item.actionLabel).not.toBe('Lanjutkan Form');
+      expect(item.actionLabel).not.toBe('Buka & Perbaiki');
+    }
+
+    const csvRes = await request(app)
+      .get('/api/v1/dashboard/export-recap.csv?period=30D')
+      .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+    expect(csvRes.status).toBe(200);
+    expect(csvRes.text).toContain('Nomor Order,Nomor PO,Status Order');
+    expect(csvRes.text).toContain('Status Unit');
+
+    const getEndpoints = [
+      '/api/v1/orders',
+      '/api/v1/schedules',
+      '/api/v1/inspections',
+      '/api/v1/issues',
+      '/api/v1/objects',
+      '/api/v1/clients',
+      '/api/v1/lhpp',
+      '/api/v1/bap',
+      '/api/v1/suket',
+      '/api/v1/reminders',
+      '/api/v1/distributions',
+      '/api/v1/objects/history/all',
+      '/api/v1/audit-logs',
+      '/api/v1/notifications',
+      `/api/v1/portal/tokens/client/${client1Id}`
+    ];
+
+    for (const ep of getEndpoints) {
+      const r = await request(app)
+        .get(ep)
+        .set('Authorization', `Bearer ${tokens.PIMPINAN}`);
+      expect(r.status, `Expected 200 for GET ${ep}`).toBe(200);
+    }
+  });
 });

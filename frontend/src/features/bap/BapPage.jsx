@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { MagnifyingGlass } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle, Clock, FileText, MagnifyingGlass } from '@phosphor-icons/react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { LoadingState, ErrorState, EmptyState } from '../../components/feedback/StateViews.jsx';
@@ -11,33 +11,11 @@ import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 import { BapTable } from './components/BapTable.jsx';
 import { BapDetailModal } from './components/BapDetailModal.jsx';
 
-function createSignatureDataUrl(text) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 360;
-  canvas.height = 120;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, 360, 120);
-    ctx.strokeStyle = '#0F172A';
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.moveTo(30, 82);
-    ctx.bezierCurveTo(95, 22, 165, 102, 235, 42);
-    ctx.bezierCurveTo(265, 25, 295, 88, 330, 56);
-    ctx.stroke();
-    ctx.fillStyle = '#475569';
-    ctx.font = 'italic 600 15px sans-serif';
-    ctx.fillText((text || 'Tanda Tangan').slice(0, 26), 34, 104);
-  }
-  return canvas.toDataURL('image/png');
-}
-
 export function BapPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const canManage = ['ADMIN_SISTEM', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const canFinalize = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
 
   const [bapList, setBapList] = useState([]);
@@ -186,23 +164,29 @@ export function BapPage() {
     }
   };
 
-  const handleSaveSignature = async (e) => {
-    e.preventDefault();
+  const handleSaveSignature = async (e, customDataUrl) => {
+    e?.preventDefault();
     if (!selectedBap) return;
+    if (!customDataUrl) {
+      setFeedback({
+        type: 'error',
+        message: 'Goreskan tanda tangan digital terlebih dahulu pada kotak tanda tangan.'
+      });
+      return;
+    }
     setSubmitting(true);
     setFeedback(null);
     try {
-      const dataUrl = createSignatureDataUrl(sigForm.signerName);
       await api.post(`/bap/${selectedBap.id}/signatures`, {
         signerRole: sigForm.signerRole,
         signerName: sigForm.signerName,
         signerTitle: sigForm.signerTitle,
-        dataUrl
+        dataUrl: customDataUrl
       });
       await openBapDetail(selectedBap.id);
       setFeedback({
         type: 'success',
-        message: `Tanda tangan ${sigForm.signerRole === 'AHLI_K3' ? 'Inspector (Ahli K3)' : 'Pemilik Alat / Klien'} berhasil disimpan ke BAP.`
+        message: `Tanda tangan digital ${sigForm.signerRole === 'AHLI_K3' ? 'Inspector (Ahli K3)' : 'Pemilik Alat / Klien'} berhasil disimpan ke BAP.`
       });
     } catch (err) {
       setFeedback({
@@ -325,23 +309,86 @@ export function BapPage() {
     }
   };
 
-  const handlePreviewPdf = (bapId, bapNo) => {
-    setPreviewPdfUrl(`/bap/${bapId}/pdf`);
-    setPreviewPdfTitle(`Pratinjau Berita Acara (BAP): ${bapNo || bapId}`);
-    setPdfPreviewModalOpen(true);
+  const handlePreviewPdf = async (bapId, bapNo) => {
+    try {
+      setPreviewPdfUrl(null);
+      setPreviewPdfTitle(`Pratinjau Berita Acara (BAP): ${bapNo || bapId}`);
+      setPdfPreviewModalOpen(true);
+      const res = await api.get(`/bap/${bapId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      setPreviewPdfUrl(url);
+    } catch (err) {
+      setPdfPreviewModalOpen(false);
+      setFeedback({
+        type: 'error',
+        message:
+          err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal memuat pratinjau PDF BAP.'
+      });
+    }
   };
 
   const closePdfPreview = () => {
+    if (previewPdfUrl) {
+      window.URL.revokeObjectURL(previewPdfUrl);
+    }
     setPreviewPdfUrl(null);
     setPdfPreviewModalOpen(false);
   };
 
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+
+  const stats = useMemo(() => {
+    const total = bapList.length;
+    const draft = bapList.filter((b) => b.status === 'DRAF').length;
+    const final = bapList.filter((b) => b.status === 'FINAL').length;
+    return { total, draft, final };
+  }, [bapList]);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Berita Acara Riksa Uji (BAP)"
-        subtitle="Pemeriksaan ruang lingkup riksa uji, penandatanganan Berita Acara, dan penerbitan dokumen resmi."
+        title={isPimpinan ? 'Monitoring Berita Acara (BAP)' : 'Berita Acara Riksa Uji (BAP)'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan penyelesaian Berita Acara riksa uji, penandatanganan para pihak, dan status pengesahan dokumen.'
+            : 'Pemeriksaan ruang lingkup riksa uji, penandatanganan Berita Acara, dan penerbitan dokumen resmi.'
+        }
       />
+
+      {/* Ringkasan Status Berita Acara (BAP) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <FileText size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Berkas BAP</div>
+            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Dokumen</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+            <Clock size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Draf Menunggu TTD / Finalisasi</div>
+            <div className="text-base font-extrabold text-amber-700 dark:text-amber-400">{stats.draft} Draf</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">BAP Disahkan &amp; Final</div>
+            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.final} Selesai</div>
+          </div>
+        </div>
+      </div>
 
       {feedback && !selectedBap && (
         <Notice tone={feedback.type === 'error' ? 'error' : 'success'}>{feedback.message}</Notice>
@@ -358,11 +405,10 @@ export function BapPage() {
               key={f.value}
               type="button"
               onClick={() => setStatusFilter(f.value)}
-              className={`h-9 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                statusFilter === f.value
-                  ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
-                  : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'
-              }`}
+              className={`h-9 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${statusFilter === f.value
+                ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
+                : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'
+                }`}
             >
               {f.label}
             </button>

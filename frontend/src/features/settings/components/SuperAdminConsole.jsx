@@ -1,46 +1,101 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
-  ArrowClockwise,
+  Alarm,
   Bell,
-  CheckCircle,
+  Buildings,
+  Cube,
   Database,
-  DownloadSimple,
   FileText,
-  FloppyDisk,
-  Gear,
   HardDrives,
   ListChecks,
-  PaperPlaneTilt,
-  PencilSimple,
-  Plus,
   ShieldCheck,
-  Trash,
-  WhatsappLogo,
-  Buildings
+  FloppyDisk
 } from '@phosphor-icons/react';
 import { api } from '../../../lib/api/axios.js';
-import { Button } from '../../../components/ui/Button.jsx';
-import { Badge } from '../../../components/ui/Badge.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '../../../components/ui/Card.jsx';
-import { formatDateTime } from '../../../lib/utils/format.js';
+import { Button } from '../../../components/ui/Button.jsx';
+import { Notice } from '../../../components/ui/Notice.jsx';
+import { useConfirm } from '../../../components/ui/FeedbackProvider.jsx';
+import { CompanyProfileSection } from './CompanyProfileSection.jsx';
+import { ChecklistBuilderSection } from './ChecklistBuilderSection.jsx';
+import { EquipmentMasterSection } from './EquipmentMasterSection.jsx';
+import { DocumentNumberingSection } from './DocumentNumberingSection.jsx';
+import { GatewaysSection } from './GatewaysSection.jsx';
+import { ReminderTemplatesSection } from './ReminderTemplatesSection.jsx';
+import { DatabaseBackupsSection } from './DatabaseBackupsSection.jsx';
+import { SystemInfoSection } from './SystemInfoSection.jsx';
+
+const TAB_ALIAS_MAP = {
+  company: 'company_profile',
+  company_profile: 'company_profile',
+  checklists: 'checklists',
+  equipment: 'equipment_master',
+  equipment_master: 'equipment_master',
+  numbering: 'numbering',
+  gateways: 'gateways',
+  reminders: 'reminders',
+  backups: 'backups',
+  system: 'system_info',
+  system_info: 'system_info'
+};
 
 export function SuperAdminConsole() {
-  const [activeSubTab, setActiveSubTab] = useState('company_profile');
+  const confirm = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTabParam = (searchParams.get('subtab') || searchParams.get('tab') || 'company_profile').toLowerCase();
+  const activeSubTab = TAB_ALIAS_MAP[rawTabParam] || 'company_profile';
+
   const [systemOverview, setSystemOverview] = useState(null);
   const [checklistsData, setChecklistsData] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [backups, setBackups] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [calibrationTools, setCalibrationTools] = useState([]);
+  const [_loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
   const [savingKey, setSavingKey] = useState(null);
   const [testingConnection, setTestingConnection] = useState(null);
+  const [publishingVersion, setPublishingVersion] = useState(false);
+  const [verifyingBackupId, setVerifyingBackupId] = useState(null);
+
+  // Form Standar Template Dokumen Resmi
+  const [docTemplatesForm, setDocTemplatesForm] = useState({
+    surat_tugas: {
+      code: 'ST',
+      name: 'Surat Tugas Pemeriksaan & Pengujian (Ahli K3)',
+      legal_basis: 'UU No. 1 Tahun 1970 & Permenaker RI No. Per.04/MEN/1995 tentang Perusahaan Jasa K3',
+      signatory_title: 'Direktur Operasional PJK3',
+      footer_note: 'Dokumen resmi PT Upaya Riksa Daya - Wajib dibawa saat pelaksanaan riksa uji lapangan.'
+    },
+    bap: {
+      code: 'BAP',
+      name: 'Berita Acara Pemeriksaan & Pengujian Teknis (BAP)',
+      legal_basis: 'UU No. 1 Tahun 1970 & Peraturan Menteri Ketenagakerjaan RI sesuai Bidang Objek K3',
+      signatory_title: 'Ahli K3 Spesialis & Perwakilan Klien',
+      footer_note: 'Ditandatangani secara sah oleh Ahli K3 pemegang SKP Kemnaker RI dan perwakilan perusahaan pemilik alat.'
+    },
+    lhpp: {
+      code: 'LHPP',
+      name: 'Laporan Hasil Pemeriksaan dan Pengujian (LHPP)',
+      legal_basis: 'Standar Teknis Pemeriksaan dan Pengujian K3 Kemnaker RI & SNI Terkait',
+      signatory_title: 'Penanggung Jawab Teknis PJK3 & Ahli K3',
+      footer_note: 'Laporan teknis ini merupakan dasar pengajuan Surat Keterangan (Suket) K3 ke Dinas Tenaga Kerja Provinsi.'
+    },
+    suket: {
+      code: 'SUKET',
+      name: 'Pengantar & Registri Surat Keterangan (Suket) K3 Disnaker',
+      legal_basis: 'Kewenangan Pengawasan Ketenagakerjaan Dinas Tenaga Kerja & Transmigrasi Provinsi',
+      signatory_title: 'Kepala Dinas Tenaga Kerja / Pejabat Berwenang',
+      footer_note: 'Masa berlaku dievaluasi otomatis untuk pengingat perpanjangan berkala H-60, H-30, H-14, dan H-7.'
+    },
+    bast: {
+      code: 'BAST',
+      name: 'Berita Acara Serah Terima Dokumen (BAST)',
+      legal_basis: 'Standar Operasional Prosedur Distribusi Dokumen Resmi PT Upaya Riksa Daya',
+      signatory_title: 'Admin Kantor PJK3 & Penerima Dokumen Klien',
+      footer_note: 'Bukti sah penyerahan dokumen asli LHPP, BAP, dan Surat Keterangan K3 kepada pelanggan.'
+    }
+  });
 
   // Form Profil Perusahaan
   const [companyForm, setCompanyForm] = useState({
@@ -83,6 +138,16 @@ export function SuperAdminConsole() {
     from: 'URD Operasional <notifikasi@upayariksadaya.com>'
   });
 
+  // Form Template Reminder
+  const [reminderForm, setReminderForm] = useState({
+    h30_subject: 'Pemberitahuan Pengingat Riksa Uji K3 (H-30) - PT Upaya Riksa Daya',
+    h30_message: 'Yth. Pimpinan / Bagian K3 {COMPANY_NAME},\n\nKami menginformasikan bahwa masa berlaku Suket K3 untuk unit {OBJECT_NAME} (No. Seri: {SERIAL_NUMBER}) akan berakhir pada {VALID_UNTIL} (30 hari lagi).\n\nUntuk menjamin keselamatan kerja dan kepatuhan terhadap regulasi ketenagakerjaan, mohon segera menjadwalkan pemeriksaan dan pengujian berkala bersama tim ahli K3 kami.\n\nTerima kasih,\nPT Upaya Riksa Daya',
+    h14_subject: 'PERINGATAN PENTING: Masa Berlaku Suket K3 Berakhir dalam 14 Hari (H-14)',
+    h14_message: 'PENTING: Yth. Bagian K3 {COMPANY_NAME},\n\nMasa berlaku Suket K3 unit {OBJECT_NAME} (No. Seri: {SERIAL_NUMBER}) tersisa 14 hari lagi s/d {VALID_UNTIL}.\n\nSilakan konfirmasi jadwal riksa uji perpanjangan agar operasional tidak terhenti.\n\nPT Upaya Riksa Daya',
+    h7_subject: 'PERINGATAN MENDESAK: Masa Berlaku Suket K3 Berakhir dalam 7 Hari (H-7)',
+    h7_message: 'MENDESAK: Yth. Bagian K3 {COMPANY_NAME},\n\nMasa berlaku Suket K3 unit {OBJECT_NAME} (No. Seri: {SERIAL_NUMBER}) akan berakhir dalam 7 HARI ({VALID_UNTIL}).\n\nHubungi tim marketing kami segera untuk penerbitan SPK/PO perpanjangan.\n\nPT Upaya Riksa Daya'
+  });
+
   // Modal State untuk Tambah / Edit Butir Checklist
   const [checklistItemModal, setChecklistItemModal] = useState(null); // { mode: 'create' | 'edit', item: {...} }
   const [itemForm, setItemForm] = useState({
@@ -96,6 +161,16 @@ export function SuperAdminConsole() {
   });
   const [savingItem, setSavingItem] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
+
+  const setSubTab = (id) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('tab');
+      next.set('subtab', id);
+      return next;
+    });
+    setFeedback(null);
+  };
 
   const fetchOverview = async () => {
     try {
@@ -115,20 +190,32 @@ export function SuperAdminConsole() {
       if (s.auto_numbering?.value) {
         setNumberingForm((prev) => ({ ...prev, ...s.auto_numbering.value }));
       }
+      if (s.document_templates?.value) {
+        setDocTemplatesForm((prev) => ({ ...prev, ...s.document_templates.value }));
+      }
+      if (s.calibration_tools?.value?.items) {
+        setCalibrationTools(s.calibration_tools.value.items);
+      }
       if (s.whatsapp_gateway?.value) {
         setWaForm((prev) => ({ ...prev, ...s.whatsapp_gateway.value }));
       }
       if (s.smtp_configuration?.value) {
         setSmtpForm((prev) => ({ ...prev, ...s.smtp_configuration.value }));
       }
+      if (s.reminder_templates?.value) {
+        setReminderForm((prev) => ({ ...prev, ...s.reminder_templates.value }));
+      }
 
       setChecklistsData(ckRes.data);
-      if (ckRes.data?.categories?.length > 0 && !selectedCategory) {
-        setSelectedCategory(ckRes.data.categories[0]);
+      if (ckRes.data?.categories?.length > 0) {
+        setSelectedCategory((prev) => {
+          if (!prev) return ckRes.data.categories[0];
+          return ckRes.data.categories.find((c) => c.id === prev.id) || ckRes.data.categories[0];
+        });
       }
       setBackups(bkRes.data?.items || []);
     } catch {
-      // Abaikan jika ada error network sementara
+      // Abaikan jika ada galat sementara
     } finally {
       setLoading(false);
     }
@@ -142,16 +229,16 @@ export function SuperAdminConsole() {
     e.preventDefault();
     try {
       setSavingKey('company');
-      const settingKey = 'company_profile';
-      await api.put(`/system-settings/keys/${settingKey}`, { value: companyForm });
+      const key = 'company_profile';
+      await api.put(`/system-settings/keys/${key}`, { value: companyForm });
       setFeedback({
         type: 'success',
-        message: 'Profil resmi perusahaan berhasil diperbarui. Seluruh dokumen PDF dan BAP akan langsung memuat data ini.'
+        message: 'Profil resmi perusahaan berhasil disimpan. Data ini otomatis diterapkan pada seluruh lembar kop dan pengesahan dokumen.'
       });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err.response?.data?.error?.message || 'Gagal menyimpan profil perusahaan.'
+        message: err.response?.data?.message || 'Gagal menyimpan profil perusahaan.'
       });
     } finally {
       setSavingKey(null);
@@ -162,13 +249,33 @@ export function SuperAdminConsole() {
     e.preventDefault();
     try {
       setSavingKey('numbering');
-      const settingKey = 'auto_numbering';
-      await api.put(`/system-settings/keys/${settingKey}`, { value: numberingForm });
-      setFeedback({ type: 'success', message: 'Format penomoran surat berhasil disimpan.' });
+      const key = 'auto_numbering';
+      await api.put(`/system-settings/keys/${key}`, { value: numberingForm });
+      setFeedback({ type: 'success', message: 'Format standar penomoran dokumen berhasil diperbarui.' });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err.response?.data?.error?.message || 'Gagal menyimpan format penomoran.'
+        message: err.response?.data?.message || 'Gagal menyimpan format penomoran.'
+      });
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const handleSaveDocTemplates = async (e) => {
+    e.preventDefault();
+    try {
+      setSavingKey('doc_templates');
+      const key = 'document_templates';
+      await api.put(`/system-settings/keys/${key}`, { value: docTemplatesForm });
+      setFeedback({
+        type: 'success',
+        message: 'Standar template & klausul dasar hukum dokumen resmi PJK3 berhasil diperbarui.'
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Gagal menyimpan standar template dokumen.'
       });
     } finally {
       setSavingKey(null);
@@ -181,10 +288,16 @@ export function SuperAdminConsole() {
       setSavingKey('gateways');
       const waKey = 'whatsapp_gateway';
       const smtpKey = 'smtp_configuration';
-      await Promise.all([
+      const [waRes, smtpRes] = await Promise.all([
         api.put(`/system-settings/keys/${waKey}`, { value: waForm }),
         api.put(`/system-settings/keys/${smtpKey}`, { value: smtpForm })
       ]);
+      if (waRes.data?.setting?.value) {
+        setWaForm((prev) => ({ ...prev, ...waRes.data.setting.value }));
+      }
+      if (smtpRes.data?.setting?.value) {
+        setSmtpForm((prev) => ({ ...prev, ...smtpRes.data.setting.value }));
+      }
       setFeedback({
         type: 'success',
         message: 'Konfigurasi WhatsApp Gateway & Email SMTP berhasil disimpan.'
@@ -192,7 +305,27 @@ export function SuperAdminConsole() {
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err.response?.data?.error?.message || 'Gagal menyimpan konfigurasi gateway.'
+        message: err.response?.data?.message || 'Gagal menyimpan konfigurasi gateway.'
+      });
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const handleSaveReminderTemplates = async (e) => {
+    e.preventDefault();
+    try {
+      setSavingKey('reminders');
+      const key = 'reminder_templates';
+      await api.put(`/system-settings/keys/${key}`, { value: reminderForm });
+      setFeedback({
+        type: 'success',
+        message: 'Template naskah pengingat berkala H-30, H-14, dan H-7 berhasil disimpan.'
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Gagal menyimpan template pengingat.'
       });
     } finally {
       setSavingKey(null);
@@ -205,7 +338,7 @@ export function SuperAdminConsole() {
       const res = await api.post('/system-settings/test-email', { config: smtpForm });
       setFeedback({
         type: res.data.success ? 'success' : 'error',
-        message: res.data.message || 'Uji koneksi email berhasil.'
+        message: res.data.message || 'Uji koneksi SMTP email berhasil terhubung.'
       });
     } catch (err) {
       setFeedback({
@@ -223,7 +356,7 @@ export function SuperAdminConsole() {
       const res = await api.post('/system-settings/test-whatsapp', { config: waForm });
       setFeedback({
         type: res.data.success ? 'success' : 'error',
-        message: res.data.message || 'Uji koneksi WhatsApp berhasil.'
+        message: res.data.message || 'Uji koneksi WhatsApp gateway berhasil.'
       });
     } catch (err) {
       setFeedback({
@@ -235,43 +368,82 @@ export function SuperAdminConsole() {
     }
   };
 
+  const refreshChecklists = async () => {
+    const ckRes = await api.get('/system-settings/checklists');
+    setChecklistsData(ckRes.data);
+    if (ckRes.data?.categories?.length > 0) {
+      setSelectedCategory((prev) => {
+        if (!prev) return ckRes.data.categories[0];
+        return ckRes.data.categories.find((c) => c.id === prev.id) || ckRes.data.categories[0];
+      });
+    }
+  };
+
+  const handlePublishNewVersion = async (cat) => {
+    if (!cat?.id) return;
+    const ok = await confirm({
+      title: `Terbitkan Versi Baru Template [${cat.code}]`,
+      message: `Anda akan menerbitkan versi baru untuk template riksa uji bidang ${cat.name}. Versi sebelumnya (v${cat.active_version_no || 1}) akan diarsipkan secara utuh agar seluruh rekaman inspeksi historis tetap terlindungi.`,
+      confirmLabel: 'Ya, Terbitkan Versi Baru',
+      tone: 'default'
+    });
+    if (!ok) return;
+    try {
+      setPublishingVersion(true);
+      const res = await api.post('/system-settings/checklists/versions', { category_id: cat.id });
+      setFeedback({
+        type: 'success',
+        message: res.data?.message || 'Versi baru template ceklis berhasil diterbitkan.'
+      });
+      await refreshChecklists();
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Gagal menerbitkan versi baru template.'
+      });
+    } finally {
+      setPublishingVersion(false);
+    }
+  };
+
   const handleSaveChecklistItem = async (e) => {
     e.preventDefault();
     if (!checklistItemModal) return;
     try {
       setSavingItem(true);
+      let res;
       if (checklistItemModal.mode === 'create') {
-        await api.post('/system-settings/checklists/items', {
+        res = await api.post('/system-settings/checklists/items', {
           version_id: selectedCategory?.active_version_id,
           section: itemForm.section,
           label: itemForm.label,
           input_type: itemForm.input_type,
           unit: itemForm.unit || null,
-          min_value: itemForm.min_value ? Number(itemForm.min_value) : null,
-          max_value: itemForm.max_value ? Number(itemForm.max_value) : null,
+          min_value: itemForm.min_value !== '' ? Number(itemForm.min_value) : null,
+          max_value: itemForm.max_value !== '' ? Number(itemForm.max_value) : null,
           is_required: Boolean(itemForm.is_required)
         });
-        setFeedback({ type: 'success', message: 'Pertanyaan checklist baru berhasil ditambahkan.' });
       } else {
-        await api.put(`/system-settings/checklists/items/${checklistItemModal.item.id}`, {
+        res = await api.put(`/system-settings/checklists/items/${checklistItemModal.item.id}`, {
           section: itemForm.section,
           label: itemForm.label,
           input_type: itemForm.input_type,
           unit: itemForm.unit || null,
-          min_value: itemForm.min_value ? Number(itemForm.min_value) : null,
-          max_value: itemForm.max_value ? Number(itemForm.max_value) : null,
+          min_value: itemForm.min_value !== '' ? Number(itemForm.min_value) : null,
+          max_value: itemForm.max_value !== '' ? Number(itemForm.max_value) : null,
           is_required: Boolean(itemForm.is_required)
         });
-        setFeedback({ type: 'success', message: 'Pertanyaan checklist berhasil diperbarui.' });
       }
+      setFeedback({
+        type: 'success',
+        message: res.data?.message || 'Butir pertanyaan ceklis berhasil disimpan.'
+      });
       setChecklistItemModal(null);
-      // Reload checklists
-      const ckRes = await api.get('/system-settings/checklists');
-      setChecklistsData(ckRes.data);
+      await refreshChecklists();
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menyimpan butir checklist.'
+        message: err.response?.data?.message || 'Gagal menyimpan butir checklist.'
       });
     } finally {
       setSavingItem(false);
@@ -279,16 +451,24 @@ export function SuperAdminConsole() {
   };
 
   const handleDeleteChecklistItem = async (itemId) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus butir pertanyaan ini dari checklist inspeksi?')) return;
+    const ok = await confirm({
+      title: 'Hapus Butir Pertanyaan Checklist',
+      message: 'Hapus butir pertanyaan pemeriksaan ini dari template aktif? (Bila versi ini telah digunakan pada inspeksi historis, sistem otomatis membuat versi baru agar data historis tetap utuh).',
+      confirmLabel: 'Ya, Hapus Butir',
+      tone: 'danger'
+    });
+    if (!ok) return;
     try {
-      await api.delete(`/system-settings/checklists/items/${itemId}`);
-      setFeedback({ type: 'success', message: 'Butir checklist berhasil dihapus.' });
-      const ckRes = await api.get('/system-settings/checklists');
-      setChecklistsData(ckRes.data);
+      const res = await api.delete(`/system-settings/checklists/items/${itemId}`);
+      setFeedback({
+        type: 'success',
+        message: res.data?.message || 'Butir checklist berhasil dihapus.'
+      });
+      await refreshChecklists();
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err.response?.data?.error?.message || 'Gagal menghapus butir checklist.'
+        message: err.response?.data?.message || 'Gagal menghapus butir checklist.'
       });
     }
   };
@@ -299,17 +479,35 @@ export function SuperAdminConsole() {
       const res = await api.post('/system-settings/backups');
       setFeedback({
         type: 'success',
-        message: `Snapshot backup ${res.data?.backup?.filename} berhasil dibuat dan diamankan.`
+        message: res.data?.message || `Snapshot backup ${res.data?.backup?.filename} berhasil dibuat dan diamankan.`
       });
       const bkRes = await api.get('/system-settings/backups');
       setBackups(bkRes.data?.items || []);
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err.response?.data?.error?.message || 'Gagal membuat snapshot backup.'
+        message: err.response?.data?.message || 'Gagal membuat snapshot backup database.'
       });
     } finally {
       setCreatingBackup(false);
+    }
+  };
+
+  const handleVerifyBackup = async (backup) => {
+    try {
+      setVerifyingBackupId(backup.id);
+      const res = await api.post(`/system-settings/backups/${backup.id}/verify`);
+      setFeedback({
+        type: 'success',
+        message: res.data?.message || `Integritas arsip ${backup.filename} terverifikasi valid.`
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Gagal memverifikasi integritas file backup.'
+      });
+    } finally {
+      setVerifyingBackupId(null);
     }
   };
 
@@ -326,7 +524,7 @@ export function SuperAdminConsole() {
       link.click();
       link.remove();
     } catch {
-      setFeedback({ type: 'error', message: 'Gagal mengunduh file snapshot backup.' });
+      setFeedback({ type: 'error', message: 'Gagal mengunduh file arsip snapshot database.' });
     }
   };
 
@@ -334,31 +532,32 @@ export function SuperAdminConsole() {
     (item) => selectedCategory && item.category_id === selectedCategory.id
   );
 
+  const subtabs = [
+    { id: 'company_profile', label: 'Profil Lembaga PJK3', icon: Buildings },
+    { id: 'checklists', label: 'Master 7 Bidang & Ceklis', icon: ListChecks },
+    { id: 'equipment_master', label: 'Master Data Alat & Kalibrasi', icon: Cube },
+    { id: 'numbering', label: 'Format Nomor & Template Dokumen', icon: FileText },
+    { id: 'gateways', label: 'Gateway WA & SMTP Email', icon: Bell },
+    { id: 'reminders', label: 'Template Naskah Pengingat', icon: Alarm },
+    { id: 'backups', label: 'Cadangan Database & Recovery', icon: Database },
+    { id: 'system_info', label: 'Integritas Sistem & Lingkungan', icon: ShieldCheck }
+  ];
+
   return (
-    <div className="space-y-5">
-      {/* Sub Tabs Super Admin */}
+    <div className="space-y-6">
+      {/* Sub Tabs Navigasi Super Admin */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1 overflow-x-auto scrollbar-none pb-px">
-        {[
-          { id: 'company_profile', label: 'Profil Perusahaan & Dokumen', icon: Buildings },
-          { id: 'checklists', label: '7 Bidang K3 & Checklist Builder', icon: ListChecks },
-          { id: 'numbering', label: 'Format Nomor Surat Otomatis', icon: FileText },
-          { id: 'gateways', label: 'WhatsApp Gateway & SMTP Email', icon: Bell },
-          { id: 'backups', label: 'Database Backup & Recovery', icon: Database },
-          { id: 'system_info', label: 'Integritas Sistem & Audit', icon: ShieldCheck }
-        ].map((tab) => {
+        {subtabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
           return (
             <button
               key={tab.id}
               type="button"
-              onClick={() => {
-                setActiveSubTab(tab.id);
-                setFeedback(null);
-              }}
+              onClick={() => setSubTab(tab.id)}
               className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold rounded-t-lg transition-all cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'bg-white dark:bg-slate-900 border-t-2 border-brand-600 text-brand-600 dark:text-rose-400 shadow-2xs'
+                  ? 'bg-white dark:bg-slate-900 border-t-2 border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400 shadow-2xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
               }`}
             >
@@ -370,693 +569,128 @@ export function SuperAdminConsole() {
       </div>
 
       {feedback && (
-        <div
-          className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between ${
-            feedback.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-              : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-          }`}
+        <Notice
+          tone={feedback.type === 'success' ? 'success' : 'error'}
+          onClose={() => setFeedback(null)}
         >
-          <span>{feedback.message}</span>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            className="text-[11px] underline opacity-80 hover:opacity-100 cursor-pointer"
-          >
-            Tutup
-          </button>
-        </div>
+          {feedback.message}
+        </Notice>
       )}
 
-      {/* 1. Profil Perusahaan */}
+      {/* 1. Profil Lembaga PJK3 */}
       {activeSubTab === 'company_profile' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Profil Resmi &amp; Identitas Lembaga PJK3</CardTitle>
-            <CardDescription>
-              Data ini digunakan secara dinamis pada kop surat, footer, dan pengesahan seluruh dokumen resmi (Surat Tugas, BAP, LHPP, Lembar Temuan, BAST).
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSaveCompanyProfile} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nama Perusahaan Resmi (Kop Dokumen)
-                  </label>
-                  <input
-                    type="text"
-                    value={companyForm.company_name}
-                    onChange={(e) => setCompanyForm({ ...companyForm, company_name: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nomor SKP PJK3 Kemnaker RI
-                  </label>
-                  <input
-                    type="text"
-                    value={companyForm.pjk3_license_no}
-                    onChange={(e) => setCompanyForm({ ...companyForm, pjk3_license_no: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Alamat Lengkap Kantor Operasional
-                  </label>
-                  <input
-                    type="text"
-                    value={companyForm.address}
-                    onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nomor Telepon Kantor
-                  </label>
-                  <input
-                    type="text"
-                    value={companyForm.phone}
-                    onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Alamat Email Resmi Perusahaan
-                  </label>
-                  <input
-                    type="email"
-                    value={companyForm.email}
-                    onChange={(e) => setCompanyForm({ ...companyForm, email: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Website Resmi
-                  </label>
-                  <input
-                    type="text"
-                    value={companyForm.website}
-                    onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nama Direktur / Penanggung Jawab PJK3
-                  </label>
-                  <input
-                    type="text"
-                    value={companyForm.director_name}
-                    onChange={(e) => setCompanyForm({ ...companyForm, director_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-medium"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                <Button
-                  type="submit"
-                  size="md"
-                  loading={savingKey === 'company'}
-                  icon={FloppyDisk}
-                >
-                  Simpan Profil Perusahaan
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <CompanyProfileSection
+          companyForm={companyForm}
+          setCompanyForm={setCompanyForm}
+          handleSaveCompanyProfile={handleSaveCompanyProfile}
+          savingKey={savingKey}
+        />
       )}
 
-      {/* 2. 7 Bidang K3 & Dynamic Checklist Builder */}
+      {/* 2. Checklist Builder */}
       {activeSubTab === 'checklists' && (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <CardTitle>Master 7 Bidang K3 &amp; Dynamic Checklist Builder</CardTitle>
-                <CardDescription>
-                  Kelola struktur kategori dan butir pertanyaan pemeriksaan lapangan yang wajib diisi Inspector.
-                </CardDescription>
-              </div>
-              {selectedCategory?.active_version_id && (
-                <Button
-                  type="button"
-                  size="sm"
-                  icon={Plus}
-                  onClick={() => {
-                    setItemForm({
-                      section: 'Pemeriksaan Visual & Fisik',
-                      label: '',
-                      input_type: 'CHOICE',
-                      unit: '',
-                      min_value: '',
-                      max_value: '',
-                      is_required: true
-                    });
-                    setChecklistItemModal({ mode: 'create' });
-                  }}
-                >
-                  Tambah Pertanyaan Ceklis
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Pemilihan Bidang K3 */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800">
-              {(checklistsData?.categories || []).map((cat) => {
-                const isSelected = selectedCategory?.id === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-slate-900 text-white dark:bg-rose-600 shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                    }`}
-                  >
-                    <span className="font-mono">{cat.code}</span>
-                    <span>- {cat.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Daftar Pertanyaan Checklist untuk Kategori Terpilih */}
-            {selectedCategory && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>
-                    Daftar Butir Ceklis Bidang: <strong>{selectedCategory.name} ({selectedCategory.code})</strong>
-                  </span>
-                  <span>{filteredItems.length} pertanyaan terdaftar</span>
-                </div>
-
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredItems.length === 0 ? (
-                    <div className="p-6 text-center text-slate-400">
-                      Belum ada butir pertanyaan pada template aktif kategori ini. Klik "Tambah Pertanyaan Ceklis" untuk menambahkan.
-                    </div>
-                  ) : (
-                    filteredItems.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        className="p-3.5 flex items-center justify-between gap-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/40"
-                      >
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-slate-400 text-[11px]">#{idx + 1}</span>
-                            <span className="font-bold text-slate-900 dark:text-slate-100">{item.label}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                            <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-medium">
-                              Bagian: {item.section}
-                            </span>
-                            <span className="font-mono">Tipe: {item.input_type}</span>
-                            {item.unit && <span>Satuan: {item.unit}</span>}
-                            {item.min_value !== null && item.max_value !== null && (
-                              <span>Batas: {item.min_value} - {item.max_value}</span>
-                            )}
-                            {item.is_required && (
-                              <span className="font-bold text-rose-600 dark:text-rose-400">Wajib Diisi</span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setItemForm({
-                                section: item.section,
-                                label: item.label,
-                                input_type: item.input_type,
-                                unit: item.unit || '',
-                                min_value: item.min_value ?? '',
-                                max_value: item.max_value ?? '',
-                                is_required: item.is_required
-                              });
-                              setChecklistItemModal({ mode: 'edit', item });
-                            }}
-                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
-                            title="Edit Pertanyaan"
-                          >
-                            <PencilSimple size={15} weight="bold" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteChecklistItem(item.id)}
-                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
-                            title="Hapus Pertanyaan"
-                          >
-                            <Trash size={15} weight="bold" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ChecklistBuilderSection
+          checklistsData={checklistsData}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          filteredItems={filteredItems}
+          onPublishNewVersion={handlePublishNewVersion}
+          publishingVersion={publishingVersion}
+          onOpenCreateItem={() => {
+            setItemForm({
+              section: 'Pemeriksaan Visual & Fisik',
+              label: '',
+              input_type: 'CHOICE',
+              unit: '',
+              min_value: '',
+              max_value: '',
+              is_required: true
+            });
+            setChecklistItemModal({ mode: 'create' });
+          }}
+          onOpenEditItem={(item) => {
+            setItemForm({
+              section: item.section,
+              label: item.label,
+              input_type: item.input_type,
+              unit: item.unit || '',
+              min_value: item.min_value ?? '',
+              max_value: item.max_value ?? '',
+              is_required: item.is_required
+            });
+            setChecklistItemModal({ mode: 'edit', item });
+          }}
+          onDeleteItem={handleDeleteChecklistItem}
+        />
       )}
 
-      {/* 3. Numbering Format */}
+      {/* 3. Master Data Alat & Kalibrasi */}
+      {activeSubTab === 'equipment_master' && (
+        <EquipmentMasterSection
+          categories={checklistsData?.categories || []}
+          calibrationTools={calibrationTools}
+          onRefreshData={fetchOverview}
+          onFeedback={(msg) => setFeedback({ type: 'success', message: msg })}
+          onError={(msg) => setFeedback({ type: 'error', message: msg })}
+        />
+      )}
+
+      {/* 4. Format Nomor Surat Otomatis & Template Dokumen Resmi */}
       {activeSubTab === 'numbering' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Standar Format Penomoran Dokumen Otomatis</CardTitle>
-            <CardDescription>
-              Atur pola penomoran dokumen resmi. Tag dinamis yang didukung: <code className="font-mono text-brand-600">{'{COUNTER}'}</code>, <code className="font-mono text-brand-600">{'{YEAR}'}</code>, <code className="font-mono text-brand-600">{'{MONTH}'}</code>, <code className="font-mono text-brand-600">{'{ROMAN_MONTH}'}</code>, <code className="font-mono text-brand-600">{'{BIDANG_CODE}'}</code>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSaveNumbering} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Format Nomor Purchase Order (PO)
-                  </label>
-                  <input
-                    type="text"
-                    value={numberingForm.order_prefix}
-                    onChange={(e) => setNumberingForm({ ...numberingForm, order_prefix: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Contoh: PO-URD/2026/11/0001</span>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Format Surat Tugas Ahli K3 (ST)
-                  </label>
-                  <input
-                    type="text"
-                    value={numberingForm.assignment_prefix}
-                    onChange={(e) => setNumberingForm({ ...numberingForm, assignment_prefix: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Contoh: ST-URD/2026/XI/0001</span>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Format Berita Acara Pemeriksaan (BAP)
-                  </label>
-                  <input
-                    type="text"
-                    value={numberingForm.bap_prefix}
-                    onChange={(e) => setNumberingForm({ ...numberingForm, bap_prefix: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Contoh: BAP/URD/XI/2026/0001</span>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Format Laporan LHPP
-                  </label>
-                  <input
-                    type="text"
-                    value={numberingForm.lhpp_prefix}
-                    onChange={(e) => setNumberingForm({ ...numberingForm, lhpp_prefix: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Contoh: 0001/INSP-PUBT/PJK3-URD/XI/2026</span>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Format Suket K3 Disnaker
-                  </label>
-                  <input
-                    type="text"
-                    value={numberingForm.suket_prefix}
-                    onChange={(e) => setNumberingForm({ ...numberingForm, suket_prefix: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Contoh: 566/0001/DTKT/2026</span>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Format Berita Acara Serah Terima (BAST)
-                  </label>
-                  <input
-                    type="text"
-                    value={numberingForm.bast_prefix}
-                    onChange={(e) => setNumberingForm({ ...numberingForm, bast_prefix: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Contoh: BAST-URD/2026/11/0001</span>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                <Button
-                  type="submit"
-                  size="md"
-                  loading={savingKey === 'numbering'}
-                  icon={FloppyDisk}
-                >
-                  Simpan Format Nomor
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <DocumentNumberingSection
+          numberingForm={numberingForm}
+          setNumberingForm={setNumberingForm}
+          handleSaveNumbering={handleSaveNumbering}
+          docTemplatesForm={docTemplatesForm}
+          setDocTemplatesForm={setDocTemplatesForm}
+          handleSaveDocTemplates={handleSaveDocTemplates}
+          savingKey={savingKey}
+        />
       )}
 
-      {/* 4. WhatsApp & Email Gateways */}
+      {/* 5. WhatsApp & Email Gateway */}
       {activeSubTab === 'gateways' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Gateway Notifikasi WhatsApp &amp; Server SMTP Email</CardTitle>
-            <CardDescription>
-              Kredensial dan endpoint untuk mengirim pengingat otomatis masa berlaku Suket K3 (H-30, H-14, H-7) serta notifikasi operasional.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSaveGateways} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                {/* WhatsApp Gateway */}
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                      <WhatsappLogo size={18} className="text-emerald-600" weight="bold" />
-                      <span>WhatsApp Gateway API</span>
-                    </h4>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="secondary"
-                      loading={testingConnection === 'whatsapp'}
-                      onClick={handleTestWhatsApp}
-                      icon={PaperPlaneTilt}
-                    >
-                      Uji Koneksi
-                    </Button>
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Provider WhatsApp
-                    </label>
-                    <input
-                      type="text"
-                      value={waForm.provider}
-                      onChange={(e) => setWaForm({ ...waForm, provider: e.target.value })}
-                      placeholder="FONNTE / QONTAK / WABLAS"
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Endpoint URL API
-                    </label>
-                    <input
-                      type="text"
-                      value={waForm.api_url}
-                      onChange={(e) => setWaForm({ ...waForm, api_url: e.target.value })}
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Token Otorisasi / API Key
-                    </label>
-                    <input
-                      type="password"
-                      value={waForm.api_key}
-                      onChange={(e) => setWaForm({ ...waForm, api_key: e.target.value })}
-                      placeholder="Masukkan Token Gateway..."
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Nomor Pengirim Terdaftar
-                    </label>
-                    <input
-                      type="text"
-                      value={waForm.sender_number}
-                      onChange={(e) => setWaForm({ ...waForm, sender_number: e.target.value })}
-                      placeholder="628..."
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* SMTP Email Server */}
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                      <Bell size={18} className="text-blue-600" weight="bold" />
-                      <span>SMTP Email Server</span>
-                    </h4>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="secondary"
-                      loading={testingConnection === 'email'}
-                      onClick={handleTestEmail}
-                      icon={PaperPlaneTilt}
-                    >
-                      Uji Koneksi
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                        Host Server SMTP
-                      </label>
-                      <input
-                        type="text"
-                        value={smtpForm.host}
-                        onChange={(e) => setSmtpForm({ ...smtpForm, host: e.target.value })}
-                        placeholder="smtp.mailgun.org"
-                        className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                        Port
-                      </label>
-                      <input
-                        type="number"
-                        value={smtpForm.port}
-                        onChange={(e) => setSmtpForm({ ...smtpForm, port: e.target.value })}
-                        className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Username / Email Akun
-                    </label>
-                    <input
-                      type="text"
-                      value={smtpForm.user}
-                      onChange={(e) => setSmtpForm({ ...smtpForm, user: e.target.value })}
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Password / App Password
-                    </label>
-                    <input
-                      type="password"
-                      value={smtpForm.pass}
-                      onChange={(e) => setSmtpForm({ ...smtpForm, pass: e.target.value })}
-                      placeholder="••••••••••••"
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Nama &amp; Email Pengirim (From)
-                    </label>
-                    <input
-                      type="text"
-                      value={smtpForm.from}
-                      onChange={(e) => setSmtpForm({ ...smtpForm, from: e.target.value })}
-                      className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                <Button
-                  type="submit"
-                  size="md"
-                  loading={savingKey === 'gateways'}
-                  icon={FloppyDisk}
-                >
-                  Simpan Konfigurasi Gateway &amp; SMTP
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <GatewaysSection
+          waForm={waForm}
+          setWaForm={setWaForm}
+          smtpForm={smtpForm}
+          setSmtpForm={setSmtpForm}
+          handleSaveGateways={handleSaveGateways}
+          savingKey={savingKey}
+          handleTestWhatsApp={handleTestWhatsApp}
+          handleTestEmail={handleTestEmail}
+          testingConnection={testingConnection}
+        />
       )}
 
-      {/* 5. Database Backup & Disaster Recovery */}
+      {/* 6. Template Naskah Pengingat */}
+      {activeSubTab === 'reminders' && (
+        <ReminderTemplatesSection
+          reminderForm={reminderForm}
+          setReminderForm={setReminderForm}
+          handleSaveReminderTemplates={handleSaveReminderTemplates}
+          savingKey={savingKey}
+        />
+      )}
+
+      {/* 7. Pencadangan Database & Recovery */}
       {activeSubTab === 'backups' && (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <CardTitle>Database Snapshot &amp; Arsip Cadangan Terenkripsi</CardTitle>
-                <CardDescription>
-                  Amankan data relasional seluruh transaksi, PO, dokumen BAP/LHPP/Suket, dan audit log secara mandiri.
-                </CardDescription>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                loading={creatingBackup}
-                onClick={handleCreateBackup}
-                icon={DownloadSimple}
-              >
-                Buat Snapshot Backup Sekarang
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {backups.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                Belum ada riwayat snapshot backup database. Klik tombol di atas untuk membuat snapshot.
-              </p>
-            ) : (
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                {backups.map((b) => (
-                  <div
-                    key={b.id}
-                    className="p-3.5 flex items-center justify-between gap-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                  >
-                    <div>
-                      <span className="font-mono font-bold text-slate-900 dark:text-slate-100 block">
-                        {b.filename}
-                      </span>
-                      <span className="text-[11px] text-slate-400 block mt-0.5">
-                        Dibuat: {formatDateTime(b.created_at)} · Oleh: {b.created_by_name || 'Admin Sistem'} · Tipe: {b.backup_type}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-slate-600 dark:text-slate-400">
-                        {Math.round((b.file_size_bytes || 0) / 1024)} KB
-                      </span>
-                      <Badge variant="success">Tervalidasi</Badge>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadBackup(b)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                        title="Unduh File Snapshot SQL"
-                      >
-                        <DownloadSimple size={13} weight="bold" />
-                        <span>Unduh SQL</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <DatabaseBackupsSection
+          backups={backups}
+          creatingBackup={creatingBackup}
+          handleCreateBackup={handleCreateBackup}
+          handleDownloadBackup={handleDownloadBackup}
+          handleVerifyBackup={handleVerifyBackup}
+          verifyingId={verifyingBackupId}
+        />
       )}
 
-      {/* 6. System Info & Integrity */}
+      {/* 8. Informasi Integritas Sistem & Lingkungan */}
       {activeSubTab === 'system_info' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>Keandalan Database &amp; Lingkungan Produksi</CardTitle>
-              <CardDescription>Informasi teknis engine data dan kepatuhan integritas</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Status Trigger Audit Log</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <CheckCircle size={14} weight="fill" />
-                  trg_audit_logs_immutable (Aktif)
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Database Engine</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {systemOverview?.systemInfo?.databaseVersion || 'PostgreSQL 16+'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Ukuran Database</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                  {systemOverview?.systemInfo?.databaseSize || '0 MB'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Total Tabel Database</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {systemOverview?.systemInfo?.totalTables || 45} Tabel Terstruktur
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Arsitektur Role &amp; Wewenang Operasional</CardTitle>
-              <CardDescription>Pemisahan tanggung jawab sistem sesuai PRD URD</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2.5 text-xs">
-              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                <span className="font-bold text-purple-700 dark:text-purple-300 block">ADMIN_SISTEM (Super Admin)</span>
-                <span className="text-slate-500 dark:text-slate-400">Konfigurasi sistem, akun pengguna, checklist master, gateway integrasi, &amp; backup snapshot.</span>
-              </div>
-              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                <span className="font-bold text-blue-700 dark:text-blue-300 block">ADMIN_KANTOR (Admin Operasional)</span>
-                <span className="text-slate-500 dark:text-slate-400">QC dan review inspeksi, finalisasi BAP/LHPP, penerbitan Suket K3, dan BAST penyerahan.</span>
-              </div>
-              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                <span className="font-bold text-amber-700 dark:text-amber-300 block">AHLI_K3 (Inspector Lapangan)</span>
-                <span className="text-slate-500 dark:text-slate-400">Pemeriksaan fisik, checklist, pengukuran, foto bukti, kesimpulan, dan tanda tangan digital BAP.</span>
-              </div>
-              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                <span className="font-bold text-rose-700 dark:text-rose-300 block">PIMPINAN (Executive Monitoring)</span>
-                <span className="text-slate-500 dark:text-slate-400">Monitoring SLA, produktivitas tim, beban kerja inspector, audit trail riksa uji tanpa hak approval dokumen.</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <SystemInfoSection systemOverview={systemOverview} />
       )}
 
-      {/* Modal Tambah / Edit Checklist Question */}
+      {/* Modal Tambah / Edit Checklist Item */}
       {checklistItemModal && (
         <Modal
           open={Boolean(checklistItemModal)}
@@ -1071,41 +705,41 @@ export function SuperAdminConsole() {
           <form onSubmit={handleSaveChecklistItem} className="space-y-4 text-xs">
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Kelompok / Bagian (Section)
+                Kelompok / Bagian (Section) *
               </label>
               <input
                 type="text"
+                required
                 value={itemForm.section}
                 onChange={(e) => setItemForm({ ...itemForm, section: e.target.value })}
-                required
                 placeholder="Contoh: Pemeriksaan Visual, Uji Beban, Sistem Pengaman"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:border-[#C81E1E] focus:outline-none"
               />
             </div>
 
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Teks Pertanyaan / Item Pemeriksaan
+                Teks Pertanyaan / Item Pemeriksaan *
               </label>
               <textarea
                 rows={2}
+                required
                 value={itemForm.label}
                 onChange={(e) => setItemForm({ ...itemForm, label: e.target.value })}
-                required
-                placeholder="Deskripsi spesifik item yang harus diperiksa..."
-                className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                placeholder="Deskripsi spesifik item yang harus diperiksa Inspector..."
+                className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:border-[#C81E1E] focus:outline-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Tipe Jawaban (Input Type)
+                  Tipe Jawaban (Input Type) *
                 </label>
                 <select
                   value={itemForm.input_type}
                   onChange={(e) => setItemForm({ ...itemForm, input_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-semibold"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-semibold focus:border-[#C81E1E] focus:outline-none"
                 >
                   <option value="CHOICE">Pilihan (Baik / Buruk / Ada / Tidak Ada)</option>
                   <option value="NUMBER">Nilai Angka / Hasil Ukur</option>
@@ -1123,7 +757,7 @@ export function SuperAdminConsole() {
                   value={itemForm.unit}
                   onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
                   placeholder="Contoh: bar, kg, mm, Ohm, V"
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono focus:border-[#C81E1E] focus:outline-none"
                 />
               </div>
             </div>
@@ -1139,7 +773,7 @@ export function SuperAdminConsole() {
                     step="any"
                     value={itemForm.min_value}
                     onChange={(e) => setItemForm({ ...itemForm, min_value: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
+                    className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono focus:border-[#C81E1E] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1151,7 +785,7 @@ export function SuperAdminConsole() {
                     step="any"
                     value={itemForm.max_value}
                     onChange={(e) => setItemForm({ ...itemForm, max_value: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
+                    className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono focus:border-[#C81E1E] focus:outline-none"
                   />
                 </div>
               </div>
@@ -1163,7 +797,7 @@ export function SuperAdminConsole() {
                 id="is_required_chk"
                 checked={itemForm.is_required}
                 onChange={(e) => setItemForm({ ...itemForm, is_required: e.target.checked })}
-                className="h-4 w-4 rounded text-brand-600"
+                className="h-4 w-4 rounded text-[#C81E1E]"
               />
               <label htmlFor="is_required_chk" className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                 Wajib diisi oleh Inspector di lapangan sebelum formulir disubmit

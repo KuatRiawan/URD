@@ -1,17 +1,36 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus } from '@phosphor-icons/react';
+import { useSearchParams } from 'react-router';
+import {
+  Certificate,
+  Plus,
+  ShieldCheck,
+  Users
+} from '@phosphor-icons/react';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
 import { useConfirm } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
 import { UserFilterBar } from './components/UserFilterBar.jsx';
 import { UserTable } from './components/UserTable.jsx';
 import { CreateUserModal } from './components/CreateUserModal.jsx';
 import { EditUserModal } from './components/EditUserModal.jsx';
+import { RbacMatrixTab } from './components/RbacMatrixTab.jsx';
+import { InspectorCompetencyTab } from './components/InspectorCompetencyTab.jsx';
+import { UserDetailDrawer } from './components/UserDetailDrawer.jsx';
 
 export function UsersPage() {
   const confirm = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = (searchParams.get('tab') || 'users').toLowerCase();
+  const activeTab =
+    rawTab === 'competency' || rawTab === 'competencies'
+      ? 'competencies'
+      : rawTab === 'rbac_matrix' || rawTab === 'rbac'
+        ? 'rbac_matrix'
+        : 'users';
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -19,6 +38,7 @@ export function UsersPage() {
   const [q, setQ] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
 
+  // Modals & Drawers
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
     fullName: '',
@@ -28,15 +48,27 @@ export function UsersPage() {
     employeeNo: '',
     password: ''
   });
+
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({
     fullName: '',
     role: 'MARKETING',
     phone: '',
+    employeeNo: '',
     isActive: true,
     password: ''
   });
+
+  const [viewUser, setViewUser] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const setTab = (tab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    });
+  };
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -54,8 +86,10 @@ export function UsersPage() {
   }, [q, roleFilter]);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    if (activeTab === 'users') {
+      loadUsers();
+    }
+  }, [activeTab, loadUsers]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -87,6 +121,7 @@ export function UsersPage() {
       fullName: u.fullName,
       role: u.role,
       phone: u.phone || '',
+      employeeNo: u.employeeNo || '',
       isActive: u.isActive,
       password: ''
     });
@@ -95,6 +130,17 @@ export function UsersPage() {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     if (!editUser) return;
+
+    if (editForm.role !== editUser.role) {
+      const ok = await confirm({
+        title: 'Konfirmasi Perubahan Peran RBAC',
+        message: `Anda akan mengubah peran akun ${editUser.fullName} dari ${editUser.role} menjadi ${editForm.role}. Hak akses menu dan otorisasi API akan disesuaikan secara otomatis. Lanjutkan?`,
+        confirmLabel: 'Ya, Ubah Peran RBAC',
+        tone: 'default'
+      });
+      if (!ok) return;
+    }
+
     setSubmitting(true);
     setError('');
     try {
@@ -104,6 +150,9 @@ export function UsersPage() {
         phone: editForm.phone,
         isActive: editForm.isActive
       };
+      if (['INSPECTOR', 'AHLI_K3'].includes(editForm.role) || editForm.employeeNo !== undefined) {
+        payload.employeeNo = editForm.employeeNo;
+      }
       if (editForm.password.trim()) {
         payload.password = editForm.password;
       }
@@ -120,11 +169,11 @@ export function UsersPage() {
 
   const handleToggleActive = async (u) => {
     const ok = await confirm({
-      title: u.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun',
+      title: u.isActive ? 'Nonaktifkan Akun Pengguna' : 'Aktifkan Akun Pengguna',
       message: u.isActive
-        ? `Akun ${u.fullName} tidak akan dapat masuk ke sistem setelah dinonaktifkan.`
-        : `Akun ${u.fullName} akan dapat kembali masuk ke sistem.`,
-      confirmLabel: u.isActive ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+        ? `Akun ${u.fullName} tidak akan dapat masuk ke sistem setelah dinonaktifkan. Seluruh sesi aktif akan dihentikan.`
+        : `Akun ${u.fullName} akan dapat kembali masuk ke sistem dengan peran ${u.role}.`,
+      confirmLabel: u.isActive ? 'Ya, Nonaktifkan Akun' : 'Ya, Aktifkan Akun',
       tone: u.isActive ? 'danger' : 'default'
     });
     if (!ok) return;
@@ -141,19 +190,22 @@ export function UsersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <PageHeader
-        title="Manajemen Pengguna Internal (RBAC)"
-        subtitle="Kelola akun Marketing, Inspector, Pimpinan, dan Admin Sistem beserta status keaktifannya."
+        title="Manajemen Pengguna & Hak Akses (RBAC)"
+        subtitle="Kelola akun personel, verifikasi kompetensi SKP Ahli K3, dan pantau matriks wewenang operasional PJK3."
         actions={
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
-          >
-            <Plus size={16} weight="bold" />
-            <span>Tambah Pengguna Baru</span>
-          </button>
+          activeTab === 'users' ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              icon={Plus}
+              onClick={() => setCreateOpen(true)}
+            >
+              Tambah Pengguna Baru
+            </Button>
+          ) : null
         }
       />
 
@@ -165,28 +217,83 @@ export function UsersPage() {
 
       {error && <ErrorBanner message={error} onRetry={loadUsers} />}
 
-      <UserFilterBar
-        q={q}
-        setQ={setQ}
-        roleFilter={roleFilter}
-        setRoleFilter={setRoleFilter}
-      />
+      {/* Navigasi Tab Manajemen Pengguna */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto scrollbar-none pb-px">
+        <button
+          type="button"
+          onClick={() => setTab('users')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'users'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
+              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <Users size={16} weight={activeTab === 'users' ? 'bold' : 'regular'} />
+          <span>Daftar Akun Pengguna</span>
+        </button>
 
-      {loading ? (
-        <LoadingState label="Memuat daftar pengguna internal..." />
-      ) : users.length === 0 ? (
-        <EmptyState
-          title="Tidak ada pengguna ditemukan"
-          description="Belum ada akun yang sesuai dengan kriteria pencarian."
-        />
-      ) : (
-        <UserTable
-          users={users}
-          onEditUser={openEditUser}
-          onToggleActive={handleToggleActive}
-        />
+        <button
+          type="button"
+          onClick={() => setTab('rbac_matrix')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'rbac_matrix'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
+              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <ShieldCheck size={16} weight={activeTab === 'rbac_matrix' ? 'bold' : 'regular'} />
+          <span>Matriks Peran & Hak Akses (RBAC)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('competencies')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'competencies'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
+              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <Certificate size={16} weight={activeTab === 'competencies' ? 'bold' : 'regular'} />
+          <span>Kredensial Ahli K3 & SKP</span>
+        </button>
+      </div>
+
+      {/* Tab 1: Akun Pengguna Internal */}
+      {activeTab === 'users' && (
+        <div className="space-y-4">
+          <UserFilterBar
+            q={q}
+            setQ={setQ}
+            roleFilter={roleFilter}
+            setRoleFilter={setRoleFilter}
+          />
+
+          {loading ? (
+            <LoadingState label="Memuat daftar pengguna internal..." />
+          ) : users.length === 0 ? (
+            <EmptyState
+              title="Tidak ada pengguna ditemukan"
+              description="Belum ada akun yang sesuai dengan kriteria pencarian atau filter yang dipilih."
+            />
+          ) : (
+            <UserTable
+              users={users}
+              onEditUser={openEditUser}
+              onToggleActive={handleToggleActive}
+              onViewUser={(u) => setViewUser(u)}
+            />
+          )}
+        </div>
       )}
 
+      {/* Tab 2: Matriks Peran & Akses RBAC */}
+      {activeTab === 'rbac_matrix' && <RbacMatrixTab />}
+
+      {/* Tab 3: Rekam Kompetensi & SKP */}
+      {activeTab === 'competencies' && <InspectorCompetencyTab />}
+
+      {/* Modals & Drawers */}
       <CreateUserModal
         open={createOpen}
         onClose={() => { setCreateOpen(false); setError(''); }}
@@ -205,6 +312,16 @@ export function UsersPage() {
         submitting={submitting}
         onSubmit={handleUpdateUser}
         error={editUser ? error : ''}
+      />
+
+      <UserDetailDrawer
+        user={viewUser}
+        open={Boolean(viewUser)}
+        onClose={() => setViewUser(null)}
+        onEdit={(u) => {
+          setViewUser(null);
+          openEditUser(u);
+        }}
       />
     </div>
   );

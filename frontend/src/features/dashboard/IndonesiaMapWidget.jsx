@@ -31,20 +31,22 @@ export function IndonesiaMapWidget({ regions = [] }) {
 
   // Total unit alat seluruh lokasi
   const totalUnits = useMemo(() => {
-    return regions.reduce((acc, r) => acc + Number(r.unit_count || 0), 0);
+    return regions.reduce((acc, r) => acc + Number(r.unit_count ?? r.count ?? 0), 0);
   }, [regions]);
 
   // Siapkan data titik koordinat
   const mappedRegions = useMemo(() => {
     return regions.map((reg, idx) => {
-      const coords = resolveCoords(reg.region_name, idx);
-      const units = Number(reg.unit_count || 0);
-      const orders = Number(reg.order_count || 0);
-      const clients = Number(reg.client_count || 0);
+      const regionName = reg.region_name || reg.region || `Wilayah ${idx + 1}`;
+      const coords = resolveCoords(regionName, idx);
+      const units = Number(reg.unit_count ?? reg.count ?? 0);
+      const orders = Number(reg.order_count ?? reg.orders ?? 0);
+      const clients = Number(reg.client_count ?? reg.clients ?? 0);
       const isMajor = units >= 5;
 
       return {
         ...reg,
+        region_name: regionName,
         ...coords,
         units,
         orders,

@@ -28,12 +28,18 @@ export function statusTone(status) {
     case 'ORDER_PERPANJANGAN_DIBUAT':
     case 'SUDAH_JADI_PO_BARU':
     case 'DIPERPANJANG':
+    case 'LHPP_TERBIT':
+    case 'LHPP_FINAL':
+    case 'BAP_FINAL':
+    case 'SIAP_DISTRIBUSI':
+    case 'SEBAGIAN_DOKUMEN_DIKIRIM':
       return 'success';
     case 'DIBATALKAN':
     case 'DITOLAK':
     case 'DIKEMBALIKAN':
     case 'DIKEMBALIKAN_REVISI':
     case 'PERLU_PERBAIKAN':
+    case 'PERLU_REVISI':
     case 'TIDAK_MEMENUHI_SYARAT':
     case 'TIDAK_MEMENUHI_SYARAT_K3':
     case 'TIDAK_SESUAI':
@@ -53,6 +59,14 @@ export function statusTone(status) {
     case 'MENUNGGU_PO':
     case 'MENUNGGU_KEPUTUSAN':
     case 'MENUNGGU_KONFIRMASI_KLIEN':
+    case 'MENUNGGU_TTD':
+    case 'MENUNGGU_LAPORAN':
+    case 'MENUNGGU_DOKUMEN':
+    case 'CHECKLIST_BELUM_LENGKAP':
+    case 'LHPP_SIAP_PREVIEW':
+    case 'BAP_SIAP_PREVIEW':
+    case 'PEMERIKSAAN_TERKIRIM':
+    case 'FORM_TERKIRIM':
     case 'DALAM_PROSES':
       return 'warning';
     case 'TERJADWAL':
@@ -64,7 +78,16 @@ export function statusTone(status) {
     case 'SEDANG_PENAWARAN':
     case 'SUDAH_DIHUBUNGI':
     case 'DIAJUKAN':
+    case 'LHPP_DRAF':
+    case 'LHPP_DIPROSES':
+    case 'BAP_DRAF':
+    case 'BAP_DIPROSES':
+    case 'DIKIRIM':
+    case 'SIAP_DIKIRIM':
       return 'info';
+    case 'TERDAFTAR':
+    case 'BELUM_DIJADWALKAN':
+    case 'DRAF':
     default:
       return 'neutral';
   }

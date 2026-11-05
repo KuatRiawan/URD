@@ -120,7 +120,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         setDraftConclusionNotes(serverConclusionNotes);
         setDraftObjectAttributes(serverAttributes);
         setDraftScopes(initialScopes);
-        setFormStep(2);
+        setFormStep(user?.role === 'ADMIN_KANTOR' ? 1 : 2);
         setLastSavedAt(data.inspection?.updated_at ? new Date(data.inspection.updated_at) : null);
         initSignaturesRef.current?.(data);
         isInitializedRef.current = true;
@@ -214,7 +214,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     if (inspectionId) {
@@ -639,6 +639,29 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }
   };
 
+  const handleReopenInspection = async (reason, targetSection) => {
+    if (!activeDetail?.inspection?.id) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.post(`/inspections/${activeDetail.inspection.id}/reopen`, {
+        reason: reason || 'Revisi dan penyesuaian data lapangan oleh Ahli K3',
+        targetSection: targetSection || undefined
+      });
+      setFeedback('Kunci form inspeksi berhasil dibuka untuk revisi. Anda dapat menyesuaikan checklist, foto, atau tanda tangan.');
+      await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal membuka kunci form untuk revisi.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Metrics
   const totalItems = (activeDetail?.items || []).length;
   const evaluatedItems = (activeDetail?.items || []).filter((item) => {
@@ -706,6 +729,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     handleUploadItemInlinePhoto,
     handleUploadNameplatePhoto,
     handleSubmitFinal,
+    handleReopenInspection,
     totalItems,
     evaluatedItems,
     missingItems,

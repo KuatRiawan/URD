@@ -29,18 +29,26 @@ const locationSchema = Joi.object({
 const contactSchema = Joi.object({
   name: Joi.string().min(2).max(120).required(),
   position: Joi.string().max(100).allow('', null),
+  department: Joi.string().max(100).allow('', null),
   phone: Joi.string().max(40).allow('', null),
-  email: Joi.string().email().allow('', null)
+  email: Joi.string().email().allow('', null),
+  locationId: Joi.string().uuid().allow('', null),
+  isPrimary: Joi.boolean(),
+  isReminderRecipient: Joi.boolean(),
+  notes: Joi.string().max(500).allow('', null)
 });
 
 const updateContactSchema = Joi.object({
   name: Joi.string().min(2).max(120),
   position: Joi.string().max(100).allow('', null),
+  department: Joi.string().max(100).allow('', null),
   phone: Joi.string().max(40).allow('', null),
   email: Joi.string().email().allow('', null),
+  locationId: Joi.string().uuid().allow('', null),
   isPrimary: Joi.boolean(),
   isReminderRecipient: Joi.boolean(),
-  isActive: Joi.boolean()
+  isActive: Joi.boolean(),
+  notes: Joi.string().max(500).allow('', null)
 });
 
 router.get('/', async (req, res, next) => {
@@ -113,15 +121,62 @@ router.get('/:id', async (req, res, next) => {
     const { rows } = await query('SELECT * FROM clients WHERE id = $1', [id]);
     if (!rows[0]) throw new AppError(404, 'CLIENT_NOT_FOUND', 'Data klien tidak ditemukan.');
 
-    const [locations, contacts, objects] = await Promise.all([
+    const [locations, contacts, objects, orders, auditLogs] = await Promise.all([
       query('SELECT * FROM client_locations WHERE client_id = $1 ORDER BY created_at ASC', [id]),
-      query('SELECT * FROM client_contacts WHERE client_id = $1 ORDER BY created_at ASC', [id]),
       query(
-        `SELECT t.*, oc.code AS category_code, oc.name AS category_name
+        `SELECT cc.*, cl.name AS location_name
+         FROM client_contacts cc
+         LEFT JOIN client_locations cl ON cl.id = cc.location_id
+         WHERE cc.client_id = $1
+         ORDER BY cc.is_primary DESC, cc.created_at ASC`,
+        [id]
+      ),
+      query(
+        `SELECT t.*, oc.code AS category_code, oc.name AS category_name,
+                cl.name AS location_name,
+                s.suket_no, s.valid_until, s.status AS suket_status,
+                (s.valid_until - CURRENT_DATE)::int AS days_remaining
          FROM test_objects t
          JOIN object_categories oc ON oc.id = t.category_id
+         LEFT JOIN client_locations cl ON cl.id = t.location_id
+         LEFT JOIN LATERAL (
+           SELECT s1.suket_no, s1.valid_until, s1.status
+           FROM suket_documents s1
+           WHERE s1.object_id = t.id AND s1.status = 'TERBIT'
+           ORDER BY s1.valid_until DESC NULLS LAST, s1.created_at DESC
+           LIMIT 1
+         ) s ON true
          WHERE t.client_id = $1
          ORDER BY t.created_at DESC`,
+        [id]
+      ),
+      query(
+        `SELECT o.id, o.order_no, o.po_number, o.po_date, o.service_type, o.source, o.status,
+                o.requested_date, o.created_at,
+                (SELECT count(*)::int FROM order_objects oo WHERE oo.order_id = o.id) AS object_count,
+                coalesce(
+                  (SELECT json_agg(json_build_object(
+                    'object_id', oo.object_id,
+                    'unit_status', oo.unit_status
+                  ))
+                  FROM order_objects oo WHERE oo.order_id = o.id),
+                  '[]'::json
+                ) AS unit_rows
+         FROM orders o
+         WHERE o.client_id = $1
+         ORDER BY o.created_at DESC
+         LIMIT 50`,
+        [id]
+      ),
+      query(
+        `SELECT al.id, al.action, al.entity, al.entity_id, al.summary, al.created_at,
+                u.full_name AS actor_name, u.role AS actor_role
+         FROM audit_logs al
+         LEFT JOIN users u ON u.id = al.user_id
+         WHERE (al.entity = 'clients' AND al.entity_id = $1)
+            OR (al.entity = 'client_contacts' AND al.summary->>'clientId' = $1)
+         ORDER BY al.created_at DESC
+         LIMIT 50`,
         [id]
       )
     ]);
@@ -130,7 +185,9 @@ router.get('/:id', async (req, res, next) => {
       client: rows[0],
       locations: locations.rows,
       contacts: contacts.rows,
-      objects: objects.rows
+      objects: objects.rows,
+      orders: orders.rows,
+      auditLogs: auditLogs.rows
     });
   } catch (err) {
     return next(err);
@@ -212,14 +269,35 @@ router.post(
   async (req, res, next) => {
     try {
       const { name, npwp, address, industry, email, phone, isActive } = req.body;
+      const cleanName = name.trim();
+      const cleanNpwp = npwp && npwp.trim() ? npwp.trim() : null;
+
+      const { rows: existingName } = await query(
+        'SELECT id, name FROM clients WHERE lower(btrim(name)) = lower(btrim($1)) LIMIT 1',
+        [cleanName]
+      );
+      if (existingName[0]) {
+        throw new AppError(409, 'CLIENT_ALREADY_EXISTS', `Klien dengan nama "${existingName[0].name}" sudah terdaftar.`);
+      }
+
+      if (cleanNpwp) {
+        const { rows: existingNpwp } = await query(
+          'SELECT id, name FROM clients WHERE btrim(npwp) = btrim($1) LIMIT 1',
+          [cleanNpwp]
+        );
+        if (existingNpwp[0]) {
+          throw new AppError(409, 'NPWP_ALREADY_EXISTS', `NPWP "${cleanNpwp}" sudah terdaftar pada klien "${existingNpwp[0].name}".`);
+        }
+      }
+
       const clientRecord = await withTransaction(async (db) => {
         const { rows } = await db.query(
           `INSERT INTO clients (name, npwp, address, industry, email, phone, is_active, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *`,
           [
-            name.trim(),
-            npwp ? npwp.trim() : null,
+            cleanName,
+            cleanNpwp,
             address || null,
             industry || null,
             email || null,
@@ -256,6 +334,29 @@ router.patch(
     try {
       const { id } = req.params;
       const { name, npwp, address, industry, email, phone, isActive } = req.body;
+      const cleanName = name ? name.trim() : null;
+      const cleanNpwp = npwp && npwp.trim() ? npwp.trim() : null;
+
+      if (cleanName) {
+        const { rows: existingName } = await query(
+          'SELECT id, name FROM clients WHERE lower(btrim(name)) = lower(btrim($1)) AND id <> $2 LIMIT 1',
+          [cleanName, id]
+        );
+        if (existingName[0]) {
+          throw new AppError(409, 'CLIENT_ALREADY_EXISTS', `Klien dengan nama "${existingName[0].name}" sudah terdaftar.`);
+        }
+      }
+
+      if (cleanNpwp) {
+        const { rows: existingNpwp } = await query(
+          'SELECT id, name FROM clients WHERE btrim(npwp) = btrim($1) AND id <> $2 LIMIT 1',
+          [cleanNpwp, id]
+        );
+        if (existingNpwp[0]) {
+          throw new AppError(409, 'NPWP_ALREADY_EXISTS', `NPWP "${cleanNpwp}" sudah terdaftar pada klien "${existingNpwp[0].name}".`);
+        }
+      }
+
       const updated = await withTransaction(async (db) => {
         const { rows: cur } = await db.query('SELECT * FROM clients WHERE id = $1', [id]);
         if (!cur[0]) throw new AppError(404, 'CLIENT_NOT_FOUND', 'Data klien tidak ditemukan.');
@@ -267,12 +368,12 @@ router.patch(
            WHERE id = $8
            RETURNING *`,
           [
-            name.trim(),
-            npwp ? npwp.trim() : null,
-            address || null,
-            industry || null,
-            email || null,
-            phone || null,
+            cleanName || cur[0].name,
+            cleanNpwp,
+            address !== undefined ? address || null : cur[0].address,
+            industry !== undefined ? industry || null : cur[0].industry,
+            email !== undefined ? email || null : cur[0].email,
+            phone !== undefined ? phone || null : cur[0].phone,
             isActive ?? cur[0].is_active,
             id
           ]
@@ -333,19 +434,35 @@ router.post(
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, position, phone, email } = req.body;
+      const { name, position, department, phone, email, locationId, isPrimary, isReminderRecipient, notes } = req.body;
+
+      if (isPrimary) {
+        await query('UPDATE client_contacts SET is_primary = false WHERE client_id = $1', [id]);
+      }
+
       const { rows } = await query(
-        `INSERT INTO client_contacts (client_id, name, position, phone, email)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO client_contacts (client_id, name, position, department, phone, email, location_id, is_primary, is_reminder_recipient, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
-        [id, name.trim(), position || null, phone || null, email || null]
+        [
+          id,
+          name.trim(),
+          position || null,
+          department || null,
+          phone || null,
+          email || null,
+          locationId || null,
+          Boolean(isPrimary),
+          Boolean(isReminderRecipient),
+          notes || null
+        ]
       );
       await recordAudit({
         userId: req.user.id,
         action: 'CLIENT_CONTACT_ADD',
         entity: 'client_contacts',
         entityId: rows[0].id,
-        summary: { clientId: id, name },
+        summary: { clientId: id, name, isPrimary, isReminderRecipient },
         ip: req.ip
       });
       return res.status(201).json({ contact: rows[0] });
@@ -362,7 +479,7 @@ router.patch(
   async (req, res, next) => {
     try {
       const { id, contactId } = req.params;
-      const { name, position, phone, email, isPrimary, isReminderRecipient, isActive } = req.body;
+      const { name, position, department, phone, email, locationId, isPrimary, isReminderRecipient, isActive, notes } = req.body;
 
       if (isPrimary) {
         await query('UPDATE client_contacts SET is_primary = false WHERE client_id = $1', [id]);
@@ -379,6 +496,10 @@ router.patch(
         params.push(position ? position.trim() : null);
         updates.push(`position = $${params.length}`);
       }
+      if (department !== undefined) {
+        params.push(department ? department.trim() : null);
+        updates.push(`department = $${params.length}`);
+      }
       if (phone !== undefined) {
         params.push(phone ? phone.trim() : null);
         updates.push(`phone = $${params.length}`);
@@ -386,6 +507,14 @@ router.patch(
       if (email !== undefined) {
         params.push(email ? email.trim() : null);
         updates.push(`email = $${params.length}`);
+      }
+      if (locationId !== undefined) {
+        params.push(locationId || null);
+        updates.push(`location_id = $${params.length}`);
+      }
+      if (notes !== undefined) {
+        params.push(notes ? notes.trim() : null);
+        updates.push(`notes = $${params.length}`);
       }
       if (isPrimary !== undefined) {
         params.push(Boolean(isPrimary));

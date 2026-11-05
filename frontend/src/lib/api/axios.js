@@ -21,7 +21,16 @@ export function setOnUnauthorized(cb) {
 }
 
 export function getErrorMessage(err, fallback = 'Terjadi kendala saat memproses permintaan.') {
-  return err?.response?.data?.error?.message || err?.message || fallback;
+  if (err?.code === 'ERR_NETWORK') {
+    return 'Tidak dapat terhubung ke server. Pastikan layanan backend berjalan di port 4000.';
+  }
+  const backendMsg = err?.response?.data?.error?.message;
+  if (backendMsg) return backendMsg;
+
+  if (err?.response?.status === 500 || err?.message?.includes('status code 500')) {
+    return 'Server backend tidak merespons (HTTP 500). Pastikan server backend dan PostgreSQL sudah berjalan.';
+  }
+  return err?.message || fallback;
 }
 
 // Backend selalu mengirim galat dalam bentuk { error: { code, message } }.

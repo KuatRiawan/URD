@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   User,
   ShieldCheck,
   Palette,
-  Sliders
+  Sliders,
+  Gear
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { useTheme } from '../../app/providers/ThemeProvider.jsx';
@@ -17,9 +19,27 @@ import { RoleSettingsTab } from './components/RoleSettingsTab.jsx';
 export function SettingsPage() {
   const { user, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Tab aktif
-  const [activeTab, setActiveTab] = useState('profile');
+  // Tab aktif (default ke role_specific jika Admin Sistem, selain itu profile)
+  const paramTab = searchParams.get('tab');
+  const defaultTab = paramTab || (user?.role === 'ADMIN_SISTEM' ? 'role_specific' : 'profile');
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    if (paramTab) {
+      setActiveTab(paramTab);
+    }
+  }, [paramTab]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', newTab);
+      return next;
+    });
+  };
 
   // State Profil
   const [profileForm, setProfileForm] = useState({
@@ -152,7 +172,7 @@ export function SettingsPage() {
   const getRoleTabTitle = () => {
     switch (user?.role) {
       case 'ADMIN_SISTEM':
-        return 'Sistem & PJK3';
+        return 'Konfigurasi Sistem PJK3';
       case 'AHLI_K3':
         return 'Kredensial Ahli K3';
       case 'ADMIN_KANTOR':
@@ -183,21 +203,31 @@ export function SettingsPage() {
     }
   };
 
+  const pageHeader = user?.role === 'ADMIN_SISTEM'
+    ? {
+        title: 'Pengaturan Akun & Konfigurasi Sistem',
+        subtitle: 'Pusat pengaturan profil akun, keamanan otentikasi, master data 7 bidang K3, format dokumen, dan cadangan sistem.'
+      }
+    : {
+        title: 'Pengaturan Akun',
+        subtitle: 'Kelola profil akun, keamanan otentikasi, dan preferensi tampilan antarmuka.'
+      };
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <PageHeader
-        title="Pengaturan Akun"
-        subtitle="Kelola profil akun, keamanan otentikasi, dan preferensi tampilan."
+        title={pageHeader.title}
+        subtitle={pageHeader.subtitle}
       />
 
       {/* Navigasi Tab Pengaturan */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-none gap-2">
         <button
           type="button"
-          onClick={() => setActiveTab('profile')}
+          onClick={() => handleTabChange('profile')}
           className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'profile'
-              ? 'border-brand-600 text-brand-600 dark:border-rose-500 dark:text-rose-400'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
@@ -207,10 +237,10 @@ export function SettingsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('security')}
+          onClick={() => handleTabChange('security')}
           className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'security'
-              ? 'border-brand-600 text-brand-600 dark:border-rose-500 dark:text-rose-400'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
@@ -220,10 +250,10 @@ export function SettingsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('appearance')}
+          onClick={() => handleTabChange('appearance')}
           className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'appearance'
-              ? 'border-brand-600 text-brand-600 dark:border-rose-500 dark:text-rose-400'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
@@ -233,10 +263,10 @@ export function SettingsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('role_specific')}
+          onClick={() => handleTabChange('role_specific')}
           className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'role_specific'
-              ? 'border-brand-600 text-brand-600 dark:border-rose-500 dark:text-rose-400'
+              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >

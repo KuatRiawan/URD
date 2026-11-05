@@ -18,8 +18,6 @@ import { AppError, parsePagination } from '../../utils/http.js';
 const router = Router();
 router.use(authenticate);
 
-const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-
 const updateDraftSchema = Joi.object({
   methodSummary: Joi.string().min(5).max(3000).required(),
   technicalNotes: Joi.string().max(4000).allow('', null),
@@ -51,7 +49,7 @@ async function fetchFullLhppContext(db, id) {
   const runner = typeof db === 'function' ? db : (db?.query ? db.query.bind(db) : query);
   const { rows } = await runner(
     `SELECT l.*,
-            i.order_id, i.object_id, i.inspector_id, i.conclusion, i.conclusion_notes,
+            i.status AS inspection_status, i.order_id, i.object_id, i.inspector_id, i.conclusion, i.conclusion_notes,
             i.inspected_at, i.submitted_at, i.template_version_id,
             o.order_no, o.po_number, o.po_date,
             b.id AS bap_id, b.bap_no, b.status AS bap_status, b.finalized_at AS bap_finalized_at,
@@ -157,6 +155,9 @@ router.get('/', async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
     const status = (req.query.status || '').trim();
+    const orderId = (req.query.orderId || '').trim();
+    const categoryCode = (req.query.categoryCode || '').trim();
+    const q = (req.query.q || '').trim();
     const conds = [];
     const params = [];
 
@@ -168,12 +169,31 @@ router.get('/', async (req, res, next) => {
       params.push(status);
       conds.push(`l.status = $${params.length}`);
     }
+    if (orderId) {
+      params.push(orderId);
+      conds.push(`i.order_id = $${params.length}`);
+    }
+    if (categoryCode) {
+      params.push(categoryCode);
+      conds.push(`oc.code = $${params.length}`);
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      conds.push(
+        `(coalesce(l.lhpp_no, '') ILIKE $${params.length} OR o.order_no ILIKE $${params.length} OR coalesce(o.po_number, '') ILIKE $${params.length} OR c.name ILIKE $${params.length} OR t.name ILIKE $${params.length} OR coalesce(t.serial_number, '') ILIKE $${params.length} OR u.full_name ILIKE $${params.length})`
+      );
+    }
 
     const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const countRes = await query(
       `SELECT count(*)::int AS total
        FROM lhpp_documents l
        JOIN inspections i ON i.id = l.inspection_id
+       JOIN orders o ON o.id = i.order_id
+       JOIN clients c ON c.id = o.client_id
+       JOIN test_objects t ON t.id = i.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN users u ON u.id = i.inspector_id
        ${whereSql}`,
       params
     );
@@ -361,7 +381,7 @@ router.delete(
 );
 
 // Inspector mengirim draf LHPP kepada Admin Kantor untuk pratinjau dan finalisasi.
-router.post('/:id/submit-finalization', authorize('INSPECTOR'), async (req, res, next) => {
+router.post('/:id/submit-finalization', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const submitted = await withTransaction(async (db) => {
@@ -414,7 +434,7 @@ router.post('/:id/submit-finalization', authorize('INSPECTOR'), async (req, res,
 
       await notifyRoles(
         {
-          roles: ['MARKETING'],
+          roles: ['ADMIN_KANTOR', 'ADMIN_SISTEM'],
           type: 'LHPP_READY_TO_FINALIZE',
           title: `LHPP Siap Difinalisasi: ${cur.object_name}`,
           body: `Order ${cur.order_no} (${cur.client_name}) siap dipratinjau dan difinalisasi.`,
@@ -455,6 +475,7 @@ router.post(
       const { note } = req.body || {};
 
       const result = await withTransaction(async (db) => {
+        await db.query('SELECT id, status FROM lhpp_documents WHERE id = $1 FOR UPDATE', [id]);
         const cur = await fetchFullLhppContext(db, id);
         if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
         if (cur.status === 'TERBIT' || cur.status === 'FINAL') {
@@ -462,6 +483,20 @@ router.post(
         }
         if (cur.status !== 'SIAP_PREVIEW') {
           throw new AppError(409, 'LHPP_NOT_READY', 'LHPP harus berada pada status Siap Pratinjau sebelum finalisasi.');
+        }
+        if (cur.inspection_status !== 'TERKIRIM') {
+          throw new AppError(
+            409,
+            'INSPECTION_NOT_SUBMITTED',
+            'Data inspeksi terkait masih berstatus draf/revisi dan belum dikunci oleh Inspector.'
+          );
+        }
+        if (!cur.conclusion) {
+          throw new AppError(
+            400,
+            'INSPECTION_CONCLUSION_REQUIRED',
+            'Kesimpulan kelayakan teknis belum ditetapkan pada hasil inspeksi.'
+          );
         }
 
         const seqRes = await db.query("SELECT nextval('lhpp_no_seq') AS seq");

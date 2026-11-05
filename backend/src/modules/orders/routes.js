@@ -89,6 +89,19 @@ const createOrderSchema = Joi.object({
   inspectorIds: Joi.array().items(Joi.string().uuid()).default([])
 });
 
+const updateOrderSchema = Joi.object({
+  poNumber: Joi.string().max(120).allow('', null),
+  poDate: Joi.date().iso().allow('', null),
+  serviceType: Joi.string()
+    .valid('PEMERIKSAAN_PERTAMA', 'PEMERIKSAAN_BERKALA', 'PERPANJANGAN', 'PEMERIKSAAN_ULANG'),
+  source: Joi.string()
+    .valid('TELEPON', 'EMAIL', 'WHATSAPP', 'LANGSUNG', 'DOKUMEN_PO', 'LAINNYA'),
+  requestedDate: Joi.date().iso().allow('', null),
+  notes: Joi.string().max(1000).allow('', null),
+  locationId: Joi.string().uuid().allow('', null),
+  contactId: Joi.string().uuid().allow('', null)
+});
+
 const addUnitsSchema = Joi.object({
   units: Joi.array().items(inlineUnitSchema).min(1).required()
 });
@@ -771,10 +784,151 @@ router.post(
   }
 );
 
+// Perbarui rincian Purchase Order (PO Number, PO Date, Jenis Layanan, Sumber Order, Jadwal Permintaan, Catatan, Lokasi, Kontak PIC)
+router.patch(
+  '/:id',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  validate(updateOrderSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const b = req.body;
+
+      const result = await withTransaction(async (db) => {
+        const { rows: ordRows } = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
+        const order = ordRows[0];
+        if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order PO tidak ditemukan.');
+        if (order.status === 'SELESAI' || order.status === 'DIBATALKAN') {
+          throw new AppError(400, 'ORDER_CLOSED', 'PO yang sudah selesai atau dibatalkan tidak dapat diubah.');
+        }
+
+        if (b.poNumber !== undefined && b.poNumber !== null && b.poNumber.trim()) {
+          const { rows: dupPo } = await db.query(
+            'SELECT id, order_no FROM orders WHERE lower(btrim(po_number)) = lower(btrim($1)) AND id <> $2',
+            [b.poNumber.trim(), id]
+          );
+          if (dupPo[0]) {
+            throw new AppError(
+              409,
+              'DUPLICATE_PO_NUMBER',
+              `Nomor PO "${b.poNumber.trim()}" sudah terdaftar pada order ${dupPo[0].order_no}.`
+            );
+          }
+        }
+
+        if (b.locationId) {
+          const { rows: lRows } = await db.query(
+            'SELECT id FROM client_locations WHERE id = $1 AND client_id = $2',
+            [b.locationId, order.client_id]
+          );
+          if (!lRows[0]) {
+            throw new AppError(400, 'INVALID_LOCATION', 'Lokasi site harus berasal dari klien yang sama.');
+          }
+        }
+
+        if (b.contactId) {
+          const { rows: cRows } = await db.query(
+            'SELECT id FROM client_contacts WHERE id = $1 AND client_id = $2',
+            [b.contactId, order.client_id]
+          );
+          if (!cRows[0]) {
+            throw new AppError(400, 'INVALID_CONTACT', 'Kontak PIC harus berasal dari klien yang sama.');
+          }
+        }
+
+        const updates = [];
+        const params = [];
+
+        if (b.poNumber !== undefined) {
+          params.push(b.poNumber ? b.poNumber.trim() : null);
+          updates.push(`po_number = $${params.length}`);
+        }
+        if (b.poDate !== undefined) {
+          params.push(b.poDate || null);
+          updates.push(`po_date = $${params.length}`);
+        }
+        if (b.serviceType !== undefined) {
+          params.push(b.serviceType);
+          updates.push(`service_type = $${params.length}`);
+        }
+        if (b.source !== undefined) {
+          params.push(b.source);
+          updates.push(`source = $${params.length}`);
+        }
+        if (b.requestedDate !== undefined) {
+          params.push(b.requestedDate || null);
+          updates.push(`requested_date = $${params.length}`);
+        }
+        if (b.notes !== undefined) {
+          params.push(b.notes || null);
+          updates.push(`notes = $${params.length}`);
+        }
+        if (b.locationId !== undefined) {
+          params.push(b.locationId || null);
+          updates.push(`location_id = $${params.length}`);
+        }
+        if (b.contactId !== undefined) {
+          params.push(b.contactId || null);
+          updates.push(`contact_id = $${params.length}`);
+        }
+
+        if (updates.length === 0) {
+          const { rows: unitRows } = await db.query(
+            'SELECT unit_status FROM order_objects WHERE order_id = $1',
+            [id]
+          );
+          return { order: { ...order, unitProgress: computePoUnitProgress(unitRows) } };
+        }
+
+        updates.push('po_revision_no = po_revision_no + 1');
+        updates.push('updated_at = now()');
+        params.push(id);
+
+        const { rows: updatedRows } = await db.query(
+          `UPDATE orders SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
+          params
+        );
+        const updatedOrder = updatedRows[0];
+
+        await recordOrderRevision(db, {
+          orderId: id,
+          actorId: req.user.id,
+          version: updatedOrder.po_revision_no,
+          reason: 'Pembaruan data rincian Purchase Order'
+        });
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'ORDER_UPDATE',
+            entity: 'orders',
+            entityId: id,
+            summary: { orderNo: updatedOrder.order_no, poNumber: updatedOrder.po_number },
+            ip: req.ip
+          },
+          db
+        );
+
+        const { rows: unitRows } = await db.query(
+          'SELECT unit_status FROM order_objects WHERE order_id = $1',
+          [id]
+        );
+        const unitProgress = computePoUnitProgress(unitRows);
+
+        return { order: { ...updatedOrder, unitProgress }, unitProgress };
+      });
+
+      return res.json(result);
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
 // Tambah unit ke PO yang sudah berjalan
 router.post(
   '/:id/units',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   validate(addUnitsSchema),
   async (req, res, next) => {
     try {
@@ -833,7 +987,7 @@ router.post(
 // Perbarui detail unit di dalam PO (scope BAP, jadwal usulan, catatan unit, status unit)
 router.patch(
   '/:id/units/:objectId',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3'),
   validate(updateUnitSchema),
   async (req, res, next) => {
     try {
@@ -895,7 +1049,7 @@ router.patch(
 // Unggah dokumen lampiran PO resmi
 router.post(
   '/:id/po-attachment',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   uploadMiddleware.single('file'),
   async (req, res, next) => {
     try {
@@ -933,7 +1087,7 @@ router.post(
 // Impor unit alat sekaligus dari CSV ke PO yang sedang dibuat / ditinjau
 router.post(
   '/:id/import-units-csv',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   async (req, res, next) => {
     try {
       const { id } = req.params;

@@ -50,7 +50,7 @@ export function buildReminderMessage(group) {
   ].join('\n');
 }
 
-async function loadCandidates() {
+export async function loadCandidates() {
   const { rows } = await query(
     `SELECT t.id AS object_id, t.name AS object_name, t.serial_number,
             oc.code AS category_code, c.name AS client_name,
@@ -64,7 +64,8 @@ async function loadCandidates() {
      JOIN object_categories oc ON oc.id = t.category_id
      LEFT JOIN LATERAL (
        SELECT name, phone, email FROM client_contacts
-       WHERE client_id = c.id ORDER BY created_at DESC LIMIT 1
+       WHERE client_id = c.id AND is_active = true
+       ORDER BY is_reminder_recipient DESC, is_primary DESC, created_at DESC LIMIT 1
      ) ct ON true
      LEFT JOIN LATERAL (
        SELECT s.valid_until FROM suket_documents s

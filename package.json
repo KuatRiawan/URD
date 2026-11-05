@@ -20,7 +20,9 @@
     "lint:frontend": "npm --prefix frontend run lint",
     "test": "npm --prefix backend test && npm --prefix frontend test",
     "test:backend": "npm --prefix backend test",
-    "test:frontend": "npm --prefix frontend test"
+    "test:frontend": "npm --prefix frontend test",
+    "tunnel": "ngrok http 5173",
+    "ngrok": "ngrok http 5173"
   }
 }
 

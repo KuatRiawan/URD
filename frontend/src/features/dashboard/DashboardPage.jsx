@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../lib/utils/format.js';
 import { InspectorDashboardView } from './components/InspectorDashboardView.jsx';
 import { ManagementDashboardView } from './components/ManagementDashboardView.jsx';
 import { MarketingDashboardView } from './components/MarketingDashboardView.jsx';
+import { SuperAdminDashboardView } from './components/SuperAdminDashboardView.jsx';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ export function DashboardPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadSummary = useCallback(async (isRefresh = false) => {
+  const loadSummary = useCallback(async (isRefresh = false, customPeriod = period) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -34,7 +35,9 @@ export function DashboardPage() {
         setLoading(true);
       }
       setError('');
-      const res = await api.get('/dashboard/summary');
+      const res = await api.get('/dashboard/summary', {
+        params: customPeriod ? { period: customPeriod } : undefined
+      });
       setData(res.data);
     } catch (err) {
       setError(extractErrorMessage(err));
@@ -42,7 +45,7 @@ export function DashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [period]);
 
   // Sinkronisasi data awal dan otomatis di latar belakang secara realtime (tanpa perlu tombol refresh manual)
   useEffect(() => {
@@ -250,6 +253,17 @@ export function DashboardPage() {
         refreshing={refreshing}
         period={period}
         setPeriod={setPeriod}
+      />
+    );
+  }
+
+  if (user?.role === 'ADMIN_SISTEM') {
+    return (
+      <SuperAdminDashboardView
+        user={user}
+        data={data}
+        loadSummary={loadSummary}
+        refreshing={refreshing}
       />
     );
   }

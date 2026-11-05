@@ -29,55 +29,23 @@ function getSplinePath(points, tension = 0.35) {
 export function SplineAreaChart({ monthlyTrend = [], period = '30D' }) {
   const [hoverIndex, setHoverIndex] = useState(null);
 
-  // Sesuaikan data berdasarkan periode (7D, 30D, 90D, 1Y)
+  // Gunakan data aktual dari backend (tanpa angka fiktif / multiplier sintetis)
   const chartData = useMemo(() => {
-    const raw = monthlyTrend.length ? monthlyTrend : [
-      { month_label: 'Jan', order_count: 4, completed_count: 2 },
-      { month_label: 'Feb', order_count: 7, completed_count: 5 },
-      { month_label: 'Mar', order_count: 6, completed_count: 4 },
-      { month_label: 'Apr', order_count: 9, completed_count: 7 },
-      { month_label: 'Mei', order_count: 12, completed_count: 10 },
-      { month_label: 'Jun', order_count: 15, completed_count: 13 }
-    ];
-
-    if (period === '7D') {
-      const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-      const lastMonth = raw[raw.length - 1] || { order_count: 12, completed_count: 9 };
-      const avgDaily = Math.max(1, Math.round(lastMonth.order_count / 4));
-      return days.map((day, idx) => {
-        const factor = [0.8, 1.2, 0.9, 1.4, 1.1, 0.5, 0.3][idx];
-        const orders = Math.max(1, Math.round(avgDaily * factor));
-        const completed = Math.max(0, Math.min(orders, Math.round(orders * 0.85)));
-        return { label: day, orders, completed };
-      });
+    if (!Array.isArray(monthlyTrend) || monthlyTrend.length === 0) {
+      return [{ label: 'Saat Ini', orders: 0, completed: 0 }];
     }
 
-    if (period === '30D') {
-      const weeks = ['Mgg 1', 'Mgg 2', 'Mgg 3', 'Mgg 4'];
-      const cur = raw[raw.length - 1] || { order_count: 10, completed_count: 8 };
-      const prev = raw[raw.length - 2] || { order_count: 8, completed_count: 6 };
-      return weeks.map((w, i) => {
-        const o = Math.max(1, Math.round((prev.order_count * (4 - i) + cur.order_count * (i + 1)) / 5));
-        const c = Math.max(0, Math.min(o, Math.round(o * 0.8)));
-        return { label: w, orders: o, completed: c };
-      });
-    }
-
-    if (period === '90D') {
-      const last3 = raw.slice(-3);
-      return last3.map((m) => ({
-        label: m.month_label,
-        orders: Number(m.order_count || 0),
-        completed: Number(m.completed_count || 0)
-      }));
-    }
-
-    // 1Y / default
-    return raw.map((m) => ({
-      label: m.month_label,
-      orders: Number(m.order_count || 0),
-      completed: Number(m.completed_count || 0)
+    const mapped = monthlyTrend.map((m) => ({
+      label: m.month_label || m.label || m.month_key || '-',
+      orders: Number(m.order_count ?? m.orders ?? 0),
+      completed: Number(m.completed_count ?? m.completedUnits ?? m.completed ?? 0)
     }));
+
+    if (period === '90D' && mapped.length > 3) {
+      return mapped.slice(-3);
+    }
+
+    return mapped;
   }, [monthlyTrend, period]);
 
   // Dimensi canvas SVG
@@ -94,8 +62,9 @@ export function SplineAreaChart({ monthlyTrend = [], period = '30D' }) {
 
   // Tentukan nilai maksimum Y
   const maxVal = useMemo(() => {
-    const highest = Math.max(...chartData.map((d) => d.orders), 5);
-    return Math.ceil(highest * 1.2);
+    const validOrders = chartData.map((d) => Number(d.orders) || 0);
+    const highest = Math.max(...validOrders, 5);
+    return Math.max(5, Math.ceil(highest * 1.2));
   }, [chartData]);
 
   // Kalkulasi koordinat titik (points)
@@ -138,7 +107,11 @@ export function SplineAreaChart({ monthlyTrend = [], period = '30D' }) {
   }, [completedSpline, completedPoints, bottomY]);
 
   // Grid baris Y (4 garis horizontal)
-  const yTicks = [0, Math.round(maxVal / 3), Math.round((maxVal * 2) / 3), maxVal];
+  const yTicks = useMemo(() => {
+    const safeMax = Math.max(3, maxVal || 5);
+    const step = Math.max(1, Math.round(safeMax / 3));
+    return [0, step, step * 2, safeMax];
+  }, [maxVal]);
 
   // Titik aktif yang di-hover
   const activeOrderPoint = hoverIndex !== null ? orderPoints[hoverIndex] : null;
@@ -176,10 +149,10 @@ export function SplineAreaChart({ monthlyTrend = [], period = '30D' }) {
         </defs>
 
         {/* 1. Grid Horizontal & Label Sumbu Y */}
-        {yTicks.map((tickVal) => {
+        {yTicks.map((tickVal, tIdx) => {
           const y = bottomY - (tickVal / maxVal) * chartHeight;
           return (
-            <g key={tickVal} className="text-slate-400 dark:text-slate-600">
+            <g key={`ytick-${tIdx}-${tickVal}`} className="text-slate-400 dark:text-slate-600">
               <line
                 x1={paddingLeft}
                 y1={y}

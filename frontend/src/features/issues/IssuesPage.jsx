@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ArrowClockwise, ArrowUpRight, Camera, ClipboardText, WarningCircle } from '@phosphor-icons/react';
+import {
+  ArrowClockwise,
+  ArrowUpRight,
+  Camera,
+  CheckCircle,
+  ClipboardText,
+  Clock,
+  WarningCircle,
+  WarningOctagon
+} from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { ErrorBanner, EmptyState, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
@@ -44,6 +53,7 @@ export function IssuesPage() {
   const [feedback, setFeedback] = useState('');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [quickTab, setQuickTab] = useState('ALL');
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -53,6 +63,35 @@ export function IssuesPage() {
     inspectionId: searchParams.get('inspectionId') || '',
     issueType: 'OTHER', priority: 'NORMAL', title: '', description: '', evidence: null
   });
+
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+
+  // Metrik ringkasan pengawasan kendala operasional
+  const stats = useMemo(() => {
+    const total = items.length;
+    const highPriority = items.filter((i) => i.priority === 'TINGGI' && i.status !== 'SELESAI').length;
+    const inProgress = items.filter((i) =>
+      ['DILAPORKAN', 'MENUNGGU_TINDAK_LANJUT', 'SEDANG_DITANGANI', 'MENUNGGU_INFORMASI'].includes(i.status)
+    ).length;
+    const resolved = items.filter((i) => i.status === 'SELESAI').length;
+    return { total, highPriority, inProgress, resolved };
+  }, [items]);
+
+  // Filter items berdasarkan tab cepat
+  const displayedItems = useMemo(() => {
+    return items.filter((item) => {
+      if (quickTab === 'ACTION_NEEDED') {
+        return ['DILAPORKAN', 'MENUNGGU_TINDAK_LANJUT', 'SEDANG_DITANGANI', 'MENUNGGU_INFORMASI'].includes(item.status);
+      }
+      if (quickTab === 'HIGH_PRIORITY') {
+        return item.priority === 'TINGGI';
+      }
+      if (quickTab === 'RESOLVED') {
+        return item.status === 'SELESAI';
+      }
+      return true;
+    });
+  }, [items, quickTab]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,12 +199,92 @@ export function IssuesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Kendala Operasional"
-        subtitle="Pencatatan dan tindak lanjut kendala operasional."
-        actions={canCreate ? <button type="button" onClick={openCreate} className="h-9 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E] cursor-pointer shadow-2xs">Laporkan Kendala</button> : null}
+        title={isPimpinan ? 'Monitoring Kendala Operasional' : 'Kendala Operasional'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan hambatan teknis, risiko keselamatan lapangan, dan status tindak lanjut penyelesaian.'
+            : 'Pencatatan dan tindak lanjut kendala operasional.'
+        }
+        actions={
+          canCreate ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="min-h-11 w-full sm:w-auto rounded-xl bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E] cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+            >
+              Laporkan Kendala
+            </button>
+          ) : null
+        }
       />
       {feedback && <Notice tone="success" onClose={() => setFeedback('')}>{feedback}</Notice>}
       {error && <ErrorBanner message={error} onRetry={load} />}
+
+      {/* Ringkasan Status Kendala Operasional */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <ClipboardText size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Kendala</div>
+            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Laporan</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+            <WarningOctagon size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Prioritas Tinggi Aktif</div>
+            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">{stats.highPriority} Kendala</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+            <Clock size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Dalam Penanganan</div>
+            <div className="text-base font-extrabold text-amber-700 dark:text-amber-400">{stats.inProgress} Proses</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Selesai Ditangani</div>
+            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.resolved} Selesai</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Segmented Filter Bar Cepat */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-xl overflow-x-auto">
+        {[
+          { key: 'ALL', label: `Semua Kendala (${items.length})` },
+          { key: 'ACTION_NEEDED', label: `Perlu Tindak Lanjut (${stats.inProgress})` },
+          { key: 'HIGH_PRIORITY', label: `Prioritas Tinggi (${stats.highPriority})` },
+          { key: 'RESOLVED', label: `Selesai (${stats.resolved})` }
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setQuickTab(tab.key)}
+            className={`py-2 px-3.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+              quickTab === tab.key
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row items-stretch sm:items-end">
         <label className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -184,9 +303,11 @@ export function IssuesPage() {
 
       {loading ? <LoadingState message="Memuat laporan kendala..." /> : items.length === 0 ? (
         <EmptyState icon={ClipboardText} title="Belum ada laporan kendala" description="Laporan yang dibuat Inspector atau tim operasional akan tercatat di sini." />
+      ) : displayedItems.length === 0 ? (
+        <EmptyState icon={ClipboardText} title="Tidak ada kendala pada filter ini" description="Pilih tab filter status lain di atas untuk melihat laporan kendala." />
       ) : (
         <div className="space-y-3">
-          {items.map((issue) => (
+          {displayedItems.map((issue) => (
             <article key={issue.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">

@@ -168,11 +168,11 @@ export function ObjectsPage() {
     }
   };
 
-  const handleCreateRenewalOrder = async (objectId, objectName) => {
+  const handleCreateRenewalOrder = async (objectId, _objectName) => {
     if (!objectId) return;
     try {
       setLoading(true);
-      const res = await api.post(`/reminders/units/${objectId}/create-renewal-order`);
+      await api.post(`/reminders/units/${objectId}/create-renewal-order`);
       navigate('/app/orders');
     } catch (err) {
       setError(extractErrorMessage(err));
@@ -181,11 +181,18 @@ export function ObjectsPage() {
     }
   };
 
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+  const activeObjCount = items.filter((item) => item.is_active !== false).length;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Basis Objek Uji K3"
-        subtitle="Registri alat, pesawat, dan instalasi riksa uji K3."
+        title={isPimpinan ? 'Basis Data Objek Uji K3' : 'Basis Objek Uji K3'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan populasi alat uji teknik, status operasional, dan riwayat sertifikasi keselamatan kerja.'
+            : 'Registri alat, pesawat, dan instalasi riksa uji K3.'
+        }
         actions={
           canEdit && (
             <div className="flex items-center gap-2">
@@ -225,6 +232,46 @@ export function ObjectsPage() {
           )
         }
       />
+
+      {/* Ringkasan Populasi Objek Uji K3 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Total Populasi Alat
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+            {total || items.length}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit alat &amp; pesawat terdaftar</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Bidang Regulasi K3
+          </p>
+          <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums mt-1">
+            {categories.length || 5}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Kategori Permenaker aktif</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Unit Ditampilkan Aktif
+          </p>
+          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
+            {activeObjCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Siap dijadwalkan riksa uji</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Mitra Perusahaan
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+            {clients.length}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Klien pemilik objek uji</p>
+        </div>
+      </div>
 
       <ObjectFilterBar
         q={q}
@@ -291,6 +338,7 @@ export function ObjectsPage() {
         canEdit={canEdit}
         uploadingFile={uploadingFile}
         handleUploadAttachment={handleUploadAttachment}
+        onCreateRenewal={handleCreateRenewalOrder}
       />
 
       <ObjectQrModal qrModal={qrModal} onClose={() => setQrModal(null)} />

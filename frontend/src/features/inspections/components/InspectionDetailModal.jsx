@@ -62,6 +62,7 @@ export function InspectionDetailModal({
     handleUploadItemInlinePhoto,
     handleUploadNameplatePhoto,
     handleSubmitFinal,
+    handleReopenInspection,
     totalItems,
     evaluatedItems,
     missingItems,
@@ -108,10 +109,22 @@ export function InspectionDetailModal({
           feedback={feedback}
           setFeedback={setFeedback}
           isInspector={isInspector}
+          user={user}
           online={online}
           queuedPhotoCount={queuedPhotoCount}
           onPreviewPdf={onPreviewPdf}
           onDiscardDraft={handleDiscardDraft}
+          onReopenInspection={handleReopenInspection}
+          totalItems={totalItems}
+          evaluatedItems={evaluatedItems}
+          missingItems={missingItems}
+          photosCount={photosCount}
+          inspectorSig={inspectorSig}
+          clientSig={clientSig}
+          draftResults={draftResults}
+          draftObjectAttributes={draftObjectAttributes}
+          draftConclusion={draftConclusion}
+          setFormStep={setFormStep}
         />
 
         <InspectionStepNav

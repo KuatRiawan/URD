@@ -119,7 +119,7 @@ export function HistoryTable({ items, downloadPdf, onSelectRecord }) {
                 <button
                   type="button"
                   onClick={() => onSelectRecord(item)}
-                  className="w-full h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  className="w-full min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
                 >
                   Lihat Rincian &amp; Audit
                 </button>

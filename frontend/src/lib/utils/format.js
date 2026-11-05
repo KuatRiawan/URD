@@ -32,20 +32,33 @@ export const ORDER_STATUS_LABELS = {
 };
 
 export const UNIT_STATUS_LABELS = {
-  TERDAFTAR: 'Terdaftar',
-  DIJADWALKAN: 'Dijadwalkan',
+  BELUM_DIJADWALKAN: 'Belum Dijadwalkan',
+  TERJADWAL: 'Terjadwal',
   DITUGASKAN: 'Ditugaskan',
-  INSPEKSI_LAPANGAN: 'Inspeksi Lapangan',
-  INSPEKSI_SELESAI: 'Inspeksi Selesai',
+  SEDANG_DIPERIKSA: 'Sedang Diperiksa',
+  CHECKLIST_BELUM_LENGKAP: 'Checklist Belum Lengkap',
+  MENUNGGU_TTD: 'Menunggu Tanda Tangan',
+  PEMERIKSAAN_TERKIRIM: 'Pemeriksaan Terkirim',
+  FORM_TERKIRIM: 'Form Terkirim',
+  LHPP_DRAF: 'Draf LHPP',
   LHPP_DIPROSES: 'LHPP Diproses',
-  LHPP_SIAP_PREVIEW: 'LHPP Siap Preview',
+  LHPP_SIAP_PREVIEW: 'LHPP Siap Finalisasi',
+  LHPP_TERBIT: 'LHPP Terbit',
   LHPP_FINAL: 'LHPP Final',
+  BAP_DRAF: 'Draf BAP',
   BAP_DIPROSES: 'BAP Diproses',
   BAP_SIAP_PREVIEW: 'BAP Siap Preview',
   BAP_FINAL: 'BAP Final',
   SIAP_DISTRIBUSI: 'Siap Distribusi',
   SEBAGIAN_DOKUMEN_DIKIRIM: 'Sebagian Dokumen Dikirim',
-  SELESAI: 'Selesai'
+  PERLU_REVISI: 'Perlu Revisi',
+  SELESAI: 'Selesai',
+  DIBATALKAN: 'Dibatalkan',
+  // Kompatibilitas alias data lama
+  TERDAFTAR: 'Terdaftar',
+  DIJADWALKAN: 'Terjadwal',
+  INSPEKSI_LAPANGAN: 'Sedang Diperiksa',
+  INSPEKSI_SELESAI: 'Pemeriksaan Terkirim'
 };
 
 export const DISTRIBUTION_STATUS_LABELS = {
@@ -137,7 +150,16 @@ export function formatDateTime(value) {
 }
 
 export function extractErrorMessage(err, fallback = 'Terjadi kendala saat memproses permintaan.') {
-  return err?.response?.data?.error?.message || err?.message || fallback;
+  if (err?.code === 'ERR_NETWORK') {
+    return 'Tidak dapat terhubung ke server. Pastikan layanan backend berjalan di port 4000.';
+  }
+  const backendMsg = err?.response?.data?.error?.message;
+  if (backendMsg) return backendMsg;
+
+  if (err?.response?.status === 500 || err?.message?.includes('status code 500')) {
+    return 'Server backend tidak merespons (HTTP 500). Pastikan server backend dan PostgreSQL sudah berjalan.';
+  }
+  return err?.message || fallback;
 }
 
 export const getErrorMessage = extractErrorMessage;

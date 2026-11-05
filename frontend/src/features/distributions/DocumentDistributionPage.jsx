@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { ArrowClockwise, ShareNetwork } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
@@ -10,9 +11,13 @@ import { DistributionSummaryCards } from './components/DistributionSummaryCards.
 import { DistributionFilterBar } from './components/DistributionFilterBar.jsx';
 import { DistributionTable } from './components/DistributionTable.jsx';
 import { UpdateDistributionModal } from './components/UpdateDistributionModal.jsx';
+import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 
 export function DocumentDistributionPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialStatusParam = searchParams.get('status');
+
   const isMarketingOrAdmin = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
   const isReadOnly = ['PIMPINAN', 'MANAGER'].includes(user?.role);
 
@@ -33,7 +38,9 @@ export function DocumentDistributionPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [targetFilter, setTargetFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(
+    initialStatusParam === 'MENUNGGU_PENGIRIMAN' ? 'SIAP_DIKIRIM' : (initialStatusParam || '')
+  );
 
   // Update Status Modal
   const [selectedItem, setSelectedItem] = useState(null);
@@ -43,6 +50,12 @@ export function DocumentDistributionPage() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // BAST PDF Preview Modal
+  const [bastPreviewOpen, setBastPreviewOpen] = useState(false);
+  const [bastPreviewUrl, setBastPreviewUrl] = useState(null);
+  const [bastPreviewTitle, setBastPreviewTitle] = useState('');
+  const [bastPreviewFilename, setBastPreviewFilename] = useState('');
 
   const loadData = useCallback(async (isRefresh = false) => {
     try {
@@ -89,14 +102,36 @@ export function DocumentDistributionPage() {
     setSelectedItem(item);
     setUpdateStatus(item.status === 'SIAP_DIKIRIM' ? 'DIKIRIM' : 'DITERIMA');
     setDispatchMedia(item.dispatch_media || 'KURIR_FISIK');
-    setTrackingNumber(item.tracking_number || '');
+    setTrackingNumber(item.tracking_reference || item.tracking_number || '');
     setDispatchNotes(item.notes || '');
     setModalOpen(true);
   };
 
-  const handleDownloadBast = async (orderId, refName) => {
+  const handlePreviewBast = async (orderId, refName) => {
     try {
       const res = await api.get(`/distributions/orders/${orderId}/bast/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const filename = `BAST-${(refName || 'PO').replace(/[/\s]/g, '-')}.pdf`;
+      setBastPreviewUrl(url);
+      setBastPreviewTitle(`Pratinjau BAST: ${refName || 'PO'}`);
+      setBastPreviewFilename(filename);
+      setBastPreviewOpen(true);
+    } catch (err) {
+      setError(err?.response?.data?.error?.message || 'Gagal memuat pratinjau BAST PDF.');
+    }
+  };
+
+  const closeBastPreview = () => {
+    if (bastPreviewUrl) window.URL.revokeObjectURL(bastPreviewUrl);
+    setBastPreviewUrl(null);
+    setBastPreviewOpen(false);
+  };
+
+  const handleDownloadBast = async (orderId, refName) => {
+    try {
+      const res = await api.get(`/distributions/orders/${orderId}/bast/pdf?download=1`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
@@ -116,13 +151,24 @@ export function DocumentDistributionPage() {
     e.preventDefault();
     if (!selectedItem) return;
 
+    const cleanRef = trackingNumber.trim();
+    const cleanNotes = dispatchNotes.trim();
+    if (updateStatus === 'DITERIMA' && !cleanRef && !cleanNotes) {
+      setError('Cantumkan nomor bukti serah terima / resi atau catatan penerima sebelum menandai dokumen DITERIMA.');
+      return;
+    }
+    if (updateStatus === 'DIKIRIM' && dispatchMedia === 'KURIR_FISIK' && !cleanRef && !cleanNotes) {
+      setError('Pengiriman via Kurir Fisik wajib mencantumkan nomor resi/AWB atau keterangan pengiriman.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       await api.patch(`/distributions/${selectedItem.id}/status`, {
         status: updateStatus,
         dispatchMedia,
-        trackingReference: trackingNumber.trim() || undefined,
-        notes: dispatchNotes.trim() || undefined
+        trackingReference: cleanRef || undefined,
+        notes: cleanNotes || undefined
       });
 
       setFeedback(`Status distribusi dokumen berhasil diperbarui menjadi ${DISTRIBUTION_STATUS_LABELS[updateStatus] || updateStatus}.`);
@@ -139,8 +185,8 @@ export function DocumentDistributionPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isReadOnly ? 'Monitoring Distribusi Dokumen' : 'Distribusi Dokumen K3'}
-        subtitle="Pelacakan pengiriman Berita Acara (BAP) kepada Klien serta berkas LHPP & BAP ke Disnaker"
+        title={isReadOnly ? 'Monitoring Distribusi Dokumen K3' : 'Distribusi Dokumen K3'}
+        subtitle="Pengawasan pelacakan ekspedisi fisik Berita Acara (BAP) kepada Klien serta berkas LHPP & BAP ke Disnaker"
         actions={
           <button
             type="button"
@@ -162,7 +208,13 @@ export function DocumentDistributionPage() {
 
       {error && <ErrorBanner message={error} onRetry={() => loadData(true)} />}
 
-      <DistributionSummaryCards summary={summary} />
+      <DistributionSummaryCards
+        summary={summary}
+        statusFilter={statusFilter}
+        targetFilter={targetFilter}
+        onSelectStatus={setStatusFilter}
+        onSelectTarget={setTargetFilter}
+      />
 
       <DistributionFilterBar
         searchQuery={searchQuery}
@@ -186,6 +238,7 @@ export function DocumentDistributionPage() {
           distributions={distributions}
           isMarketingOrAdmin={isMarketingOrAdmin}
           onOpenUpdateModal={openUpdateModal}
+          onPreviewBast={handlePreviewBast}
           onDownloadBast={handleDownloadBast}
         />
       )}
@@ -204,6 +257,21 @@ export function DocumentDistributionPage() {
         setDispatchNotes={setDispatchNotes}
         submitting={submitting}
         onSubmit={handleUpdateSubmit}
+      />
+
+      <PdfPreviewModal
+        open={bastPreviewOpen}
+        onClose={closeBastPreview}
+        pdfUrl={bastPreviewUrl}
+        title={bastPreviewTitle}
+        filename={bastPreviewFilename}
+        onPrint={() => {
+          const iframe = document.getElementById('inspection-pdf-preview-iframe');
+          if (iframe?.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+        }}
       />
     </div>
   );

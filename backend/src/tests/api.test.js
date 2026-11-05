@@ -69,10 +69,11 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(res.body.error.code).toBe('INVALID_CREDENTIALS');
     });
 
-    it('berhasil login untuk keempat peran (ADMIN_SISTEM, ADMIN_KANTOR, AHLI_K3, PIMPINAN)', async () => {
+    it('berhasil login untuk kelima peran (ADMIN_SISTEM, ADMIN_KANTOR, MARKETING, AHLI_K3, PIMPINAN)', async () => {
       const rolesToEmails = {
         ADMIN_SISTEM: 'admin.sistem@upayariksadaya.com',
         ADMIN_KANTOR: 'admin.kantor@upayariksadaya.com',
+        MARKETING: 'marketing@upayariksadaya.com',
         AHLI_K3_PAA: 'ahlik3.paa@upayariksadaya.com',
         AHLI_K3_LIS: 'ahlik3.listrik@upayariksadaya.com',
         PIMPINAN: 'pimpinan@upayariksadaya.com'
@@ -679,9 +680,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       expect(lockedEdit.body.error.code).toBe('INSPECTION_LOCKED');
     });
 
-    it('Inspector mengirim LHPP untuk finalisasi Marketing dan Pimpinan tetap read-only', async () => {
-      // Finalisasi dan QC sekarang memakai akun Admin Kantor, bukan Marketing.
-      tokens.MARKETING = tokens.ADMIN_KANTOR;
+    it('Inspector mengirim LHPP untuk finalisasi Admin Kantor dan Pimpinan tetap read-only', async () => {
       // Pimpinan mencoba memfinalisasi atau mengubah LHPP -> harus ditolak 403 (MANAGER_READ_ONLY)
       const pimpinanMutation = await request(app)
         .post(`/api/v1/lhpp/${lhppId}/finalize`)
@@ -870,8 +869,6 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
     it('Langkah 1: Admin membuat 1 PO dengan 3 unit alat berbeda (Overhead Crane PAA, Forklift PTP, Bejana Tekan PUBT) dan menolak duplikasi nomor PO', async () => {
-      // Tahap QC/dokumen pada alur multi-unit memakai Admin Kantor.
-      tokens.MARKETING = tokens.ADMIN_KANTOR;
       const poRes = await request(app)
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
@@ -1176,7 +1173,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
 
       const marketingEdit = await request(app)
         .put(`/api/v1/bap/${unit1BapId}/draft`)
-        .set('Authorization', `Bearer ${tokens.ADMIN_KANTOR}`)
+        .set('Authorization', `Bearer ${tokens.MARKETING}`)
         .send({ scopeItems: ['HOIST_CRANE'], conclusion: 'TIDAK_MEMENUHI_SYARAT' });
       expect(marketingEdit.status).toBe(403);
 

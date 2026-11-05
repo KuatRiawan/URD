@@ -77,7 +77,7 @@ export function SuketTable({ items, onOpenDetail }) {
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 dark:text-slate-400">Follow-Up:</span>
+                  <span className="text-slate-500 dark:text-slate-400">Tindak Lanjut:</span>
                   <span className="font-semibold text-slate-700 dark:text-slate-300">
                     {FOLLOWUP_STATUS_LABELS[item.followup_status] || item.followup_status}
                   </span>
@@ -111,7 +111,7 @@ export function SuketTable({ items, onOpenDetail }) {
                 <th className="py-3 px-4">Objek Uji K3</th>
                 <th className="py-3 px-4">Masa Berlaku</th>
                 <th className="py-3 px-4">Status Penerbitan</th>
-                <th className="py-3 px-4">Status Follow-Up</th>
+                <th className="py-3 px-4">Tindak Lanjut</th>
                 <th className="py-3 px-4 text-right">Aksi</th>
               </tr>
             </thead>

@@ -9,8 +9,8 @@ import { generateBapDocxBuffer } from '../services/docx-generator.js';
 describe('URD Reengineering Features & Endpoint Suite', () => {
   let adminToken;
   let marketingToken;
-  let inspectorToken;
-  let pimpinanToken;
+  let _inspectorToken;
+  let _pimpinanToken;
   let sampleClientId;
   let sampleBapId;
   let sampleSuketId;
@@ -50,8 +50,8 @@ describe('URD Reengineering Features & Endpoint Suite', () => {
 
     adminToken = makeToken(adminUser.id, adminUser.role, adminUser.full_name);
     marketingToken = makeToken(marketingUser.id, marketingUser.role, marketingUser.full_name);
-    inspectorToken = makeToken(inspectorUser.id, inspectorUser.role, inspectorUser.full_name);
-    pimpinanToken = makeToken(pimpinanUser.id, pimpinanUser.role, pimpinanUser.full_name);
+    _inspectorToken = makeToken(inspectorUser.id, inspectorUser.role, inspectorUser.full_name);
+    _pimpinanToken = makeToken(pimpinanUser.id, pimpinanUser.role, pimpinanUser.full_name);
 
     // Ambil sample client
     const { rows: clients } = await pool.query('SELECT id FROM clients LIMIT 1');

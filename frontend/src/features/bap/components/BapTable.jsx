@@ -72,39 +72,39 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx,
             </div>
 
             {/* Tombol Aksi Mobile */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => onOpenDetail(b.id)}
-                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
               >
                 Detail BAP
               </button>
               <button
                 type="button"
                 onClick={() => onPreviewPdf(b.id, b.bap_no)}
-                className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
               >
-                <Eye size={15} />
+                <Eye size={16} weight="bold" />
                 <span>Pratinjau</span>
               </button>
               <button
                 type="button"
                 onClick={() => onDownloadPdf(b.id, b.bap_no)}
-                className="h-9 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                className="min-h-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold shadow-xs active:scale-[0.98] transition-all cursor-pointer"
                 title="Unduh Berita Acara (PDF)"
               >
-                <FilePdf size={15} weight="bold" />
+                <FilePdf size={16} weight="bold" />
                 <span>PDF</span>
               </button>
               {onDownloadDocx && (
                 <button
                   type="button"
                   onClick={() => onDownloadDocx(b.id, b.bap_no)}
-                  className="h-9 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                  className="min-h-[44px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
                   title="Unduh Berita Acara (Word .docx)"
                 >
-                  <FileDoc size={15} weight="bold" />
+                  <FileDoc size={16} weight="bold" />
                   <span>DOCX</span>
                 </button>
               )}

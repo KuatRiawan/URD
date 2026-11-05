@@ -1,4 +1,4 @@
-import { Buildings, DownloadSimple, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Buildings, DownloadSimple, Eye, PaperPlaneTilt } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import {
   formatDateTime,
@@ -11,7 +11,8 @@ const STATUS_TONES = {
   MENUNGGU_DOKUMEN: 'neutral',
   SIAP_DIKIRIM: 'warning',
   DIKIRIM: 'info',
-  DITERIMA: 'success'
+  DITERIMA: 'success',
+  PERLU_KIRIM_ULANG: 'danger'
 };
 
 export const DISPATCH_MEDIA_OPTIONS = [
@@ -26,95 +27,111 @@ export function DistributionTable({
   distributions,
   isMarketingOrAdmin,
   onOpenUpdateModal,
+  onPreviewBast,
   onDownloadBast
 }) {
   return (
     <div className="space-y-4">
       {/* Tampilan Mobile: Kartu Distribusi Touch-Friendly */}
       <div className="sm:hidden space-y-3">
-        {distributions.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
-          >
-            {/* Header: Dokumen & Status */}
-            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="min-w-0">
-                <span className="font-bold text-sm text-slate-900 dark:text-white block">
-                  {DISTRIBUTION_DOC_TYPE_LABELS[item.document_type] || item.document_type}
-                </span>
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold mt-1 ${
-                    item.recipient_target === 'DISNAKER'
-                      ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400 border border-rose-200 dark:border-rose-900'
-                      : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
-                  }`}
-                >
-                  <Buildings size={12} weight="bold" />
-                  <span>Penerima: {DISTRIBUTION_TARGET_LABELS[item.recipient_target] || item.recipient_target}</span>
-                </span>
-              </div>
-              <Badge tone={STATUS_TONES[item.status] || 'neutral'}>
-                {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
-              </Badge>
-            </div>
-
-            {/* Info Klien, Unit, dan Dokumen */}
-            <div className="space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Klien / PO:</span>
-                <span className="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">
-                  {item.client_name || '-'} ({item.po_number || '-'})
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                <span>Unit Objek:</span>
-                <span className="font-medium text-slate-800 dark:text-slate-200 text-right truncate max-w-[200px]">
-                  {item.object_name || 'Unit Alat'} (SN: {item.serial_number || '-'})
-                </span>
-              </div>
-              {(item.bap_no || item.lhpp_no) && (
-                <div className="flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-400">
-                  <span>No. Referensi:</span>
-                  <span>{item.bap_no ? `BAP: ${item.bap_no}` : `LHPP: ${item.lhpp_no}`}</span>
-                </div>
-              )}
-              {item.dispatch_media && (
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
-                  <span className="text-slate-500 dark:text-slate-400">Pengiriman:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {DISPATCH_MEDIA_OPTIONS.find((o) => o.value === item.dispatch_media)?.label || item.dispatch_media}
-                    {item.tracking_number ? ` (Resi: ${item.tracking_number})` : ''}
+        {distributions.map((item) => {
+          const target = item.target_destination || item.recipient_target || 'KLIEN';
+          const docNo = item.document_no || item.bap_no || item.lhpp_no;
+          const trackingRef = item.tracking_reference || item.tracking_number;
+          return (
+            <div
+              key={item.id}
+              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
+            >
+              {/* Header: Dokumen & Status */}
+              <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="min-w-0">
+                  <span className="font-bold text-sm text-slate-900 dark:text-white block">
+                    {DISTRIBUTION_DOC_TYPE_LABELS[item.document_type] || item.document_type}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold mt-1 ${
+                      target === 'DISNAKER'
+                        ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400 border border-rose-200 dark:border-rose-900'
+                        : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
+                    }`}
+                  >
+                    <Buildings size={12} weight="bold" />
+                    <span>Penerima: {DISTRIBUTION_TARGET_LABELS[target] || target}</span>
                   </span>
                 </div>
-              )}
-            </div>
+                <Badge tone={STATUS_TONES[item.status] || 'neutral'}>
+                  {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
+                </Badge>
+              </div>
 
-            {/* Tombol Aksi Mobile */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-              {isMarketingOrAdmin && item.status !== 'DITERIMA' && (
-                <button
-                  type="button"
-                  onClick={() => onOpenUpdateModal(item)}
-                  className="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
-                >
-                  <PaperPlaneTilt size={15} weight="bold" />
-                  <span>Update Kirim</span>
-                </button>
-              )}
-              {item.order_id && onDownloadBast && (
-                <button
-                  type="button"
-                  onClick={() => onDownloadBast(item.order_id, item.po_number || item.client_name)}
-                  className="min-h-[42px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                >
-                  <DownloadSimple size={15} weight="bold" />
-                  <span>BAST</span>
-                </button>
-              )}
+              {/* Info Klien, Unit, dan Dokumen */}
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Klien / PO:</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">
+                    {item.client_name || '-'} ({item.po_number || item.order_no || '-'})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>Unit Objek:</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200 text-right truncate max-w-[200px]">
+                    {item.object_name || 'Unit Alat'} (SN: {item.serial_number || '-'})
+                  </span>
+                </div>
+                {docNo && (
+                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-400">
+                    <span>No. Dokumen:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{docNo}</span>
+                  </div>
+                )}
+                {item.dispatch_media && (
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
+                    <span className="text-slate-500 dark:text-slate-400">Pengiriman:</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {DISPATCH_MEDIA_OPTIONS.find((o) => o.value === item.dispatch_media)?.label || item.dispatch_media}
+                      {trackingRef ? ` (Resi: ${trackingRef})` : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tombol Aksi Mobile */}
+              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                {isMarketingOrAdmin && item.status !== 'DITERIMA' && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenUpdateModal(item)}
+                    className="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
+                  >
+                    <PaperPlaneTilt size={15} weight="bold" />
+                    <span>Perbarui Status</span>
+                  </button>
+                )}
+                {item.order_id && onPreviewBast && (
+                  <button
+                    type="button"
+                    onClick={() => onPreviewBast(item.order_id, item.po_number || item.order_no || item.client_name)}
+                    className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Eye size={15} weight="bold" />
+                    <span>Pratinjau BAST</span>
+                  </button>
+                )}
+                {item.order_id && onDownloadBast && (
+                  <button
+                    type="button"
+                    onClick={() => onDownloadBast(item.order_id, item.po_number || item.order_no || item.client_name)}
+                    className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <DownloadSimple size={15} weight="bold" />
+                    <span>Unduh</span>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Tampilan Desktop & Tablet: Tabel Tabular Lengkap */}
@@ -133,114 +150,138 @@ export function DistributionTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {distributions.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="px-4 py-3.5">
-                    <div className="space-y-1">
-                      <span className="font-bold text-slate-900 dark:text-white block">
-                        {DISTRIBUTION_DOC_TYPE_LABELS[item.document_type] || item.document_type}
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                          item.recipient_target === 'DISNAKER'
-                            ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400 border border-rose-200 dark:border-rose-900'
-                            : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
-                        }`}
-                      >
-                        <Buildings size={12} weight="bold" />
-                        <span>Penerima: {DISTRIBUTION_TARGET_LABELS[item.recipient_target] || item.recipient_target}</span>
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="space-y-0.5">
-                      <p className="font-semibold text-slate-900 dark:text-white">
-                        {item.client_name || '-'}
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                        {item.po_number || '-'}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="space-y-0.5">
-                      <p className="font-medium text-slate-800 dark:text-slate-200">
-                        {item.object_name || 'Unit Alat'}
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                        SN: {item.serial_number || '-'}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="space-y-1 text-[11px] font-mono">
-                      {item.bap_no && (
-                        <span className="block text-slate-700 dark:text-slate-300">
-                          BAP: {item.bap_no}
+              {distributions.map((item) => {
+                const target = item.target_destination || item.recipient_target || 'KLIEN';
+                const docNo = item.document_no || item.bap_no || item.lhpp_no;
+                const trackingRef = item.tracking_reference || item.tracking_number;
+                const dispatchDate = item.dispatch_date || item.dispatched_at;
+                return (
+                  <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3.5">
+                      <div className="space-y-1">
+                        <span className="font-bold text-slate-900 dark:text-white block">
+                          {DISTRIBUTION_DOC_TYPE_LABELS[item.document_type] || item.document_type}
                         </span>
-                      )}
-                      {item.lhpp_no && (
-                        <span className="block text-slate-700 dark:text-slate-300">
-                          LHPP: {item.lhpp_no}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                            target === 'DISNAKER'
+                              ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400 border border-rose-200 dark:border-rose-900'
+                              : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
+                          }`}
+                        >
+                          <Buildings size={12} weight="bold" />
+                          <span>Penerima: {DISTRIBUTION_TARGET_LABELS[target] || target}</span>
                         </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="space-y-0.5">
-                      <p className="font-medium text-slate-800 dark:text-slate-200">
-                        {item.dispatch_media ? (
-                          DISPATCH_MEDIA_OPTIONS.find((o) => o.value === item.dispatch_media)?.label || item.dispatch_media
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="space-y-0.5">
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          {item.client_name || '-'}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          {item.po_number || item.order_no || '-'}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="space-y-0.5">
+                        <p className="font-medium text-slate-800 dark:text-slate-200">
+                          {item.object_name || 'Unit Alat'}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          SN: {item.serial_number || '-'}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="space-y-1 text-[11px] font-mono">
+                        {docNo ? (
+                          <span className="block font-bold text-slate-800 dark:text-slate-200">
+                            {item.document_type}: {docNo}
+                          </span>
                         ) : (
-                          <span className="text-slate-400 italic">Belum dikirim</span>
+                          <span className="text-slate-400">-</span>
                         )}
-                      </p>
-                      {item.tracking_number && (
-                        <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
-                          Resi: {item.tracking_number}
+                        {item.recipient_name && (
+                          <span className="block text-[10px] font-sans text-slate-500 dark:text-slate-400">
+                            UP: {item.recipient_name}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="space-y-0.5">
+                        <p className="font-medium text-slate-800 dark:text-slate-200">
+                          {item.dispatch_media ? (
+                            DISPATCH_MEDIA_OPTIONS.find((o) => o.value === item.dispatch_media)?.label || item.dispatch_media
+                          ) : (
+                            <span className="text-slate-400 italic">Belum dikirim</span>
+                          )}
                         </p>
+                        {trackingRef && (
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+                            Resi: {trackingRef}
+                          </p>
+                        )}
+                        {item.notes && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                            Catatan: {item.notes}
+                          </p>
+                        )}
+                        {dispatchDate && (
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                            Tanggal: {formatDateTime(dispatchDate)}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Badge tone={STATUS_TONES[item.status] || 'neutral'}>
+                        {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                      {item.order_id && onPreviewBast && (
+                        <button
+                          type="button"
+                          onClick={() => onPreviewBast(item.order_id, item.po_number || item.order_no || item.client_name)}
+                          title="Pratinjau Berita Acara Serah Terima (BAST)"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        >
+                          <Eye size={14} weight="bold" />
+                          <span>Pratinjau BAST</span>
+                        </button>
                       )}
-                      {item.dispatched_at && (
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                          Kirim: {formatDateTime(item.dispatched_at)}
-                        </p>
+                      {item.order_id && onDownloadBast && (
+                        <button
+                          type="button"
+                          onClick={() => onDownloadBast(item.order_id, item.po_number || item.order_no || item.client_name)}
+                          title="Unduh Berita Acara Serah Terima (BAST)"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        >
+                          <DownloadSimple size={14} weight="bold" />
+                          <span>Unduh BAST</span>
+                        </button>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Badge tone={STATUS_TONES[item.status] || 'neutral'}>
-                      {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
-                    {item.order_id && onDownloadBast && (
-                      <button
-                        type="button"
-                        onClick={() => onDownloadBast(item.order_id, item.po_number || item.client_name)}
-                        title="Unduh Berita Acara Serah Terima (BAST)"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                      >
-                        <DownloadSimple size={14} weight="bold" />
-                        <span>BAST</span>
-                      </button>
-                    )}
-                    {isMarketingOrAdmin && item.status !== 'DITERIMA' ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenUpdateModal(item)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white transition-colors cursor-pointer"
-                      >
-                        <PaperPlaneTilt size={14} weight="bold" />
-                        <span>Update Kirim</span>
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        {item.status === 'DITERIMA' ? 'Tuntas' : 'Monitoring'}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      {isMarketingOrAdmin && item.status !== 'DITERIMA' ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenUpdateModal(item)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white transition-colors cursor-pointer"
+                        >
+                          <PaperPlaneTilt size={14} weight="bold" />
+                          <span>Perbarui Status</span>
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {item.status === 'DITERIMA' ? 'Tuntas' : 'Monitoring'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

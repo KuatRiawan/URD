@@ -358,7 +358,7 @@ export function LhppDetailModal({
 
           {isPimpinan && (
             <div className="p-3.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-300 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
               <span>
                 <strong>Mode Pantau Eksekutif (Hanya Baca):</strong> Pimpinan dapat memantau status dokumen dan mengunduh berkas PDF resmi ber-QR verifikasi tanpa memerlukan proses persetujuan administratif.
               </span>

@@ -10,17 +10,14 @@ import {
   Clock,
   Copy,
   Cube,
-  FilePlus,
   MapPin,
   Pencil,
-  PhoneCall,
   Plus,
   ShareNetwork,
   Star,
   Trash,
   User,
-  UsersThree,
-  Warning
+  UsersThree
 } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Notice } from '../../../components/ui/Notice.jsx';
@@ -29,6 +26,7 @@ import { formatDate, formatRelativeTime, ORDER_STATUS_LABELS } from '../../../li
 
 export function ClientDetailModal({
   detailData,
+  portalTokens = [],
   onClose,
   canEdit,
   subFeedback,
@@ -51,6 +49,29 @@ export function ClientDetailModal({
 }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('PROFILE'); // 'PROFILE' | 'PICS_LOCATIONS' | 'EQUIPMENT' | 'ORDERS' | 'AUDIT'
+  const [internalPicForm, setInternalPicForm] = useState({
+    name: '',
+    position: '',
+    department: '',
+    phone: '',
+    email: '',
+    locationId: '',
+    isPrimary: false,
+    isReminderRecipient: false,
+    notes: ''
+  });
+  const [internalLocForm, setInternalLocForm] = useState({
+    name: '',
+    address: '',
+    city: ''
+  });
+
+  const activePicForm = picForm || internalPicForm;
+  const handleUpdatePicForm = setPicForm || setInternalPicForm;
+
+  const activeLocForm = locForm || internalLocForm;
+  const handleUpdateLocForm = setLocForm || setInternalLocForm;
+
   const [editingPicId, setEditingPicId] = useState(null);
   const [editPicForm, setEditPicForm] = useState({
     name: '',
@@ -125,127 +146,137 @@ export function ClientDetailModal({
       open={Boolean(detailData)}
       onClose={onClose}
       title={`Workspace Klien: ${client.name}`}
+      subtitle={`${client.industry || 'Mitra Perusahaan'} · ${locations.length} Lokasi Site · ${contacts.length} PIC Terdaftar · ${objects.length} Objek Uji K3`}
       size="xl"
     >
       <div className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
         {subFeedback && <Notice tone="success">{subFeedback}</Notice>}
 
         {/* Tab Navigasi Workspace Klien */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1 overflow-x-auto pb-1">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('PROFILE')}
-            className={`min-h-10 px-3.5 py-2 rounded-t-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'PROFILE'
-                ? 'bg-white dark:bg-slate-900 border-b-2 border-[#C81E1E] text-[#C81E1E] dark:text-rose-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Buildings size={16} />
-            <span>Profil &amp; Catatan Internal</span>
+            <Buildings size={15} />
+            <span>Profil &amp; Portal</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('PICS_LOCATIONS')}
-            className={`min-h-10 px-3.5 py-2 rounded-t-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'PICS_LOCATIONS'
-                ? 'bg-white dark:bg-slate-900 border-b-2 border-[#C81E1E] text-[#C81E1E] dark:text-rose-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <UsersThree size={16} />
-            <span>Multi-PIC ({contacts.length}) &amp; Site ({locations.length})</span>
+            <UsersThree size={15} />
+            <span>PIC ({contacts.length}) &amp; Site ({locations.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('EQUIPMENT')}
-            className={`min-h-10 px-3.5 py-2 rounded-t-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'EQUIPMENT'
-                ? 'bg-white dark:bg-slate-900 border-b-2 border-[#C81E1E] text-[#C81E1E] dark:text-rose-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Cube size={16} />
-            <span>Inventaris Alat K3 ({objects.length})</span>
+            <Cube size={15} />
+            <span>Inventaris Alat ({objects.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('ORDERS')}
-            className={`min-h-10 px-3.5 py-2 rounded-t-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'ORDERS'
-                ? 'bg-white dark:bg-slate-900 border-b-2 border-[#C81E1E] text-[#C81E1E] dark:text-rose-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Briefcase size={16} />
+            <Briefcase size={15} />
             <span>Riwayat PO ({orders.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('AUDIT')}
-            className={`min-h-10 px-3.5 py-2 rounded-t-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'AUDIT'
-                ? 'bg-white dark:bg-slate-900 border-b-2 border-[#C81E1E] text-[#C81E1E] dark:text-rose-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Clock size={16} />
-            <span>Riwayat Perubahan ({auditLogs.length})</span>
+            <Clock size={15} />
+            <span>Aktivitas ({auditLogs.length})</span>
           </button>
         </div>
 
-        {/* TAB 1: Profil Perusahaan, Catatan Internal & Akses Portal Klien */}
+        {/* ======================================================== */}
+        {/* TAB 1: Profil Perusahaan, Catatan Internal & Portal Klien */}
+        {/* ======================================================== */}
         {activeTab === 'PROFILE' && (
           <div className="space-y-4">
+            {/* Kartu Informasi Resmi Perusahaan */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Nama Perusahaan</span>
-                <p className="font-bold text-base text-slate-900 dark:text-white mt-0.5">{client.name}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">NPWP:</span>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Nama Resmi Perusahaan</span>
+                  <p className="font-bold text-sm text-slate-900 dark:text-white mt-0.5">{client.name}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">NPWP:</span>
                   <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                     {client.npwp || 'Belum diisi'}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Bidang Usaha:</span>
-                  <span className="text-slate-800 dark:text-slate-200">{client.industry || '-'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Bidang Industri:</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-medium">{client.industry || '-'}</span>
                 </div>
               </div>
 
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Kontak Resmi Perusahaan</span>
-                <p className="text-slate-800 dark:text-slate-200 mt-0.5">
-                  Telepon: <span className="font-bold">{client.phone || '-'}</span>
-                </p>
-                <p className="text-slate-800 dark:text-slate-200">
-                  Email: <span className="font-bold">{client.email || '-'}</span>
-                </p>
-                <div className="mt-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Alamat Kantor Utama:</span>
-                  <p className="text-slate-700 dark:text-slate-300 mt-0.5">{client.address || '-'}</p>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Kontak Resmi Kantor</span>
+                  <p className="text-slate-800 dark:text-slate-200 mt-0.5">
+                    Telepon: <strong className="font-semibold">{client.phone || '-'}</strong>
+                  </p>
+                  <p className="text-slate-800 dark:text-slate-200">
+                    Email: <strong className="font-semibold">{client.email || '-'}</strong>
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Alamat Kantor Utama</span>
+                  <p className="text-slate-700 dark:text-slate-300 mt-0.5 leading-relaxed">{client.address || '-'}</p>
                 </div>
               </div>
             </div>
 
             {/* Catatan Internal Marketing */}
-            <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 space-y-1.5">
-              <span className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                <Briefcase size={15} weight="bold" />
-                <span>Catatan Khusus Internal Marketing &amp; Operasional</span>
-              </span>
-              <p className="text-xs text-amber-900/90 dark:text-amber-200 leading-relaxed whitespace-pre-wrap">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-2 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <Briefcase size={15} className="text-[#C81E1E]" weight="bold" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  Catatan Internal Tim Marketing
+                </h4>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
                 {client.internal_notes || 'Belum ada catatan internal yang ditambahkan untuk klien ini.'}
               </p>
             </div>
 
-            {/* Tautan Portal Klien Berproteksi Token */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            {/* Portal Klien Berproteksi Token */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <ShareNetwork size={16} className="text-[#C81E1E]" weight="bold" />
-                    <span>Portal Baca Khusus Klien (Client Self-Service Portal)</span>
+                    <span>Portal Self-Service Klien</span>
                   </h4>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                     Tautan terproteksi token agar klien dapat memantau status pemeriksaan unit alat dan mengunduh berkas BAP/LHPP/Suket resmi.
@@ -256,9 +287,9 @@ export function ClientDetailModal({
                     type="button"
                     onClick={onGeneratePortalToken}
                     disabled={portalLoading}
-                    className="shrink-0 h-9 px-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 cursor-pointer shadow-2xs"
+                    className="shrink-0 h-9 px-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 cursor-pointer shadow-2xs transition-colors"
                   >
-                    {portalLoading ? 'Memproses...' : 'Tautan Akses Baru'}
+                    {portalLoading ? 'Memproses...' : 'Generate Tautan Akses'}
                   </button>
                 )}
               </div>
@@ -269,30 +300,53 @@ export function ClientDetailModal({
                     type="text"
                     readOnly
                     value={portalUrl}
-                    className="flex-1 min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-700 dark:text-slate-300"
+                    className="flex-1 min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 font-mono text-xs text-slate-800 dark:text-slate-200"
                   />
                   <button
                     type="button"
                     onClick={onCopyPortalUrl}
-                    className="min-h-9 inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[#C81E1E] font-bold text-white hover:bg-red-800 cursor-pointer"
+                    className="min-h-9 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-lg bg-[#C81E1E] font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-2xs transition-colors"
                   >
                     {portalCopied ? <Check size={14} weight="bold" /> : <Copy size={14} weight="bold" />}
                     <span>{portalCopied ? 'Tersalin' : 'Salin Tautan'}</span>
                   </button>
                 </div>
               )}
+
+              {Array.isArray(portalTokens) && portalTokens.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Token Akses Portal Terdaftar ({portalTokens.length})
+                  </p>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {portalTokens.slice(0, 3).map((t) => (
+                      <div key={t.id} className="py-1.5 flex items-center justify-between gap-2 text-[11px]">
+                        <div>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">{t.label || 'Akses Portal Klien'}</span>
+                          <span className="text-slate-500 ml-2">· Berlaku s/d {formatDate(t.expires_at)}</span>
+                        </div>
+                        <Badge tone={t.is_active ? 'success' : 'neutral'} size="sm">
+                          {t.is_active ? 'Aktif' : 'Nonaktif'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* TAB 2: Multi-PIC & Lokasi Pabrik/Site */}
+        {/* ======================================================== */}
+        {/* TAB 2: Multi-PIC & Lokasi Pabrik/Site Operasional        */}
+        {/* ======================================================== */}
         {activeTab === 'PICS_LOCATIONS' && (
           <div className="space-y-5">
             {/* Bagian Multi-PIC */}
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                     <UsersThree size={18} className="text-[#C81E1E]" weight="bold" />
                     <span>Daftar Person In Charge (PIC) Klien ({contacts.length})</span>
                   </h3>
@@ -303,29 +357,29 @@ export function ClientDetailModal({
               </div>
 
               {contacts.length === 0 ? (
-                <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+                <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
                   Belum ada kontak PIC terdaftar untuk perusahaan ini. Tambahkan kontak pertama pada form di bawah.
                 </p>
               ) : (
-                <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
                   {contacts.map((ct) => (
                     <div key={ct.id} className="p-3.5 space-y-2 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-white text-sm">
                               {ct.name}
                             </span>
                             {ct.is_primary && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 text-[10px] font-extrabold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50 text-[10px] font-bold">
                                 <Star size={11} weight="fill" />
                                 <span>PIC Utama</span>
                               </span>
                             )}
                             {ct.is_reminder_recipient && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 text-[10px] font-extrabold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 text-[10px] font-bold">
                                 <BellRinging size={11} weight="fill" />
-                                <span>Penerima Reminder K3</span>
+                                <span>Penerima Reminder Suket</span>
                               </span>
                             )}
                             <Badge tone={ct.is_active ? 'success' : 'danger'}>
@@ -346,8 +400,7 @@ export function ClientDetailModal({
                               <button
                                 type="button"
                                 onClick={() => onSetPrimaryContact(ct.id)}
-                                title="Jadikan PIC Utama Perusahaan"
-                                className="min-h-8 px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                className="min-h-8 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
                               >
                                 Set PIC Utama
                               </button>
@@ -356,8 +409,7 @@ export function ClientDetailModal({
                               <button
                                 type="button"
                                 onClick={() => onSetReminderRecipientContact(ct.id)}
-                                title="Jadikan Penerima Notifikasi Reminder WhatsApp/Email"
-                                className="min-h-8 px-2.5 py-1 rounded border border-amber-300 dark:border-amber-700 text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer"
+                                className="min-h-8 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/40 text-[11px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer transition-colors"
                               >
                                 Set Penerima Reminder
                               </button>
@@ -365,7 +417,7 @@ export function ClientDetailModal({
                             <button
                               type="button"
                               onClick={() => handleStartEditPic(ct)}
-                              className="min-h-8 p-1.5 rounded border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-blue-600 cursor-pointer"
+                              className="min-h-8 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
                               title="Ubah data PIC"
                             >
                               <Pencil size={14} />
@@ -374,7 +426,7 @@ export function ClientDetailModal({
                               <button
                                 type="button"
                                 onClick={() => onDeleteContact(ct.id)}
-                                className="min-h-8 p-1.5 rounded border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                                className="min-h-8 p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer transition-colors"
                                 title="Hapus / Nonaktifkan PIC"
                               >
                                 <Trash size={14} />
@@ -385,12 +437,12 @@ export function ClientDetailModal({
                       </div>
 
                       {/* Kontak Saluran PIC */}
-                      <div className="flex items-center gap-4 text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-4 text-[11px] text-slate-600 dark:text-slate-400 pt-1.5 border-t border-slate-100 dark:border-slate-800">
                         <span className="font-mono">
-                          WhatsApp / HP: <strong className="text-slate-900 dark:text-white">{ct.phone || '-'}</strong>
+                          WhatsApp/Tel: <strong className="text-slate-800 dark:text-slate-200">{ct.phone || '-'}</strong>
                         </span>
                         <span>
-                          Email: <strong className="text-slate-900 dark:text-white">{ct.email || '-'}</strong>
+                          Email: <strong className="text-slate-800 dark:text-slate-200">{ct.email || '-'}</strong>
                         </span>
                         {ct.notes && (
                           <span className="italic text-slate-500">Ket: {ct.notes}</span>
@@ -405,7 +457,7 @@ export function ClientDetailModal({
               {canEdit && !editingPicId && (
                 <form
                   onSubmit={onAddContact}
-                  className="space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 p-4 border border-slate-200 dark:border-slate-700"
+                  className="space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 p-4 border border-slate-200 dark:border-slate-800"
                 >
                   <p className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
                     <Plus size={15} weight="bold" />
@@ -418,30 +470,30 @@ export function ClientDetailModal({
                       <input
                         type="text"
                         required
-                        value={picForm.name}
-                        onChange={(e) => setPicForm({ ...picForm, name: e.target.value })}
+                        value={activePicForm.name}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, name: e.target.value })}
                         placeholder="Mis: Bpk. Bambang Sutrisno"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
                       <label className="block font-semibold mb-1">Jabatan PIC</label>
                       <input
                         type="text"
-                        value={picForm.position}
-                        onChange={(e) => setPicForm({ ...picForm, position: e.target.value })}
+                        value={activePicForm.position}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, position: e.target.value })}
                         placeholder="Mis: HSE Manager / Spv K3"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
                       <label className="block font-semibold mb-1">Departemen</label>
                       <input
                         type="text"
-                        value={picForm.department || ''}
-                        onChange={(e) => setPicForm({ ...picForm, department: e.target.value })}
+                        value={activePicForm.department || ''}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, department: e.target.value })}
                         placeholder="Mis: K3 / Maintenance / GA"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                   </div>
@@ -452,28 +504,28 @@ export function ClientDetailModal({
                       <input
                         type="text"
                         required
-                        value={picForm.phone}
-                        onChange={(e) => setPicForm({ ...picForm, phone: e.target.value })}
+                        value={activePicForm.phone}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, phone: e.target.value })}
                         placeholder="081234567890"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 font-mono text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
                       <label className="block font-semibold mb-1">Alamat Email</label>
                       <input
                         type="email"
-                        value={picForm.email}
-                        onChange={(e) => setPicForm({ ...picForm, email: e.target.value })}
+                        value={activePicForm.email}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, email: e.target.value })}
                         placeholder="pic@klien.co.id"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
                       <label className="block font-semibold mb-1">Lokasi / Site Tanggung Jawab</label>
                       <select
-                        value={picForm.locationId || ''}
-                        onChange={(e) => setPicForm({ ...picForm, locationId: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        value={activePicForm.locationId || ''}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, locationId: e.target.value })}
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       >
                         <option value="">Semua Lokasi / Kantor Pusat</option>
                         {locations.map((loc) => (
@@ -486,29 +538,29 @@ export function ClientDetailModal({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 pt-1">
-                    <label className="flex items-center gap-2 font-bold cursor-pointer text-slate-800 dark:text-slate-200">
+                    <label className="flex items-center gap-2 font-semibold cursor-pointer text-slate-800 dark:text-slate-200">
                       <input
                         type="checkbox"
-                        checked={Boolean(picForm.isPrimary)}
-                        onChange={(e) => setPicForm({ ...picForm, isPrimary: e.target.checked })}
+                        checked={Boolean(activePicForm.isPrimary)}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, isPrimary: e.target.checked })}
                         className="h-4 w-4 rounded border-slate-300 text-[#C81E1E]"
                       />
                       <span>Tetapkan sebagai PIC Utama</span>
                     </label>
-                    <label className="flex items-center gap-2 font-bold cursor-pointer text-slate-800 dark:text-slate-200">
+                    <label className="flex items-center gap-2 font-semibold cursor-pointer text-slate-800 dark:text-slate-200">
                       <input
                         type="checkbox"
-                        checked={Boolean(picForm.isReminderRecipient)}
-                        onChange={(e) => setPicForm({ ...picForm, isReminderRecipient: e.target.checked })}
+                        checked={Boolean(activePicForm.isReminderRecipient)}
+                        onChange={(e) => handleUpdatePicForm({ ...activePicForm, isReminderRecipient: e.target.checked })}
                         className="h-4 w-4 rounded border-slate-300 text-amber-600"
                       />
-                      <span>Tetapkan sebagai Penerima Pengingat Berkala (Reminder K3)</span>
+                      <span>Tetapkan sebagai Penerima Pengingat Suket K3</span>
                     </label>
                   </div>
 
                   <button
                     type="submit"
-                    className="h-9 px-4 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a11616] font-bold text-xs cursor-pointer shadow-2xs"
+                    className="h-9 px-4 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a11616] font-bold text-xs cursor-pointer shadow-2xs transition-colors"
                   >
                     Simpan Kontak PIC
                   </button>
@@ -519,9 +571,9 @@ export function ClientDetailModal({
               {editingPicId && (
                 <form
                   onSubmit={handleSubmitEditPic}
-                  className="space-y-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 p-4 border border-amber-300 dark:border-amber-800"
+                  className="space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 border border-slate-300 dark:border-slate-700"
                 >
-                  <p className="font-bold text-amber-900 dark:text-amber-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <p className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
                     <Pencil size={15} weight="bold" />
                     <span>Ubah Data PIC Terdaftar</span>
                   </p>
@@ -534,7 +586,7 @@ export function ClientDetailModal({
                         required
                         value={editPicForm.name}
                         onChange={(e) => setEditPicForm({ ...editPicForm, name: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -543,7 +595,7 @@ export function ClientDetailModal({
                         type="text"
                         value={editPicForm.position}
                         onChange={(e) => setEditPicForm({ ...editPicForm, position: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -552,7 +604,7 @@ export function ClientDetailModal({
                         type="text"
                         value={editPicForm.department}
                         onChange={(e) => setEditPicForm({ ...editPicForm, department: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                   </div>
@@ -565,7 +617,7 @@ export function ClientDetailModal({
                         required
                         value={editPicForm.phone}
                         onChange={(e) => setEditPicForm({ ...editPicForm, phone: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 font-mono text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -574,7 +626,7 @@ export function ClientDetailModal({
                         type="email"
                         value={editPicForm.email}
                         onChange={(e) => setEditPicForm({ ...editPicForm, email: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -582,7 +634,7 @@ export function ClientDetailModal({
                       <select
                         value={editPicForm.locationId || ''}
                         onChange={(e) => setEditPicForm({ ...editPicForm, locationId: e.target.value })}
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       >
                         <option value="">Semua Lokasi / Kantor Pusat</option>
                         {locations.map((loc) => (
@@ -595,7 +647,7 @@ export function ClientDetailModal({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 pt-1">
-                    <label className="flex items-center gap-2 font-bold cursor-pointer text-slate-800 dark:text-slate-200">
+                    <label className="flex items-center gap-2 font-semibold cursor-pointer text-slate-800 dark:text-slate-200">
                       <input
                         type="checkbox"
                         checked={editPicForm.isPrimary}
@@ -604,16 +656,16 @@ export function ClientDetailModal({
                       />
                       <span>PIC Utama</span>
                     </label>
-                    <label className="flex items-center gap-2 font-bold cursor-pointer text-slate-800 dark:text-slate-200">
+                    <label className="flex items-center gap-2 font-semibold cursor-pointer text-slate-800 dark:text-slate-200">
                       <input
                         type="checkbox"
                         checked={editPicForm.isReminderRecipient}
                         onChange={(e) => setEditPicForm({ ...editPicForm, isReminderRecipient: e.target.checked })}
                         className="h-4 w-4 rounded border-slate-300 text-amber-600"
                       />
-                      <span>Penerima Reminder K3</span>
+                      <span>Penerima Reminder Suket K3</span>
                     </label>
-                    <label className="flex items-center gap-2 font-bold cursor-pointer text-slate-800 dark:text-slate-200">
+                    <label className="flex items-center gap-2 font-semibold cursor-pointer text-slate-800 dark:text-slate-200">
                       <input
                         type="checkbox"
                         checked={editPicForm.isActive}
@@ -628,13 +680,13 @@ export function ClientDetailModal({
                     <button
                       type="button"
                       onClick={handleCancelEditPic}
-                      className="min-h-9 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+                      className="min-h-9 px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      className="min-h-9 px-4 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold hover:bg-[#a11616]"
+                      className="min-h-9 px-4 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs"
                     >
                       Perbarui Data PIC
                     </button>
@@ -645,70 +697,86 @@ export function ClientDetailModal({
 
             {/* Bagian Lokasi Cabang / Site Pabrik */}
             <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <MapPin size={18} className="text-[#C81E1E]" weight="bold" />
                 <span>Daftar Lokasi Pabrik / Site Pelaksanaan Pemeriksaan ({locations.length})</span>
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {locations.length === 0 ? (
-                  <p className="text-slate-500 italic p-3">Belum ada lokasi site terdaftar.</p>
-                ) : (
-                  locations.map((loc) => (
-                    <div key={loc.id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                      <p className="font-bold text-slate-900 dark:text-white">
-                        {loc.name} {loc.city ? `(${loc.city})` : ''}
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{loc.address}</p>
+              {locations.length === 0 ? (
+                <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
+                  Belum ada lokasi site/pabrik terdaftar.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {locations.map((loc) => (
+                    <div
+                      key={loc.id}
+                      className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 dark:text-white text-xs">{loc.name}</span>
+                        {loc.city && (
+                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            {loc.city}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{loc.address}</p>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
 
+              {/* Form Tambah Lokasi */}
               {canEdit && (
                 <form
                   onSubmit={onAddLocation}
-                  className="space-y-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 p-3 border border-slate-200 dark:border-slate-700"
+                  className="space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 p-4 border border-slate-200 dark:border-slate-800 mt-2"
                 >
                   <p className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
                     <Plus size={15} weight="bold" />
-                    <span>Tambah Lokasi Pabrik / Site Baru</span>
+                    <span>Tambah Lokasi Site Baru</span>
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
+                      <label className="block font-semibold mb-1">Nama Site / Lokasi *</label>
                       <input
                         type="text"
                         required
-                        value={locForm.name}
-                        onChange={(e) => setLocForm({ ...locForm, name: e.target.value })}
-                        placeholder="Nama Site / Plant *"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        value={activeLocForm.name}
+                        onChange={(e) => handleUpdateLocForm({ ...activeLocForm, name: e.target.value })}
+                        placeholder="Contoh: Pabrik Cikarang Bay 3"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
+                      <label className="block font-semibold mb-1">Alamat Lengkap Site *</label>
                       <input
                         type="text"
                         required
-                        value={locForm.address}
-                        onChange={(e) => setLocForm({ ...locForm, address: e.target.value })}
-                        placeholder="Alamat Lokasi Site *"
-                        className="w-full min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
+                        value={activeLocForm.address}
+                        onChange={(e) => handleUpdateLocForm({ ...activeLocForm, address: e.target.value })}
+                        placeholder="Jl. Industri Selatan No. 10"
+                        className="w-full min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={locForm.city}
-                        onChange={(e) => setLocForm({ ...locForm, city: e.target.value })}
-                        placeholder="Kota / Kab"
-                        className="flex-1 min-h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-slate-900 dark:text-slate-100"
-                      />
-                      <button
-                        type="submit"
-                        className="h-9 px-3.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a11616] font-bold text-xs cursor-pointer shadow-2xs"
-                      >
-                        Simpan
-                      </button>
+                    <div>
+                      <label className="block font-semibold mb-1">Kota / Kabupaten</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={activeLocForm.city}
+                          onChange={(e) => handleUpdateLocForm({ ...activeLocForm, city: e.target.value })}
+                          placeholder="Kab. Bekasi"
+                          className="flex-1 min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-900 dark:text-slate-100"
+                        />
+                        <button
+                          type="submit"
+                          className="h-9 px-4 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a11616] font-bold text-xs cursor-pointer shadow-2xs transition-colors"
+                        >
+                          Simpan
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </form>
@@ -717,12 +785,14 @@ export function ClientDetailModal({
           </div>
         )}
 
-        {/* TAB 3: Inventaris Alat K3 Klien */}
+        {/* ======================================================== */}
+        {/* TAB 3: Inventaris Alat K3 Klien                          */}
+        {/* ======================================================== */}
         {activeTab === 'EQUIPMENT' && (
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                   <Cube size={18} className="text-[#C81E1E]" weight="bold" />
                   <span>Daftar Unit Alat K3 Terdaftar ({objects.length})</span>
                 </h3>
@@ -733,25 +803,25 @@ export function ClientDetailModal({
             </div>
 
             {/* Filter Alat K3 */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <input
                 type="text"
                 value={equipmentSearch}
                 onChange={(e) => setEquipmentSearch(e.target.value)}
-                placeholder="Cari nama alat, no. seri, atau suket..."
+                placeholder="Cari nama alat, nomor seri, atau nomor suket..."
                 className="flex-1 min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
               />
               <select
                 value={equipmentCategoryFilter}
                 onChange={(e) => setEquipmentCategoryFilter(e.target.value)}
-                className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-bold text-slate-900 dark:text-slate-100"
+                className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-900 dark:text-slate-100"
               >
                 <option value="ALL">Semua Bidang K3</option>
                 <option value="PAA">PAPA (Pesawat Angkat &amp; Angkut)</option>
                 <option value="PUBT">PUBT (Bejana Tekan)</option>
-                <option value="PTP">PTP (Tenaga &amp; Produksi)</option>
-                <option value="ILPP">ILPP (Listrik &amp; Petir)</option>
-                <option value="IPK">IPK (Proteksi Kebakaran)</option>
+                <option value="PTP">PTP (Pesawat Tenaga &amp; Produksi)</option>
+                <option value="ILPP">ILPP (Instalasi Listrik &amp; Petir)</option>
+                <option value="IPK">IPK (Instalasi Proteksi Kebakaran)</option>
                 <option value="ELEVATOR">Elevator &amp; Eskalator</option>
                 <option value="ANCHOR">Anchor &amp; Lifeline</option>
               </select>
@@ -759,11 +829,11 @@ export function ClientDetailModal({
 
             {filteredObjects.length === 0 ? (
               <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
-                <Cube size={32} className="mx-auto mb-1 opacity-50" />
-                <p className="text-xs font-bold">Tidak ada unit alat yang cocok.</p>
+                <Cube size={28} className="mx-auto mb-1 text-slate-400" />
+                <p className="text-xs font-semibold">Tidak ada unit alat yang cocok dengan pencarian.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
                 {filteredObjects.map((obj) => (
                   <div key={obj.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     <div className="min-w-0 flex-1">
@@ -784,7 +854,7 @@ export function ClientDetailModal({
                         )}
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-                        <span>Lokasi Site: <strong>{obj.location_name || obj.install_location || 'Pusat'}</strong></span>
+                        <span>Lokasi Site: <strong>{obj.location_name || obj.install_location || 'Kantor Pusat'}</strong></span>
                         {obj.suket_no && (
                           <span className="font-mono text-emerald-700 dark:text-emerald-400 font-bold">
                             · Suket: {obj.suket_no} (s/d {formatDate(obj.suket_valid_until)})
@@ -798,7 +868,7 @@ export function ClientDetailModal({
                         <button
                           type="button"
                           onClick={() => onCreateRenewalOrder(obj.id, obj.name)}
-                          className="min-h-9 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a11616] cursor-pointer inline-flex items-center gap-1.5"
+                          className="min-h-9 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a11616] cursor-pointer inline-flex items-center gap-1.5 shadow-2xs transition-colors"
                         >
                           <Plus size={14} weight="bold" />
                           <span>Buat PO Perpanjangan</span>
@@ -812,24 +882,26 @@ export function ClientDetailModal({
           </div>
         )}
 
-        {/* TAB 4: Riwayat Purchase Order (PO) */}
+        {/* ======================================================== */}
+        {/* TAB 4: Riwayat Purchase Order (PO)                       */}
+        {/* ======================================================== */}
         {activeTab === 'ORDERS' && (
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Briefcase size={18} className="text-[#C81E1E]" weight="bold" />
                 <span>Riwayat Transaksi Purchase Order (PO) Klien ({orders.length})</span>
               </h3>
             </div>
 
             {orders.length === 0 ? (
-              <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+              <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
                 Belum ada riwayat PO yang tercatat untuk klien ini.
               </p>
             ) : (
-              <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
                 {orders.map((ord) => (
-                  <div key={ord.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <div key={ord.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-bold text-slate-900 dark:text-white">
@@ -855,10 +927,11 @@ export function ClientDetailModal({
                           onClose();
                           navigate('/app/orders');
                         }}
-                        className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                        title="Lihat detail PO di modul Order"
+                        className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold text-xs inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Buka detail di modul Order"
                       >
-                        <ArrowRight size={14} weight="bold" />
+                        <span>Lihat PO</span>
+                        <ArrowRight size={13} weight="bold" />
                       </button>
                     </div>
                   </div>
@@ -868,32 +941,34 @@ export function ClientDetailModal({
           </div>
         )}
 
-        {/* TAB 5: Riwayat Perubahan Data (Audit Trail) */}
+        {/* ======================================================== */}
+        {/* TAB 5: Riwayat Perubahan Data (Audit Trail)              */}
+        {/* ======================================================== */}
         {activeTab === 'AUDIT' && (
-          <div className="space-y-3">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+          <div className="space-y-3.5">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <Clock size={18} className="text-slate-500" weight="bold" />
-              <span>Audit Trail Perubahan Data Klien ({auditLogs.length})</span>
+              <span>Jejak Audit Perubahan Data Klien ({auditLogs.length})</span>
             </h3>
 
             {auditLogs.length === 0 ? (
-              <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+              <p className="text-xs text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
                 Belum ada catatan perubahan data.
               </p>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 {auditLogs.map((log) => (
-                  <div key={log.id} className="py-2.5 flex items-start justify-between gap-2">
+                  <div key={log.id} className="py-2.5 flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-slate-900 dark:text-white">
                         {log.action.replace(/_/g, ' ')}
                       </p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Oleh: <strong>{log.user_name || 'Sistem'}</strong> ({log.user_role || 'STAFF'}) ·{' '}
+                        Oleh: <strong className="text-slate-700 dark:text-slate-300">{log.user_name || 'Sistem'}</strong> ({log.user_role || 'STAFF'}) ·{' '}
                         {typeof log.summary === 'object' ? JSON.stringify(log.summary) : log.summary}
                       </p>
                     </div>
-                    <span className="text-[10px] text-slate-400 shrink-0">
+                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">
                       {formatRelativeTime(log.created_at)}
                     </span>
                   </div>
@@ -908,7 +983,7 @@ export function ClientDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+            className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors shadow-2xs"
           >
             Tutup Workspace Klien
           </button>

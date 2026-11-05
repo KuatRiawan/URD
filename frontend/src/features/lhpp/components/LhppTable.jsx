@@ -75,29 +75,29 @@ export function LhppTable({
             </div>
 
             {/* Tombol Aksi Mobile */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => openDetail(item.id)}
-                className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
               >
-                <PencilSimpleLine size={15} />
+                <PencilSimpleLine size={16} weight="bold" />
                 <span>Detail &amp; QC</span>
               </button>
               <button
                 type="button"
                 onClick={() => handlePreviewPdf(item.id, item.lhpp_no)}
-                className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
               >
-                <Eye size={15} />
+                <Eye size={16} weight="bold" />
                 <span>Pratinjau</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleDownloadPdf(item.id, item.lhpp_no)}
-                className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors cursor-pointer"
+                className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold shadow-xs active:scale-[0.98] transition-all cursor-pointer"
               >
-                <DownloadSimple size={15} />
+                <DownloadSimple size={16} weight="bold" />
                 <span>PDF</span>
               </button>
             </div>

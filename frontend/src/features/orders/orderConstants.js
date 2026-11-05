@@ -10,21 +10,9 @@ export const STATUS_TONE = {
   DIBATALKAN: 'danger'
 };
 
-export const UNIT_STATUS_LABELS = {
-  BELUM_DIJADWALKAN: 'Belum Dijadwalkan',
-  TERJADWAL: 'Sudah Dijadwalkan',
-  DITUGASKAN: 'Ditugaskan ke Inspector',
-  SEDANG_DIPERIKSA: 'Sedang Diperiksa',
-  FORM_TERKIRIM: 'Form Terkirim',
-  BAP_DRAF: 'Draf BAP',
-  BAP_FINAL: 'BAP Final',
-  LHPP_DRAF: 'Draf LHPP',
-  LHPP_SIAP_PREVIEW: 'LHPP Siap Finalisasi',
-  PERLU_REVISI: 'Perlu Revisi',
-  LHPP_TERBIT: 'LHPP Terbit',
-  SELESAI: 'Selesai',
-  DIBATALKAN: 'Dibatalkan'
-};
+import { UNIT_STATUS_LABELS } from '../../lib/utils/format.js';
+
+export { UNIT_STATUS_LABELS };
 
 export const ALLOWED_NEXT_STATUS = {
   // TERDAFTAR adalah status awal PO saat ini; ORDER_BARU dipertahankan untuk data lama.

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import {
   Alarm,
@@ -32,6 +32,7 @@ import { SplineAreaChart } from '../SplineAreaChart.jsx';
 import { IndonesiaMapWidget } from '../IndonesiaMapWidget.jsx';
 import { WorkQueueWidget } from '../WorkQueueWidget.jsx';
 import { formatRelativeTime, ORDER_STATUS_LABELS } from '../../../lib/utils/format.js';
+import { ExecutiveDashboardView } from './ExecutiveDashboardView.jsx';
 
 const DashboardPoCreator = lazy(() =>
   import('./DashboardPoCreator.jsx').then((module) => ({ default: module.DashboardPoCreator }))
@@ -73,13 +74,12 @@ function InspectorWorkloadCard({ workload = [] }) {
                 </p>
               </div>
               <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                  Number(insp.active_assignments || 0) > 3
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(insp.active_assignments || 0) > 3
                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
                     : Number(insp.active_assignments || 0) > 0
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
-                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                }`}
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  }`}
               >
                 {insp.active_assignments || 0} tugas aktif
               </span>
@@ -107,30 +107,33 @@ export function ManagementDashboardView({
   const isAdminKantor = role === 'ADMIN_KANTOR';
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(role);
 
-  const roleHeader = useMemo(() => {
-    if (isMarketing) {
-      return {
+  if (isPimpinan) {
+    return (
+      <ExecutiveDashboardView
+        user={user}
+        data={data}
+        loadSummary={loadSummary}
+        refreshing={refreshing}
+        period={period}
+        setPeriod={setPeriod}
+      />
+    );
+  }
+
+  const roleHeader = isMarketing
+    ? {
         title: 'Dasbor Komersial & Relasi Klien',
         subtitle: 'Pemantauan relasi klien, progres PO masuk, dan peluang perpanjangan Suket K3 berkala'
-      };
-    }
-    if (isAdminKantor) {
-      return {
+      }
+    : isAdminKantor
+    ? {
         title: 'Dasbor Operasional',
         subtitle: 'Kendali penugasan Ahli K3, antrean QC berkas riksa uji, dan penerbitan dokumen resmi'
+      }
+    : {
+        title: 'Dasbor Sistem',
+        subtitle: 'Status platform, jejak audit operasional, dan administrasi modul'
       };
-    }
-    if (isPimpinan) {
-      return {
-        title: 'Dasbor Eksekutif',
-        subtitle: 'Pemantauan komprehensif riksa uji, efisiensi SLA, dan kepatuhan operasional'
-      };
-    }
-    return {
-      title: 'Dasbor Sistem',
-      subtitle: 'Status platform, jejak audit operasional, dan administrasi modul'
-    };
-  }, [isMarketing, isAdminKantor, isPimpinan]);
 
   return (
     <div className="space-y-6">
@@ -291,9 +294,12 @@ export function ManagementDashboardView({
         ) : isAdminKantor ? (
           <>
             {/* Admin Kantor Card 1: PO Menunggu Jadwal */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <Link
+              to="/app/schedule"
+              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all cursor-pointer block"
+            >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <CalendarCheck size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
@@ -304,16 +310,20 @@ export function ManagementDashboardView({
                     {m.newOrders || 0}
                   </div>
                   <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1.5">
-                    <span>{m.activeOrders || 0} order sedang berjalan</span>
+                    <span>{m.activeOrders || 0} order berjalan</span>
+                    <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Admin Kantor Card 2: Unit Sedang Diinspeksi */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <Link
+              to="/app/inspections"
+              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md transition-all cursor-pointer block"
+            >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Wrench size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
@@ -324,16 +334,20 @@ export function ManagementDashboardView({
                     {m.inspectingUnits || 0}
                   </div>
                   <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
-                    <span>{m.waitingInspectionUnits || 0} unit antre lapangan</span>
+                    <span>{m.waitingInspectionUnits || 0} unit antre</span>
+                    <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Admin Kantor Card 3: Antrean QC LHPP */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <Link
+              to="/app/lhpp?status=SIAP_PREVIEW"
+              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all cursor-pointer block"
+            >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <div className="h-11 w-11 rounded-lg bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <HourglassMedium size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
@@ -346,15 +360,19 @@ export function ManagementDashboardView({
                   <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
                     <span className="text-amber-600 font-bold">{m.revisionUnits || 0} revisi</span>
                     <span>· {m.lhppPublished || 0} terbit</span>
+                    <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Admin Kantor Card 4: Berkas Siap Kirim (BAST) */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+            <Link
+              to="/app/distributions?status=SIAP_DIKIRIM"
+              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer block"
+            >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                <div className="h-11 w-11 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Truck size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
@@ -365,11 +383,12 @@ export function ManagementDashboardView({
                     {m.documentPipeline?.dist_pending ?? m.docsPendingDelivery ?? 0}
                   </div>
                   <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
-                    <span>{m.documentPipeline?.dist_dispatched ?? m.docsDispatched ?? 0} berkas terkirim</span>
+                    <span>{m.documentPipeline?.dist_dispatched ?? m.docsDispatched ?? 0} terkirim</span>
+                    <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           </>
         ) : isPimpinan ? (
           <>
@@ -653,24 +672,36 @@ export function ManagementDashboardView({
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <Link
+                  to="/app/schedule"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">Menunggu</p>
                   <p className="text-base font-extrabold text-slate-800 dark:text-slate-200 mt-0.5">{m.waitingInspectionUnits || 0}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                </Link>
+                <Link
+                  to="/app/inspections"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">Inspeksi</p>
                   <p className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{m.inspectingUnits || 0}</p>
-                </div>
-                <div className={`p-2 rounded-lg bg-white dark:bg-slate-800 border ${Number(m.revisionUnits || 0) > 0 ? 'border-amber-300 dark:border-amber-800' : 'border-slate-200/70 dark:border-slate-700/70'}`}>
+                </Link>
+                <Link
+                  to="/app/lhpp?status=DIKEMBALIKAN"
+                  className={`p-2 rounded-lg bg-white dark:bg-slate-800 border hover:border-amber-500 hover:shadow-2xs transition-all block cursor-pointer ${Number(m.revisionUnits || 0) > 0 ? 'border-amber-300 dark:border-amber-800 bg-amber-50/30' : 'border-slate-200/70 dark:border-slate-700/70'}`}
+                >
                   <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 truncate">Perlu Revisi</p>
                   <p className={`text-base font-extrabold ${Number(m.revisionUnits || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200'} mt-0.5`}>
                     {m.revisionUnits || 0}
                   </p>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                </Link>
+                <Link
+                  to="/app/lhpp?status=FINAL"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">Selesai</p>
                   <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{m.completedUnits || 0}</p>
-                </div>
+                </Link>
               </div>
             </div>
 
@@ -687,26 +718,38 @@ export function ManagementDashboardView({
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                <Link
+                  to="/app/bap?status=FINAL"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 truncate">BAP Final</p>
                   <p className="text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">{m.bapFinal || 0}</p>
                   <p className="text-[9px] text-slate-400 mt-0.5">{m.bapDraft || 0} draft</p>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                </Link>
+                <Link
+                  to="/app/lhpp?status=FINAL"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">LHPP Terbit</p>
                   <p className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{m.lhppPublished || 0}</p>
                   <p className="text-[9px] text-slate-400 mt-0.5">{m.lhppWaitingReview || 0} QC</p>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                </Link>
+                <Link
+                  to="/app/suket"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 truncate">Suket Disnaker</p>
                   <p className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{m.suketPublished || 0}</p>
                   <p className="text-[9px] text-slate-400 mt-0.5">tercatat</p>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
+                </Link>
+                <Link
+                  to="/app/distributions?status=SIAP_DIKIRIM"
+                  className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-2xs transition-all block cursor-pointer"
+                >
                   <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">Siap Kirim</p>
                   <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{m.docsPendingDelivery || 0}</p>
                   <p className="text-[9px] text-slate-400 mt-0.5">{m.docsDispatched || 0} terkirim</p>
-                </div>
+                </Link>
               </div>
             </div>
           </div>
@@ -717,6 +760,11 @@ export function ManagementDashboardView({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8-cols): Operational Overview Chart & Pipeline */}
         <div className="lg:col-span-8 space-y-6">
+          {/* Untuk Admin Kantor: Tampilkan Antrean Kerja Operasional Prioritas di Paling Atas */}
+          {isAdminKantor && (
+            <WorkQueueWidget onRefresh={() => loadSummary(true)} />
+          )}
+
           <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
             {/* Metis Card Header with Period Buttons */}
             <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -737,11 +785,10 @@ export function ManagementDashboardView({
                     key={p}
                     type="button"
                     onClick={() => setPeriod(p)}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                      period === p
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${period === p
                         ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
+                      }`}
                   >
                     {p}
                   </button>
@@ -791,9 +838,9 @@ export function ManagementDashboardView({
                 <IndonesiaMapWidget regions={data?.analytics?.regionalMapping || []} />
               </div>
             </div>
-          ) : (
+          ) : !isAdminKantor ? (
             <WorkQueueWidget onRefresh={() => loadSummary(true)} />
-          )}
+          ) : null}
         </div>
 
         {/* Right Column (4-cols): Role-Tailored Activity Stream, Workload, and Quick Actions */}

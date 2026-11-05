@@ -105,11 +105,17 @@ export function SchedulePage() {
     }
   };
 
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jadwal &amp; Penugasan Tim K3"
-        subtitle="Agenda inspeksi lapangan dan masa berlaku SKP penunjukan Ahli K3."
+        title={isPimpinan ? 'Monitoring Jadwal & Penugasan Tim K3' : 'Jadwal & Penugasan Tim K3'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan agenda inspeksi lapangan dan masa berlaku SKP penunjukan Ahli K3 Kemnaker.'
+            : 'Agenda inspeksi lapangan dan masa berlaku SKP penunjukan Ahli K3.'
+        }
       />
 
       {feedback && (

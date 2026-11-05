@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react';
 import {
+  Eraser,
   Eye,
   FileDoc,
   FilePdf,
@@ -40,7 +42,86 @@ export function BapDetailModal({
   submitting,
   navigate
 }) {
+  const canvasRef = useRef(null);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const isDrawingRef = useRef(false);
+
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
+  const startDrawing = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      e.target.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const ctx = canvas.getContext('2d');
+    const { x, y } = getCoordinates(e);
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    isDrawingRef.current = true;
+    setHasDrawn(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const { x, y } = getCoordinates(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = (e) => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    try {
+      e.target.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  };
+
+  const onSubmitSignature = (e) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas || !hasDrawn) {
+      alert('Goreskan tanda tangan digital terlebih dahulu pada kotak tanda tangan.');
+      return;
+    }
+    const dataUrl = canvas.toDataURL('image/png');
+    handleSaveSignature(e, dataUrl);
+    clearCanvas();
+  };
+
   if (!selectedBap) return null;
+
+  const isEditable = ['DRAF', 'REVISI'].includes(selectedBap.status) && (canManage || canFinalize);
+  const isLhppFinalized = !selectedBap.lhpp_id || ['FINAL', 'TERBIT'].includes(selectedBap.lhpp_status);
 
   return (
     <Modal
@@ -58,32 +139,32 @@ export function BapDetailModal({
           )}
 
           {/* Kop Dokumen Resmi BAP */}
-          <div className="border-2 border-slate-800 rounded-xl p-4 bg-white">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[#C81E1E] pb-4">
               <div className="flex items-center gap-3">
                 <img
                   src={logoUrd}
                   alt="Logo PT Upaya Riksa Daya"
-                  className="h-12 w-auto object-contain"
+                  className="h-12 w-auto object-contain dark:brightness-110"
                 />
                 <div>
-                  <h3 className="text-base font-extrabold text-[#0F172A] tracking-tight">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
                     PT UPAYA RIKSA DAYA
                   </h3>
-                  <p className="text-xs font-semibold text-[#475569]">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
                     Perusahaan Jasa K3 (PJK3) Bidang Pemeriksaan dan Pengujian
                   </p>
                 </div>
               </div>
               <div className="text-left sm:text-right">
-                <span className="inline-block px-3 py-1 rounded bg-[#0F172A] text-white text-xs font-extrabold tracking-wider uppercase">
+                <span className="inline-block px-3 py-1 rounded bg-slate-900 dark:bg-slate-800 text-white text-xs font-extrabold tracking-wider uppercase">
                   BERITA ACARA RIKSA UJI
                 </span>
-                <div className="mt-1 text-xs font-mono font-bold text-slate-800">
+                <div className="mt-1 text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
                   Nomor: {selectedBap.bap_no}
                 </div>
-                <div className="text-[11px] text-slate-500">
-                  Status: {selectedBap.status} · Revisi #{selectedBap.revision_no}
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Status: {selectedBap.status} · Versi #{selectedBap.version || selectedBap.revision_no || 1}
                 </div>
               </div>
             </div>
@@ -91,39 +172,39 @@ export function BapDetailModal({
             {/* Bagian Identitas Pemeriksaan sesuai Template BAP */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 text-xs">
               <div>
-                <span className="text-slate-500 block">1. Objek yang Diperiksa</span>
-                <span className="font-bold text-slate-900">
+                <span className="text-slate-500 dark:text-slate-400 block">1. Objek yang Diperiksa</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
                   {selectedBap.object_name} ({selectedBap.category_code} - {selectedBap.category_name})
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">2. Nama Perusahaan / Klien</span>
-                <span className="font-bold text-slate-900">{selectedBap.client_name}</span>
+                <span className="text-slate-500 dark:text-slate-400 block">2. Nama Perusahaan / Klien</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedBap.client_name}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">3. Alamat Perusahaan</span>
-                <span className="font-medium text-slate-800">
+                <span className="text-slate-500 dark:text-slate-400 block">3. Alamat Perusahaan</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">
                   {selectedBap.client_address || selectedBap.location_address || '-'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">4. Pabrik Pembuat / Tahun</span>
-                <span className="font-medium text-slate-800">
+                <span className="text-slate-500 dark:text-slate-400 block">4. Pabrik Pembuat / Tahun</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">
                   {selectedBap.manufacturer || selectedBap.brand || '-'} /{' '}
                   {selectedBap.manufacture_year || '-'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">5. Nomor Seri / Kapasitas</span>
-                <span className="font-mono font-bold text-slate-900">
+                <span className="text-slate-500 dark:text-slate-400 block">5. Nomor Seri / Kapasitas</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                   {selectedBap.serial_number || '-'} / {selectedBap.capacity || '-'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">6. Lokasi Pemeriksaan &amp; Referensi PO</span>
-                <span className="font-medium text-slate-800">
+                <span className="text-slate-500 dark:text-slate-400 block">6. Lokasi Pemeriksaan &amp; Referensi PO</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">
                   {selectedBap.install_location || selectedBap.location_name || '-'} · PO:{' '}
-                  <strong className="font-mono">{selectedBap.po_number || selectedBap.order_no}</strong>
+                  <strong className="font-mono text-slate-900 dark:text-slate-100">{selectedBap.po_number || selectedBap.order_no}</strong>
                 </span>
               </div>
             </div>
@@ -144,7 +225,7 @@ export function BapDetailModal({
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tanggal Pelaksanaan:</label>
                 <input
                   type="date"
-                  disabled={selectedBap.status === 'FINAL' || !canManage}
+                  disabled={!isEditable}
                   value={draftForm.inspectionDate}
                   onChange={(e) => setDraftForm({ ...draftForm, inspectionDate: e.target.value })}
                   className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-md"
@@ -166,7 +247,7 @@ export function BapDetailModal({
                   >
                     <input
                       type="checkbox"
-                      disabled={selectedBap.status === 'FINAL' || !canManage}
+                      disabled={!isEditable}
                       checked={checked}
                       onChange={() => toggleScopeItem(scopeName)}
                       className="rounded text-[#C81E1E] focus:ring-[#C81E1E]"
@@ -188,7 +269,7 @@ export function BapDetailModal({
                     <input
                       type="radio"
                       name="isCompliant"
-                      disabled={selectedBap.status === 'FINAL' || !canManage}
+                      disabled={!isEditable}
                       checked={draftForm.isCompliant === true}
                       onChange={() => setDraftForm({ ...draftForm, isCompliant: true })}
                     />
@@ -198,7 +279,7 @@ export function BapDetailModal({
                     <input
                       type="radio"
                       name="isCompliant"
-                      disabled={selectedBap.status === 'FINAL' || !canManage}
+                      disabled={!isEditable}
                       checked={draftForm.isCompliant === false}
                       onChange={() => setDraftForm({ ...draftForm, isCompliant: false })}
                     />
@@ -221,7 +302,7 @@ export function BapDetailModal({
                 </label>
                 <textarea
                   rows={3}
-                  disabled={selectedBap.status === 'FINAL' || !canManage}
+                  disabled={!isEditable}
                   value={draftForm.inspectionNotes}
                   onChange={(e) => setDraftForm({ ...draftForm, inspectionNotes: e.target.value })}
                   placeholder="Catatan hasil riksa uji, temuan penting, atau kondisi operasional unit..."
@@ -229,7 +310,7 @@ export function BapDetailModal({
                 />
               </div>
 
-              {selectedBap.status === 'DRAF' && canFinalize && (
+              {isEditable && (
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -291,57 +372,116 @@ export function BapDetailModal({
                 </div>
               </div>
 
-              {selectedBap.status === 'DRAF' && canManage && (
-                <form onSubmit={handleSaveSignature} className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2">
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Bubuhkan Tanda Tangan Digital pada BAP
+              {isEditable && (
+                <form onSubmit={onSubmitSignature} className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <PenNib size={15} className="text-[#C81E1E]" />
+                      Bubuhkan Tanda Tangan Digital BAP
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Goreskan langsung di layar / pad
+                    </span>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <select
-                      value={sigForm.signerRole}
-                      onChange={(e) => {
-                        const role = e.target.value;
-                        setSigForm({
-                          signerRole: role,
-                          signerName:
-                            role === 'AHLI_K3'
-                              ? selectedBap.inspector_signer_name || selectedBap.inspector_name || ''
-                              : selectedBap.client_signer_name || selectedBap.contact_name || '',
-                          signerTitle:
-                            role === 'AHLI_K3'
-                              ? 'Ahli K3 Pemeriksa'
-                              : 'Pemilik Alat / Perwakilan Klien'
-                        });
-                      }}
-                      className="px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    >
-                      <option value="AHLI_K3">Inspector (Ahli K3)</option>
-                      <option value="PERWAKILAN_KLIEN">Pemilik Alat / Perwakilan Klien</option>
-                    </select>
-                    <input
-                      type="text"
-                      required
-                      value={sigForm.signerName}
-                      onChange={(e) => setSigForm({ ...sigForm, signerName: e.target.value })}
-                      placeholder="Nama lengkap penanda tangan..."
-                      className="px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        Pihak Penanda Tangan
+                      </label>
+                      <select
+                        value={sigForm.signerRole}
+                        onChange={(e) => {
+                          const role = e.target.value;
+                          setSigForm({
+                            signerRole: role,
+                            signerName:
+                              role === 'AHLI_K3'
+                                ? selectedBap.inspector_signer_name || selectedBap.inspector_name || ''
+                                : selectedBap.client_signer_name || selectedBap.contact_name || '',
+                            signerTitle:
+                              role === 'AHLI_K3'
+                                ? 'Ahli K3 Pemeriksa'
+                                : 'Pemilik Alat / Perwakilan Klien'
+                          });
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      >
+                        <option value="AHLI_K3">Inspector (Ahli K3)</option>
+                        <option value="PERWAKILAN_KLIEN">Pemilik Alat / Perwakilan Klien</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        Nama Penanda Tangan *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={sigForm.signerName}
+                        onChange={(e) => setSigForm({ ...sigForm, signerName: e.target.value })}
+                        placeholder="Nama lengkap penanda tangan..."
+                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                      Jabatan Penanda Tangan
+                    </label>
                     <input
                       type="text"
                       value={sigForm.signerTitle}
                       onChange={(e) => setSigForm({ ...sigForm, signerTitle: e.target.value })}
                       placeholder="Jabatan penanda tangan..."
-                      className="flex-1 px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Kotak Tanda Tangan:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={clearCanvas}
+                        className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer font-medium"
+                      >
+                        <Eraser size={13} />
+                        Hapus Coretan
+                      </button>
+                    </div>
+
+                    <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden bg-white shadow-inner">
+                      <canvas
+                        ref={canvasRef}
+                        width={400}
+                        height={130}
+                        onPointerDown={startDrawing}
+                        onPointerMove={draw}
+                        onPointerUp={stopDrawing}
+                        onPointerLeave={stopDrawing}
+                        className="w-full h-28 touch-none cursor-crosshair block bg-white"
+                      />
+                      {!hasDrawn && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-xs text-slate-400">
+                          Tanda tangani di sini dengan jari atau stylus
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
                     <button
                       type="submit"
-                      disabled={submitting}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded-md cursor-pointer"
+                      disabled={submitting || !hasDrawn}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#C81E1E] hover:bg-red-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs transition-colors"
                     >
                       <PenNib size={14} weight="bold" />
-                      Simpan TTD
+                      {submitting ? 'Menyimpan...' : 'Bubuhkan Tanda Tangan'}
                     </button>
                   </div>
                 </form>
@@ -403,7 +543,7 @@ export function BapDetailModal({
                       type="button"
                       onClick={() => {
                         onClose();
-                        navigate('/app/lhpp');
+                        navigate(`/app/lhpp?lhppId=${selectedBap.lhpp_id}`);
                       }}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-md cursor-pointer"
                     >
@@ -414,13 +554,19 @@ export function BapDetailModal({
                 </div>
               </div>
 
-              {selectedBap.status === 'DRAF' && canManage && (
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+              {['DRAF', 'REVISI'].includes(selectedBap.status) && canFinalize && (
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                  {!isLhppFinalized && (
+                    <div className="p-2.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-900 dark:text-amber-200">
+                      <strong>Urutan Dokumen Wajib:</strong> LHPP unit ini masih berstatus{' '}
+                      <span className="font-mono font-bold">{selectedBap.lhpp_status}</span>. Selesaikan finalisasi LHPP terlebih dahulu sebelum menerbitkan BAP resmi.
+                    </div>
+                  )}
                   <button
                     type="button"
-                    disabled={submitting}
+                    disabled={submitting || !isLhppFinalized}
                     onClick={handleFinalizeBap}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md disabled:opacity-50 cursor-pointer"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <LockKey size={16} weight="bold" />
                     Finalisasi &amp; Kunci Berita Acara Riksa Uji (BAP)
@@ -428,7 +574,7 @@ export function BapDetailModal({
                 </div>
               )}
 
-              {selectedBap.status === 'FINAL' && selectedBap.lhpp_status !== 'TERBIT' && (
+              {selectedBap.status === 'FINAL' && selectedBap.lhpp_status !== 'TERBIT' && canFinalize && (
                 <form onSubmit={handleReopenBap} className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     Buka Kunci BAP untuk Revisi Tercatat
@@ -456,6 +602,34 @@ export function BapDetailModal({
               )}
             </div>
           </div>
+
+          {selectedBap.revisions?.length > 0 && (
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/30 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Riwayat Versi &amp; Revisi BAP ({selectedBap.revisions.length})
+              </h4>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {selectedBap.revisions.map((rev) => (
+                  <div
+                    key={rev.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs"
+                  >
+                    <div>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        Versi #{rev.version} · {rev.action}
+                      </span>
+                      {rev.reason && (
+                        <span className="text-slate-600 dark:text-slate-400">: {rev.reason}</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {rev.actor_name || 'Sistem'} · {formatDateTime(rev.created_at)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Modal>

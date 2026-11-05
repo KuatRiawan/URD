@@ -1,10 +1,58 @@
+# EditorConfig configuration for PT Upaya Riksa Daya (URD)
+# Reference: https://editorconfig.org
+
 root = true
 
+# Global defaults for all files
 [*]
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
+trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
-trim_trailing_whitespace = true
 
+# JavaScript, TypeScript, JSX, and TSX
+[*.{js,jsx,ts,tsx,mjs,cjs}]
+indent_style = space
+indent_size = 2
+
+# JSON data and configuration files
+[*.{json,jsonc}]
+indent_style = space
+indent_size = 2
+
+# Stylesheets (CSS / Tailwind CSS)
+[*.css]
+indent_style = space
+indent_size = 2
+
+# HTML markup and templates
+[*.{html,htm}]
+indent_style = space
+indent_size = 2
+
+# YAML configuration files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# PostgreSQL migrations and SQL scripts
+[*.sql]
+indent_style = space
+indent_size = 2
+
+# Markdown documentation (preserve trailing whitespace for intentional line breaks)
+[*.{md,markdown}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# Python scripts (PEP 8 standard 4-space indentation)
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Makefiles (tab indentation required by Make syntax)
+[{Makefile,makefile}]
+indent_style = tab

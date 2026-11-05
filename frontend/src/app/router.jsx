@@ -182,7 +182,7 @@ export function AppRoutes() {
         <Route
           path="suket"
           element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN']}>
+            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN']}>
               <SuketPage />
             </RequireRole>
           }

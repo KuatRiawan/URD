@@ -9,20 +9,21 @@ export function StepPoSchedule({
   const isMarketing = user?.role === 'MARKETING';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-xs">
       <div>
-        <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+        <label htmlFor="po-requested-date" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
           {isMarketing
             ? 'Target Tanggal Pemeriksaan Lapangan (Permintaan Klien)'
             : 'Target Tanggal Pemeriksaan Lapangan'}
         </label>
         <input
+          id="po-requested-date"
           type="date"
           value={createForm.requestedDate}
           onChange={(e) =>
             setCreateForm((prev) => ({ ...prev, requestedDate: e.target.value }))
           }
-          className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+          className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
         />
         {isMarketing && (
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
@@ -39,13 +40,13 @@ export function StepPoSchedule({
             <span>Alur Penugasan Ahli K3 &amp; Jadwal Resmi</span>
           </div>
           <p className="text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
-            Sesuai standar operasional PT Upaya Riksa Daya, verifikasi kompetensi SKP Kemnaker (PAPA, PUBT, PTP, dsb), pengecekan bentrok jadwal, dan penerbitan <strong>Surat Tugas Ahli K3 resmi</strong> dilakukan oleh <strong>Admin Kantor</strong> setelah PO ini didaftarkan.
+            Sesuai standar operasional PT Upaya Riksa Daya, verifikasi kompetensi SKP Kemnaker (PAA, PUBT, PTP, dsb), pengecekan bentrok jadwal, dan penerbitan <strong>Surat Tugas Ahli K3 resmi</strong> dilakukan oleh <strong>Admin Kantor</strong> setelah PO ini didaftarkan.
           </p>
         </div>
       ) : (
         /* Untuk Admin Kantor / Admin Sistem: Opsi Penugasan Ahli K3 Langsung */
-        <div>
-          <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+        <div className="space-y-2">
+          <label className="block font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
             <UserCheck size={15} />
             <span>Tugaskan Inspector / Tim Ahli K3 (Dapat Ditugaskan Nanti)</span>
           </label>
@@ -59,7 +60,7 @@ export function StepPoSchedule({
               return (
                 <label
                   key={insp.id}
-                  className={`flex items-start gap-2 p-2.5 rounded border text-xs cursor-pointer ${
+                  className={`flex items-start gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
                     checked
                       ? 'border-[#C81E1E] bg-red-50/40 dark:bg-red-950/40'
                       : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50'
@@ -92,18 +93,18 @@ export function StepPoSchedule({
       )}
 
       <div>
-        <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+        <label htmlFor="po-notes" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
           Catatan Khusus PO / Instruksi Pelaksanaan Riksa Uji
         </label>
         <textarea
+          id="po-notes"
           rows={3}
           value={createForm.notes}
           onChange={(e) => setCreateForm((prev) => ({ ...prev, notes: e.target.value }))}
           placeholder="Instruksi khusus terkait APD wajib, izin safety induction, jam operasional pabrik, akses alat, PIC pendamping, dsb..."
-          className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
         />
       </div>
     </div>
   );
 }
-

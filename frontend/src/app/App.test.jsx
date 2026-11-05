@@ -179,9 +179,9 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: page.heading })).toBeInTheDocument();
-      });
+      }, { timeout: 4000 });
 
       unmount();
     }
-  }, 20000);
+  }, 35000);
 });

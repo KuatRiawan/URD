@@ -80,6 +80,14 @@ export async function fetchFullBapContext(db, id) {
   );
   if (!rows[0]) return null;
   const bap = rows[0];
+  const revRes = await db.query(
+    `SELECT r.*, u.full_name AS actor_name
+     FROM bap_revisions r
+     LEFT JOIN users u ON u.id = r.actor_id
+     WHERE r.bap_id = $1
+     ORDER BY r.created_at DESC`,
+    [id]
+  );
   return {
     ...bap,
     is_compliant: bap.conclusion !== 'TIDAK_MEMENUHI_SYARAT',
@@ -91,7 +99,8 @@ export async function fetchFullBapContext(db, id) {
       : null,
     client_signature_path: bap.client_sig_storage_key
       ? resolveAttachmentPath(bap.client_sig_storage_key)
-      : null
+      : null,
+    revisions: revRes.rows
   };
 }
 
@@ -214,7 +223,7 @@ router.get('/:id', async (req, res, next) => {
 
 router.put(
   '/:id/draft',
-  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
   validate(updateBapDraftSchema),
   async (req, res, next) => {
     try {
@@ -288,7 +297,7 @@ router.put(
 
 router.post(
   '/:id/signatures',
-  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
   validate(bapSignatureSchema),
   async (req, res, next) => {
     try {
@@ -388,6 +397,7 @@ router.post(
     try {
       const { id } = req.params;
       const result = await withTransaction(async (db) => {
+        await db.query('SELECT id, status FROM bap_documents WHERE id = $1 FOR UPDATE', [id]);
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
         const hasAccess = await canAccessBap(db, cur, req.user);
@@ -396,6 +406,13 @@ router.post(
         }
         if (cur.status === 'FINAL') {
           throw new AppError(400, 'BAP_ALREADY_FINAL', 'Dokumen BAP sudah berstatus FINAL.');
+        }
+        if (cur.lhpp_id && !['FINAL', 'TERBIT'].includes(cur.lhpp_status)) {
+          throw new AppError(
+            409,
+            'LHPP_NOT_FINALIZED',
+            'LHPP terkait belum difinalisasi atau sedang dalam revisi. Selesaikan finalisasi LHPP terlebih dahulu sebelum menerbitkan BAP resmi.'
+          );
         }
 
         const scopes = Array.isArray(cur.scope_items) ? cur.scope_items : [];
@@ -551,7 +568,7 @@ router.post(
 
 router.post(
   '/:id/reopen',
-  authorize('ADMIN_SISTEM', 'PIMPINAN', 'AHLI_K3'),
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'AHLI_K3'),
   validate(reopenBapSchema),
   async (req, res, next) => {
     try {
@@ -559,13 +576,29 @@ router.post(
       const { reason } = req.body;
 
       const reopened = await withTransaction(async (db) => {
+        await db.query('SELECT id, status FROM bap_documents WHERE id = $1 FOR UPDATE', [id]);
         const cur = await fetchFullBapContext(db, id);
         if (!cur) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
+        const hasAccess = await canAccessBap(db, cur, req.user);
+        if (!hasAccess) {
+          throw new AppError(403, 'FORBIDDEN', 'Anda tidak memiliki akses untuk membuka ulang BAP ini.');
+        }
         if (cur.lhpp_status === 'TERBIT') {
           throw new AppError(
             409,
             'LHPP_ALREADY_PUBLISHED',
             'LHPP terkait sudah terbit sehingga BAP tidak dapat dibuka ulang.'
+          );
+        }
+        const { rows: suketRows } = await db.query(
+          "SELECT id FROM suket_documents WHERE bap_id = $1 AND status = 'TERBIT' LIMIT 1",
+          [id]
+        );
+        if (suketRows[0]) {
+          throw new AppError(
+            409,
+            'SUKET_ALREADY_PUBLISHED',
+            'Suket K3 untuk BAP ini sudah terbit sehingga BAP tidak dapat dibuka ulang.'
           );
         }
 

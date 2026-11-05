@@ -3,15 +3,33 @@ import { Modal } from '../../../components/ui/Modal.jsx';
 
 export function PdfPreviewModal({
   open,
+  isOpen,
   onClose,
   title,
   pdfUrl,
   filename,
+  downloadFilename,
   onPrint
 }) {
+  const visible = Boolean(open ?? isOpen);
+  const actualFilename = filename || downloadFilename || 'dokumen.pdf';
+
+  const handlePrint = () => {
+    if (onPrint) {
+      onPrint();
+      return;
+    }
+    const iframe = document.getElementById('inspection-pdf-preview-iframe');
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }
+  };
+
   return (
     <Modal
-      open={open}
+      open={visible}
+      isOpen={visible}
       onClose={onClose}
       title={title}
       size="xl"
@@ -25,7 +43,7 @@ export function PdfPreviewModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onPrint}
+              onClick={handlePrint}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
             >
               <Printer size={15} weight="bold" />
@@ -33,7 +51,7 @@ export function PdfPreviewModal({
             </button>
             <a
               href={pdfUrl || '#'}
-              download={filename}
+              download={actualFilename}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer"
             >
               <DownloadSimple size={15} weight="bold" />

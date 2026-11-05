@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   Camera,
   FloppyDisk,
   Image as ImageIcon,
+  MagnifyingGlassPlus,
   Plus,
   Trash,
   Warning,
@@ -29,12 +31,23 @@ export function StepPhotosFindings({
   onBack,
   onNext
 }) {
+  const [enlargedPhoto, setEnlargedPhoto] = useState(null);
+
   const QUICK_CAPTION_TAGS = [
     'Nameplate & Spesifikasi Alat',
     'Kondisi Fisik Keseluruhan',
     'Pengujian Fungsi / Beban',
     'Perangkat Pengaman (Safety Device)',
     'Temuan Ketidaksesuaian'
+  ];
+
+  const QUICK_RECOMMENDATIONS = [
+    'Lakukan kalibrasi ulang alat ukur',
+    'Ganti sling/rantai baja yang aus',
+    'Perbaiki pembumian (grounding)',
+    'Lengkapi cover pelindung transmisi',
+    'Periksa limit switch & rem darurat',
+    'Lakukan pembersihan & pelumasan berkala'
   ];
 
   return (
@@ -74,20 +87,34 @@ export function StepPhotosFindings({
                 key={ph.id}
                 className="group relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 overflow-hidden shadow-2xs flex flex-col justify-between"
               >
-                <div className="relative aspect-4/3 bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                <div
+                  onClick={() =>
+                    setEnlargedPhoto({
+                      url: `/api/v1/dashboard/files/${ph.id}`,
+                      caption: ph.caption || ph.originalName
+                    })
+                  }
+                  className="relative aspect-4/3 bg-slate-200 dark:bg-slate-700 overflow-hidden cursor-pointer"
+                >
                   <img
                     src={`/api/v1/dashboard/files/${ph.id}`}
                     alt={ph.caption || ph.originalName}
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     loading="lazy"
                   />
+                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white pointer-events-none">
+                    <MagnifyingGlassPlus size={22} weight="bold" />
+                  </div>
                   {isInspector && status === 'DRAF' && (
                     <button
                       type="button"
-                      onClick={() => onDeletePhoto(ph.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeletePhoto(ph.id);
+                      }}
                       disabled={submitting}
                       title="Hapus foto ini"
-                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600/90 text-white hover:bg-rose-700 transition-all shadow-xs cursor-pointer active:scale-95"
+                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600/90 text-white hover:bg-rose-700 transition-all shadow-xs cursor-pointer active:scale-95 z-10"
                     >
                       <Trash size={14} weight="bold" />
                     </button>
@@ -269,55 +296,127 @@ export function StepPhotosFindings({
 
         {/* Form Tambah Temuan */}
         {isInspector && status === 'DRAF' && (
-          <form onSubmit={onAddFinding} className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <div className="sm:col-span-3">
-              <select
-                value={findingForm.severity}
-                onChange={(e) =>
-                  setFindingForm((prev) => ({ ...prev, severity: e.target.value }))
-                }
-                className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-200"
-              >
-                <option value="MINOR">MINOR (Ringan)</option>
-                <option value="MAYOR">MAYOR (Sedang)</option>
-                <option value="KRITIS">KRITIS (Bahaya)</option>
-              </select>
+          <form onSubmit={onAddFinding} className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+              <div className="md:col-span-3">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Tingkat Bahaya
+                </label>
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700">
+                  {[
+                    { id: 'MINOR', label: 'MINOR', active: 'bg-blue-600 text-white shadow-xs' },
+                    { id: 'MAYOR', label: 'MAYOR', active: 'bg-amber-600 text-white shadow-xs' },
+                    { id: 'KRITIS', label: 'KRITIS', active: 'bg-rose-600 text-white shadow-xs' }
+                  ].map((sev) => (
+                    <button
+                      key={sev.id}
+                      type="button"
+                      onClick={() => setFindingForm((prev) => ({ ...prev, severity: sev.id }))}
+                      className={`min-h-[38px] px-2 py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${
+                        findingForm.severity === sev.id
+                          ? sev.active
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {sev.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-4">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Uraian Temuan Teknis *
+                </label>
+                <input
+                  type="text"
+                  value={findingForm.description}
+                  onChange={(e) =>
+                    setFindingForm((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                  placeholder="Contoh: Baut pengikat kendor, seal bocor..."
+                  className="w-full min-h-[44px] md:min-h-10 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              <div className="md:col-span-3">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Rekomendasi Tindakan
+                </label>
+                <input
+                  type="text"
+                  value={findingForm.recommendation}
+                  onChange={(e) =>
+                    setFindingForm((prev) => ({ ...prev, recommendation: e.target.value }))
+                  }
+                  placeholder="Rekomendasi perbaikan..."
+                  className="w-full min-h-[44px] md:min-h-10 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              <div className="md:col-span-2 flex items-end">
+                <button
+                  type="submit"
+                  disabled={submitting || !findingForm.description.trim()}
+                  className="w-full min-h-[44px] md:min-h-10 rounded-xl bg-slate-900 dark:bg-slate-700 px-3 text-xs font-bold text-white hover:bg-black dark:hover:bg-slate-600 disabled:opacity-50 cursor-pointer shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Plus size={16} weight="bold" />
+                  <span>Tambah</span>
+                </button>
+              </div>
             </div>
-            <div className="sm:col-span-4">
-              <input
-                type="text"
-                value={findingForm.description}
-                onChange={(e) =>
-                  setFindingForm((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder="Uraian temuan teknis..."
-                className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <input
-                type="text"
-                value={findingForm.recommendation}
-                onChange={(e) =>
-                  setFindingForm((prev) => ({ ...prev, recommendation: e.target.value }))
-                }
-                placeholder="Rekomendasi tindakan..."
-                className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs text-slate-800 dark:text-slate-200"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                disabled={submitting || !findingForm.description.trim()}
-                className="w-full min-h-10 rounded-lg bg-slate-800 dark:bg-slate-700 px-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600 disabled:opacity-50 cursor-pointer shadow-xs transition-colors flex items-center justify-center gap-1"
-              >
-                <Plus size={14} weight="bold" />
-                <span>Tambah</span>
-              </button>
+
+            {/* Template Rekomendasi Cepat */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Rekomendasi Cepat:</span>
+              {QUICK_RECOMMENDATIONS.map((rec) => (
+                <button
+                  key={rec}
+                  type="button"
+                  onClick={() => setFindingForm((prev) => ({ ...prev, recommendation: rec }))}
+                  className="text-[10px] font-medium px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer active:scale-95"
+                >
+                  {rec}
+                </button>
+              ))}
             </div>
           </form>
         )}
       </div>
+
+      {/* Modal Pratinjau Resolusi Penuh Foto */}
+      {enlargedPhoto && (
+        <div
+          onClick={() => setEnlargedPhoto(null)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-3xl w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl flex flex-col"
+          >
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-800/90 border-b border-slate-700 text-white">
+              <div className="min-w-0 pr-3">
+                <h4 className="font-bold text-xs truncate text-white">{enlargedPhoto.caption || 'Foto Dokumentasi'}</h4>
+                <p className="text-[10px] text-slate-400">Pratinjau Foto Resolusi Penuh</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnlargedPhoto(null)}
+                className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white cursor-pointer"
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+            <div className="p-3 bg-black flex items-center justify-center max-h-[75vh] overflow-hidden">
+              <img
+                src={enlargedPhoto.url}
+                alt={enlargedPhoto.caption}
+                className="max-h-[70vh] w-auto object-contain mx-auto rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tombol Navigasi Bawah Langkah 1 */}
       <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">

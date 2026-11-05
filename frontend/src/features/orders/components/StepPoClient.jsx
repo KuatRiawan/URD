@@ -1,10 +1,6 @@
 import {
-  BellRinging,
   Buildings,
-  CheckCircle,
   MapPin,
-  Plus,
-  Star,
   User
 } from '@phosphor-icons/react';
 
@@ -71,11 +67,11 @@ export function StepPoClient({
 
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-4">
+      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-4 text-xs">
         {/* Pilih atau Input Klien */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            <label htmlFor="po-client-select" className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <Buildings size={16} className="text-[#C81E1E]" weight="bold" />
               <span>Perusahaan Klien *</span>
             </label>
@@ -94,9 +90,10 @@ export function StepPoClient({
           </div>
           {clientMode === 'EXISTING' ? (
             <select
+              id="po-client-select"
               value={createForm.clientId}
               onChange={(e) => handleClientChange(e.target.value)}
-              className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100"
+              className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
             >
               <option value="">Pilih Klien Terdaftar...</option>
               {clients.map((c) => (
@@ -107,55 +104,58 @@ export function StepPoClient({
             </select>
           ) : (
             <input
+              id="po-client-name"
               type="text"
               value={createForm.newClientName}
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, newClientName: e.target.value }))
               }
               placeholder="Ketik Nama Perusahaan Klien Baru *"
-              className="w-full min-h-11 rounded-lg border border-[#C81E1E] bg-red-50/20 dark:bg-red-950/20 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100"
+              className="w-full h-10 rounded-lg border border-[#C81E1E] bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-[#C81E1E]"
             />
           )}
         </div>
 
         {/* Input Tambahan Klien Baru */}
         {clientMode === 'NEW' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
             <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+              <label htmlFor="new-client-industry" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
                 Bidang Industri Klien Baru
               </label>
               <input
+                id="new-client-industry"
                 type="text"
                 value={createForm.newClientIndustry}
                 onChange={(e) =>
                   setCreateForm((prev) => ({ ...prev, newClientIndustry: e.target.value }))
                 }
                 placeholder="Contoh: Manufaktur, Konstruksi, Logistik..."
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                Alamat Kantor / Perusahaan Klien
+              <label htmlFor="new-client-address" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                Alamat Kantor Perusahaan Klien
               </label>
               <input
+                id="new-client-address"
                 type="text"
                 value={createForm.newClientAddress}
                 onChange={(e) =>
                   setCreateForm((prev) => ({ ...prev, newClientAddress: e.target.value }))
                 }
-                placeholder="Alamat lengkap kantor..."
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                placeholder="Alamat lengkap kantor pusat..."
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
           </div>
         )}
 
         {/* Bagian Lokasi Pabrik / Site Pelaksanaan Pemeriksaan */}
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-700/60 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <div className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <MapPin size={16} className="text-[#C81E1E]" weight="bold" />
               <span>Lokasi Pabrik / Site Pelaksanaan Riksa Uji</span>
             </div>
@@ -168,13 +168,14 @@ export function StepPoClient({
 
           {clientMode === 'EXISTING' && clientLocations.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-location-select" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Pilih dari Lokasi Cabang / Site Terdaftar:
               </label>
               <select
+                id="po-location-select"
                 value={createForm.locationId || ''}
                 onChange={(e) => handleSelectLocation(e.target.value)}
-                className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 mb-2"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               >
                 <option value="">+ Input Lokasi / Site Baru Manual...</option>
                 {clientLocations.map((loc) => (
@@ -188,10 +189,11 @@ export function StepPoClient({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-location-name" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Nama Lokasi / Site *
               </label>
               <input
+                id="po-location-name"
                 type="text"
                 value={createForm.locationName}
                 onChange={(e) =>
@@ -201,15 +203,16 @@ export function StepPoClient({
                     locationId: ''
                   }))
                 }
-                placeholder="Mis: Plant Cikarang / Site A"
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                placeholder="Misal: Plant Cikarang / Workshop A"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-location-address" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Alamat Lokasi Pemeriksaan
               </label>
               <input
+                id="po-location-address"
                 type="text"
                 value={createForm.locationAddress}
                 onChange={(e) =>
@@ -220,14 +223,15 @@ export function StepPoClient({
                   }))
                 }
                 placeholder="Jl. Industri Raya Blok..."
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-location-city" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Kota / Kabupaten
               </label>
               <input
+                id="po-location-city"
                 type="text"
                 value={createForm.locationCity}
                 onChange={(e) =>
@@ -237,19 +241,19 @@ export function StepPoClient({
                     locationId: ''
                   }))
                 }
-                placeholder="Mis: Bekasi / Karawang"
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                placeholder="Misal: Bekasi / Karawang"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
           </div>
         </div>
 
         {/* Bagian Kontak PIC K3 / HSE Klien */}
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-700/60 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <div className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <User size={16} className="text-[#C81E1E]" weight="bold" />
-              <span>Kontak PIC K3 / HSE Klien (Untuk Komunikasi &amp; Reminder)</span>
+              <span>Kontak PIC K3 / HSE Klien</span>
             </div>
             {clientMode === 'EXISTING' && activeContacts.length > 0 && (
               <span className="text-[11px] font-semibold text-slate-500">
@@ -260,19 +264,20 @@ export function StepPoClient({
 
           {clientMode === 'EXISTING' && activeContacts.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-contact-select" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Pilih dari Kontak PIC Terdaftar:
               </label>
               <select
+                id="po-contact-select"
                 value={createForm.contactId || ''}
                 onChange={(e) => handleSelectContact(e.target.value)}
-                className="w-full min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 mb-2"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               >
                 <option value="">+ Input Kontak PIC Baru Manual...</option>
                 {activeContacts.map((ct) => {
                   const tags = [];
-                  if (ct.is_primary) tags.push('★ PIC Utama');
-                  if (ct.is_reminder_recipient) tags.push('🔔 Reminder');
+                  if (ct.is_primary) tags.push('PIC Utama');
+                  if (ct.is_reminder_recipient) tags.push('Reminder');
                   const tagStr = tags.length ? `[${tags.join(', ')}] ` : '';
                   return (
                     <option key={ct.id} value={ct.id}>
@@ -286,10 +291,11 @@ export function StepPoClient({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-contact-name" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Nama Kontak PIC *
               </label>
               <input
+                id="po-contact-name"
                 type="text"
                 value={createForm.contactName}
                 onChange={(e) =>
@@ -299,15 +305,16 @@ export function StepPoClient({
                     contactId: ''
                   }))
                 }
-                placeholder="Mis: Bpk. Hendra"
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                placeholder="Misal: Bpk. Hendra"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-contact-phone" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 No. WhatsApp / Telepon PIC *
               </label>
               <input
+                id="po-contact-phone"
                 type="text"
                 value={createForm.contactPhone}
                 onChange={(e) =>
@@ -317,15 +324,16 @@ export function StepPoClient({
                     contactId: ''
                   }))
                 }
-                placeholder="Mis: 081234567890"
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-mono text-slate-900 dark:text-slate-100"
+                placeholder="Misal: 081234567890"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="po-contact-email" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Email PIC Klien
               </label>
               <input
+                id="po-contact-email"
                 type="email"
                 value={createForm.contactEmail}
                 onChange={(e) =>
@@ -335,8 +343,8 @@ export function StepPoClient({
                     contactId: ''
                   }))
                 }
-                placeholder="Mis: hse@klien.co.id"
-                className="w-full min-h-10 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                placeholder="Misal: hse@klien.co.id"
+                className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
               />
             </div>
           </div>

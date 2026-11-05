@@ -122,10 +122,10 @@ export function LhppTechnicalForm({
             type="button"
             disabled={submitting}
             onClick={handleSubmitReview}
-            className="min-h-10 inline-flex items-center gap-1.5 rounded bg-[#C81E1E] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-red-800 cursor-pointer"
+            className="min-h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a61717] shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
           >
-            <PaperPlaneTilt size={15} />
-            <span>Kirim ke Marketing</span>
+            <PaperPlaneTilt size={15} weight="bold" />
+            <span>Ajukan untuk Review QC &amp; Finalisasi</span>
           </button>
         </div>
       )}

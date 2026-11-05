@@ -16,6 +16,7 @@ import { useOrderManagement } from './hooks/useOrderManagement.js';
 
 export function OrdersPage() {
   const { user } = useAuth();
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
   const canCreatePo = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
   const canManageSchedule = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
   const canManageStatus = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
@@ -85,6 +86,10 @@ export function OrdersPage() {
     handleDownloadBatchBapPdf,
     handleDownloadBastPdf,
     handleDownloadUnitPdf,
+    handleUpdateOrder,
+    handleAddUnitsToOrder,
+    handleUploadPoAttachment,
+    handleUpdateOrderUnit,
     page,
     setPage,
     limit,
@@ -216,11 +221,18 @@ export function OrdersPage() {
   };
   const nextStatuses = activeOrder ? ALLOWED_NEXT_STATUS[activeOrder.status] || [] : [];
 
+  const waitingScheduleCount = orders.filter((o) => ['ORDER_BARU', 'TERDAFTAR'].includes(o.status)).length;
+  const inProgressPoCount = orders.filter((o) =>
+    ['TERJADWAL', 'DITUGASKAN', 'SEDANG_DIPERIKSA', 'MENUNGGU_LAPORAN', 'MENUNGGU_DOKUMEN'].includes(o.status)
+  ).length;
+  const completedPoCount = orders.filter((o) => o.status === 'SELESAI').length;
+  const totalUnitsOnPage = orders.reduce((acc, o) => acc + Number(o.object_count || o.unitProgress?.totalUnits || 0), 0);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="PO & Order Pemeriksaan"
-        subtitle="Pendaftaran dan monitoring Purchase Order riksa uji K3."
+        title={isPimpinan ? "Monitoring PO & Order Pemeriksaan" : "PO & Order Pemeriksaan"}
+        subtitle={isPimpinan ? "Pemantauan komprehensif progres riksa uji unit alat, status PO, dan sertifikasi klien." : "Pendaftaran dan monitoring Purchase Order riksa uji K3."}
         actions={
           canManage && (
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -248,6 +260,51 @@ export function OrdersPage() {
           )
         }
       />
+
+      {/* Ringkasan Operasional PO & Unit */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { key: '', label: 'Total PO Terdaftar', value: total || orders.length, sub: `${totalUnitsOnPage} unit alat tercatat`, tone: 'slate' },
+          { key: 'ORDER_BARU', label: 'PO Baru / Siap Jadwal', value: waitingScheduleCount, sub: 'Menunggu penjadwalan', tone: 'amber' },
+          { key: 'SEDANG_DIPERIKSA', label: 'PO Sedang Berjalan', value: inProgressPoCount, sub: 'Lapangan & proses dokumen', tone: 'blue' },
+          { key: 'SELESAI', label: 'PO Selesai', value: completedPoCount, sub: 'Seluruh unit tuntas', tone: 'emerald' }
+        ].map((card) => {
+          const isSelected = statusFilter === card.key;
+          return (
+            <button
+              key={card.label}
+              type="button"
+              onClick={() => {
+                setPage(1);
+                setStatusFilter(card.key);
+              }}
+              className={`text-left p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                isSelected
+                  ? 'border-[#C81E1E] bg-rose-50/40 dark:bg-rose-950/20'
+                  : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+              }`}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {card.label}
+              </p>
+              <p
+                className={`text-2xl font-extrabold tabular-nums mt-1 ${
+                  card.tone === 'amber' && card.value > 0
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : card.tone === 'emerald' && card.value > 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : card.tone === 'blue' && card.value > 0
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-slate-900 dark:text-slate-100'
+                }`}
+              >
+                {card.value}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{card.sub}</p>
+            </button>
+          );
+        })}
+      </div>
 
       {feedback && (
         <Notice tone="success" onClose={() => setFeedback('')}>
@@ -364,6 +421,12 @@ export function OrdersPage() {
         handleRespondAssignment={handleRespondAssignment}
         handleStatusChange={handleStatusChange}
         checkConflicts={checkConflicts}
+        handleUpdateOrder={handleUpdateOrder}
+        handleAddUnitsToOrder={handleAddUnitsToOrder}
+        handleUploadPoAttachment={handleUploadPoAttachment}
+        handleUpdateOrderUnit={handleUpdateOrderUnit}
+        categories={categories}
+        clients={clients}
       />
 
       {/* Modal Impor CSV Unit */}

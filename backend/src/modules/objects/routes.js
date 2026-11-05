@@ -619,7 +619,7 @@ router.post(
 // M1-10: Lampiran dokumen objek
 router.post(
   '/:id/attachments',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
   uploadMiddleware.single('file'),
   async (req, res, next) => {
     try {

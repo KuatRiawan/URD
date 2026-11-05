@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import {
+  ArrowsClockwise,
   Bell,
   CaretDown,
   CaretLeft,
@@ -9,13 +10,17 @@ import {
   Checks,
   Gear,
   MagnifyingGlass,
-  SignOut
+  SignOut,
+  WifiHigh,
+  WifiSlash
 } from '@phosphor-icons/react';
 import logoUrd from '../../assets/logo-urd.png';
 import { api } from '../../lib/api/axios.js';
 import { formatDateTime, ROLE_LABELS } from '../../lib/utils/format.js';
 import { ThemeToggle } from '../ui/ThemeToggle.jsx';
 import { getInitials } from './SidebarNav.jsx';
+import { getPendingSyncSummary } from '../../lib/utils/offline-sync.js';
+import { OfflineSyncDrawer } from '../../features/inspections/components/OfflineSyncDrawer.jsx';
 
 export function TopHeader({
   collapsed,
@@ -38,6 +43,34 @@ export function TopHeader({
   const [notifLoading, setNotifLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const notifMenuRef = useRef(null);
+
+  const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(user?.role);
+  const [offlineDrawerOpen, setOfflineDrawerOpen] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+
+  useEffect(() => {
+    if (!isInspector) return;
+    const checkSync = async () => {
+      try {
+        const sum = await getPendingSyncSummary();
+        setPendingSyncCount(sum.totalPending || 0);
+      } catch {
+        setPendingSyncCount(0);
+      }
+    };
+    checkSync();
+    const interval = setInterval(checkSync, 15000);
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [isInspector]);
 
   // Tutup popup notifikasi saat klik di luar
   useEffect(() => {
@@ -252,6 +285,39 @@ export function TopHeader({
           </kbd>
         </button>
 
+        {/* Status Offline & Sinkronisasi Khusus Inspector */}
+        {isInspector && (
+          <button
+            type="button"
+            onClick={() => setOfflineDrawerOpen(true)}
+            className={`inline-flex h-9 items-center gap-1.5 px-2.5 rounded-lg border text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+              !isOnline
+                ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800'
+                : pendingSyncCount > 0
+                ? 'bg-rose-50 text-[#C81E1E] border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+            }`}
+            title="Penyimpanan Offline & Antrean Sinkronisasi"
+          >
+            {!isOnline ? (
+              <>
+                <WifiSlash size={15} weight="bold" />
+                <span className="hidden md:inline">Offline</span>
+              </>
+            ) : pendingSyncCount > 0 ? (
+              <>
+                <ArrowsClockwise size={15} weight="bold" className="animate-spin text-[#C81E1E]" />
+                <span>{pendingSyncCount} <span className="hidden md:inline">Antrean</span></span>
+              </>
+            ) : (
+              <>
+                <WifiHigh size={15} weight="bold" className="text-emerald-500" />
+                <span className="hidden md:inline">Online</span>
+              </>
+            )}
+          </button>
+        )}
+
         {/* Theme Toggle - Desktop */}
         <div className="hidden sm:inline-flex">
           <ThemeToggle />
@@ -441,6 +507,13 @@ export function TopHeader({
           )}
         </div>
       </div>
+
+      {isInspector && (
+        <OfflineSyncDrawer
+          isOpen={offlineDrawerOpen}
+          onClose={() => setOfflineDrawerOpen(false)}
+        />
+      )}
     </header>
   );
 }

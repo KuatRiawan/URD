@@ -40,22 +40,24 @@ export function CreatePoWizardModal({
 }) {
   const { user: authUser } = useAuth();
   const currentUser = propUser || authUser;
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Buat Purchase Order (PO)"
+      subtitle={`Langkah ${poWizardStep} dari 5: ${PO_WIZARD_STEPS[poWizardStep - 1]}`}
       size="xl"
     >
       <div className="space-y-5 text-slate-800 dark:text-slate-200">
         {/* Stepper Progress Bar */}
-        <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="pb-1">
           <div className="flex items-center justify-between text-xs mb-2">
             <span className="font-bold text-slate-900 dark:text-white">
-              Langkah {poWizardStep} dari 5: {PO_WIZARD_STEPS[poWizardStep - 1]}
+              {PO_WIZARD_STEPS[poWizardStep - 1]}
             </span>
-            <span className="font-semibold text-[#C81E1E]">
-              {Math.round((poWizardStep / 5) * 100)}% Selesai
+            <span className="font-bold font-mono text-[#C81E1E]">
+              {Math.round((poWizardStep / 5) * 100)}%
             </span>
           </div>
           <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -133,7 +135,7 @@ export function CreatePoWizardModal({
                 setError('');
                 setPoWizardStep((prev) => prev - 1);
               }}
-              className="h-9 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              className="h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
             >
               <ArrowLeft size={15} weight="bold" />
               <span>Kembali</span>
@@ -142,7 +144,7 @@ export function CreatePoWizardModal({
             <button
               type="button"
               onClick={onClose}
-              className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              className="h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
             >
               Batal
             </button>
@@ -152,7 +154,7 @@ export function CreatePoWizardModal({
             <button
               type="button"
               onClick={handleWizardNext}
-              className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-4 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-xs"
+              className="h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-4.5 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-2xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
             >
               <span>Lanjut</span>
               <ArrowRight size={15} weight="bold" />
@@ -162,7 +164,7 @@ export function CreatePoWizardModal({
               type="button"
               disabled={submitting}
               onClick={handleCreateOrder}
-              className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-5 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
+              className="h-10 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-5 text-xs font-bold text-white shadow-2xs disabled:opacity-50 cursor-pointer transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700"
             >
               <CheckCircle size={16} weight="bold" />
               <span>{submitting ? 'Menyimpan...' : 'Simpan Purchase Order'}</span>
@@ -173,4 +175,3 @@ export function CreatePoWizardModal({
     </Modal>
   );
 }
-

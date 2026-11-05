@@ -41,7 +41,14 @@ const allowedOrigins = env.corsOrigin.split(',').map((o) => o.trim());
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        (env.nodeEnv === 'development' &&
+          (/\.ngrok(-free)?\.(app|dev|io)$/.test(origin) || origin.includes('.ngrok')))
+      ) {
+        return cb(null, true);
+      }
       return cb(new AppError(403, 'CORS_FORBIDDEN', 'Origin tidak diizinkan.'));
     },
     credentials: true

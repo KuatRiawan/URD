@@ -4,10 +4,19 @@ const SENSITIVE_KEYS = new Set([
   'password',
   'passwordHash',
   'password_hash',
+  'pass',
+  'smtp_pass',
+  'smtpPass',
+  'api_key',
+  'apiKey',
   'token',
+  'whatsapp_token',
+  'whatsappToken',
   'refreshToken',
   'accessToken',
-  'secret'
+  'secret',
+  'jwtSecret',
+  'authorization'
 ]);
 
 function scrub(obj) {

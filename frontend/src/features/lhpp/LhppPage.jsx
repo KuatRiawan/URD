@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { CheckCircle, Clock, FileText, WarningCircle } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { Notice } from '../../components/ui/Notice.jsx';
@@ -18,12 +19,13 @@ export function LhppPage() {
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
   const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
+  const [searchParams] = useSearchParams();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
 
   const [detailLhpp, setDetailLhpp] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -75,7 +77,6 @@ export function LhppPage() {
     loadData();
   }, [loadData]);
 
-  const [searchParams] = useSearchParams();
   const searchParam = searchParams.get('search') || searchParams.get('id');
   const openedLhppRef = useRef(null);
 
@@ -143,9 +144,9 @@ export function LhppPage() {
   const handleSubmitReview = async () => {
     if (!detailLhpp) return;
     const ok = await confirm({
-      title: 'Kirim LHPP ke Marketing',
-      message: 'Pastikan hasil pemeriksaan dan narasi teknis sudah lengkap sebelum dikirim untuk pratinjau dan finalisasi.',
-      confirmLabel: 'Kirim ke Marketing'
+      title: 'Ajukan LHPP untuk Review QC & Finalisasi',
+      message: 'Pastikan hasil pemeriksaan teknis dan draf narasi sudah lengkap sebelum diajukan untuk tinjauan QC Admin Kantor dan finalisasi.',
+      confirmLabel: 'Ajukan untuk Review QC'
     });
     if (!ok) return;
 
@@ -153,11 +154,11 @@ export function LhppPage() {
     setError('');
     try {
       await api.post(`/lhpp/${detailLhpp.id}/submit-finalization`);
-      setFeedback('LHPP berhasil dikirim ke Marketing untuk pratinjau dan finalisasi.');
+      setFeedback('LHPP berhasil diajukan untuk proses review QC dan finalisasi dokumen.');
       await openDetail(detailLhpp.id);
       await loadData();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal mengirim LHPP ke Marketing.');
+      setError(err.response?.data?.message || 'Gagal mengajukan LHPP untuk review QC.');
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +203,7 @@ export function LhppPage() {
     } catch (err) {
       setError(
         err.response?.data?.error?.message ||
-          'Gagal mengembalikan dokumen LHPP untuk revisi.'
+        'Gagal mengembalikan dokumen LHPP untuk revisi.'
       );
       return false;
     } finally {
@@ -389,11 +390,23 @@ export function LhppPage() {
     }
   };
 
+  const stats = useMemo(() => {
+    const total = items.length;
+    const waitingReview = items.filter((i) => i.status === 'SIAP_PREVIEW').length;
+    const returned = items.filter((i) => i.status === 'DIKEMBALIKAN').length;
+    const published = items.filter((i) => ['FINAL', 'TERBIT'].includes(i.status)).length;
+    return { total, waitingReview, returned, published };
+  }, [items]);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dokumen LHPP &amp; BAP"
-        subtitle="Penyusunan narasi teknis, pengesahan dokumen resmi, dan penerbitan berkas PDF ber-QR verifikasi."
+        title={isPimpinan ? 'Monitoring Dokumen LHPP' : 'Dokumen LHPP & BAP'}
+        subtitle={
+          isPimpinan
+            ? 'Pengawasan penyusunan narasi teknis, antrean kendali mutu (QC), revisi, dan status penerbitan LHPP.'
+            : 'Penyusunan narasi teknis, pengesahan dokumen resmi, dan penerbitan berkas PDF ber-QR verifikasi.'
+        }
         actions={
           <select
             aria-label="Filter Status LHPP"
@@ -410,6 +423,73 @@ export function LhppPage() {
           </select>
         }
       />
+
+      {/* Ringkasan Status Dokumen LHPP */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <FileText size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Berkas LHPP</div>
+            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Dokumen</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+            <Clock size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Antrean Kendali Mutu</div>
+            <div className="text-base font-extrabold text-blue-700 dark:text-blue-400">{stats.waitingReview} Menunggu</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+            <WarningCircle size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Dalam Revisi Teknis</div>
+            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">{stats.returned} Revisi</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle size={18} weight="bold" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">LHPP Telah Terbit</div>
+            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.published} Terbit</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Segmented Filter Bar: Status Alur Kerja LHPP */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-2xl overflow-x-auto">
+        {[
+          { key: '', label: 'Semua Dokumen' },
+          { key: 'SIAP_PREVIEW', label: 'Menunggu QC (Siap Final)' },
+          { key: 'DIKEMBALIKAN', label: 'Dalam Revisi' },
+          { key: 'DRAF', label: 'Draf' },
+          { key: 'FINAL', label: 'Final / Terbit' }
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setStatusFilter(tab.key)}
+            className={`py-2 px-3.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+              statusFilter === tab.key
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {feedback && (
         <Notice tone="success" onClose={() => setFeedback('')}>

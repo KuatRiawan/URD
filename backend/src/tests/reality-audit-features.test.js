@@ -18,7 +18,7 @@ import { generateBapDocxBuffer } from '../services/docx-generator.js';
 describe('Reality Audit & Product Reengineering Verification', () => {
   let adminSistemToken;
   let adminKantorToken;
-  let marketingToken;
+  let _marketingToken;
   let sampleVersionId;
 
   beforeAll(async () => {
@@ -34,7 +34,7 @@ describe('Reality Audit & Product Reengineering Verification', () => {
 
     adminSistemToken = makeToken(asUser?.id || '00000000-0000-0000-0000-000000000001', 'ADMIN_SISTEM', 'Admin Sistem');
     adminKantorToken = makeToken(akUser?.id || '00000000-0000-0000-0000-000000000002', 'ADMIN_KANTOR', 'Admin Kantor');
-    marketingToken = makeToken(mktUser?.id || '00000000-0000-0000-0000-000000000003', 'MARKETING', 'Marketing URD');
+    _marketingToken = makeToken(mktUser?.id || '00000000-0000-0000-0000-000000000003', 'MARKETING', 'Marketing URD');
 
     // 2. Ambil version_id checklist aktif
     const { rows: vRows } = await query(

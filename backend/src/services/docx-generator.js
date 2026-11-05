@@ -14,7 +14,7 @@ import { buildLhppReportContent } from './pdf-generator.js';
 import { getCompanyProfile } from './system-settings-service.js';
 
 export async function generateLhppDocxBuffer(data) {
-  const [report, companyProfile] = await Promise.all([
+  const [report, _companyProfile] = await Promise.all([
     Promise.resolve(buildLhppReportContent(data)),
     getCompanyProfile().catch(() => null)
   ]);

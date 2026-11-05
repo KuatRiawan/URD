@@ -30,6 +30,21 @@ const unitValiditySchema = Joi.object({
   note: Joi.string().max(500).allow('', null)
 });
 
+const followupSchema = Joi.object({
+  status: Joi.string()
+    .valid(
+      'BELUM_DITINDAKLANJUTI',
+      'SUDAH_DIHUBUNGI',
+      'MENUNGGU_KONFIRMASI_KLIEN',
+      'SUDAH_JADI_PO_BARU',
+      'TERJADWAL',
+      'DITUNDA'
+    )
+    .required(),
+  note: Joi.string().max(1000).required(),
+  contactPic: Joi.string().max(160).allow('', null)
+});
+
 export function resolveStage(daysRemaining) {
   if (daysRemaining === null || daysRemaining === undefined || daysRemaining > 90) return null;
   if (daysRemaining <= 0) return STAGES[0];
@@ -193,9 +208,9 @@ router.get('/', async (req, res, next) => {
               t.capacity, t.install_location, t.next_inspection_date, t.validity_notes,
               oc.id AS category_id, oc.code AS category_code, oc.name AS category_name,
               c.id AS client_id, c.name AS client_name, c.phone AS client_phone, c.email AS client_email,
-              (SELECT cc.name FROM client_contacts cc WHERE cc.client_id = c.id ORDER BY cc.created_at DESC LIMIT 1) AS contact_name,
-              COALESCE((SELECT cc.phone FROM client_contacts cc WHERE cc.client_id = c.id ORDER BY cc.created_at DESC LIMIT 1), c.phone) AS contact_phone,
-              COALESCE((SELECT cc.email FROM client_contacts cc WHERE cc.client_id = c.id ORDER BY cc.created_at DESC LIMIT 1), c.email) AS contact_email,
+              (SELECT cc.name FROM client_contacts cc WHERE cc.client_id = c.id AND cc.is_active = true ORDER BY cc.is_reminder_recipient DESC, cc.is_primary DESC, cc.created_at DESC LIMIT 1) AS contact_name,
+              COALESCE((SELECT cc.phone FROM client_contacts cc WHERE cc.client_id = c.id AND cc.is_active = true ORDER BY cc.is_reminder_recipient DESC, cc.is_primary DESC, cc.created_at DESC LIMIT 1), c.phone) AS contact_phone,
+              COALESCE((SELECT cc.email FROM client_contacts cc WHERE cc.client_id = c.id AND cc.is_active = true ORDER BY cc.is_reminder_recipient DESC, cc.is_primary DESC, cc.created_at DESC LIMIT 1), c.email) AS contact_email,
               lat_suket.id AS suket_id, lat_suket.suket_no, lat_suket.valid_until AS suket_valid_until,
               lat_suket.followup_status AS suket_followup_status,
               lat_insp.id AS last_inspection_id, lat_insp.inspected_at AS last_inspected_at,
@@ -340,6 +355,88 @@ router.patch(
       });
 
       return res.json({ object: updated });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Riwayat tindak lanjut renewal per unit
+router.get(
+  '/units/:objectId/followups',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'PIMPINAN'),
+  async (req, res, next) => {
+    try {
+      const { objectId } = req.params;
+      const { rows } = await query(
+        `SELECT rf.*, u.full_name AS recorder_name
+         FROM renewal_followups rf
+         LEFT JOIN users u ON u.id = rf.recorded_by
+         WHERE rf.object_id = $1
+            OR rf.suket_id IN (SELECT id FROM suket_documents WHERE object_id = $1)
+         ORDER BY rf.created_at DESC`,
+        [objectId]
+      );
+      return res.json({ items: rows });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Catat tindak lanjut baru untuk unit renewal
+router.post(
+  '/units/:objectId/followups',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  validate(followupSchema),
+  async (req, res, next) => {
+    try {
+      const { objectId } = req.params;
+      const { status, note, contactPic } = req.body;
+
+      const created = await withTransaction(async (db) => {
+        const { rows: objRows } = await db.query(
+          `SELECT t.id, t.name, t.serial_number,
+                  (SELECT s.id FROM suket_documents s WHERE s.object_id = t.id AND s.status = 'TERBIT' ORDER BY s.valid_until DESC NULLS LAST LIMIT 1) AS suket_id
+           FROM test_objects t
+           WHERE t.id = $1`,
+          [objectId]
+        );
+        const obj = objRows[0];
+        if (!obj) throw new AppError(404, 'OBJECT_NOT_FOUND', 'Unit alat tidak ditemukan.');
+
+        const { rows } = await db.query(
+          `INSERT INTO renewal_followups (suket_id, object_id, status, note, contact_pic, recorded_by)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [obj.suket_id || null, objectId, status, note.trim(), contactPic?.trim() || null, req.user.id]
+        );
+
+        if (obj.suket_id) {
+          await db.query(
+            `UPDATE suket_documents
+             SET followup_status = $1, updated_at = now()
+             WHERE id = $2`,
+            [status, obj.suket_id]
+          );
+        }
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'UNIT_FOLLOWUP_RECORD',
+            entity: 'renewal_followups',
+            entityId: rows[0].id,
+            summary: { objectId, status, note: note.trim() },
+            ip: req.ip
+          },
+          db
+        );
+
+        return rows[0];
+      });
+
+      return res.status(201).json({ followup: created });
     } catch (err) {
       return next(err);
     }

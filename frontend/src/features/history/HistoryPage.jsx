@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { LoadingState, ErrorState, EmptyState, PaginationBar } from '../../components/feedback/StateViews.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
@@ -71,12 +72,63 @@ export function HistoryPage() {
     }
   };
 
+  const { user } = useAuth();
+  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+
+  const passedCount = items.filter((i) => i.conclusion === 'MEMENUHI_SYARAT').length;
+  const withLhppCount = items.filter((i) => Boolean(i.lhpp_no || i.bap_no)).length;
+  const withSuketCount = items.filter((i) => Boolean(i.suket_no)).length;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Riwayat Pengujian Klien"
-        subtitle="Arsip riksa uji unit alat, BAP, LHPP, dan masa berlaku."
+        title={isPimpinan ? 'Monitoring Riwayat Pengujian K3' : 'Riwayat Pengujian Klien'}
+        subtitle={
+          isPimpinan
+            ? 'Arsip pengawasan riksa uji unit alat K3, riwayat dokumen BAP, LHPP, dan siklus masa berlaku.'
+            : 'Arsip riksa uji unit alat, BAP, LHPP, dan masa berlaku.'
+        }
       />
+
+      {/* Ringkasan Riwayat Pengujian */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Total Arsip Pengujian
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+            {total || items.length}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Rekam jejak pemeriksaan unit</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Memenuhi Syarat K3
+          </p>
+          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
+            {passedCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit laik operasi pada halaman ini</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Dokumen BAP / LHPP
+          </p>
+          <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums mt-1">
+            {withLhppCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Memiliki berkas uji resmi</p>
+        </div>
+        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Suket K3 Terbit
+          </p>
+          <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 tabular-nums mt-1">
+            {withSuketCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tersertifikasi Disnaker</p>
+        </div>
+      </div>
 
       <HistoryFilterBar
         search={search}

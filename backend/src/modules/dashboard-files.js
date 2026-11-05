@@ -343,6 +343,83 @@ router.get('/summary', async (req, res, next) => {
       });
     }
 
+    const periodParam = String(req.query.period || '').toUpperCase();
+    let trendSql = `
+      SELECT to_char(d, 'YYYY-MM') AS month_key,
+             to_char(d, 'Mon') AS month_label,
+             coalesce(count(o.id), 0)::int AS order_count,
+             coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+      FROM generate_series(
+        date_trunc('month', now() - interval '5 months'),
+        date_trunc('month', now()),
+        interval '1 month'
+      ) d
+      LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+      GROUP BY d
+      ORDER BY d ASC
+    `;
+    if (periodParam === '7D') {
+      trendSql = `
+        SELECT to_char(d, 'YYYY-MM-DD') AS month_key,
+               to_char(d, 'DD Mon') AS month_label,
+               coalesce(count(o.id), 0)::int AS order_count,
+               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+        FROM generate_series(
+          date_trunc('day', now() - interval '6 days'),
+          date_trunc('day', now()),
+          interval '1 day'
+        ) d
+        LEFT JOIN orders o ON date_trunc('day', o.created_at) = d
+        GROUP BY d
+        ORDER BY d ASC
+      `;
+    } else if (periodParam === '30D') {
+      trendSql = `
+        SELECT to_char(d, 'YYYY-MM-DD') AS month_key,
+               to_char(d, 'DD Mon') AS month_label,
+               coalesce(count(o.id), 0)::int AS order_count,
+               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+        FROM generate_series(
+          date_trunc('week', now() - interval '4 weeks'),
+          date_trunc('week', now()),
+          interval '1 week'
+        ) d
+        LEFT JOIN orders o ON date_trunc('week', o.created_at) = d
+        GROUP BY d
+        ORDER BY d ASC
+      `;
+    } else if (periodParam === '90D') {
+      trendSql = `
+        SELECT to_char(d, 'YYYY-MM') AS month_key,
+               to_char(d, 'Mon') AS month_label,
+               coalesce(count(o.id), 0)::int AS order_count,
+               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+        FROM generate_series(
+          date_trunc('month', now() - interval '2 months'),
+          date_trunc('month', now()),
+          interval '1 month'
+        ) d
+        LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+        GROUP BY d
+        ORDER BY d ASC
+      `;
+    } else if (periodParam === '1Y') {
+      trendSql = `
+        SELECT to_char(d, 'YYYY-MM') AS month_key,
+               to_char(d, 'Mon YY') AS month_label,
+               coalesce(count(o.id), 0)::int AS order_count,
+               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+        FROM generate_series(
+          date_trunc('month', now() - interval '11 months'),
+          date_trunc('month', now()),
+          interval '1 month'
+        ) d
+        LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+        GROUP BY d
+        ORDER BY d ASC
+      `;
+    }
+
     const [
       orderCounts,
       lhppCounts,
@@ -357,7 +434,8 @@ router.get('/summary', async (req, res, next) => {
       recentActivitiesRes,
       unitStatusRes,
       operationalIssuesRes,
-      documentPipelineRes
+      documentPipelineRes,
+      adminStatsRes
     ] = await Promise.all([
       query(`
         SELECT count(*)::int AS total,
@@ -370,7 +448,7 @@ router.get('/summary', async (req, res, next) => {
       query(`
         SELECT count(*)::int AS total,
                count(*) FILTER (WHERE status = 'SIAP_PREVIEW')::int AS ready_finalize,
-               count(*) FILTER (WHERE status = 'TERBIT')::int AS published,
+               count(*) FILTER (WHERE status IN ('FINAL', 'TERBIT'))::int AS published,
                count(*) FILTER (WHERE status = 'DIKEMBALIKAN')::int AS returned
         FROM lhpp_documents
       `),
@@ -386,22 +464,34 @@ router.get('/summary', async (req, res, next) => {
       `),
       query(`
         SELECT u.id, u.full_name,
-               count(a.id) FILTER (WHERE a.status IN ('MENUNGGU','DITERIMA') AND o.status NOT IN ('SELESAI','DIBATALKAN'))::int AS active_assignments,
-               (SELECT count(*)::int FROM inspections i WHERE i.inspector_id = u.id AND i.status = 'TERKIRIM') AS completed_inspections
+               count(DISTINCT a.id) FILTER (WHERE a.status IN ('MENUNGGU','DITERIMA') AND o.status NOT IN ('SELESAI','DIBATALKAN'))::int AS active_assignments,
+               count(DISTINCT a.id) FILTER (WHERE a.status = 'MENUNGGU' AND o.status NOT IN ('SELESAI','DIBATALKAN'))::int AS pending_confirmations,
+               (SELECT count(*)::int FROM order_objects oo JOIN orders o2 ON o2.id = oo.order_id WHERE oo.inspector_id = u.id AND oo.unit_status NOT IN ('SELESAI', 'DIBATALKAN') AND o2.status NOT IN ('SELESAI', 'DIBATALKAN')) AS assigned_units,
+               (SELECT count(*)::int FROM inspections i WHERE i.inspector_id = u.id AND i.status = 'DRAF') AS draft_inspections,
+               (SELECT count(*)::int FROM inspections i WHERE i.inspector_id = u.id AND i.status = 'TERKIRIM') AS completed_inspections,
+               (SELECT count(*)::int FROM lhpp_documents l JOIN inspections i2 ON i2.id = l.inspection_id WHERE i2.inspector_id = u.id AND l.status = 'DIKEMBALIKAN') AS revision_count,
+               (SELECT count(*)::int FROM inspector_competencies ic WHERE ic.inspector_id = u.id AND ic.valid_until >= CURRENT_DATE) AS valid_skp_count
         FROM users u
         LEFT JOIN assignments a ON a.inspector_id = u.id
         LEFT JOIN orders o ON o.id = a.order_id
         WHERE u.role IN ('AHLI_K3', 'INSPECTOR') AND u.is_active = true
         GROUP BY u.id, u.full_name
-        ORDER BY active_assignments DESC, u.full_name ASC
+        ORDER BY active_assignments DESC, assigned_units DESC, u.full_name ASC
       `),
       query(`
-        SELECT o.id, o.order_no, o.status, o.service_type, o.created_at,
-               c.name AS client_name
+        SELECT o.id, o.order_no, o.po_number, o.po_date, o.status, o.service_type, o.created_at,
+               c.name AS client_name,
+               count(oo.id) FILTER (WHERE oo.unit_status != 'DIBATALKAN')::int AS object_count,
+               count(oo.id) FILTER (WHERE oo.unit_status IN ('LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SEBAGIAN_DOKUMEN_DIKIRIM', 'SELESAI'))::int AS completed_units,
+               count(oo.id) FILTER (WHERE oo.unit_status IN ('SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP', 'MENUNGGU_TTD'))::int AS inspecting_units,
+               count(oo.id) FILTER (WHERE oo.unit_status IN ('FORM_TERKIRIM', 'PEMERIKSAAN_TERKIRIM', 'LHPP_DRAF', 'LHPP_DIPROSES', 'LHPP_SIAP_PREVIEW', 'LHPP_FINAL', 'BAP_DRAF', 'BAP_DIPROSES', 'BAP_SIAP_PREVIEW', 'MENUNGGU_REVIEW'))::int AS waiting_doc_units,
+               count(oo.id) FILTER (WHERE oo.unit_status IN ('PERLU_REVISI', 'REVISI'))::int AS revision_units
         FROM orders o
         JOIN clients c ON c.id = o.client_id
+        LEFT JOIN order_objects oo ON oo.order_id = o.id
+        GROUP BY o.id, c.name
         ORDER BY o.created_at DESC
-        LIMIT 8
+        LIMIT 10
       `),
       query(`
         SELECT count(*)::int AS overdue_count
@@ -432,22 +522,9 @@ router.get('/summary', async (req, res, next) => {
         ORDER BY unit_count DESC, order_count DESC
         LIMIT 8
       `),
+      query(trendSql),
       query(`
-        SELECT to_char(d, 'YYYY-MM') AS month_key,
-               to_char(d, 'Mon') AS month_label,
-               coalesce(count(o.id), 0)::int AS order_count,
-               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-        FROM generate_series(
-          date_trunc('month', now() - interval '5 months'),
-          date_trunc('month', now()),
-          interval '1 month'
-        ) d
-        LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
-        GROUP BY d
-        ORDER BY d ASC
-      `),
-      query(`
-        SELECT a.id, a.action, a.entity, a.entity_id, a.summary, a.created_at,
+        SELECT a.id, a.action, a.entity, a.entity_id, a.summary, a.ip AS ip_address, a.created_at,
                u.full_name AS user_name, u.role AS user_role
         FROM audit_logs a
         LEFT JOIN users u ON u.id = a.user_id
@@ -456,13 +533,31 @@ router.get('/summary', async (req, res, next) => {
       `),
       query(`
         SELECT
-          count(*)::int AS total_units,
-          count(*) FILTER (WHERE unit_status IN ('TERDAFTAR', 'TERJADWAL', 'DITUGASKAN'))::int AS waiting_inspection_units,
-          count(*) FILTER (WHERE unit_status = 'SEDANG_DIPERIKSA')::int AS inspecting_units,
-          count(*) FILTER (WHERE unit_status = 'REVISI')::int AS revision_units,
-          count(*) FILTER (WHERE unit_status IN ('LHPP_FINAL', 'LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SEBAGIAN_DOKUMEN_DIKIRIM', 'SELESAI'))::int AS completed_units
+          count(*) FILTER (WHERE unit_status != 'DIBATALKAN')::int AS total_units,
+          count(*) FILTER (WHERE unit_status = 'DIBATALKAN')::int AS cancelled_units,
+          count(*) FILTER (WHERE unit_status IN ('BELUM_DIJADWALKAN', 'TERDAFTAR'))::int AS unscheduled_units,
+          count(*) FILTER (WHERE unit_status IN ('TERJADWAL', 'DITUGASKAN'))::int AS scheduled_units,
+          count(*) FILTER (WHERE unit_status IN ('BELUM_DIJADWALKAN', 'TERDAFTAR', 'TERJADWAL', 'DITUGASKAN'))::int AS waiting_inspection_units,
+          count(*) FILTER (WHERE unit_status IN ('SEDANG_DIPERIKSA', 'CHECKLIST_BELUM_LENGKAP', 'MENUNGGU_TTD'))::int AS inspecting_units,
+          count(*) FILTER (WHERE unit_status IN ('FORM_TERKIRIM', 'PEMERIKSAAN_TERKIRIM', 'LHPP_DRAF', 'LHPP_DIPROSES', 'LHPP_SIAP_PREVIEW', 'LHPP_FINAL', 'BAP_DRAF', 'BAP_DIPROSES', 'BAP_SIAP_PREVIEW', 'MENUNGGU_REVIEW'))::int AS waiting_doc_units,
+          count(*) FILTER (WHERE unit_status IN ('PERLU_REVISI', 'REVISI'))::int AS revision_units,
+          count(*) FILTER (WHERE unit_status IN ('LHPP_TERBIT', 'BAP_FINAL', 'SIAP_DISTRIBUSI', 'SEBAGIAN_DOKUMEN_DIKIRIM', 'SELESAI'))::int AS completed_units
         FROM order_objects
-      `).catch(() => ({ rows: [{ total_units: 0, waiting_inspection_units: 0, inspecting_units: 0, revision_units: 0, completed_units: 0 }] })),
+      `).catch(() => ({
+        rows: [
+          {
+            total_units: 0,
+            cancelled_units: 0,
+            unscheduled_units: 0,
+            scheduled_units: 0,
+            waiting_inspection_units: 0,
+            inspecting_units: 0,
+            waiting_doc_units: 0,
+            revision_units: 0,
+            completed_units: 0
+          }
+        ]
+      })),
       query(`
         SELECT
           count(*) FILTER (WHERE status NOT IN ('SELESAI', 'TIDAK_DAPAT_DILANJUTKAN'))::int AS open_issues,
@@ -479,14 +574,45 @@ router.get('/summary', async (req, res, next) => {
           (SELECT count(*)::int FROM document_distributions WHERE status IN ('BELUM_DIKIRIM', 'SIAP_DIKIRIM')) AS dist_pending,
           (SELECT count(*)::int FROM document_distributions WHERE status = 'DIKIRIM') AS dist_dispatched,
           (SELECT count(*)::int FROM document_distributions WHERE status = 'DITERIMA') AS dist_received
+      `).catch(() => ({ rows: [{}] })),
+      query(`
+        SELECT
+          (SELECT count(*)::int FROM users) AS total_users,
+          (SELECT count(*)::int FROM users WHERE is_active = true) AS active_users,
+          (SELECT count(*)::int FROM users WHERE role IN ('AHLI_K3', 'INSPECTOR') AND is_active = true) AS total_inspectors,
+          (SELECT count(*)::int FROM inspector_competencies WHERE valid_until >= CURRENT_DATE) AS valid_skp_count,
+          (SELECT count(*)::int FROM inspector_competencies WHERE valid_until >= CURRENT_DATE AND (valid_until - CURRENT_DATE) <= 30) AS expiring_skp_count,
+          (SELECT count(*)::int FROM inspector_competencies WHERE valid_until < CURRENT_DATE) AS expired_skp_count,
+          (SELECT count(*)::int FROM audit_logs) AS total_audit_logs,
+          (SELECT count(*)::int FROM database_backups) AS total_backups,
+          pg_size_pretty(pg_database_size(current_database())) AS db_size
       `).catch(() => ({ rows: [{}] }))
     ]);
 
+    const adminStats = adminStatsRes?.rows?.[0] || {};
     const overdueUnits = overdueRes?.rows?.[0]?.overdue_count || 0;
+    const enrichedRecentOrders = (recentOrders.rows || []).map((r) => ({
+      ...r,
+      unitProgress: {
+        totalUnits: r.object_count || 0,
+        completed: r.completed_units || 0,
+        inProgress: r.inspecting_units || 0,
+        waitingDocs: r.waiting_doc_units || 0,
+        revision: r.revision_units || 0
+      }
+    }));
 
     return res.json({
       role,
       metrics: {
+        totalUsers: adminStats.total_users ?? 0,
+        activeUsers: adminStats.active_users ?? 0,
+        totalInspectors: adminStats.total_inspectors ?? 0,
+        validSkpCount: adminStats.valid_skp_count ?? 0,
+        expiringSkpCount: adminStats.expiring_skp_count ?? 0,
+        expiredSkpCount: adminStats.expired_skp_count ?? 0,
+        totalAuditLogs: adminStats.total_audit_logs ?? 0,
+        totalBackups: adminStats.total_backups ?? 0,
         activeClients: clientObjCounts.rows[0].active_clients,
         activeObjects: clientObjCounts.rows[0].active_objects,
         totalOrders: orderCounts.rows[0].total,
@@ -503,13 +629,20 @@ router.get('/summary', async (req, res, next) => {
         suketExpiring90d: expiringCounts.rows[0].within_90_days,
         overdueUnits,
         totalUnits: unitStatusRes?.rows?.[0]?.total_units || 0,
+        cancelledUnits: unitStatusRes?.rows?.[0]?.cancelled_units || 0,
+        unscheduledUnits: unitStatusRes?.rows?.[0]?.unscheduled_units || 0,
+        scheduledUnits: unitStatusRes?.rows?.[0]?.scheduled_units || 0,
         waitingInspectionUnits: unitStatusRes?.rows?.[0]?.waiting_inspection_units || 0,
         inspectingUnits: unitStatusRes?.rows?.[0]?.inspecting_units || 0,
+        waitingDocUnits: unitStatusRes?.rows?.[0]?.waiting_doc_units || 0,
         revisionUnits: unitStatusRes?.rows?.[0]?.revision_units || 0,
         completedUnits: unitStatusRes?.rows?.[0]?.completed_units || 0,
         openIssues: operationalIssuesRes?.rows?.[0]?.open_issues || 0,
         highPriorityIssues: operationalIssuesRes?.rows?.[0]?.high_priority_issues || 0,
         documentPipeline: documentPipelineRes?.rows?.[0] || {}
+      },
+      systemInfo: {
+        databaseSize: adminStats.db_size || '14 MB'
       },
       analytics: {
         categoryDistribution: categoryDistributionRes.rows,
@@ -517,8 +650,9 @@ router.get('/summary', async (req, res, next) => {
         monthlyTrend: monthlyTrendRes.rows
       },
       inspectorWorkload: workload.rows,
-      recentOrders: recentOrders.rows,
-      recentActivities: recentActivitiesRes.rows
+      recentOrders: enrichedRecentOrders,
+      recentActivities: recentActivitiesRes.rows,
+      recentAudits: recentActivitiesRes.rows
     });
   } catch (err) {
     return next(err);
@@ -531,7 +665,8 @@ router.get('/work-queue', async (req, res, next) => {
     const role = req.user.role;
     const userId = req.user.id;
     const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(role);
-    const isOperationalAdmin = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN'].includes(role);
+    const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(role);
+    const isOperationalAdmin = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'MANAGER'].includes(role);
     const isMarketing = role === 'MARKETING';
     const queue = [];
 
@@ -563,7 +698,7 @@ router.get('/work-queue', async (req, res, next) => {
           title: `PO Baru Perlu Penjadwalan: ${r.po_number || r.order_no}`,
           description: `Klien: ${r.client_name} - Layanan: ${r.service_type}`,
           createdAt: r.created_at,
-          actionLabel: 'Jadwalkan & Tugaskan',
+          actionLabel: isPimpinan ? 'Pantau PO' : 'Jadwalkan & Tugaskan',
           link: '/app/orders'
         });
       }
@@ -658,7 +793,7 @@ router.get('/work-queue', async (req, res, next) => {
         title: `Form Uji Belum Selesai: ${r.object_name}`,
         description: `Klien: ${r.client_name} (Order: ${r.order_no})${!isInspector ? ` - Ahli K3: ${r.inspector_name}` : ''}`,
         createdAt: r.created_at,
-        actionLabel: 'Lanjutkan Form',
+        actionLabel: isPimpinan ? 'Pantau Inspeksi' : 'Lanjutkan Form',
         link: '/app/inspections'
       });
     }
@@ -742,7 +877,7 @@ router.get('/work-queue', async (req, res, next) => {
         title: `LHPP Perlu Revisi: ${r.object_name}`,
         description: `Catatan: ${r.review_notes || 'Silakan cek catatan perbaikan.'} (Klien: ${r.client_name})`,
         createdAt: r.created_at,
-        actionLabel: 'Buka & Perbaiki',
+        actionLabel: isPimpinan ? 'Pantau Revisi' : 'Buka & Perbaiki',
         link: '/app/lhpp'
       });
     }
@@ -803,7 +938,7 @@ router.get('/work-queue', async (req, res, next) => {
           title: `BAP Perlu Diproses & TTD: ${r.object_name}`,
           description: `Klien: ${r.client_name} (PO: ${r.po_number || r.order_no})`,
           createdAt: r.created_at,
-          actionLabel: 'Buka BAP',
+          actionLabel: isPimpinan ? 'Pantau BAP' : 'Buka BAP',
           link: '/app/bap'
         });
       }
@@ -834,7 +969,7 @@ router.get('/work-queue', async (req, res, next) => {
           title: `Suket Disnaker Belum Dicatat: ${r.object_name}`,
           description: `LHPP ${r.lhpp_no || '-'} terbit tapi belum memiliki registrasi Suket (Klien: ${r.client_name})`,
           createdAt: r.created_at,
-          actionLabel: 'Catat Suket',
+          actionLabel: isPimpinan ? 'Pantau Suket' : 'Catat Suket',
           link: '/app/suket'
         });
       }
@@ -864,7 +999,7 @@ router.get('/work-queue', async (req, res, next) => {
           title: `Dokumen Siap Dikirim: ${r.document_type} ${r.document_no}`,
           description: `Tujuan: ${r.target_destination} (${r.recipient_name}) · Klien: ${r.client_name}`,
           createdAt: r.created_at,
-          actionLabel: 'Proses Kirim',
+          actionLabel: isPimpinan ? 'Pantau Distribusi' : 'Proses Kirim',
           link: '/app/distributions'
         });
       }
@@ -892,7 +1027,7 @@ router.get('/work-queue', async (req, res, next) => {
           title: `Kendala Lapangan: ${r.title}`,
           description: `${r.issue_type} · Klien: ${r.client_name} (PO: ${r.po_number || r.order_no})`,
           createdAt: r.created_at,
-          actionLabel: 'Tindak Lanjuti',
+          actionLabel: isPimpinan ? 'Pantau Kendala' : 'Tindak Lanjuti',
           link: '/app/issues'
         });
       }
@@ -922,14 +1057,53 @@ router.get('/work-queue', async (req, res, next) => {
 router.get(
   '/export-recap.csv',
   authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN'),
-  async (_req, res, next) => {
+  async (req, res, next) => {
     try {
-      const { rows } = await query(`
-        SELECT o.order_no, o.status AS order_status, o.service_type,
+      const { status, serviceType, category, search, period } = req.query;
+      const conds = [];
+      const params = [];
+
+      if (status) {
+        params.push(String(status));
+        conds.push(`o.status = $${params.length}`);
+      }
+      if (serviceType) {
+        params.push(String(serviceType));
+        conds.push(`o.service_type = $${params.length}`);
+      }
+      if (category) {
+        params.push(String(category));
+        conds.push(`oc.code = $${params.length}`);
+      }
+      if (search) {
+        params.push(`%${String(search).trim()}%`);
+        conds.push(
+          `(o.order_no ILIKE $${params.length} OR o.po_number ILIKE $${params.length} OR c.name ILIKE $${params.length} OR t.name ILIKE $${params.length})`
+        );
+      }
+      const p = String(period || '').toUpperCase();
+      if (p === '7D') {
+        conds.push(`o.created_at >= now() - interval '7 days'`);
+      } else if (p === '30D') {
+        conds.push(`o.created_at >= now() - interval '30 days'`);
+      } else if (p === '90D') {
+        conds.push(`o.created_at >= now() - interval '90 days'`);
+      } else if (p === '1Y') {
+        conds.push(`o.created_at >= now() - interval '1 year'`);
+      }
+
+      const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+      const { rows } = await query(
+        `
+        SELECT o.order_no, o.po_number, o.status AS order_status, o.service_type,
                c.name AS client_name,
                oc.code AS category_code,
                t.name AS object_name, t.serial_number,
+               oo.unit_status,
+               u.full_name AS inspector_name,
                i.conclusion,
+               b.bap_no, b.status AS bap_status,
                l.lhpp_no, l.status AS lhpp_status,
                s.suket_no, s.valid_until AS suket_valid_until
         FROM orders o
@@ -938,21 +1112,31 @@ router.get(
         JOIN test_objects t ON t.id = oo.object_id
         JOIN object_categories oc ON oc.id = t.category_id
         LEFT JOIN inspections i ON i.order_id = o.id AND i.object_id = t.id
+        LEFT JOIN users u ON u.id = COALESCE(i.inspector_id, oo.inspector_id)
+        LEFT JOIN bap_documents b ON b.order_id = o.id AND b.object_id = t.id
         LEFT JOIN lhpp_documents l ON l.inspection_id = i.id
         LEFT JOIN suket_documents s ON s.lhpp_id = l.id
+        ${whereSql}
         ORDER BY o.created_at DESC
-      `);
+      `,
+        params
+      );
 
       const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
       const header = [
         'Nomor Order',
+        'Nomor PO',
         'Status Order',
         'Jenis Layanan',
         'Nama Klien',
         'Kategori',
         'Nama Objek',
         'Nomor Seri',
+        'Status Unit',
+        'Ahli K3 / Inspektor',
         'Kesimpulan Inspeksi',
+        'Nomor BAP',
+        'Status BAP',
         'Nomor LHPP',
         'Status LHPP',
         'Nomor Suket K3',
@@ -962,13 +1146,18 @@ router.get(
       const lines = rows.map((r) =>
         [
           r.order_no,
+          r.po_number || '-',
           r.order_status,
           r.service_type,
           r.client_name,
           r.category_code,
           r.object_name,
           r.serial_number,
+          r.unit_status || '-',
+          r.inspector_name || '-',
           r.conclusion || '-',
+          r.bap_no || '-',
+          r.bap_status || '-',
           r.lhpp_no || '-',
           r.lhpp_status || '-',
           r.suket_no || '-',

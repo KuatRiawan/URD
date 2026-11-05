@@ -1,4 +1,5 @@
-import { Camera, Image as ImageIcon, Plus, Trash } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { Camera, Image as ImageIcon, MagnifyingGlassPlus, Plus, Trash, X } from '@phosphor-icons/react';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
 export function LhppPhotosSection({
@@ -12,6 +13,8 @@ export function LhppPhotosSection({
   handleUploadPhoto,
   handleDeletePhoto
 }) {
+  const [enlargedPhoto, setEnlargedPhoto] = useState(null);
+
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-md p-4 space-y-3 bg-white dark:bg-slate-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -34,15 +37,26 @@ export function LhppPhotosSection({
               key={ph.id}
               className="group relative border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-900 flex flex-col shadow-xs"
             >
-              <div className="aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+              <div
+                onClick={() =>
+                  setEnlargedPhoto({
+                    url: `/api/v1/dashboard/files/${ph.id}`,
+                    caption: ph.caption || ph.originalName || `Foto Dokumentasi ${idx + 1}`
+                  })
+                }
+                className="relative aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden cursor-pointer"
+              >
                 <img
                   src={`/api/v1/dashboard/files/${ph.id}`}
                   alt={ph.caption || 'Foto Dokumentasi'}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
+                <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white pointer-events-none">
+                  <MagnifyingGlassPlus size={22} weight="bold" />
+                </div>
               </div>
               <div className="p-2 flex-1 flex flex-col justify-between">
                 <div>
@@ -70,6 +84,40 @@ export function LhppPhotosSection({
       ) : (
         <div className="p-3 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-md text-xs text-slate-500 dark:text-slate-400 text-center">
           Belum ada foto dokumentasi terlampir. Foto dapat diunggah melalui formulir di bawah ini atau secara otomatis terintegrasi dari lembar kerja inspeksi lapangan.
+        </div>
+      )}
+
+      {/* Modal Zoom Foto Resolusi Penuh */}
+      {enlargedPhoto && (
+        <div
+          onClick={() => setEnlargedPhoto(null)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-3xl w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl flex flex-col"
+          >
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-800/90 border-b border-slate-700 text-white">
+              <div className="min-w-0 pr-3">
+                <h4 className="font-bold text-xs truncate text-white">{enlargedPhoto.caption}</h4>
+                <p className="text-[10px] text-slate-400">Verifikasi Detail Foto Bab VIII</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnlargedPhoto(null)}
+                className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white cursor-pointer"
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+            <div className="p-3 bg-black flex items-center justify-center max-h-[75vh] overflow-hidden">
+              <img
+                src={enlargedPhoto.url}
+                alt={enlargedPhoto.caption}
+                className="max-h-[70vh] w-auto object-contain mx-auto rounded-lg"
+              />
+            </div>
+          </div>
         </div>
       )}
 

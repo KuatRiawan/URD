@@ -69,58 +69,97 @@ export async function sendWhatsApp({ to, message }) {
   return { mode: 'TERKIRIM' };
 }
 
+const MASKED_SECRET = '••••••••';
+
+export function isMaskedSecret(val) {
+  return !val || val === MASKED_SECRET || /^•+$/.test(String(val).trim());
+}
+
 export async function testSmtpConnection(customConfig = null) {
-  const conf = customConfig || (await getSmtpConfig());
-  if (env.isTest || !conf.host) {
-    if (!conf.host || !conf.user) {
-      throw new Error('Konfigurasi SMTP belum lengkap: Host dan User wajib diisi.');
-    }
+  const stored = await getSmtpConfig();
+  const conf = {
+    host: customConfig?.host ?? stored.host,
+    port: Number(customConfig?.port || stored.port || 587),
+    secure: customConfig?.secure !== undefined ? Boolean(customConfig.secure) : Boolean(stored.secure),
+    user: customConfig?.user ?? stored.user,
+    pass: !isMaskedSecret(customConfig?.pass) ? customConfig.pass : stored.pass,
+    from: customConfig?.from ?? stored.from
+  };
+
+  if (!conf.host || !conf.user) {
+    throw new Error('Konfigurasi SMTP belum lengkap: Host dan Username autentikasi wajib diisi.');
+  }
+  if (isMaskedSecret(conf.pass)) {
+    throw new Error('Password / App Password SMTP belum dikonfigurasi. Silakan isi password SMTP terlebih dahulu sebelum menguji koneksi.');
+  }
+
+  if (env.isTest) {
     return {
       success: true,
-      message: `Konfigurasi SMTP ${conf.host}:${conf.port || 587} berhasil divalidasi.`
+      mode: 'TEST_ENV',
+      message: `Konfigurasi SMTP ${conf.host}:${conf.port} tervalidasi (mode pengujian).`
     };
   }
 
   const testTransporter = nodemailer.createTransport({
     host: conf.host,
-    port: Number(conf.port || 587),
-    secure: Boolean(conf.secure),
+    port: conf.port,
+    secure: conf.secure,
     auth: { user: conf.user, pass: conf.pass },
-    connectionTimeout: 5000
+    connectionTimeout: 5000,
+    greetingTimeout: 5000
   });
 
   await testTransporter.verify();
   return {
     success: true,
-    message: `Koneksi SMTP ke ${conf.host}:${conf.port} berhasil diverifikasi!`
+    mode: 'LIVE',
+    message: `Koneksi SMTP ke ${conf.host}:${conf.port} berhasil diverifikasi.`
   };
 }
 
 export async function testWhatsAppConnection(customConfig = null) {
-  const conf = customConfig || (await getWhatsAppConfig());
-  if (env.isTest || !conf.token) {
-    if (!conf.apiUrl || !conf.token) {
-      throw new Error('Konfigurasi WhatsApp belum lengkap: URL API dan Token/API Key wajib diisi.');
-    }
+  const stored = await getWhatsAppConfig();
+  const rawToken = customConfig?.token ?? customConfig?.api_key;
+  const conf = {
+    provider: customConfig?.provider || stored.provider || 'FONNTE',
+    apiUrl: customConfig?.apiUrl || customConfig?.api_url || stored.apiUrl,
+    token: !isMaskedSecret(rawToken) ? rawToken : stored.token,
+    senderNumber: customConfig?.senderNumber || customConfig?.sender_number || stored.senderNumber
+  };
+
+  if (!conf.apiUrl) {
+    throw new Error('Endpoint URL API WhatsApp Gateway wajib diisi.');
+  }
+  if (isMaskedSecret(conf.token)) {
+    throw new Error('Token / API Key WhatsApp Gateway belum dikonfigurasi. Silakan isi API Key yang valid sebelum menguji koneksi.');
+  }
+
+  if (env.isTest) {
     return {
       success: true,
-      message: `Konfigurasi WhatsApp Gateway (${conf.provider || 'FONNTE'}) berhasil divalidasi.`
+      mode: 'TEST_ENV',
+      message: `Konfigurasi WhatsApp Gateway (${conf.provider}) tervalidasi (mode pengujian).`
     };
   }
 
   const res = await fetch(conf.apiUrl, {
     method: 'POST',
     headers: { Authorization: conf.token },
-    body: new URLSearchParams({ target: '6280000000000', message: 'URD Gateway Ping Test' })
+    body: new URLSearchParams({ target: conf.senderNumber || '081200000000', message: 'URD Gateway Connectivity Check' })
   });
 
-  // Fonnte returns JSON even on validation fail or balance checks
   const data = await res.json().catch(() => ({}));
-  if (!res.ok && res.status >= 500) {
-    throw new Error(`Server WhatsApp Gateway merespon dengan error HTTP ${res.status}`);
+  if (!res.ok) {
+    throw new Error(data.reason || data.message || `Server WhatsApp Gateway menolak koneksi (HTTP ${res.status}).`);
   }
+  if (data.status === false) {
+    throw new Error(`Gateway WhatsApp (${conf.provider}) menolak otorisasi: ${data.reason || data.detail || 'Token API Key tidak valid atau perangkat belum terhubung.'}`);
+  }
+
   return {
     success: true,
-    message: `Koneksi Gateway WhatsApp (${conf.provider || 'Gateway'}) berhasil terhubung. Status API: ${res.status}`
+    mode: 'LIVE',
+    message: `Koneksi Gateway WhatsApp (${conf.provider}) berhasil diverifikasi (HTTP ${res.status}).`
   };
 }
