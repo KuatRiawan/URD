@@ -69,7 +69,7 @@ export function GatewaysSection({
                       ) : (
                         <>
                           <WarningCircle size={12} weight="fill" />
-                          <span>Token Belum Diisi (Mode Simulasi)</span>
+                          <span>Token Belum Dikonfigurasi</span>
                         </>
                       )}
                     </span>
@@ -182,7 +182,7 @@ export function GatewaysSection({
                       ) : (
                         <>
                           <WarningCircle size={12} weight="fill" />
-                          <span>Sandi Belum Diisi (Mode Simulasi)</span>
+                          <span>Sandi Belum Dikonfigurasi</span>
                         </>
                       )}
                     </span>

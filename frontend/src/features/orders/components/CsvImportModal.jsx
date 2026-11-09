@@ -1,4 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 
 export function CsvImportModal({
   open,
@@ -30,21 +31,24 @@ export function CsvImportModal({
             className="w-full font-mono text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 leading-relaxed text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
           />
         </div>
-        <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <button
+        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer text-xs transition-colors"
           >
             Batal
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={submitting}
-            className="h-10 px-4.5 rounded-lg bg-[#C81E1E] font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer text-xs transition-colors shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
+            loading={submitting}
           >
-            {submitting ? 'Memproses...' : 'Impor Data CSV'}
-          </button>
+            Impor Data CSV
+          </Button>
         </div>
       </form>
     </Modal>

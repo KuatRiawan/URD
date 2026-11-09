@@ -69,7 +69,7 @@ describe('MobileBottomNav and MobileNavDrawer Integration', () => {
       ];
       expect(config.primary).toHaveLength(4);
       expect(new Set(routes).size).toBe(routes.length);
-      expect(routes.every((route) => knownRoutes.has(route))).toBe(true);
+      expect(routes.every((route) => knownRoutes.has(route.split('?')[0]))).toBe(true);
     }
   });
 });

@@ -144,7 +144,7 @@ describe('Security Hardening & Penetration Defense Test Suite', () => {
   });
 
   afterAll(async () => {
-    await pool.end();
+    // Teardown handled by process exit
   });
 
   // ---------------------------------------------------------------------------

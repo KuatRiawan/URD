@@ -1,6 +1,7 @@
 import { ArrowsClockwise, FilePdf, UploadSimple } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import {
   CONCLUSION_LABELS,
   formatDate,
@@ -41,19 +42,40 @@ export function ObjectDetailModal({
                 Buat draft Purchase Order baru untuk jadwal pemeriksaan berkala unit alat ini.
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
+              icon={ArrowsClockwise}
               onClick={() => {
                 onClose();
                 onCreateRenewal(obj.id, obj.name);
               }}
-              className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
             >
-              <ArrowsClockwise size={14} weight="bold" />
-              <span>+ Buat PO Perpanjangan</span>
-            </button>
+              Buat PO Perpanjangan
+            </Button>
           </div>
         )}
+
+        {/* Klasifikasi Alat K3 (3 Level: Bidang -> Jenis Alat -> Nama Alat) */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-[11px]">
+          <span className="text-slate-500 dark:text-slate-400 font-medium">Klasifikasi K3:</span>
+          <Badge tone="danger">{obj.domain_name || obj.domain_code || obj.category_name}</Badge>
+          {(obj.equipment_type_name || obj.equipment_group_name) && (
+            <>
+              <span className="text-slate-400">›</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                {obj.equipment_type_name || obj.equipment_group_name}
+              </span>
+            </>
+          )}
+          {obj.equipment_name && (
+            <>
+              <span className="text-slate-400">›</span>
+              <span className="font-bold text-[#C81E1E] dark:text-red-400">{obj.equipment_name}</span>
+            </>
+          )}
+        </div>
 
         {/* Spesifikasi Objek Alat */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 p-3.5 border border-slate-200 dark:border-slate-800">

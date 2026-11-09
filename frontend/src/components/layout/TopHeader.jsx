@@ -214,7 +214,7 @@ export function TopHeader({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/80 px-4 sm:px-6 h-14 sm:h-15 shadow-2xs transition-colors">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 urd-glass-toolbar px-4 sm:px-6 h-14 transition-colors">
       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
         {/* Desktop toggle collapse trigger */}
         <button
@@ -222,65 +222,67 @@ export function TopHeader({
           onClick={toggleSidebar}
           title={collapsed ? 'Perluas Menu (Expanded)' : 'Kecilkan Menu (Collapsed)'}
           aria-label={collapsed ? 'Perluas Menu' : 'Kecilkan Menu'}
-          className="hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+          className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-black/[0.08] dark:border-white/[0.09] bg-white/80 dark:bg-white/[0.05] text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.04] dark:hover:bg-white/[0.10] transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)] cursor-pointer"
         >
           {collapsed ? (
-            <CaretRight size={16} weight="bold" aria-hidden="true" />
+            <CaretRight size={15} weight="bold" aria-hidden="true" />
           ) : (
-            <CaretLeft size={16} weight="bold" aria-hidden="true" />
+            <CaretLeft size={15} weight="bold" aria-hidden="true" />
           )}
         </button>
 
         {/* Mobile Logo Brand */}
-        <div className="flex items-center gap-2 lg:hidden">
-          <img
-            src={logoUrd}
-            alt="Logo PT Upaya Riksa Daya"
-            width="32"
-            height="22"
-            className="h-6 w-auto object-contain"
-          />
+        <div className="flex items-center gap-2.5 lg:hidden">
+          <span className="inline-flex items-center justify-center rounded-lg bg-white p-1 border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] shrink-0">
+            <img
+              src={logoUrd}
+              alt="Logo PT Upaya Riksa Daya"
+              width="32"
+              height="22"
+              className="h-5 w-auto object-contain"
+            />
+          </span>
           <div className="sm:hidden leading-none">
-            <span className="font-black text-xs text-slate-900 dark:text-white tracking-tight block">
+            <span className="font-bold text-xs text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.015em] block">
               PT Upaya Riksa Daya
             </span>
-            <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-0.5">
+            <span className="text-[10px] font-medium text-[#6E6E73] dark:text-[#98989D] block mt-0.5">
               Riksa Uji K3
             </span>
           </div>
         </div>
 
         {/* Breadcrumb Navigation */}
-        <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium min-w-0">
-          <span className="font-bold text-slate-800 dark:text-slate-200">URD</span>
-          <span className="text-slate-300 dark:text-slate-600">/</span>
-          <span className="text-slate-500 dark:text-slate-400">{currentNav?.group || 'Menu'}</span>
-          <span className="text-slate-300 dark:text-slate-600">/</span>
-          <span className="font-bold text-brand-600 dark:text-brand-400 truncate">{currentNav?.label || 'Dasbor'}</span>
+        <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs text-[#6E6E73] dark:text-[#98989D] font-medium min-w-0">
+          <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">URD</span>
+          <span className="text-black/20 dark:text-white/20">/</span>
+          <span className="text-[#6E6E73] dark:text-[#98989D]">{currentNav?.group || 'Menu'}</span>
+          <span className="text-black/20 dark:text-white/20">/</span>
+          <span className="font-semibold text-[#C81E1E] dark:text-rose-400 truncate">{currentNav?.label || 'Dasbor'}</span>
         </nav>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         {/* Quick Search Button (Mobile Compact Icon) */}
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
           aria-label="Pencarian Cepat Data"
-          className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-2xs cursor-pointer"
+          className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-black/[0.08] dark:border-white/[0.09] bg-black/[0.03] dark:bg-white/[0.05] text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.06] dark:hover:bg-white/[0.10] transition-all cursor-pointer"
         >
           <MagnifyingGlass size={16} aria-hidden="true" />
         </button>
 
-        {/* Quick Search Button (Cmd+K) - Desktop */}
+        {/* Quick Search Button (Cmd+K) - Desktop Spotlight-style */}
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
           aria-label="Pencarian Cepat Data (Tekan Cmd+K)"
-          className="hidden sm:inline-flex h-9 px-3 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:white transition-all shadow-2xs cursor-pointer"
+          className="hidden sm:inline-flex h-8.5 px-3 items-center gap-2 rounded-[10px] border border-black/[0.07] dark:border-white/[0.08] bg-black/[0.035] dark:bg-white/[0.05] hover:bg-black/[0.06] dark:hover:bg-white/[0.09] text-xs font-medium text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7] transition-all cursor-pointer"
         >
-          <MagnifyingGlass size={15} className="text-slate-400 dark:text-slate-500" aria-hidden="true" />
-          <span className="hidden md:inline text-slate-500 dark:text-slate-400">Cari nomor PO, klien, alat...</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+          <MagnifyingGlass size={14} className="text-[#6E6E73] dark:text-[#98989D]" aria-hidden="true" />
+          <span className="hidden md:inline">Cari nomor PO, klien, alat...</span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-[6px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1E222D] px-1.5 py-0.5 text-[10px] font-semibold text-[#6E6E73] dark:text-[#98989D] shadow-[0_1px_1px_rgba(0,0,0,0.04)]">
             ⌘K
           </kbd>
         </button>
@@ -290,12 +292,12 @@ export function TopHeader({
           <button
             type="button"
             onClick={() => setOfflineDrawerOpen(true)}
-            className={`inline-flex h-9 items-center gap-1.5 px-2.5 rounded-lg border text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+            className={`inline-flex h-8.5 items-center gap-1.5 px-2.5 rounded-[10px] border text-xs font-semibold transition-all cursor-pointer ${
               !isOnline
-                ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800'
+                ? 'bg-amber-500/15 text-amber-900 border-amber-500/30 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800'
                 : pendingSyncCount > 0
-                ? 'bg-rose-50 text-[#C81E1E] border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900'
-                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                ? 'bg-[#C81E1E]/10 text-[#C81E1E] border-[#C81E1E]/25 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900'
+                : 'bg-white/80 dark:bg-white/[0.05] text-[#1D1D1F] dark:text-[#F5F5F7] border-black/[0.08] dark:border-white/[0.09] hover:bg-black/[0.04]'
             }`}
             title="Penyimpanan Offline & Antrean Sinkronisasi"
           >
@@ -323,7 +325,7 @@ export function TopHeader({
           <ThemeToggle />
         </div>
 
-        {/* Pusat Notifikasi Popover (Muncul Dropdown Popover Mirip Menu Profil) */}
+        {/* Pusat Notifikasi Popover */}
         <div className="relative" ref={notifMenuRef}>
           <button
             type="button"
@@ -331,25 +333,25 @@ export function TopHeader({
             aria-expanded={notifMenuOpen}
             aria-haspopup="true"
             aria-label="Pusat Notifikasi"
-            className="relative h-9 w-9 sm:w-auto px-0 sm:px-3 inline-flex items-center justify-center gap-1.5 rounded-full sm:rounded-lg border border-slate-200/80 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+            className="relative h-8.5 w-8.5 sm:w-auto px-0 sm:px-3 inline-flex items-center justify-center gap-1.5 rounded-full sm:rounded-[10px] border border-black/[0.08] dark:border-white/[0.09] bg-white/80 dark:bg-white/[0.05] text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.04] dark:hover:bg-white/[0.10] transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)] cursor-pointer"
           >
-            <Bell size={17} aria-hidden="true" className="text-slate-600 dark:text-slate-300" />
+            <Bell size={16} aria-hidden="true" className="text-[#6E6E73] dark:text-[#98989D]" />
             <span className="hidden md:inline">Notifikasi</span>
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 sm:static inline-flex min-w-4.5 h-4.5 items-center justify-center rounded-full bg-[#C81E1E] px-1 text-[10px] font-extrabold text-white ring-2 ring-white dark:ring-slate-900">
+              <span className="absolute -top-0.5 -right-0.5 sm:static inline-flex min-w-4.5 h-4.5 items-center justify-center rounded-full bg-[#C81E1E] px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-[#151821]">
                 {unreadCount}
               </span>
             )}
           </button>
 
           {notifMenuOpen && (
-            <div className="fixed sm:absolute right-2 sm:right-0 inset-x-2 sm:inset-x-auto mt-2 sm:w-88 md:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-pop z-50 animate-pop-in overflow-hidden">
+            <div className="fixed sm:absolute right-2 sm:right-0 inset-x-2 sm:inset-x-auto mt-2 sm:w-88 md:w-96 rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl shadow-[0_20px_48px_-12px_rgba(0,0,0,0.18)] z-50 animate-pop-in overflow-hidden">
               {/* Header Popover */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.07] bg-[#F5F5F7]/70 dark:bg-[#11141C]">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Notifikasi</h3>
+                  <h3 className="text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">Notifikasi</h3>
                   {unreadCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400">
                       {unreadCount} Baru
                     </span>
                   )}
@@ -359,7 +361,7 @@ export function TopHeader({
                     type="button"
                     onClick={handleMarkAllRead}
                     disabled={markingAll}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#C81E1E] dark:text-rose-400 hover:underline cursor-pointer"
                   >
                     <Checks size={14} weight="bold" />
                     <span>Tandai Semua Dibaca</span>
@@ -367,17 +369,17 @@ export function TopHeader({
                 )}
               </div>
 
-              {/* List Notifikasi (Semua notifikasi langsung muncul di popover dengan scrolling halus) */}
-              <div className="max-h-[28rem] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+              {/* List Notifikasi */}
+              <div className="max-h-[28rem] overflow-y-auto divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {notifLoading ? (
-                  <div className="p-6 text-center text-xs text-slate-400">Memuat notifikasi...</div>
+                  <div className="p-6 text-center text-xs text-[#6E6E73] dark:text-[#98989D]">Memuat notifikasi...</div>
                 ) : notifItems.length === 0 ? (
                   <div className="p-8 text-center">
-                    <div className="h-10 w-10 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
+                    <div className="h-10 w-10 mx-auto rounded-full bg-[#F5F5F7] dark:bg-white/[0.06] flex items-center justify-center text-[#6E6E73] mb-2">
                       <Bell size={20} />
                     </div>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Tidak ada notifikasi baru</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Semua info operasional telah dibaca.</p>
+                    <p className="text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">Tidak ada notifikasi baru</p>
+                    <p className="text-[11px] text-[#6E6E73] dark:text-[#98989D] mt-0.5">Semua info operasional telah dibaca.</p>
                   </div>
                 ) : (
                   notifItems.map((item) => {
@@ -387,32 +389,32 @@ export function TopHeader({
                         key={item.id}
                         type="button"
                         onClick={() => handleItemClick(item)}
-                        className={`w-full text-left p-3.5 flex items-start gap-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer ${
-                          isUnread ? 'bg-rose-50/25 dark:bg-rose-950/15' : 'bg-transparent'
+                        className={`w-full text-left p-3.5 flex items-start gap-3 transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05] cursor-pointer ${
+                          isUnread ? 'bg-[#C81E1E]/[0.03] dark:bg-[#C81E1E]/[0.08]' : 'bg-transparent'
                         }`}
                       >
                         <div
                           className={`mt-0.5 h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${
                             isUnread
-                              ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E]'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                              ? 'bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400'
+                              : 'bg-[#F5F5F7] dark:bg-white/[0.06] text-[#6E6E73]'
                           }`}
                         >
                           <Bell size={16} weight={isUnread ? 'fill' : 'regular'} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                            <span className="text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                               {item.title}
                             </span>
                             {isUnread && (
                               <span className="h-2 w-2 rounded-full bg-[#C81E1E] shrink-0" />
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-0.5 leading-snug">
+                          <p className="text-[11px] text-[#6E6E73] dark:text-[#98989D] line-clamp-2 mt-0.5 leading-snug">
                             {item.body || item.message}
                           </p>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block font-medium">
+                          <span className="text-[10px] text-[#86868B] dark:text-[#636366] mt-1 block font-medium">
                             {formatDateTime(item.created_at)}
                           </span>
                         </div>
@@ -439,40 +441,60 @@ export function TopHeader({
             aria-expanded={userMenuOpen}
             aria-haspopup="true"
             aria-label="Menu profil pengguna"
-            className="h-9 p-0.5 sm:pl-1.5 sm:pr-2.5 inline-flex items-center gap-2 rounded-full sm:rounded-lg border border-transparent sm:border-slate-200 dark:sm:border-slate-700 bg-transparent sm:bg-white dark:sm:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors sm:shadow-2xs cursor-pointer"
+            className="h-8.5 p-0.5 sm:pl-1.5 sm:pr-2.5 inline-flex items-center gap-2 rounded-full sm:rounded-[10px] border border-transparent sm:border-black/[0.08] dark:sm:border-white/[0.09] bg-transparent sm:bg-white/80 dark:sm:bg-white/[0.05] hover:bg-black/[0.04] dark:hover:bg-white/[0.10] text-[#1D1D1F] dark:text-[#F5F5F7] transition-colors sm:shadow-[0_1px_2px_rgba(0,0,0,0.03)] cursor-pointer"
           >
-            <span className="h-8 w-8 sm:h-7 sm:w-7 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs sm:text-[11px] font-extrabold text-white shadow-xs ring-2 ring-slate-100 dark:ring-slate-800 overflow-hidden">
+            <span className="h-7.5 w-7.5 sm:h-6.5 sm:w-6.5 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs sm:text-[11px] font-bold text-white shadow-xs overflow-hidden">
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+                <img
+                  src={user.avatarUrl}
+                  alt={user.fullName}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.innerText = getInitials(user?.fullName || 'User');
+                    }
+                  }}
+                />
               ) : (
                 getInitials(user?.fullName)
               )}
             </span>
             <span className="hidden sm:block text-left">
-              <span className="block text-xs font-bold text-slate-900 dark:text-white leading-none">
+              <span className="block text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] leading-none">
                 {user?.fullName?.split(' ')[0] || 'User'}
               </span>
-              <span className="block text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
+              <span className="block text-[10px] text-[#6E6E73] dark:text-[#98989D] font-medium leading-tight mt-0.5">
                 {ROLE_LABELS[user?.role] || user?.role}
               </span>
             </span>
-            <CaretDown size={12} weight="bold" className="hidden sm:inline-block text-slate-400 dark:text-slate-500" aria-hidden="true" />
+            <CaretDown size={11} weight="bold" className="hidden sm:inline-block text-[#6E6E73] dark:text-[#98989D]" aria-hidden="true" />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 mt-1.5 w-56 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-pop z-50 animate-pop-in">
-              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2.5">
-                <span className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs font-extrabold text-white overflow-hidden shadow-xs">
+            <div className="absolute right-0 mt-2 w-60 rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl p-2 shadow-[0_20px_48px_-12px_rgba(0,0,0,0.18)] z-50 animate-pop-in">
+              <div className="px-3 py-2.5 border-b border-black/[0.06] dark:border-white/[0.07] flex items-center gap-2.5">
+                <span className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs font-bold text-white overflow-hidden shadow-xs">
                   {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.parentElement) {
+                          e.currentTarget.parentElement.innerText = getInitials(user?.fullName || 'User');
+                        }
+                      }}
+                    />
                   ) : (
                     getInitials(user?.fullName)
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.fullName}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email || '-'}</p>
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  <p className="text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] truncate">{user?.fullName}</p>
+                  <p className="text-[11px] text-[#6E6E73] dark:text-[#98989D] truncate">{user?.email || '-'}</p>
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#F5F5F7] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-[#F5F5F7]">
                     {ROLE_LABELS[user?.role] || user?.role}
                   </span>
                 </div>
@@ -482,22 +504,22 @@ export function TopHeader({
                 <NavLink
                   to="/app/settings"
                   onClick={() => setUserMenuOpen(false)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-xs font-medium text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
                 >
-                  <Gear size={15} className="text-slate-500 dark:text-slate-400" />
+                  <Gear size={15} className="text-[#6E6E73] dark:text-[#98989D]" />
                   <span>Pengaturan Akun</span>
                 </NavLink>
-                <div className="px-3 py-1.5 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <div className="px-3 py-1.5 text-[11px] text-[#6E6E73] dark:text-[#98989D] flex items-center gap-2">
                   <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" weight="fill" />
                   <span>Sesi K3 Terverifikasi</span>
                 </div>
               </div>
 
-              <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-1 border-t border-black/[0.06] dark:border-white/[0.07]">
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-xs font-semibold text-[#C81E1E] dark:text-rose-400 hover:bg-[#C81E1E]/[0.06] dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                 >
                   <SignOut size={15} aria-hidden="true" />
                   <span>Keluar dari Akun</span>

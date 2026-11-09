@@ -202,7 +202,7 @@ describe('URD Phase 1: End-to-End Operational UAT Test Suite', () => {
   });
 
   afterAll(async () => {
-    await pool.end();
+    // Teardown handled by process exit
   });
 
   // ===========================================================================

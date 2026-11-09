@@ -255,10 +255,254 @@ export async function seedDatabase({ password } = {}) {
         }
       }
     }
+
+    // Baseline Client jika belum ada
+    const adminUser = userByEmail['admin.sistem@upayariksadaya.com'];
+    const { rows: existingClients } = await db.query('SELECT id FROM clients LIMIT 1');
+    if (!existingClients[0] && adminUser) {
+      const { rows: newClient } = await db.query(
+        `INSERT INTO clients (name, address, email, phone, created_by)
+         VALUES ('PT Berkah Manufaktur Indonesia', 'Jl. Kawasan Industri MM2100 Blok C-12, Bekasi 17530', 'hendra@berkah.co.id', '0812-9988-7766', $1)
+         RETURNING id`,
+        [adminUser.id]
+      );
+      await db.query(
+        `INSERT INTO client_locations (client_id, name, address, city)
+         VALUES ($1, 'Pabrik Utama Cikarang', 'Kawasan Industri MM2100 Blok C-12', 'Bekasi')`,
+        [newClient[0].id]
+      );
+      await db.query(
+        `INSERT INTO client_contacts (client_id, name, phone, email, position)
+         VALUES ($1, 'Ir. Hendra Wijaya', '0812-9988-7766', 'hendra@berkah.co.id', 'HSE Manager')`,
+        [newClient[0].id]
+      );
+    }
+
+    // Seed/Restore 11 Template LHPP Resmi URD beserta Versi V1 Aktif
+    if (adminUser) {
+      await seedOfficialLhppTemplates(db, adminUser.id);
+    }
   });
 
   await dispatchDueReminders();
   return { seedPassword };
+}
+
+async function seedOfficialLhppTemplates(db, adminUserId) {
+  const templates = [
+    {
+      code: 'TPL-LHPP-PAPA-CRANE',
+      name: 'LHPP Pesawat Angkat & Angkut — Crane & Hoist',
+      description: 'Template resmi laporan hasil riksa uji Overhead Crane, Gantry Crane, Mobile Crane, dan Jib Crane (Permenaker No. 08/2020)',
+      domainCode: 'PAPA',
+      eqTypeCode: 'EQ-PAPA-CRN',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN PESAWAT ANGKAT DAN PESAWAT ANGKUT (CRANE)',
+      regulation: 'Permenaker No. 08 Tahun 2020 tentang K3 Pesawat Angkat dan Pesawat Angkut',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'client_address', source: 'client.address', label: 'Alamat Pemilik' },
+        { target: 'install_location', source: 'object.install_location', label: 'Lokasi Pemasangan' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri' },
+        { target: 'brand', source: 'object.brand', label: 'Merk / Model' },
+        { target: 'manufacture_year', source: 'object.manufacture_year', label: 'Tahun Pembuatan' },
+        { target: 'swlCapacity', source: 'technical.swlCapacity', label: 'Kapasitas Angkat (SWL)' },
+        { target: 'spanLengthM', source: 'technical.spanLengthM', label: 'Bentang Crane (Span)' },
+        { target: 'liftingHeightM', source: 'technical.liftingHeightM', label: 'Tinggi Angkat' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-PAPA-FORKLIFT',
+      name: 'LHPP Pesawat Angkat & Angkut — Forklift & Material Handling',
+      description: 'Template resmi laporan hasil riksa uji Forklift Diesel, Electric, Reach Truck, dan Stacker (Permenaker No. 08/2020)',
+      domainCode: 'PAPA',
+      eqTypeCode: 'EQ-PAPA-FKL',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN PESAWAT ANGKAT DAN PESAWAT ANGKUT (FORKLIFT)',
+      regulation: 'Permenaker No. 08 Tahun 2020 tentang K3 Pesawat Angkat dan Pesawat Angkut',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'client_address', source: 'client.address', label: 'Alamat Pabrik' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri' },
+        { target: 'brand', source: 'object.brand', label: 'Merk / Model' },
+        { target: 'capacity', source: 'object.capacity', label: 'Kapasitas Angkat' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-PUBT-TANK',
+      name: 'LHPP Bejana Tekan & Tangki Timbun — Air Receiver & Storage',
+      description: 'Template resmi riksa uji Bejana Tekan Udara, Tangki Timbun, dan Reaktor Tekan (Permenaker No. 37/2016)',
+      domainCode: 'PUBT',
+      eqTypeCode: 'EQ-PUBT-PRS',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN BEJANA TEKAN & TANGKI TIMBUN',
+      regulation: 'Permenaker No. 37 Tahun 2016 tentang K3 Bejana Tekanan dan Tangki Timbun',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri' },
+        { target: 'design_pressure', source: 'technical.design_pressure', label: 'Tekanan Desain' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-ILPP-PETIR',
+      name: 'LHPP Instalasi Penyalur Petir — Konvensional & ESE',
+      description: 'Template resmi riksa uji Instalasi Penyalur Petir eksternal/internal & pembumian (Permenaker No. 31/2015)',
+      domainCode: 'ILPP',
+      eqTypeCode: 'EQ-ILPP-LGT',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN INSTALASI PENYALUR PETIR',
+      regulation: 'Permenaker No. 31 Tahun 2015 tentang Pengawasan Instalasi Penyalur Petir',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Nama Perusahaan / Gedung' },
+        { target: 'install_location', source: 'object.install_location', label: 'Lokasi Air Terminal' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-ILPP-LISTRIK',
+      name: 'LHPP Instalasi Listrik — Trafo, Switchgear & Distribusi',
+      description: 'Template resmi riksa uji Instalasi Listrik tegangan rendah/menengah (Permenaker No. 12/2015 & SNI PUIL 2011)',
+      domainCode: 'ILPP',
+      eqTypeCode: 'EQ-ILPP-PWR',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN INSTALASI LISTRIK',
+      regulation: 'Permenaker No. 12 Tahun 2015 & SNI PUIL 2011 tentang K3 Listrik di Tempat Kerja',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Nama Perusahaan' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri Trafo/Panel' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-PTP-DIESEL',
+      name: 'LHPP Pesawat Tenaga & Produksi — Motor Diesel & Genset',
+      description: 'Template resmi riksa uji Penggerak Mula Genset Diesel dan Turbin (Permenaker No. 38/2016)',
+      domainCode: 'PTP',
+      eqTypeCode: 'EQ-PTP-DSL',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN PESAWAT TENAGA DAN PRODUKSI (MOTOR DIESEL)',
+      regulation: 'Permenaker No. 38 Tahun 2016 tentang K3 Pesawat Tenaga dan Produksi',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri Mesin' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-PTP-MESIN',
+      name: 'LHPP Pesawat Tenaga & Produksi — Mesin & Lini Produksi',
+      description: 'Template resmi riksa uji Mesin Perkakas, Press, Conveyor, dan Line Produksi Otomasi (Permenaker No. 38/2016)',
+      domainCode: 'PTP',
+      eqTypeCode: 'EQ-PTP-PRD',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN PESAWAT TENAGA DAN PRODUKSI (MESIN PRODUKSI)',
+      regulation: 'Permenaker No. 38 Tahun 2016 tentang K3 Pesawat Tenaga dan Produksi',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri Mesin' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-IPK-ALARM',
+      name: 'LHPP Proteksi Kebakaran — Sistem Fire Alarm & Deteksi',
+      description: 'Template resmi riksa uji Sistem Alarm Kebakaran Otomatik & Manual Call Point (Kepmenaker No. 186/1999)',
+      domainCode: 'IPK',
+      eqTypeCode: 'EQ-IPK-ALM',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN SISTEM ALARM KEBAKARAN OTOMATIK',
+      regulation: 'Kepmenaker No. Kep.186/MEN/1999 & Permenaker No. Per.02/MEN/1983',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Nama Pemilik Gedung' },
+        { target: 'building_name', source: 'object.name', label: 'Nama Gedung / Fasilitas' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-IPK-HYDRANT',
+      name: 'LHPP Proteksi Kebakaran — Sistem Hydrant & Sprinkler',
+      description: 'Template resmi riksa uji Pompa Hydrant, Pillar, Nozzle, dan Instalasi Sprinkler (Permenaker No. 02/1983)',
+      domainCode: 'IPK',
+      eqTypeCode: 'EQ-IPK-HYD',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN SISTEM HYDRANT & SPRINKLER',
+      regulation: 'Permenaker No. 02 Tahun 1983 tentang Instalasi Alarm Kebakaran Otomatik',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'client_address', source: 'client.address', label: 'Alamat Lokasi' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-LE-LIFT',
+      name: 'LHPP Elevator & Eskalator — Lift Penumpang & Barang',
+      description: 'Template resmi riksa uji Lift Penumpang, Lift Barang, dan Eskalator (Permenaker No. 06/2017)',
+      domainCode: 'ELEVATOR_ESKALATOR',
+      eqTypeCode: 'EQ-LE-PSN',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN ELEVATOR DAN ESKALATOR',
+      regulation: 'Permenaker No. 06 Tahun 2017 tentang K3 Elevator dan Eskalator',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'serial_number', source: 'object.serial_number', label: 'Nomor Seri Unit' }
+      ]
+    },
+    {
+      code: 'TPL-LHPP-ANCHOR-LIFELINE',
+      name: 'LHPP Anchor & Lifeline — Sistem Proteksi Jatuh Ketinggian',
+      description: 'Template resmi riksa uji dan pengujian beban tarik Titik Angkur & Tali Pengaman (Permenaker No. 09/2016)',
+      domainCode: 'ANCHOR_LIFELINE',
+      title: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN ANCHOR & LIFELINE (BEKERJA DI KETINGGIAN)',
+      regulation: 'Permenaker No. 09 Tahun 2016 tentang K3 Dalam Pekerjaan Pada Ketinggian',
+      mappings: [
+        { target: 'client_name', source: 'client.name', label: 'Perusahaan Pemilik' },
+        { target: 'install_location', source: 'object.install_location', label: 'Lokasi Titik Angkur' }
+      ]
+    }
+  ];
+
+  const defaultSections = [
+    { key: 'cover', title: 'Halaman Sampul Resmi', type: 'COVER', enabled: true },
+    { key: 'identity', title: 'I. DATA UMUM & IDENTITAS UNIT', type: 'IDENTITY_TABLE', enabled: true },
+    { key: 'technical', title: 'II. DATA TEKNIS PERALATAN', type: 'TECHNICAL_TABLE', enabled: true },
+    { key: 'checklist', title: 'III. PEMERIKSAAN VISUAL & PENGUJIAN', type: 'CHECKLIST_TABLE', enabled: true },
+    { key: 'measurements', title: 'IV. PENGUKURAN & HASIL PENGUJIAN KHUSUS', type: 'MEASUREMENT_TABLE', enabled: true },
+    { key: 'findings', title: 'V. TEMUAN DAN SYARAT-SYARAT K3', type: 'FINDINGS_TABLE', enabled: true },
+    { key: 'conclusion', title: 'VI. KESIMPULAN KELAYAKAN OPERASIONAL', type: 'CONCLUSION', enabled: true },
+    { key: 'photos', title: 'LAMPIRAN FOTO DOKUMENTASI PENGUJIAN', type: 'PHOTOS', enabled: true },
+    { key: 'skp', title: 'LAMPIRAN SERTIFIKAT SKP & KALIBRASI', type: 'APPENDIX_SKP', enabled: true }
+  ];
+
+  for (const tpl of templates) {
+    let eqTypeId = null;
+    if (tpl.eqTypeCode) {
+      const { rows: eqRows } = await db.query('SELECT id FROM equipment_types WHERE code = $1', [tpl.eqTypeCode]);
+      eqTypeId = eqRows[0]?.id || null;
+    }
+
+    const { rows: tplRows } = await db.query(
+      `INSERT INTO lhpp_templates (code, name, description, domain_code, equipment_type_id, output_format, is_active)
+       VALUES ($1, $2, $3, $4, $5, 'BOTH', true)
+       ON CONFLICT (code) DO UPDATE SET
+         name = EXCLUDED.name,
+         description = EXCLUDED.description,
+         domain_code = EXCLUDED.domain_code,
+         equipment_type_id = COALESCE(EXCLUDED.equipment_type_id, lhpp_templates.equipment_type_id),
+         is_active = true
+       RETURNING id`,
+      [tpl.code, tpl.name, tpl.description, tpl.domainCode, eqTypeId]
+    );
+    const tplId = tplRows[0].id;
+
+    // Pastikan versi V1 ada dan aktif
+    const { rows: verRows } = await db.query(
+      `INSERT INTO lhpp_template_versions (
+         template_id, version_number, version_code, title,
+         regulation_reference, effective_date, is_active,
+         sections, field_mappings, changelog, created_by
+       ) VALUES ($1, 1, 'V1', $2, $3, CURRENT_DATE, true, $4::jsonb, $5::jsonb, 'Versi standar URD', $6)
+       ON CONFLICT (template_id, version_number) DO UPDATE SET
+         title = EXCLUDED.title,
+         regulation_reference = EXCLUDED.regulation_reference,
+         sections = EXCLUDED.sections,
+         field_mappings = EXCLUDED.field_mappings,
+         is_active = true
+       RETURNING id`,
+      [tplId, tpl.title, tpl.regulation, JSON.stringify(defaultSections), JSON.stringify(tpl.mappings), adminUserId]
+    );
+    const verId = verRows[0].id;
+
+    await db.query(
+      `UPDATE lhpp_templates
+       SET active_version_id = $1
+       WHERE id = $2`,
+      [verId, tplId]
+    );
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

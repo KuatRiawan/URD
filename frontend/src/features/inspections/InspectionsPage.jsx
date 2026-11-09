@@ -14,8 +14,16 @@ import {
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
+import { Button } from '../../components/ui/Button.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../components/ui/TableWrapper.jsx';
 import { useConfirm } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
@@ -28,6 +36,7 @@ import { OfflineSyncDrawer } from './components/OfflineSyncDrawer.jsx';
 export function InspectionsPage() {
   const confirm = useConfirm();
   const { user } = useAuth();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const isInspector = ['AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'].includes(user?.role);
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
@@ -41,6 +50,13 @@ export function InspectionsPage() {
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
 
   // Navigasi Tab Segmented: Lembar Kerja vs Master Template
   const [activeTab, setActiveTab] = useState('worksheets'); // 'worksheets' | 'templates'
@@ -295,30 +311,32 @@ export function InspectionsPage() {
         actions={
           isInspector ? (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="md"
+                icon={CloudCheck}
                 onClick={() => setSyncDrawerOpen(true)}
-                className="min-h-11 inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 transition-all"
                 title="Kelola draf offline dan antrean sinkronisasi"
               >
-                <CloudCheck size={18} className="text-emerald-600" weight="bold" />
-                <span>Offline &amp; Sinkronisasi</span>
-              </button>
-              <button
+                Offline &amp; Sinkronisasi
+              </Button>
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                icon={Plus}
                 onClick={() => setStartModalOpen(true)}
-                className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[#C81E1E] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#a11616] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <Plus size={16} weight="bold" />
-                <span>Mulai Inspeksi Baru</span>
-              </button>
+                Mulai Inspeksi Baru
+              </Button>
             </div>
           ) : null
         }
       />
 
       {/* Ringkasan Metrik Pengujian Lapangan */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { key: 'ALL', label: 'Total Lembar Uji', value: inspectionMetrics.total, sub: 'Semua status form', tone: 'slate' },
           { key: 'DRAF', label: 'Proses Lapangan (Draf)', value: inspectionMetrics.draftCount, sub: 'Sedang diisi Ahli K3', tone: 'blue' },
@@ -334,51 +352,43 @@ export function InspectionsPage() {
                 setActiveTab('worksheets');
                 setStatusFilter(card.key);
               }}
-              className={`text-left p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+              className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
                 isSelected
-                  ? 'border-[#C81E1E] bg-rose-50/40 dark:bg-rose-950/20'
-                  : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                  ? 'border-[#C81E1E] bg-[#C81E1E]/[0.04] dark:bg-rose-950/20 shadow-[0_2px_10px_rgba(200,30,30,0.08)]'
+                  : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.15]'
               }`}
             >
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
                 {card.label}
               </p>
               <p
-                className={`text-2xl font-extrabold tabular-nums mt-1 ${
+                className={`text-2xl font-bold tracking-tight tabular-nums mt-1 ${
                   card.tone === 'amber' && card.value > 0
                     ? 'text-amber-600 dark:text-amber-400'
                     : card.tone === 'emerald' && card.value > 0
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : card.tone === 'blue' && card.value > 0
                     ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-slate-900 dark:text-slate-100'
+                    : 'text-[#1D1D1F] dark:text-[#F5F5F7]'
                 }`}
               >
                 {card.value}
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{card.sub}</p>
+              <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">{card.sub}</p>
             </button>
           );
         })}
       </div>
 
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={loadData} />}
-
       {/* Segmented Control / Tabs: Lembar Kerja vs Master Template */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-md">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-md">
         <button
           type="button"
           onClick={() => setActiveTab('worksheets')}
-          className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-[9px] transition-all cursor-pointer flex items-center justify-center gap-2 ${
             activeTab === 'worksheets'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <FileText size={16} weight="bold" />
@@ -388,10 +398,10 @@ export function InspectionsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('templates')}
-          className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-[9px] transition-all cursor-pointer flex items-center justify-center gap-2 ${
             activeTab === 'templates'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <SealCheck size={16} weight="bold" />
@@ -401,14 +411,16 @@ export function InspectionsPage() {
 
       {loading ? (
         <LoadingState label="Memuat daftar form inspeksi dan data lapangan..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={loadData} />
       ) : activeTab === 'worksheets' ? (
         <div className="space-y-4">
           {/* Baris Pencarian & Filter */}
-          <div className="flex flex-col sm:flex-row gap-2.5">
+          <div className="flex flex-col sm:flex-row gap-2.5 bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div className="relative flex-1">
               <MagnifyingGlass
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#86868B]"
                 weight="bold"
               />
               <input
@@ -416,13 +428,13 @@ export function InspectionsPage() {
                 placeholder="Cari nomor PO, order, alat, atau klien..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#C81E1E]/20 focus:border-[#C81E1E]"
+                className="w-full h-9 pl-9 pr-4 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-none focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E]"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="py-2.5 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#C81E1E]/20"
+              className="h-9 px-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:border-[#C81E1E]"
             >
               <option value="ALL">Semua Status Form</option>
               <option value="TERKIRIM">TERKIRIM (Siap Tinjau QC)</option>
@@ -526,136 +538,111 @@ export function InspectionsPage() {
                         </div>
                       )}
 
-                      {/* Tombol Aksi Sentuh Penuh (Full Width Touch Target) */}
-                      <button
-                        type="button"
+                      {/* Tombol Aksi Sentuh Penuh */}
+                      <Button
+                        variant={isDraft && isInspector ? 'primary' : 'secondary'}
+                        size="sm"
+                        touchFriendly
+                        icon={isDraft && isInspector ? ClipboardText : Eye}
                         onClick={() => openInspectionModal(item.id)}
-                        className={`min-h-11 w-full flex items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98] cursor-pointer shadow-xs ${
-                          isDraft && isInspector
-                            ? 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
-                            : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50'
-                        }`}
+                        className="w-full"
                       >
-                        {isDraft && isInspector ? (
-                          <>
-                            <ClipboardText size={18} weight="bold" />
-                            <span>Kerjakan Form Uji</span>
-                          </>
-                        ) : (
-                          <>
-                            <Eye size={18} weight="bold" />
-                            <span>Lihat Hasil &amp; Dokumen</span>
-                          </>
-                        )}
-                      </button>
+                        {isDraft && isInspector ? 'Isi Form Uji' : 'Detail'}
+                      </Button>
                     </div>
                   );
                 })}
               </div>
 
               {/* TAMPILAN DESKTOP: Tabel Lengkap */}
-              <div className="hidden sm:block bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                        <th className="py-3 px-4">Order &amp; Klien</th>
-                        <th className="py-3 px-4">Objek Uji K3</th>
-                        <th className="py-3 px-4">Ahli K3 Pemeriksa</th>
-                        <th className="py-3 px-4">Kesimpulan Teknis</th>
-                        <th className="py-3 px-4">Status &amp; LHPP</th>
-                        <th className="py-3 px-4 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                      {filteredInspections.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <td className="py-3.5 px-4 text-xs">
-                            <div className="font-mono font-bold text-[#C81E1E] dark:text-red-400">
-                              {item.po_number || item.order_no}
-                            </div>
-                            <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                              Order: {item.order_no}
-                            </div>
-                            <div className="font-semibold text-slate-700 dark:text-slate-300">{item.client_name}</div>
-                          </td>
-                          <td className="py-3.5 px-4 text-xs">
-                            <div className="font-bold text-slate-900 dark:text-white">{item.object_name}</div>
-                            <div className="text-slate-500 dark:text-slate-400">
-                              {item.category_code} · SN: {item.serial_number}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 text-xs">
-                            <div className="font-semibold text-slate-900 dark:text-white">{item.inspector_name}</div>
-                            <div className="text-slate-500 dark:text-slate-400">{formatDateTime(item.inspected_at)}</div>
-                          </td>
-                          <td className="py-3.5 px-4 text-xs">
-                            {item.conclusion ? (
-                              <Badge
-                                tone={
-                                  item.conclusion === 'MEMENUHI_SYARAT'
-                                    ? 'success'
-                                    : item.conclusion === 'TIDAK_MEMENUHI_SYARAT'
-                                      ? 'danger'
-                                      : 'warning'
-                                }
-                              >
-                                {CONCLUSION_LABELS[item.conclusion] || item.conclusion}
-                              </Badge>
-                            ) : (
-                              <span className="text-slate-400 dark:text-slate-500">Belum disimpulkan</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-xs">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <Badge tone={item.status === 'TERKIRIM' ? 'success' : 'warning'}>
-                                {item.status}
-                              </Badge>
-                              {Number(item.revision_no) > 0 && (
-                                <Badge tone={item.status === 'DRAF' ? 'danger' : 'neutral'}>
-                                  Revisi #{item.revision_no}
-                                </Badge>
-                              )}
-                            </div>
-                            {item.bap_no && (
-                              <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-red-400">
-                                BAP: {item.bap_no} ({item.bap_status})
-                              </div>
-                            )}
-                            {item.lhpp_no && (
-                              <div className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                                {item.lhpp_no}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => openInspectionModal(item.id)}
-                              className={`min-h-9 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer ${
-                                item.status === 'DRAF' && isInspector
-                                  ? 'bg-[#C81E1E] text-white hover:bg-[#a61717]'
-                                  : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
-                              }`}
+              <div className="hidden sm:block">
+                <TableWrapper>
+                  <TableHead>
+                    <tr>
+                      <TableCell isHeader>Order &amp; Klien</TableCell>
+                      <TableCell isHeader>Objek Uji K3</TableCell>
+                      <TableCell isHeader>Ahli K3 Pemeriksa</TableCell>
+                      <TableCell isHeader>Kesimpulan Teknis</TableCell>
+                      <TableCell isHeader>Status &amp; LHPP</TableCell>
+                      <TableCell isHeader align="right">Aksi</TableCell>
+                    </tr>
+                  </TableHead>
+                  <TableBody>
+                    {filteredInspections.map((item) => (
+                      <TableRow key={item.id} isClickable onClick={() => openInspectionModal(item.id)}>
+                        <TableCell className="text-xs">
+                          <div className="font-mono font-bold text-[#C81E1E] dark:text-red-400">
+                            {item.po_number || item.order_no}
+                          </div>
+                          <div className="font-mono text-[11px] text-[#6E6E73] dark:text-[#98989D]">
+                            Order: {item.order_no}
+                          </div>
+                          <div className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">{item.client_name}</div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{item.object_name}</div>
+                          <div className="text-[#6E6E73] dark:text-[#98989D]">
+                            {item.category_code} · SN: {item.serial_number}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">{item.inspector_name}</div>
+                          <div className="text-[#6E6E73] dark:text-[#98989D]">{formatDateTime(item.inspected_at)}</div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {item.conclusion ? (
+                            <Badge
+                              tone={
+                                item.conclusion === 'MEMENUHI_SYARAT'
+                                  ? 'success'
+                                  : item.conclusion === 'TIDAK_MEMENUHI_SYARAT'
+                                    ? 'danger'
+                                    : 'warning'
+                              }
                             >
-                              {item.status === 'DRAF' && isInspector ? (
-                                <>
-                                  <ClipboardText size={15} weight="bold" />
-                                  <span>Kerjakan / Isi Form</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Eye size={15} weight="bold" />
-                                  <span>Review Hasil &amp; Dokumen</span>
-                                </>
-                              )}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                              {CONCLUSION_LABELS[item.conclusion] || item.conclusion}
+                            </Badge>
+                          ) : (
+                            <span className="text-[#86868B]">Belum disimpulkan</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge tone={item.status === 'TERKIRIM' ? 'success' : 'warning'}>
+                              {item.status}
+                            </Badge>
+                            {Number(item.revision_no) > 0 && (
+                              <Badge tone={item.status === 'DRAF' ? 'danger' : 'neutral'}>
+                                Revisi #{item.revision_no}
+                              </Badge>
+                            )}
+                          </div>
+                          {item.bap_no && (
+                            <div className="mt-1 font-mono text-[11px] font-bold text-[#C81E1E] dark:text-red-400">
+                              BAP: {item.bap_no} ({item.bap_status})
+                            </div>
+                          )}
+                          {item.lhpp_no && (
+                            <div className="mt-0.5 font-mono text-[11px] text-[#6E6E73] dark:text-[#98989D]">
+                              {item.lhpp_no}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            type="button"
+                            variant={item.status === 'DRAF' && isInspector ? 'primary' : 'secondary'}
+                            size="xs"
+                            icon={item.status === 'DRAF' && isInspector ? ClipboardText : Eye}
+                            onClick={() => openInspectionModal(item.id)}
+                          >
+                            {item.status === 'DRAF' && isInspector ? 'Isi Form' : 'Detail'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </TableWrapper>
               </div>
             </>
           )}

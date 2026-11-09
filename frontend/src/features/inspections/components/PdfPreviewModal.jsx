@@ -1,5 +1,6 @@
 import { CircleNotch, DownloadSimple, Printer } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 
 export function PdfPreviewModal({
   open,
@@ -41,18 +42,19 @@ export function PdfPreviewModal({
             <span>Periksa kesesuaian data dokumen sebelum mencetak atau mengunduh.</span>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
+              icon={Printer}
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
             >
-              <Printer size={15} weight="bold" />
-              <span>Cetak / Print</span>
-            </button>
+              Cetak / Print
+            </Button>
             <a
               href={pdfUrl || '#'}
               download={actualFilename}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-[9px] bg-[#C81E1E] hover:bg-[#A61717] active:bg-[#8A1212] text-white text-xs font-semibold shadow-[0_1px_2px_rgba(200,30,30,0.22)] transition-colors cursor-pointer"
             >
               <DownloadSimple size={15} weight="bold" />
               <span>Unduh Dokumen PDF</span>

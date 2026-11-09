@@ -14,6 +14,7 @@ import {
   X
 } from '@phosphor-icons/react';
 import { PageHeader } from '../../../components/ui/PageHeader.jsx';
+import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { EmptyState } from '../../../components/feedback/StateViews.jsx';
 import { InspectorMetricCards } from './InspectorMetricCards.jsx';
 import { InspectorUnitCard } from './InspectorUnitCard.jsx';
@@ -49,12 +50,21 @@ export function InspectorDashboardView({
   actionLoading
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const toast = useToast();
   const activeInspectionId = searchParams.get('inspectionId') || null;
   const [openingInspection, setOpeningInspection] = useState(false);
   const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [previewPdfTitle, setPreviewPdfTitle] = useState('');
   const [previewPdfFilename, setPreviewPdfFilename] = useState('');
+  const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    if (actionError) {
+      toast(actionError, 'error');
+      setActionError('');
+    }
+  }, [actionError, toast]);
 
   // Modal Detail Tugas & Drawer Offline
   const [selectedDetailUnit, setSelectedDetailUnit] = useState(null);
@@ -158,7 +168,7 @@ export function InspectorDashboardView({
       }
       if (loadSummary) loadSummary(true);
     } catch (err) {
-      alert(
+      setActionError(
         err.response?.data?.error?.message ||
           err.response?.data?.message ||
           'Gagal membuka lembar pemeriksaan.'
@@ -194,7 +204,7 @@ export function InspectorDashboardView({
       setPreviewPdfFilename(filename || 'dokumen.pdf');
       setPdfPreviewModalOpen(true);
     } catch {
-      alert('Gagal memuat pratinjau dokumen PDF.');
+      setActionError('Gagal memuat pratinjau dokumen PDF.');
     }
   };
 
@@ -371,44 +381,44 @@ export function InspectorDashboardView({
           </button>
         </div>
 
-        {/* 4. Priority Hero Card (Hari Ini) */}
+        {/* 4. Priority Hero Card (Hari Ini) - Apple-Inspired Light Surface with URD Red Accent */}
         {activeTodayUnit && (fieldTab === 'ALL' || fieldTab === 'TODAY') && (
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between px-0.5">
+              <span className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
                 Prioritas Lapangan Hari Ini
               </span>
-              <span className="text-[10px] font-extrabold text-[#C81E1E] bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-[#C81E1E] bg-[#C81E1E]/10 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full">
                 Jadwal Aktif
               </span>
             </div>
-            <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-rose-950 p-4 text-white shadow-md border border-slate-800">
+            <div className="rounded-2xl bg-white dark:bg-[#151821] p-4 text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_28px_-6px_rgba(0,0,0,0.06)] border border-black/[0.07] dark:border-white/[0.08]">
               <div className="flex items-start gap-3">
-                <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/10">
-                  <ClipboardText size={22} className="text-rose-400" weight="duotone" />
+                <div className="w-11 h-11 rounded-xl bg-[#C81E1E]/10 flex items-center justify-center shrink-0 border border-[#C81E1E]/15">
+                  <ClipboardText size={22} className="text-[#C81E1E] dark:text-rose-400" weight="duotone" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="inline-block px-2 py-0.5 rounded-md bg-rose-500/25 text-rose-300 text-[10px] font-bold uppercase tracking-wide">
+                  <div className="inline-block px-2 py-0.5 rounded-md bg-[#F5F5F7] dark:bg-white/[0.06] text-[#C81E1E] dark:text-rose-300 text-[10px] font-semibold">
                     {activeTodayUnit.category_code} &bull; {activeTodayUnit.category_name}
                   </div>
-                  <h4 className="text-base font-black text-white mt-1 leading-snug truncate">
+                  <h4 className="text-base font-bold text-[#1D1D1F] dark:text-[#F5F5F7] mt-1 leading-snug truncate tracking-[-0.015em]">
                     {activeTodayUnit.object_name}
                   </h4>
-                  <p className="text-xs text-slate-300 truncate mt-0.5">
+                  <p className="text-xs text-[#6E6E73] dark:text-[#98989D] truncate mt-0.5">
                     {activeTodayUnit.client_name}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-mono text-slate-300 truncate">
+              <div className="mt-3.5 pt-3 border-t border-black/[0.06] dark:border-white/[0.07] flex items-center justify-between gap-2">
+                <span className="text-[11px] font-mono text-[#6E6E73] dark:text-[#98989D] truncate">
                   SN: {activeTodayUnit.serial_number || '-'}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setSelectedDetailUnit(activeTodayUnit)}
-                    className="px-3 min-h-[40px] rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all cursor-pointer"
+                    className="px-3.5 min-h-[40px] rounded-[10px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7] text-xs font-semibold hover:bg-black/[0.06] transition-all cursor-pointer"
                   >
                     Detail
                   </button>
@@ -416,7 +426,7 @@ export function InspectorDashboardView({
                     type="button"
                     onClick={() => handleOpenInspection(activeTodayUnit)}
                     disabled={openingInspection}
-                    className="inline-flex items-center gap-1.5 px-4 min-h-[40px] rounded-xl bg-[#C81E1E] text-white text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 px-4 min-h-[40px] rounded-[10px] bg-[#C81E1E] text-white text-xs font-semibold shadow-[0_1px_2px_rgba(200,30,30,0.25)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60"
                   >
                     <span>{openingInspection ? 'Membuka...' : 'Mulai Uji'}</span>
                     <ArrowRight size={14} weight="bold" />
@@ -473,7 +483,7 @@ export function InspectorDashboardView({
         {/* Header Halaman Desktop */}
         <PageHeader
           title="Dasbor Lapangan Inspector"
-          subtitle="Pekerjaan riksa uji teknis lapangan, verifikasi unit, pengisian checklist, dokumentasi foto, dan tanda tangan berita acara."
+          subtitle="Pelaksanaan riksa uji lapangan, checklist teknis K3, dan berita acara."
           actions={
             <div className="flex items-center gap-2">
               {/* Tombol Antrean Offline Desktop */}
@@ -521,20 +531,15 @@ export function InspectorDashboardView({
         />
 
         {/* Kontrol Pencarian, Pilihan Tab, dan Tampilan Desktop */}
-        <section className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 space-y-3.5">
+        <section className="bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-black/[0.06] dark:border-white/[0.07] bg-[#F5F5F7]/50 dark:bg-[#11141C] space-y-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span>Daftar Unit Operasional Riksa Uji</span>
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    {assignedUnits.length}
-                  </span>
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Pilih unit alat untuk membuka form pemeriksaan teknis, dokumentasi foto, dan berita acara.
-                </p>
-              </div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <span>Daftar Unit Operasional Riksa Uji</span>
+                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  {assignedUnits.length}
+                </span>
+              </h2>
 
               {/* Tombol Pengatur Tampilan Desktop (Kartu vs Tabel) */}
               <div className="flex items-center gap-2">

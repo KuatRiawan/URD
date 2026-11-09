@@ -1,244 +1,319 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
 import {
-  ArrowLeft,
+  Buildings,
+  CheckCircle,
+  ClipboardText,
+  DownloadSimple,
   FilePdf,
   ShieldCheck,
-  WarningCircle
+  Wrench,
+  WarningCircle,
+  CalendarBlank,
+  ArrowLeft
 } from '@phosphor-icons/react';
-import logoUrd from '../../assets/logo-urd.png';
 import { api } from '../../lib/api/axios.js';
-import { formatDate, ORDER_STATUS_LABELS, SERVICE_TYPE_LABELS } from '../../lib/utils/format.js';
-import { LoadingState } from '../../components/feedback/StateViews.jsx';
+import { formatDate } from '../../lib/utils/format.js';
+import { TableWrapper } from '../../components/ui/TableWrapper.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
-import { ThemeToggle } from '../../components/ui/ThemeToggle.jsx';
+import logoUrd from '../../assets/logo-urd.png';
+
+const STATUS_BADGE = {
+  COMPLETED: { label: 'Selesai', tone: 'success' },
+  APPROVED: { label: 'Disetujui', tone: 'success' },
+  DELIVERED: { label: 'Diserahkan', tone: 'success' },
+  IN_PROGRESS: { label: 'Sedang Diuji', tone: 'warning', pulse: true },
+  SCHEDULED: { label: 'Terjadwal', tone: 'info' },
+  PENDING: { label: 'Menunggu Jadwal', tone: 'neutral' }
+};
 
 export function ClientPortalPage() {
   const { token } = useParams();
-  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState('ALL');
 
   useEffect(() => {
     let active = true;
-    const fetchPortal = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.get(`/portal/access/${token}`);
-        if (active) setData(res.data);
-      } catch (err) {
-        if (active) {
-          setError(
-            err.response?.data?.message ||
-              'Tautan portal klien tidak valid atau masa berlakunya telah berakhir.'
-          );
-        }
-      } finally {
+    setLoading(true);
+    setError('');
+    api
+      .get(`/public/portal/${encodeURIComponent(token || '')}`)
+      .then((res) => {
+        if (!active) return;
+        setData(res.data);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err?.response?.data?.message || 'Tautan Portal Klien tidak valid atau telah kedaluwarsa.');
+      })
+      .finally(() => {
         if (active) setLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchPortal();
-    } else {
-      setLoading(false);
-      setError('Token portal tidak dicantumkan.');
-    }
+      });
 
     return () => {
       active = false;
     };
   }, [token]);
 
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+
+  const filteredUnits =
+    selectedOrderId === 'ALL'
+      ? data?.units || []
+      : (data?.units || []).filter((u) => u.orderId === selectedOrderId);
+
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-8 py-3.5 shadow-xs">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0B0D11] text-[#1D1D1F] dark:text-[#F5F5F7] flex flex-col justify-between">
+      {/* Top Navbar */}
+      <header className="urd-glass-toolbar sticky top-0 z-20 px-4 sm:px-8 py-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img
-              src={logoUrd}
-              alt="Logo PT Upaya Riksa Daya"
-              width="48"
-              height="34"
-              className="h-8 w-auto object-contain"
-            />
+            <span className="inline-flex items-center justify-center rounded-xl bg-white p-1.5 border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+              <img
+                src={logoUrd}
+                alt="Logo PT Upaya Riksa Daya"
+                className="h-6 w-auto object-contain"
+              />
+            </span>
             <div>
-              <p className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-                PT Upaya Riksa Daya
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Portal Akses Informasi & Dokumen Riksa Uji K3 Klien
-              </p>
+              <h1 className="text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.015em]">
+                Portal Klien · PT Upaya Riksa Daya
+              </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C81E1E] hover:underline"
-            >
-              <ArrowLeft size={14} weight="bold" />
-              <span>Login Staf</span>
-            </Link>
-          </div>
+
+          {data?.client && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+              <ShieldCheck size={16} weight="fill" />
+              <span>Akses Terautentikasi: {data.client.name}</span>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      {/* Main Content */}
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-8 py-6 flex-1 space-y-6">
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs text-center my-12">
-            <LoadingState label="Memuat data riksa uji dan dokumen klien..." />
-          </div>
-        ) : error ? (
-          <div className="bg-white dark:bg-slate-900 p-7 sm:p-9 rounded-2xl border border-red-200 dark:border-red-900/50 shadow-xs text-center space-y-4 max-w-md mx-auto my-12">
-            <div className="mx-auto h-14 w-14 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center">
-              <WarningCircle size={32} weight="fill" />
-            </div>
-            <h1 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
-              Akses Portal Tidak Tersedia
-            </h1>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              {error}
+          <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <div className="h-9 w-9 mx-auto rounded-full border-2 border-black/[0.08] dark:border-white/[0.10] border-t-[#C81E1E] animate-spin" />
+            <p className="mt-3 text-sm font-medium text-[#6E6E73] dark:text-[#98989D]">
+              Memuat data kontrak dan dokumen pemeriksaan...
             </p>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Header Profil Klien */}
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full mb-2">
-                  <ShieldCheck size={14} weight="fill" />
-                  <span>Portal Akses Resmi Terverifikasi</span>
-                </span>
-                <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{data.client.name}</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {data.client.address || 'Alamat operasional klien'} · Kontak: {data.client.phone || data.client.email || '-'}
-                </p>
-              </div>
-              <div className="text-left md:text-right text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                <p className="font-semibold text-slate-700 dark:text-slate-300">{data.token.label || 'Tautan Akses Klien'}</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {data.token.expiresAt
-                    ? `Berlaku hingga: ${formatDate(data.token.expiresAt)}`
-                    : 'Akses Aktif'}
-                </p>
-              </div>
+        ) : error ? (
+          <div className="max-w-lg mx-auto my-12 rounded-2xl border border-[#C81E1E]/25 bg-white dark:bg-[#151821] p-8 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <div className="h-12 w-12 mx-auto rounded-2xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center">
+              <WarningCircle size={28} weight="fill" />
             </div>
-
-            {/* Rekap Dokumen & Order Pemeriksaan K3 */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <h2 className="mt-4 text-base font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              Akses Portal Klien Tidak Valid
+            </h2>
+            <p className="mt-1.5 text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed">{error}</p>
+            <Link
+              to="/login"
+              className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-black/85 transition-colors"
+            >
+              <ArrowLeft size={14} weight="bold" />
+              <span>Ke Halaman Login Internal</span>
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Banner Perusahaan Klien */}
+            <div className="rounded-2xl bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                    Daftar Order Riksa Uji & Unit Alat ({data.orders.length} Order)
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C81E1E] dark:text-rose-400">
+                    <Buildings size={14} weight="bold" />
+                    <span>Dasbor Klien Resmi</span>
+                  </span>
+                  <h2 className="mt-1 text-xl sm:text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.022em]">
+                    {data.client?.name}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Pantau status riksa uji lapangan dan unduh BAP serta LHPP resmi yang telah disahkan
+                  <p className="mt-1 text-xs text-[#6E6E73] dark:text-[#98989D]">
+                    {data.client?.address || 'Alamat terdaftar'} • {data.client?.city || 'Indonesia'}
                   </p>
                 </div>
+
+                {/* KPI Ringkas */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="rounded-xl bg-[#F5F5F7] dark:bg-[#11141C] border border-black/[0.05] dark:border-white/[0.06] px-3.5 py-2.5">
+                    <span className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D] block">Total PO</span>
+                    <span className="text-lg font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{data.summary?.totalOrders || 0}</span>
+                  </div>
+                  <div className="rounded-xl bg-[#F5F5F7] dark:bg-[#11141C] border border-black/[0.05] dark:border-white/[0.06] px-3.5 py-2.5">
+                    <span className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D] block">Total Alat</span>
+                    <span className="text-lg font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{data.summary?.totalUnits || 0}</span>
+                  </div>
+                  <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2.5">
+                    <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 block">BAP Selesai</span>
+                    <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">{data.summary?.bapReadyCount || 0}</span>
+                  </div>
+                  <div className="rounded-xl bg-[#C81E1E]/10 border border-[#C81E1E]/20 px-3.5 py-2.5">
+                    <span className="text-[11px] font-medium text-[#C81E1E] dark:text-rose-300 block">LHPP Terbit</span>
+                    <span className="text-lg font-bold text-[#C81E1E] dark:text-rose-300 tabular-nums">{data.summary?.lhppApprovedCount || 0}</span>
+                  </div>
+                </div>
               </div>
-
-              {data.orders.length === 0 ? (
-                <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
-                  Belum ada riwayat order riksa uji pada portal ini.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {data.orders.map((ord) => (
-                    <div key={ord.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-                      <div className="bg-slate-50 dark:bg-slate-800/60 px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                              {ord.po_number || ord.order_no}
-                            </span>
-                            <Badge tone="neutral">
-                              {ORDER_STATUS_LABELS[ord.status] || ord.status}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            Layanan: {SERVICE_TYPE_LABELS[ord.service_type] || ord.service_type} · Lokasi: {ord.location_name || 'Utama'} {ord.location_city ? `(${ord.location_city})` : ''} · Tanggal PO: {formatDate(ord.po_date || ord.created_at)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 font-semibold">
-                              <th className="py-2.5 px-4">Nama Unit & Bidang K3</th>
-                              <th className="py-2.5 px-4">Nomor Seri</th>
-                              <th className="py-2.5 px-4">Status Pengujian</th>
-                              <th className="py-2.5 px-4">Kesimpulan</th>
-                              <th className="py-2.5 px-4 text-right">Dokumen Resmi</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {(ord.objects || []).map((u, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                <td className="py-3 px-4">
-                                  <div className="font-bold text-slate-900 dark:text-slate-100">{u.name}</div>
-                                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                    {u.categoryCode} ({u.categoryName})
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300">
-                                  {u.serialNumber}
-                                </td>
-                                <td className="py-3 px-4">
-                                  <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                                    {u.unitStatus}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                                  {u.conclusion || '-'}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                  <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
-                                    {u.bapVerificationCode && (
-                                      <Link
-                                        to={`/verifikasi/${u.bapVerificationCode}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#C81E1E] text-white font-bold hover:bg-red-800"
-                                      >
-                                        <FilePdf size={13} weight="bold" />
-                                        <span>BAP</span>
-                                      </Link>
-                                    )}
-                                    {u.lhppVerificationCode && (
-                                      <Link
-                                        to={`/verifikasi/${u.lhppVerificationCode}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-700 dark:bg-slate-600 text-white font-bold hover:bg-slate-800 dark:hover:bg-slate-500"
-                                      >
-                                        <ShieldCheck size={13} weight="bold" />
-                                        <span>LHPP</span>
-                                      </Link>
-                                    )}
-                                    {!u.bapVerificationCode && !u.lhppVerificationCode && (
-                                      <span className="text-slate-400 text-[11px] italic">Dalam proses</span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-          </div>
+
+            {/* Filter Kontrak / PO */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+                Daftar Unit &amp; Dokumen Pemeriksaan
+              </h3>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor="portal-po-filter" className="text-xs font-medium text-[#6E6E73] dark:text-[#98989D]">
+                  Kontrak PO:
+                </label>
+                <select
+                  id="portal-po-filter"
+                  value={selectedOrderId}
+                  onChange={(e) => setSelectedOrderId(e.target.value)}
+                  className="rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#151821] px-3 py-1.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]"
+                >
+                  <option value="ALL">Semua PO ({data.orders?.length || 0})</option>
+                  {(data.orders || []).map((ord) => (
+                    <option key={ord.id} value={ord.id}>
+                      {ord.poNumber || ord.orderNo} ({ord.progressPct}% Selesai)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tabel Unit & Unduh Dokumen */}
+            <TableWrapper>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    <th>Objek / Peralatan K3</th>
+                    <th>Kontrak PO</th>
+                    <th>Jadwal & Ahli K3</th>
+                    <th>Status Uji</th>
+                    <th>Masa Berlaku</th>
+                    <th className="text-right">Dokumen Resmi (PDF)</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs">
+                  {filteredUnits.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center text-[#6E6E73] dark:text-[#98989D]">
+                        Belum ada unit peralatan pada kontrak ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUnits.map((unit) => {
+                      const badge = STATUS_BADGE[unit.status] || STATUS_BADGE.PENDING;
+                      const bapDownloadUrl = unit.bap?.id
+                        ? `${apiBase}/public/portal/${encodeURIComponent(token)}/bap/${unit.bap.id}/pdf`
+                        : null;
+                      const lhppDownloadUrl =
+                        unit.lhpp?.id && ['APPROVED', 'DELIVERED'].includes(unit.lhpp.status)
+                          ? `${apiBase}/public/portal/${encodeURIComponent(token)}/lhpp/${unit.lhpp.id}/pdf`
+                          : null;
+
+                      return (
+                        <tr key={unit.orderUnitId}>
+                          <td>
+                            <div className="flex items-start gap-2.5">
+                              <Wrench size={16} className="text-[#C81E1E] mt-0.5 shrink-0" />
+                              <div>
+                                <p className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">{unit.objectName}</p>
+                                <p className="text-[11px] text-[#6E6E73] dark:text-[#98989D] font-mono">
+                                  {unit.subBidang || unit.bidang} • SN: {unit.serialNo || '-'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="font-mono font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
+                              {unit.poNumber || unit.orderNo}
+                            </span>
+                            {unit.locationText && (
+                              <span className="block text-[11px] text-[#6E6E73] dark:text-[#98989D] truncate max-w-[180px]">
+                                {unit.locationText}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="flex items-center gap-1 text-[#1D1D1F] dark:text-[#F5F5F7] font-medium">
+                              <CalendarBlank size={13} className="text-[#6E6E73]" />
+                              <span>{formatDate(unit.scheduledStart)}</span>
+                            </div>
+                            <span className="block text-[11px] text-[#6E6E73] dark:text-[#98989D]">
+                              {unit.inspectorName || 'Menunggu Penugasan'}
+                            </span>
+                          </td>
+                          <td>
+                            <Badge tone={badge.tone} size="sm" pulse={badge.pulse}>
+                              {badge.label}
+                            </Badge>
+                            {unit.resultStatus && (
+                              <span className="block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
+                                Hasil: {unit.resultStatus}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            {unit.validUntil ? (
+                              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                                s/d {formatDate(unit.validUntil)}
+                              </span>
+                            ) : (
+                              <span className="text-[#6E6E73] dark:text-[#98989D]">-</span>
+                            )}
+                          </td>
+                          <td className="text-right">
+                            <div className="inline-flex items-center justify-end gap-2 flex-wrap">
+                              {bapDownloadUrl ? (
+                                <a
+                                  href={bapDownloadUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] bg-white dark:bg-[#1C1F2B] hover:bg-black/[0.03] text-[#1D1D1F] dark:text-[#F5F5F7] font-semibold text-[11px] border border-black/[0.08] dark:border-white/[0.10] transition-colors"
+                                >
+                                  <ClipboardText size={14} weight="bold" />
+                                  <span>Unduh BAP</span>
+                                  <DownloadSimple size={12} weight="bold" />
+                                </a>
+                              ) : (
+                                <span className="text-[11px] text-[#6E6E73] dark:text-[#98989D] px-2">BAP Proses</span>
+                              )}
+
+                              {lhppDownloadUrl ? (
+                                <a
+                                  href={lhppDownloadUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] bg-[#C81E1E] hover:bg-[#B01818] text-white font-semibold text-[11px] shadow-xs transition-colors"
+                                >
+                                  <FilePdf size={14} weight="fill" />
+                                  <span>Unduh LHPP</span>
+                                  <DownloadSimple size={12} weight="bold" />
+                                </a>
+                              ) : (
+                                <span className="text-[11px] text-[#6E6E73] dark:text-[#98989D] px-2">LHPP Proses</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </TableWrapper>
+          </>
         )}
       </main>
 
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-        © {new Date().getFullYear()} PT Upaya Riksa Daya
+      {/* Footer */}
+      <footer className="border-t border-black/[0.06] dark:border-white/[0.08] bg-white/80 dark:bg-[#11141C] px-4 sm:px-8 py-4 text-center text-[11px] text-[#6E6E73] dark:text-[#98989D]">
+        &copy; {new Date().getFullYear()} PT Upaya Riksa Daya
       </footer>
     </div>
   );

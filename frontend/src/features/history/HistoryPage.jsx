@@ -91,42 +91,42 @@ export function HistoryPage() {
       />
 
       {/* Ringkasan Riwayat Pengujian */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Total Arsip Pengujian
           </p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-1">
             {total || items.length}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Rekam jejak pemeriksaan unit</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Rekam jejak pemeriksaan unit</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Memenuhi Syarat K3
           </p>
-          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
             {passedCount}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit laik operasi pada halaman ini</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Unit laik operasi pada halaman ini</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Dokumen BAP / LHPP
           </p>
-          <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400 tabular-nums mt-1">
             {withLhppCount}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Memiliki berkas uji resmi</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Memiliki berkas uji resmi</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Suket K3 Terbit
           </p>
-          <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400 tabular-nums mt-1">
             {withSuketCount}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tersertifikasi Disnaker</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Tersertifikasi Disnaker</p>
         </div>
       </div>
 

@@ -20,7 +20,7 @@ import {
   UsersThree
 } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { Badge, statusTone } from '../../../components/ui/Badge.jsx';
 import { formatDate, formatRelativeTime, ORDER_STATUS_LABELS } from '../../../lib/utils/format.js';
 
@@ -29,6 +29,7 @@ export function ClientDetailModal({
   portalTokens = [],
   onClose,
   canEdit,
+  onOpenEdit,
   subFeedback,
   portalUrl,
   portalCopied,
@@ -150,8 +151,6 @@ export function ClientDetailModal({
       size="xl"
     >
       <div className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
-        {subFeedback && <Notice tone="success">{subFeedback}</Notice>}
-
         {/* Tab Navigasi Workspace Klien */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <button
@@ -221,6 +220,21 @@ export function ClientDetailModal({
         {/* ======================================================== */}
         {activeTab === 'PROFILE' && (
           <div className="space-y-4">
+            {canEdit && onOpenEdit && (
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Data master dan identitas hukum klien
+                </span>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  icon={Pencil}
+                  onClick={() => onOpenEdit(client)}
+                >
+                  Ubah Data Klien
+                </Button>
+              </div>
+            )}
             {/* Kartu Informasi Resmi Perusahaan */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
               <div className="space-y-2">
@@ -865,14 +879,15 @@ export function ClientDetailModal({
 
                     <div className="shrink-0 flex items-center gap-2">
                       {onCreateRenewalOrder && (
-                        <button
+                        <Button
                           type="button"
+                          variant="primary"
+                          size="xs"
+                          icon={Plus}
                           onClick={() => onCreateRenewalOrder(obj.id, obj.name)}
-                          className="min-h-9 px-3.5 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a11616] cursor-pointer inline-flex items-center gap-1.5 shadow-2xs transition-colors"
                         >
-                          <Plus size={14} weight="bold" />
-                          <span>Buat PO Perpanjangan</span>
-                        </button>
+                          PO Ulang
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -921,18 +936,20 @@ export function ClientDetailModal({
                       <Badge tone={statusTone(ord.status)}>
                         {ORDER_STATUS_LABELS[ord.status] || ord.status}
                       </Badge>
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        size="xs"
+                        icon={ArrowRight}
+                        iconPosition="right"
                         onClick={() => {
                           onClose();
                           navigate('/app/orders');
                         }}
-                        className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold text-xs inline-flex items-center gap-1 transition-colors cursor-pointer"
                         title="Buka detail di modul Order"
                       >
-                        <span>Lihat PO</span>
-                        <ArrowRight size={13} weight="bold" />
-                      </button>
+                        Lihat PO
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -979,14 +996,15 @@ export function ClientDetailModal({
         )}
 
         {/* Footer Modal */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-          <button
+        <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-end">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors shadow-2xs"
           >
             Tutup Workspace Klien
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

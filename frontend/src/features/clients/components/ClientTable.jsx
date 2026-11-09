@@ -1,5 +1,14 @@
 import { Buildings, Cube, Eye, MapPin, Pencil } from '@phosphor-icons/react';
 import { StatusBadge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import { PaginationBar } from '../../../components/feedback/StateViews.jsx';
 
 export function ClientTable({
@@ -69,26 +78,30 @@ export function ClientTable({
 
             {/* Tombol Aksi Mobile */}
             <div
-              className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2"
+              className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                touchFriendly
+                icon={Eye}
                 onClick={() => onOpenDetail(c.id)}
-                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
+                className="flex-1"
               >
-                <Eye size={15} />
-                <span>Detail &amp; Alat</span>
-              </button>
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => onOpenEdit(c)}
-                  className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
-                >
-                  <Pencil size={14} />
-                  <span>Ubah</span>
-                </button>
+                Detail
+              </Button>
+              {canEdit && onOpenEdit && (
+                <ActionMenu
+                  label={`Aksi klien ${c.name}`}
+                  items={[
+                    {
+                      label: 'Ubah Data Klien',
+                      icon: Pencil,
+                      onClick: () => onOpenEdit(c)
+                    }
+                  ]}
+                />
               )}
             </div>
           </div>
@@ -96,75 +109,75 @@ export function ClientTable({
       </div>
 
       {/* Tampilan Desktop & Tablet: Tabel Lengkap */}
-      <div className="hidden sm:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                <th className="py-3 px-4">Nama Perusahaan Klien</th>
-                <th className="py-3 px-4">Bidang Industri</th>
-                <th className="py-3 px-4">NPWP</th>
-                <th className="py-3 px-4">Lokasi &amp; Objek Alat</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Tindakan</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {items.map((c) => (
-                <tr
-                  key={c.id}
-                  onClick={() => onOpenDetail(c.id)}
-                  className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
-                >
-                  <td className="py-3.5 px-4">
-                    <p className="font-bold text-slate-900 dark:text-slate-100">{c.name}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs mt-0.5">
-                      {c.address || '-'}
-                    </p>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-medium">
-                    {c.industry || '-'}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-semibold text-slate-800 dark:text-slate-200">
-                    {c.npwp || '-'}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{c.location_count || 0}</span> Lokasi ·{' '}
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{c.object_count || 0}</span> Objek Uji
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <StatusBadge
-                      status={c.is_active ? 'SESUAI' : 'DIBATALKAN'}
-                      label={c.is_active ? 'Aktif' : 'Nonaktif'}
-                    />
-                  </td>
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    <div className="inline-flex items-center gap-1.5 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => onOpenDetail(c.id)}
-                        className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
-                      >
-                        <Eye size={14} />
-                        <span>Detail &amp; Alat</span>
-                      </button>
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenEdit(c)}
-                          className="h-8.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
-                        >
-                          <Pencil size={13} />
-                          <span>Ubah</span>
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="hidden sm:block">
+        <TableWrapper>
+          <TableHead>
+            <tr>
+              <TableCell isHeader>Nama Perusahaan Klien</TableCell>
+              <TableCell isHeader>Bidang Industri</TableCell>
+              <TableCell isHeader>NPWP</TableCell>
+              <TableCell isHeader>Lokasi &amp; Objek Alat</TableCell>
+              <TableCell isHeader>Status</TableCell>
+              <TableCell isHeader align="right">Aksi</TableCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {items.map((c) => (
+              <TableRow
+                key={c.id}
+                isClickable
+                onClick={() => onOpenDetail(c.id)}
+              >
+                <TableCell>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">{c.name}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs mt-0.5">
+                    {c.address || '-'}
+                  </p>
+                </TableCell>
+                <TableCell className="text-slate-600 dark:text-slate-400 font-medium">
+                  {c.industry || '-'}
+                </TableCell>
+                <TableCell className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                  {c.npwp || '-'}
+                </TableCell>
+                <TableCell>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{c.location_count || 0}</span> Lokasi ·{' '}
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{c.object_count || 0}</span> Objek Uji
+                </TableCell>
+                <TableCell>
+                  <StatusBadge
+                    status={c.is_active ? 'SESUAI' : 'DIBATALKAN'}
+                    label={c.is_active ? 'Aktif' : 'Nonaktif'}
+                  />
+                </TableCell>
+                <TableCell align="right" className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <div className="inline-flex items-center gap-1.5 justify-end">
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      icon={Eye}
+                      onClick={() => onOpenDetail(c.id)}
+                    >
+                      Detail
+                    </Button>
+                    {canEdit && onOpenEdit && (
+                      <ActionMenu
+                        label={`Opsi klien ${c.name}`}
+                        items={[
+                          {
+                            label: 'Ubah Data Klien',
+                            icon: Pencil,
+                            onClick: () => onOpenEdit(c)
+                          }
+                        ]}
+                      />
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </TableWrapper>
       </div>
 
       <PaginationBar page={page} limit={15} total={total} onPageChange={onPageChange} />

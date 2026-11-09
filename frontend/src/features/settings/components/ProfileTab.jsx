@@ -1,51 +1,8 @@
 import { useRef } from 'react';
-import { Camera, CheckCircle, ShieldCheck } from '@phosphor-icons/react';
+import { Camera, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
 import { ROLE_LABELS, formatDate } from '../../../lib/utils/format.js';
-
-const ROLE_RESPONSIBILITIES = {
-  MARKETING: [
-    'Pendaftaran & pengelolaan PO dari klien korporat',
-    'Pengelolaan basis data klien, lokasi operasional, dan kontak PIC',
-    'Pemantauan siklus pengingat jatuh tempo riksa uji (H-30, H-14, H-7)',
-    'Akses ke jejak riwayat pengujian alat K3 dan penerbitan PO perpanjangan'
-  ],
-  AHLI_K3: [
-    'Penerimaan jadwal dan konfirmasi surat tugas lapangan',
-    'Pemeriksaan teknis, pengisian checklist K3, dan hasil ukur',
-    'Dokumentasi foto temuan dan tanda tangan digital BAP',
-    'Penyusunan draf Laporan Hasil Pemeriksaan dan Pengujian (LHPP)'
-  ],
-  INSPECTOR: [
-    'Penerimaan jadwal dan konfirmasi surat tugas lapangan',
-    'Pemeriksaan teknis, pengisian checklist K3, dan hasil ukur',
-    'Dokumentasi foto temuan dan tanda tangan digital BAP',
-    'Penyusunan draf Laporan Hasil Pemeriksaan dan Pengujian (LHPP)'
-  ],
-  ADMIN_KANTOR: [
-    'Verifikasi data PO baru dan kelengkapan unit alat',
-    'Penjadwalan inspeksi dan penugasan Ahli K3 sesuai kompetensi SKP',
-    'Quality Control (QC) dan finalisasi LHPP serta BAP',
-    'Penerbitan Suket K3 Disnaker dan distribusi dokumen operasional'
-  ],
-  PIMPINAN: [
-    'Pemantauan dasbor kinerja operasional terpadu perusahaan',
-    'Otorisasi dokumen riksa uji dan pengesahan LHPP final',
-    'Supervisi beban kerja inspeksi dan kepatuhan regulasi K3 nasional'
-  ],
-  MANAGER: [
-    'Pemantauan dasbor kinerja operasional terpadu perusahaan',
-    'Otorisasi dokumen riksa uji dan pengesahan LHPP final',
-    'Supervisi beban kerja inspeksi dan kepatuhan regulasi K3 nasional'
-  ],
-  ADMIN_SISTEM: [
-    'Manajemen pengguna sistem dan hak akses peran (RBAC)',
-    'Konfigurasi format penomoran dokumen dan profil badan usaha PJK3',
-    'Pengawasan log audit keamanan dan pencadangan database PostgreSQL'
-  ]
-};
 
 export function ProfileTab({
   user,
@@ -68,10 +25,6 @@ export function ProfileTab({
       onAvatarUpload(file);
     }
   };
-
-  const currentRoleDuties = ROLE_RESPONSIBILITIES[user?.role] || [
-    'Akses sistem operasional terintegrasi PT Upaya Riksa Daya'
-  ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -156,27 +109,6 @@ export function ProfileTab({
             </div>
           </CardContent>
         </Card>
-
-        {/* Konfigurasi Peran & Tanggung Jawab */}
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-[#C81E1E]" weight="bold" />
-              <span>Konfigurasi Peran: {ROLE_LABELS[user?.role] || user?.role}</span>
-            </CardTitle>
-            <CardDescription>Lingkup otorisasi operasional akun Anda di PT Upaya Riksa Daya</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-              {currentRoleDuties.map((duty, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand-600 dark:bg-rose-500 mt-1.5 shrink-0" />
-                  <span>{duty}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Form Perubahan Profil */}
@@ -188,14 +120,10 @@ export function ProfileTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {profileSuccess && (
-            <div className="mb-4">
-              <Notice tone="success">{profileSuccess}</Notice>
-            </div>
-          )}
           {profileError && (
-            <div className="mb-4">
-              <Notice tone="error">{profileError}</Notice>
+            <div className="mb-4 flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
+              <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
+              <span>{profileError}</span>
             </div>
           )}
 

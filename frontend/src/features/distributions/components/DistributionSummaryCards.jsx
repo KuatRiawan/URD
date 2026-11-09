@@ -14,16 +14,16 @@ export function DistributionSummaryCards({
           if (onSelectStatus) onSelectStatus('');
           if (onSelectTarget) onSelectTarget('');
         }}
-        className={`rounded-xl border p-4 shadow-2xs text-left transition-all cursor-pointer ${
+        className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
           !statusFilter && !targetFilter
-            ? 'border-slate-800 dark:border-slate-400 bg-slate-50 dark:bg-slate-800/80 ring-2 ring-slate-400/20'
-            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+            ? 'border-[#C81E1E] bg-[#C81E1E]/[0.04] dark:bg-rose-950/20 shadow-[0_2px_10px_rgba(200,30,30,0.08)]'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.15]'
         }`}
       >
-        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Total Berkas
         </p>
-        <p className="mt-1 text-2xl font-extrabold text-slate-900 dark:text-white">
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-[#1D1D1F] dark:text-[#F5F5F7]">
           {summary.total}
         </p>
       </button>
@@ -34,16 +34,16 @@ export function DistributionSummaryCards({
         onClick={() => {
           if (onSelectStatus) onSelectStatus(statusFilter === 'SIAP_DIKIRIM' ? '' : 'SIAP_DIKIRIM');
         }}
-        className={`rounded-xl border p-4 shadow-2xs text-left transition-all cursor-pointer ${
+        className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
           statusFilter === 'SIAP_DIKIRIM'
-            ? 'border-amber-500 dark:border-amber-400 bg-amber-100/50 dark:bg-amber-950/40 ring-2 ring-amber-400/30'
-            : 'border-amber-200/80 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 hover:border-amber-300'
+            ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/30 shadow-[0_2px_10px_rgba(245,158,11,0.1)]'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14]'
         }`}
       >
-        <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Siap Dikirim
         </p>
-        <p className="mt-1 text-2xl font-extrabold text-amber-800 dark:text-amber-300">
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-amber-600 dark:text-amber-400">
           {summary.siapKirim}
         </p>
       </button>
@@ -54,16 +54,16 @@ export function DistributionSummaryCards({
         onClick={() => {
           if (onSelectStatus) onSelectStatus(statusFilter === 'DIKIRIM' ? '' : 'DIKIRIM');
         }}
-        className={`rounded-xl border p-4 shadow-2xs text-left transition-all cursor-pointer ${
+        className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
           statusFilter === 'DIKIRIM'
-            ? 'border-blue-500 dark:border-blue-400 bg-blue-100/50 dark:bg-blue-950/40 ring-2 ring-blue-400/30'
-            : 'border-blue-200/80 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 hover:border-blue-300'
+            ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 shadow-[0_2px_10px_rgba(59,130,246,0.1)]'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14]'
         }`}
       >
-        <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Pengiriman
         </p>
-        <p className="mt-1 text-2xl font-extrabold text-blue-800 dark:text-blue-300">
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-blue-600 dark:text-blue-400">
           {summary.dikirim}
         </p>
       </button>
@@ -74,16 +74,16 @@ export function DistributionSummaryCards({
         onClick={() => {
           if (onSelectStatus) onSelectStatus(statusFilter === 'DITERIMA' ? '' : 'DITERIMA');
         }}
-        className={`rounded-xl border p-4 shadow-2xs text-left transition-all cursor-pointer ${
+        className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
           statusFilter === 'DITERIMA'
-            ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-100/50 dark:bg-emerald-950/40 ring-2 ring-emerald-400/30'
-            : 'border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 hover:border-emerald-300'
+            ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 shadow-[0_2px_10px_rgba(16,185,129,0.1)]'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14]'
         }`}
       >
-        <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Diterima
         </p>
-        <p className="mt-1 text-2xl font-extrabold text-emerald-800 dark:text-emerald-300">
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">
           {summary.diterima}
         </p>
       </button>
@@ -94,16 +94,16 @@ export function DistributionSummaryCards({
         onClick={() => {
           if (onSelectTarget) onSelectTarget(targetFilter === 'KLIEN' ? '' : 'KLIEN');
         }}
-        className={`rounded-xl border p-4 shadow-2xs text-left transition-all cursor-pointer ${
+        className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
           targetFilter === 'KLIEN'
-            ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 ring-2 ring-indigo-400/30'
-            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+            ? 'border-[#C81E1E] bg-[#C81E1E]/[0.04] dark:bg-rose-950/20'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14]'
         }`}
       >
-        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Target Klien
         </p>
-        <p className="mt-1 text-2xl font-extrabold text-slate-900 dark:text-white">
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-[#1D1D1F] dark:text-[#F5F5F7]">
           {summary.targetKlien}
         </p>
       </button>
@@ -114,16 +114,16 @@ export function DistributionSummaryCards({
         onClick={() => {
           if (onSelectTarget) onSelectTarget(targetFilter === 'DISNAKER' ? '' : 'DISNAKER');
         }}
-        className={`rounded-xl border p-4 shadow-2xs text-left transition-all cursor-pointer ${
+        className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
           targetFilter === 'DISNAKER'
-            ? 'border-rose-500 dark:border-rose-400 bg-rose-50 dark:bg-rose-950/40 ring-2 ring-rose-400/30'
-            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+            ? 'border-[#C81E1E] bg-[#C81E1E]/[0.04] dark:bg-rose-950/20'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14]'
         }`}
       >
-        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Target Disnaker
         </p>
-        <p className="mt-1 text-2xl font-extrabold text-[#C81E1E] dark:text-rose-400">
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-[#C81E1E] dark:text-rose-400">
           {summary.targetDisnaker}
         </p>
       </button>

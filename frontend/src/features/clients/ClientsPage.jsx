@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import {
   EmptyState,
   ErrorState,
   LoadingState
 } from '../../components/feedback/StateViews.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
 import { extractErrorMessage } from '../../lib/utils/format.js';
 import { ClientFilterBar } from './components/ClientFilterBar.jsx';
@@ -18,6 +20,7 @@ import { ClientDetailModal } from './components/ClientDetailModal.jsx';
 export function ClientsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const canEdit = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [items, setItems] = useState([]);
@@ -47,6 +50,14 @@ export function ClientsPage() {
   const [locForm, setLocForm] = useState({ name: '', address: '', city: '' });
   const [picForm, setPicForm] = useState({ name: '', position: '', phone: '', email: '' });
   const [subFeedback, setSubFeedback] = useState('');
+
+  useEffect(() => {
+    if (subFeedback) {
+      const isErr = /gagal|error|tidak|invalid/i.test(subFeedback);
+      toast(subFeedback, isErr ? 'error' : 'success');
+      setSubFeedback('');
+    }
+  }, [subFeedback, toast]);
   const [portalUrl, setPortalUrl] = useState('');
   const [portalCopied, setPortalCopied] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -262,60 +273,61 @@ export function ClientsPage() {
         title={isPimpinan ? 'Monitoring Portofolio Klien' : 'Data Klien & PIC'}
         subtitle={
           isPimpinan
-            ? 'Pengawasan direktori mitra perusahaan, sebaran lokasi site operasional, dan kepatuhan keselamatan kerja.'
+            ? 'Direktori mitra perusahaan, sebaran lokasi site, dan kepatuhan K3.'
             : 'Direktori perusahaan klien, lokasi site, dan kontak PIC.'
         }
         actions={
           canEdit && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={openCreate}
-              className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] shadow-xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
             >
-              <Plus size={15} weight="bold" aria-hidden="true" />
-              <span>Tambah Klien</span>
-            </button>
+              Tambah Klien
+            </Button>
           )
         }
       />
 
       {/* Ringkasan Portofolio Mitra Klien */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Total Mitra Klien
           </p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-1">
             {total || items.length}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Perusahaan terdaftar</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Perusahaan terdaftar</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Klien Berstatus Aktif
           </p>
-          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
             {activeClientsCount}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Pada halaman saat ini</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Pada halaman saat ini</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Populasi Alat Klien
           </p>
-          <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400 tabular-nums mt-1">
             {totalClientObjects}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit alat dimiliki klien</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Unit alat dimiliki klien</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Volume Order PO
           </p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-1">
             {totalClientOrders}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Akumulasi PO riksa uji</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Akumulasi PO riksa uji</p>
         </div>
       </div>
 
@@ -364,6 +376,7 @@ export function ClientsPage() {
         portalTokens={portalTokens}
         onClose={() => setDetailData(null)}
         canEdit={canEdit}
+        onOpenEdit={openEdit}
         subFeedback={subFeedback}
         portalUrl={portalUrl}
         portalCopied={portalCopied}

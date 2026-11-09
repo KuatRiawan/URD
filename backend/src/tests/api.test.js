@@ -51,7 +51,7 @@ describe('PT Upaya Riksa Daya - Full Backend API & Security Suite', () => {
   });
 
   afterAll(async () => {
-    await pool.end();
+    // Teardown handled by process exit
   });
 
   describe('1. Autentikasi & Keamanan Sesi', () => {

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Certificate, CheckCircle, Plus, Trash, Users, WarningCircle } from '@phosphor-icons/react';
 import { EmptyState } from '../../../components/feedback/StateViews.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
 export function InspectorCompetencySection({
@@ -66,25 +67,25 @@ export function InspectorCompetencySection({
   };
 
   return (
-    <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+    <section className="bg-white dark:bg-[#151821] rounded-2xl border border-black/[0.06] dark:border-white/[0.08] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+      <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users size={20} className="text-[#C81E1E]" weight="bold" />
-          <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+          <h2 className="text-[15px] font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
             Matriks Kesiapan &amp; SKP Penunjukan Ahli K3 ({inspectors.length} Personel)
           </h2>
         </div>
       </div>
 
       {/* Ringkasan Kesiapan Lisensi */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800/80 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.05] dark:divide-white/[0.06] border-b border-black/[0.06] dark:border-white/[0.08] bg-[#F5F5F7]/60 dark:bg-white/[0.02]">
         <div className="p-3.5 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <div className="p-2 rounded-xl bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#98989D]">
             <Users size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Personel Ahli K3</div>
-            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.totalInspectors} Orang</div>
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">Total Personel Ahli K3</div>
+            <div className="text-base font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{stats.totalInspectors} Orang</div>
           </div>
         </div>
 
@@ -93,8 +94,8 @@ export function InspectorCompetencySection({
             <CheckCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Siap Tugas (SKP Valid)</div>
-            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">Siap Tugas (SKP Valid)</div>
+            <div className="text-base font-bold text-emerald-700 dark:text-emerald-400">
               {stats.readyInspectors} / {stats.totalInspectors} Personel
             </div>
           </div>
@@ -105,8 +106,8 @@ export function InspectorCompetencySection({
             <WarningCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">SKP Perlu Perpanjangan</div>
-            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">SKP Perlu Perpanjangan</div>
+            <div className="text-base font-bold text-rose-700 dark:text-rose-400">
               {stats.expiringOrExpiredSkp} Lisensi
             </div>
           </div>
@@ -194,14 +195,15 @@ export function InspectorCompetencySection({
 
               {canManage && (
                 <div className="shrink-0">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="xs"
+                    icon={Plus}
                     onClick={() => onOpenAddCompetency(insp)}
-                    className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs"
                   >
-                    <Plus size={14} weight="bold" />
-                    <span>Tambah SKP</span>
-                  </button>
+                    Tambah SKP
+                  </Button>
                 </div>
               )}
             </div>

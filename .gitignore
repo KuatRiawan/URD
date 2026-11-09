@@ -26,7 +26,13 @@ build/
 
 # Local Database & Storage
 .local/
+/storage/
 backend/storage/*
+!.backend/storage/uploads/
+
+# AI Agent Local Cache
+.agent/
+.agents/
 !backend/storage/uploads/
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep

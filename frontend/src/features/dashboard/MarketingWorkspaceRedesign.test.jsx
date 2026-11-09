@@ -90,6 +90,37 @@ describe('Marketing Workspace Redesign: Comprehensive Verification Suite', () =>
     expect(screen.getByText('PO-MB-001')).toBeDefined();
   });
 
+  it('1b. MarketingDashboardView: clicking period filter buttons (7D, 30D, 90D, 1Y) updates period and calls loadSummary', () => {
+    const mockLoadSummary = vi.fn();
+    const mockSetPeriod = vi.fn();
+    render(
+      <MemoryRouter>
+        <MarketingDashboardView
+          data={{ analytics: { monthlyTrend: [] } }}
+          loadSummary={mockLoadSummary}
+          period="30D"
+          setPeriod={mockSetPeriod}
+        />
+      </MemoryRouter>
+    );
+
+    const btn7D = screen.getByRole('button', { name: '7D' });
+    const btn90D = screen.getByRole('button', { name: '90D' });
+    const btn1Y = screen.getByRole('button', { name: '1Y' });
+
+    expect(btn7D).toBeDefined();
+    expect(btn90D).toBeDefined();
+    expect(btn1Y).toBeDefined();
+
+    fireEvent.click(btn7D);
+    expect(mockSetPeriod).toHaveBeenCalledWith('7D');
+    expect(mockLoadSummary).toHaveBeenCalledWith(false, '7D');
+
+    fireEvent.click(btn1Y);
+    expect(mockSetPeriod).toHaveBeenCalledWith('1Y');
+    expect(mockLoadSummary).toHaveBeenCalledWith(false, '1Y');
+  });
+
   // Test 2: ClientDetailModal
   it('2. ClientDetailModal: renders segmented tab switcher with PIC, equipment, and PO history', () => {
     const mockClientData = {

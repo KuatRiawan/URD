@@ -1,4 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 
 export function RejectAssignmentModal({
   rejectModalData,
@@ -16,13 +17,13 @@ export function RejectAssignmentModal({
       size="sm"
     >
       <div className="space-y-4 text-xs">
-        <p className="text-slate-600 dark:text-slate-300">
+        <p className="text-[#6E6E73] dark:text-[#98989D] leading-relaxed">
           {rejectModalData?.isCancel
             ? `Apakah Anda yakin ingin membatalkan penerimaan penugasan untuk PO/Order ${rejectModalData?.poNo}? Unit akan dikembalikan ke status Terjadwal agar dapat ditugaskan kembali.`
             : `Mohon tuliskan alasan penolakan penugasan PO/Order ${rejectModalData?.poNo} (misal: jadwal bentrok atau berhalangan).`}
         </p>
         <div>
-          <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+          <label className="block text-[#1D1D1F] dark:text-[#F5F5F7] font-semibold mb-1.5">
             Alasan {rejectModalData?.isCancel ? 'Pembatalan' : 'Penolakan'} *
           </label>
           <textarea
@@ -31,20 +32,23 @@ export function RejectAssignmentModal({
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="Tuliskan alasan jelas..."
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-rose-500"
+            className="w-full rounded-[10px] border border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#1C1F2B] p-2.5 text-xs text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:border-[#C81E1E]"
           />
         </div>
         <div className="flex items-center justify-end gap-2 pt-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             disabled={actionLoading}
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold cursor-pointer"
           >
             Kembali
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="danger"
+            size="sm"
             disabled={actionLoading || !rejectReason.trim()}
             onClick={() =>
               onConfirm(
@@ -56,13 +60,11 @@ export function RejectAssignmentModal({
                   : rejectReason.trim()
               )
             }
-            className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all disabled:opacity-50 cursor-pointer"
           >
             {actionLoading ? 'Memproses...' : rejectModalData?.isCancel ? 'Konfirmasi Batal' : 'Tolak Penugasan'}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
   );
 }
-

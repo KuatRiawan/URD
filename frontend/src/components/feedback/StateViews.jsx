@@ -1,46 +1,57 @@
-import { Tray, WarningCircle } from '@phosphor-icons/react';
+import {
+  ArrowsClockwise,
+  CaretLeft,
+  CaretRight,
+  FolderOpen,
+  WarningCircle
+} from '@phosphor-icons/react';
+import { Button } from '../ui/Button.jsx';
 
-// R-27: Setiap layar data wajib mendukung kondisi Loading, Empty, dan Error secara jelas.
 export function LoadingState({ message, label }) {
   const text = label || message || 'Memuat data operasional...';
   return (
     <div
       role="status"
       aria-live="polite"
-      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-10 text-center text-sm text-slate-500 dark:text-slate-400 shadow-card transition-colors"
+      className="flex flex-col items-center justify-center rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]"
     >
-      <div className="mx-auto mb-3 h-7 w-7 animate-spin rounded-full border-2 border-slate-200 dark:border-slate-700 border-t-brand-600" />
-      <p className="font-medium">{text}</p>
+      <div className="relative flex items-center justify-center">
+        <div
+          className="h-9 w-9 animate-spin rounded-full border-2 border-black/[0.08] dark:border-white/[0.10] border-t-[#C81E1E]"
+          aria-hidden="true"
+        />
+      </div>
+      <p className="mt-3.5 text-sm font-medium text-[#6E6E73] dark:text-[#98989D]">{text}</p>
     </div>
   );
 }
 
-export function ErrorState({ message, onRetry }) {
+export function ErrorState({
+  title = 'Gagal Memuat Data',
+  message = 'Terjadi gangguan komunikasi dengan server. Silakan muat ulang atau periksa koneksi Anda.',
+  onRetry
+}) {
   return (
     <div
       role="alert"
-      className="rounded-2xl border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/40 p-5 text-sm text-red-900 dark:text-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+      className="flex flex-col items-center justify-center rounded-2xl border border-[#C81E1E]/20 bg-rose-50/70 dark:bg-rose-950/25 p-8 sm:p-10 text-center"
     >
-      <div className="flex items-start gap-3">
-        <WarningCircle
-          size={22}
-          weight="fill"
-          className="mt-0.5 shrink-0 text-red-600 dark:text-red-400"
-          aria-hidden="true"
-        />
-        <div>
-          <p className="font-bold">Terjadi Kendala</p>
-          <p className="mt-0.5 text-[13px] text-red-800 dark:text-red-300">{message}</p>
-        </div>
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400">
+        <WarningCircle size={24} weight="fill" aria-hidden="true" />
       </div>
+      <h3 className="mt-3.5 text-[15px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">{title}</h3>
+      <p className="mt-1 max-w-md text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed">{message}</p>
       {onRetry && (
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
           onClick={onRetry}
-          className="h-10 px-4 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-sm font-semibold text-red-800 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 shrink-0 transition-colors"
+          icon={ArrowsClockwise}
+          className="mt-4"
         >
-          Muat Ulang
-        </button>
+          Coba Lagi
+        </Button>
       )}
     </div>
   );
@@ -48,49 +59,81 @@ export function ErrorState({ message, onRetry }) {
 
 export const ErrorBanner = ErrorState;
 
-export function EmptyState({ title, description, action }) {
+export function EmptyState({
+  title = 'Belum Ada Data',
+  description = 'Data yang Anda cari belum tersedia atau tidak cocok dengan filter pencarian.',
+  action,
+  actionLabel,
+  onAction,
+  icon
+}) {
+  const CustomIcon = icon || FolderOpen;
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 p-10 text-center transition-colors">
-      <span className="mx-auto mb-3 h-12 w-12 inline-flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500">
-        <Tray size={24} weight="duotone" aria-hidden="true" />
-      </span>
-      <p className="text-base font-bold text-slate-900 dark:text-white">{title}</p>
-      {description && (
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-          {description}
-        </p>
-      )}
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-10 sm:p-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F5F5F7] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D] border border-black/[0.05] dark:border-white/[0.06]">
+        <CustomIcon size={22} weight="duotone" aria-hidden="true" />
+      </div>
+      <h3 className="mt-3.5 text-[15px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">{title}</h3>
+      <p className="mt-1 max-w-md text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed">
+        {description}
+      </p>
       {action && <div className="mt-4 flex justify-center">{action}</div>}
+      {actionLabel && onAction && (
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          onClick={onAction}
+          className="mt-4"
+        >
+          {actionLabel}
+        </Button>
+      )}
     </div>
   );
 }
 
-export function PaginationBar({ page, limit, total, onPageChange }) {
-  const totalPages = Math.max(1, Math.ceil((total || 0) / (limit || 20)));
-  if (total <= limit && page === 1) return null;
+export function PaginationBar({
+  page = 1,
+  limit = 20,
+  total = 0,
+  onPageChange,
+  itemLabel = 'data'
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = Math.min(total, page * limit);
 
   return (
-    <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-      <span>
-        Halaman <strong className="text-slate-900 dark:text-white font-bold">{page}</strong> dari{' '}
-        <strong className="text-slate-900 dark:text-white font-bold">{totalPages}</strong> (Total {total} data)
-      </span>
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] px-4 py-3 text-xs text-[#6E6E73] dark:text-[#98989D] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div>
+        Menampilkan{' '}
+        <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{startItem}</span>
+        {' – '}
+        <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{endItem}</span> dari{' '}
+        <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{total}</span> {itemLabel}
+      </div>
+      <div className="flex items-center gap-1.5 self-end sm:self-auto">
         <button
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="inline-flex h-8 items-center gap-1 rounded-[9px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1F2B] px-2.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 transition-colors cursor-pointer"
         >
-          Sebelumnya
+          <CaretLeft size={13} weight="bold" aria-hidden="true" />
+          <span>Sebelumnya</span>
         </button>
+        <span className="px-2.5 py-1 font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">
+          Hal. {page} / {totalPages}
+        </span>
         <button
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="inline-flex h-8 items-center gap-1 rounded-[9px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1F2B] px-2.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 transition-colors cursor-pointer"
         >
-          Berikutnya
+          <span> Berikutnya</span>
+          <CaretRight size={13} weight="bold" aria-hidden="true" />
         </button>
       </div>
     </div>

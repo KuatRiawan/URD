@@ -8,6 +8,15 @@ import {
 } from '@phosphor-icons/react';
 import { EmptyState, PaginationBar } from '../../../components/feedback/StateViews.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import { FOLLOWUP_STATUS_LABELS, formatDate } from '../../../lib/utils/format.js';
 
 export function ExpiringUnitsSection({
@@ -23,18 +32,16 @@ export function ExpiringUnitsSection({
   const displayUnits = datedUnits.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <WarningOctagon size={18} className="text-[#C81E1E]" weight="bold" />
-          <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-            Unit Alat Mendekati Jatuh Tempo ({datedUnits.length})
-          </h2>
-        </div>
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <WarningOctagon size={18} className="text-[#C81E1E]" weight="bold" />
+        <h2 className="text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+          Unit Alat Mendekati Jatuh Tempo ({datedUnits.length})
+        </h2>
       </div>
 
       {datedUnits.length === 0 ? (
-        <div className="p-6">
+        <div className="p-6 bg-white dark:bg-[#151821] rounded-2xl border border-black/[0.06] dark:border-white/[0.08]">
           <EmptyState
             title="Tidak ada unit jatuh tempo dalam jendela ini"
             description="Unit yang memiliki tanggal masa berlaku atau jadwal riksa uji berikutnya dalam jendela hari ini akan tampil di sini."
@@ -43,14 +50,14 @@ export function ExpiringUnitsSection({
       ) : (
         <>
           {/* Tampilan Mobile: Kartu Responsif Touch-Friendly */}
-          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800 p-3 sm:p-4 space-y-3">
+          <div className="md:hidden space-y-3">
             {displayUnits.map((item) => (
               <div
                 key={item.object_id}
-                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
+                className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] space-y-3"
               >
                 {/* Header: Status & Hari Tersisa */}
-                <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-black/[0.05] dark:border-white/[0.06]">
                   <Badge
                     tone={
                       item.expiryState === 'SUDAH_KEDALUWARSA' ||
@@ -62,12 +69,12 @@ export function ExpiringUnitsSection({
                     {expiryStateLabels[item.expiryState] || item.expiryState}
                   </Badge>
                   <span
-                    className={`text-xs font-extrabold ${
+                    className={`text-xs font-bold tabular-nums ${
                       item.days_remaining < 0
                         ? 'text-red-600 dark:text-red-400'
                         : item.days_remaining === 0
                         ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-slate-800 dark:text-slate-200'
+                        : 'text-[#1D1D1F] dark:text-[#F5F5F7]'
                     }`}
                   >
                     {item.days_remaining < 0
@@ -81,38 +88,38 @@ export function ExpiringUnitsSection({
                 {/* Info Unit Alat & Klien */}
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Unit Alat:</span>
-                    <span className="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">
+                    <span className="text-[#6E6E73] dark:text-[#98989D]">Unit Alat:</span>
+                    <span className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7] text-right truncate max-w-[200px]">
                       {item.object_name}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#98989D]">
                     <span>Kategori &amp; SN:</span>
-                    <span className="font-mono text-slate-700 dark:text-slate-300">
+                    <span className="font-mono text-[#1D1D1F] dark:text-[#E5E5EA]">
                       {item.category_code} · SN: {item.serial_number}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Klien:</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200 text-right truncate max-w-[200px]">
+                    <span className="text-[#6E6E73] dark:text-[#98989D]">Klien:</span>
+                    <span className="font-medium text-[#1D1D1F] dark:text-[#F5F5F7] text-right truncate max-w-[200px]">
                       {item.client_name}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                    <span className="text-slate-500 dark:text-slate-400">Tgl Jatuh Tempo:</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                  <div className="flex items-center justify-between pt-1 border-t border-black/[0.05] dark:border-white/[0.06]">
+                    <span className="text-[#6E6E73] dark:text-[#98989D]">Tgl Jatuh Tempo:</span>
+                    <span className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7] font-mono tabular-nums">
                       {formatDate(item.effective_valid_until)}
                     </span>
                   </div>
                   {item.suket_no && (
-                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-[#6E6E73] dark:text-[#98989D]">
                       <span>Suket:</span>
                       <span>{item.suket_no}</span>
                     </div>
                   )}
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 dark:text-slate-400">Tindak Lanjut:</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="text-[#6E6E73] dark:text-[#98989D]">Tindak Lanjut:</span>
+                    <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
                       {FOLLOWUP_STATUS_LABELS[item.followup_status] || item.followup_status}
                     </span>
                   </div>
@@ -120,24 +127,28 @@ export function ExpiringUnitsSection({
 
                 {/* Tombol Aksi Mobile */}
                 {canManage && (
-                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                    <button
-                      type="button"
+                  <div className="pt-2.5 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      touchFriendly
+                      icon={CalendarPlus}
+                      onClick={() => onOpenValidityModal(item)}
+                      className="flex-1"
+                    >
+                      Tindak Lanjut
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      touchFriendly
+                      icon={ArrowsClockwise}
                       disabled={submitting}
                       onClick={() => onCreateRenewalOrder(item.object_id, item.object_name)}
-                      className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
+                      className="flex-1"
                     >
-                      <ArrowsClockwise size={14} />
-                      <span className="truncate">+ PO Baru</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenValidityModal(item)}
-                      className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                    >
-                      <CalendarPlus size={14} />
-                      <span className="truncate">Tindak Lanjut</span>
-                    </button>
+                      PO Baru
+                    </Button>
                   </div>
                 )}
               </div>
@@ -145,113 +156,111 @@ export function ExpiringUnitsSection({
           </div>
 
           {/* Tampilan Desktop & Tablet: Tabel Lengkap */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <th className="py-3 px-4">Status Masa Berlaku</th>
-                  <th className="py-3 px-4">Tanggal Jatuh Tempo</th>
-                  <th className="py-3 px-4">Perusahaan Klien</th>
-                  <th className="py-3 px-4">Unit Alat &amp; Nomor Seri</th>
-                  <th className="py-3 px-4">Tindak Lanjut</th>
-                  <th className="py-3 px-4 text-right">Aksi Cepat</th>
+          <div className="hidden md:block">
+            <TableWrapper className="min-w-[960px]">
+              <TableHead>
+                <tr>
+                  <TableCell isHeader className="w-[190px] min-w-[190px] whitespace-nowrap">Status Masa Berlaku</TableCell>
+                  <TableCell isHeader className="w-[160px] whitespace-nowrap">Tanggal Jatuh Tempo</TableCell>
+                  <TableCell isHeader className="min-w-[200px]">Perusahaan Klien</TableCell>
+                  <TableCell isHeader className="min-w-[190px]">Unit Alat &amp; Nomor Seri</TableCell>
+                  <TableCell isHeader className="w-[160px]">Tindak Lanjut</TableCell>
+                  <TableCell isHeader align="right" className="w-[180px] whitespace-nowrap">Aksi</TableCell>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+              </TableHead>
+              <TableBody>
                 {displayUnits.map((item) => (
-                  <tr key={item.object_id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 text-xs">
-                      <Badge
-                        tone={
-                          item.expiryState === 'SUDAH_KEDALUWARSA' ||
-                          item.expiryState === 'JATUH_TEMPO_PEMERIKSAAN'
-                            ? 'danger'
-                            : 'warning'
-                        }
-                      >
-                        {expiryStateLabels[item.expiryState] || item.expiryState}
-                      </Badge>
-                      <div className="mt-1 font-bold text-slate-900 dark:text-slate-100">
+                  <TableRow key={item.object_id}>
+                    <TableCell className="text-xs whitespace-nowrap min-w-[190px]">
+                      <div className="inline-block whitespace-nowrap">
+                        <Badge
+                          tone={
+                            item.expiryState === 'SUDAH_KEDALUWARSA' ||
+                            item.expiryState === 'JATUH_TEMPO_PEMERIKSAAN'
+                              ? 'danger'
+                              : 'warning'
+                          }
+                        >
+                          {expiryStateLabels[item.expiryState] || item.expiryState}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D] tabular-nums whitespace-nowrap">
                         {item.days_remaining < 0
                           ? `Lewat ${Math.abs(item.days_remaining)} hari`
                           : item.days_remaining === 0
                           ? 'Jatuh tempo hari ini'
                           : `${item.days_remaining} hari lagi`}
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">
-                        {formatDate(item.effective_valid_until)}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7] font-mono tabular-nums">
+                        {item.effective_valid_until ? formatDate(item.effective_valid_until) : (
+                          <span className="text-[#86868B] dark:text-[#8E8E93] font-normal italic">Belum ditetapkan</span>
+                        )}
                       </div>
                       {item.suket_no && (
-                        <div className="font-mono text-slate-500 dark:text-slate-400">Suket: {item.suket_no}</div>
+                        <div className="font-mono text-[11px] text-[#6E6E73] dark:text-[#98989D] mt-0.5">Suket: {item.suket_no}</div>
                       )}
                       {item.last_lhpp_no && (
-                        <div className="font-mono text-slate-500 dark:text-slate-400">LHPP: {item.last_lhpp_no}</div>
+                        <div className="font-mono text-[11px] text-[#86868B] dark:text-[#8E8E93]">LHPP: {item.last_lhpp_no}</div>
                       )}
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{item.client_name}</div>
-                      <div className="text-slate-600 dark:text-slate-400">
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{item.client_name}</div>
+                      <div className="text-[#6E6E73] dark:text-[#98989D]">
                         PIC: {item.contact_name || '-'} · {item.contact_phone || item.client_phone || '-'}
                       </div>
-                      <div className="text-slate-500 dark:text-slate-400 text-[11px]">
+                      <div className="text-[#86868B] dark:text-[#8E8E93] text-[11px]">
                         {item.contact_email || item.client_email || '-'}
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{item.object_name}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
-                        {item.category_code} · SN: {item.serial_number}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{item.object_name}</div>
+                      <div className="text-[#6E6E73] dark:text-[#98989D]">
+                        {item.category_code} · SN: <span className="font-mono text-[#1D1D1F] dark:text-[#F5F5F7]">{item.serial_number}</span>
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-semibold text-slate-700 dark:text-slate-300">
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
                         {FOLLOWUP_STATUS_LABELS[item.followup_status] || item.followup_status}
                       </div>
                       {item.last_followup_note && (
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs">
+                        <div className="text-[11px] text-[#6E6E73] dark:text-[#98989D] truncate max-w-xs mt-0.5">
                           {item.last_followup_note}
                         </div>
                       )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <span
-                          title="Pengingat terkirim otomatis melalui WhatsApp & Email"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold"
-                        >
-                          <WhatsappLogo size={13} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
-                          <EnvelopeSimple size={13} weight="bold" className="text-blue-600 dark:text-blue-400" />
-                          <span>WA / Email</span>
-                        </span>
+                    </TableCell>
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                      <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
                         {canManage && (
                           <>
-                            <button
-                              type="button"
+                            <Button
+                              variant="secondary"
+                              size="xs"
+                              icon={CalendarPlus}
                               onClick={() => onOpenValidityModal(item)}
-                              className="h-8.5 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
                             >
-                              <CalendarPlus size={14} />
-                              <span>Tindak Lanjut</span>
-                            </button>
-                            <button
-                              type="button"
-                              disabled={submitting}
-                              onClick={() => onCreateRenewalOrder(item.object_id, item.object_name)}
-                              className="h-8.5 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
-                            >
-                              <ArrowsClockwise size={14} />
-                              <span>+ Buat PO Perpanjangan</span>
-                            </button>
+                              Tindak Lanjut
+                            </Button>
+                            <ActionMenu
+                              label="Aksi Perpanjangan"
+                              items={[
+                                {
+                                  key: 'create_po',
+                                  label: '+ Buat PO Perpanjangan',
+                                  icon: ArrowsClockwise,
+                                  onClick: () => onCreateRenewalOrder(item.object_id, item.object_name)
+                                }
+                              ]}
+                            />
                           </>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </TableWrapper>
           </div>
 
           <PaginationBar

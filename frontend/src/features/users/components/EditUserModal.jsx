@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Eye, EyeSlash, ShieldCheck, User } from '@phosphor-icons/react';
+import { Eye, EyeSlash, ShieldCheck, User, WarningCircle } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { ROLE_LABELS, ROLE_OPTIONS } from '../../../lib/utils/format.js';
 
 export function EditUserModal({
@@ -36,7 +36,12 @@ export function EditUserModal({
       size="md"
     >
       <form onSubmit={onSubmit} className="space-y-4 text-xs">
-        {error && <Notice tone="error">{error}</Notice>}
+        {error && (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
+            <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* Seksi 1: Data Identitas & Kontak */}
         <div className="space-y-3">
@@ -175,26 +180,24 @@ export function EditUserModal({
         </div>
 
         {/* Modal Actions */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <button
+        <div className="flex justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
           >
             Batal
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={submitting}
-            className="min-h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-xs"
+            loading={submitting}
           >
-            {submitting ? (
-              <>
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
-                <span>Menyimpan Perubahan...</span>
-              </>
-            ) : 'Simpan Perubahan'}
-          </button>
+            Simpan Perubahan
+          </Button>
         </div>
       </form>
     </Modal>

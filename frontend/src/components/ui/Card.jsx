@@ -1,18 +1,7 @@
-export function Card({ children, className = '', accent = null, ...props }) {
-  const accentClass =
-    accent === 'brand'
-      ? 'border-t-2 border-t-brand-600'
-      : accent === 'blue'
-      ? 'border-t-2 border-t-blue-600'
-      : accent === 'emerald'
-      ? 'border-t-2 border-t-emerald-600'
-      : accent === 'amber'
-      ? 'border-t-2 border-t-amber-600'
-      : '';
-
+export function Card({ children, className = '', accent: _accent = null, ...props }) {
   return (
     <div
-      className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs transition-all duration-150 ${accentClass} ${className}`}
+      className={`rounded-2xl border border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] transition-all duration-150 ${className}`}
       {...props}
     >
       {children}
@@ -23,7 +12,7 @@ export function Card({ children, className = '', accent = null, ...props }) {
 export function CardHeader({ children, className = '', ...props }) {
   return (
     <div
-      className={`border-b border-slate-100 dark:border-slate-800/80 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${className}`}
+      className={`border-b border-black/[0.05] dark:border-white/[0.06] px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${className}`}
       {...props}
     >
       {children}
@@ -33,18 +22,14 @@ export function CardHeader({ children, className = '', ...props }) {
 
 export function CardTitle({ children, className = '', ...props }) {
   return (
-    <h3 className={`text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-snug ${className}`} {...props}>
+    <h3 className={`text-sm font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.015em] leading-snug ${className}`} {...props}>
       {children}
     </h3>
   );
 }
 
-export function CardDescription({ children, className = '', ...props }) {
-  return (
-    <p className={`text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed ${className}`} {...props}>
-      {children}
-    </p>
-  );
+export function CardDescription() {
+  return null;
 }
 
 export function CardContent({ children, className = '', ...props }) {
@@ -58,11 +43,10 @@ export function CardContent({ children, className = '', ...props }) {
 export function CardFooter({ children, className = '', ...props }) {
   return (
     <div
-      className={`border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 px-5 py-3.5 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 ${className}`}
+      className={`border-t border-black/[0.05] dark:border-white/[0.06] bg-[#FAFAFC] dark:bg-[#1B1F2A]/60 px-5 py-3.5 flex items-center justify-between gap-3 text-xs text-[#6E6E73] dark:text-[#98989D] ${className}`}
       {...props}
     >
       {children}
     </div>
   );
 }
-

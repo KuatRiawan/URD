@@ -3,8 +3,7 @@ import { useSearchParams } from 'react-router';
 import { CheckCircle, Clock, FileText, WarningCircle } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
-import { useConfirm } from '../../components/ui/FeedbackProvider.jsx';
+import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
 import { LHPP_STATUS_LABELS } from '../../lib/utils/format.js';
@@ -14,6 +13,7 @@ import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 
 export function LhppPage() {
   const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const isInspector = ['AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
@@ -28,6 +28,13 @@ export function LhppPage() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
 
   const [detailLhpp, setDetailLhpp] = useState(null);
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [draftForm, setDraftForm] = useState({
     methodSummary: '',
@@ -404,15 +411,15 @@ export function LhppPage() {
         title={isPimpinan ? 'Monitoring Dokumen LHPP' : 'Dokumen LHPP & BAP'}
         subtitle={
           isPimpinan
-            ? 'Pengawasan penyusunan narasi teknis, antrean kendali mutu (QC), revisi, dan status penerbitan LHPP.'
-            : 'Penyusunan narasi teknis, pengesahan dokumen resmi, dan penerbitan berkas PDF ber-QR verifikasi.'
+            ? 'Pengawasan narasi teknis, antrean kendali mutu (QC), revisi, dan pengesahan LHPP.'
+            : 'Penyusunan narasi teknis, pengesahan dokumen resmi, dan berkas PDF ber-QR verifikasi.'
         }
         actions={
           <select
             aria-label="Filter Status LHPP"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[#C81E1E] transition-colors"
+            className="h-9 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#151821] px-3 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:border-[#C81E1E] transition-colors"
           >
             <option value="">Semua Status LHPP</option>
             {Object.entries(LHPP_STATUS_LABELS).map(([k, v]) => (
@@ -425,50 +432,50 @@ export function LhppPage() {
       />
 
       {/* Ringkasan Status Dokumen LHPP */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7]">
             <FileText size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Berkas LHPP</div>
-            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Dokumen</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Total Berkas LHPP</div>
+            <div className="text-lg font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">{stats.total} Dokumen</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-blue-100/80 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
             <Clock size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Antrean Kendali Mutu</div>
-            <div className="text-base font-extrabold text-blue-700 dark:text-blue-400">{stats.waitingReview} Menunggu</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Antrean Kendali Mutu</div>
+            <div className="text-lg font-bold tracking-tight text-blue-700 dark:text-blue-400">{stats.waitingReview} Menunggu</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-rose-100/80 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
             <WarningCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Dalam Revisi Teknis</div>
-            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">{stats.returned} Revisi</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Dalam Revisi Teknis</div>
+            <div className="text-lg font-bold tracking-tight text-rose-700 dark:text-rose-400">{stats.returned} Revisi</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
             <CheckCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">LHPP Telah Terbit</div>
-            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.published} Terbit</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">LHPP Telah Terbit</div>
+            <div className="text-lg font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{stats.published} Terbit</div>
           </div>
         </div>
       </div>
 
       {/* Segmented Filter Bar: Status Alur Kerja LHPP */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-2xl overflow-x-auto">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto">
         {[
           { key: '', label: 'Semua Dokumen' },
           { key: 'SIAP_PREVIEW', label: 'Menunggu QC (Siap Final)' },
@@ -480,10 +487,10 @@ export function LhppPage() {
             key={tab.key}
             type="button"
             onClick={() => setStatusFilter(tab.key)}
-            className={`py-2 px-3.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
               statusFilter === tab.key
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
             }`}
           >
             {tab.label}
@@ -491,16 +498,10 @@ export function LhppPage() {
         ))}
       </div>
 
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={loadData} />}
-
       {loading ? (
         <LoadingState label="Memuat dokumen LHPP..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={loadData} />
       ) : items.length === 0 ? (
         <EmptyState
           title="Belum ada dokumen LHPP"

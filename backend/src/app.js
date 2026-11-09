@@ -15,9 +15,11 @@ import distributionRoutes from './modules/distributions/routes.js';
 import portalRoutes from './modules/portal/routes.js';
 import searchRoutes from './modules/search/routes.js';
 import verifyRoutes from './modules/verify/routes.js';
+import equipmentTypeRoutes from './modules/equipment-types/routes.js';
 import inspectionRoutes from './modules/inspections/routes.js';
 import inspectorRoutes from './modules/inspectors/routes.js';
 import lhppRoutes from './modules/lhpp/routes.js';
+import lhppTemplateRoutes from './modules/lhpp-templates/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import operationalIssueRoutes from './modules/operational-issues/routes.js';
 import objectRoutes from './modules/objects/routes.js';
@@ -45,7 +47,9 @@ app.use(
         !origin ||
         allowedOrigins.includes(origin) ||
         (env.nodeEnv === 'development' &&
-          (/\.ngrok(-free)?\.(app|dev|io)$/.test(origin) || origin.includes('.ngrok')))
+          (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+            /\.ngrok(-free)?\.(app|dev|io)$/.test(origin) ||
+            origin.includes('.ngrok')))
       ) {
         return cb(null, true);
       }
@@ -104,12 +108,14 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/objects', objectRoutes);
+app.use('/api/v1/equipment-types', equipmentTypeRoutes);
 app.use('/api/v1/inspectors', inspectorRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/schedules', scheduleRoutes);
 app.use('/api/v1/inspections', inspectionRoutes);
 app.use('/api/v1/bap', bapRoutes);
 app.use('/api/v1/lhpp', lhppRoutes);
+app.use('/api/v1/lhpp-templates', lhppTemplateRoutes);
 app.use('/api/v1/suket', suketRoutes);
 app.use('/api/v1/reminders', reminderRoutes);
 app.use('/api/v1/portal', portalRoutes);

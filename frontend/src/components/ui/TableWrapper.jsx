@@ -1,6 +1,6 @@
 export function TableWrapper({ children, className = '', containerClassName = '' }) {
   return (
-    <div className={`w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs transition-colors ${containerClassName}`}>
+    <div className={`w-full overflow-hidden rounded-2xl border border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] transition-colors ${containerClassName}`}>
       <div className="w-full overflow-x-auto scrollbar-thin">
         <table className={`w-full text-left border-collapse text-xs ${className}`}>
           {children}
@@ -12,7 +12,7 @@ export function TableWrapper({ children, className = '', containerClassName = ''
 
 export function TableHead({ children, className = '' }) {
   return (
-    <thead className={`border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ${className}`}>
+    <thead className={`border-b border-black/[0.06] dark:border-white/[0.07] bg-[#FAFAFC] dark:bg-[#1B1F2A] text-[11px] font-semibold tracking-[0.02em] text-[#6E6E73] dark:text-[#98989D] select-none ${className}`}>
       {children}
     </thead>
   );
@@ -20,7 +20,7 @@ export function TableHead({ children, className = '' }) {
 
 export function TableBody({ children, className = '' }) {
   return (
-    <tbody className={`divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-700 dark:text-slate-200 ${className}`}>
+    <tbody className={`divide-y divide-black/[0.05] dark:divide-white/[0.06] text-[#1D1D1F] dark:text-[#E5E5EA] ${className}`}>
       {children}
     </tbody>
   );
@@ -31,8 +31,8 @@ export function TableRow({ children, className = '', isClickable = false, ...pro
     <tr
       className={`transition-colors ${
         isClickable
-          ? 'hover:bg-slate-50/80 dark:hover:bg-slate-800/80 cursor-pointer'
-          : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
+          ? 'hover:bg-[#F5F5F7]/80 dark:hover:bg-white/[0.04] cursor-pointer'
+          : 'hover:bg-[#F5F5F7]/50 dark:hover:bg-white/[0.025]'
       } ${className}`}
       {...props}
     >
@@ -41,18 +41,19 @@ export function TableRow({ children, className = '', isClickable = false, ...pro
   );
 }
 
-export function TableCell({ children, className = '', isHeader = false, ...props }) {
+export function TableCell({ children, className = '', isHeader = false, align = 'left', ...props }) {
+  const alignClass = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+
   if (isHeader) {
     return (
-      <th className={`px-4 py-3.5 font-bold ${className}`} {...props}>
+      <th className={`py-3 px-4 font-semibold ${alignClass} ${className}`} {...props}>
         {children}
       </th>
     );
   }
   return (
-    <td className={`px-4 py-3.5 align-middle ${className}`} {...props}>
+    <td className={`py-3.5 px-4 align-middle ${alignClass} ${className}`} {...props}>
       {children}
     </td>
   );
 }
-

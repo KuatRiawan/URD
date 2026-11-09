@@ -1,5 +1,6 @@
+import { WarningCircle } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 
 export function ClientFormModal({
   open,
@@ -22,7 +23,12 @@ export function ClientFormModal({
       size="md"
     >
       <form onSubmit={onSave} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
-        {formErr && <Notice tone="error">{formErr}</Notice>}
+        {formErr && (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
+            <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
+            <span>{formErr}</span>
+          </div>
+        )}
 
         <div>
           <label htmlFor="client-name" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
@@ -145,21 +151,24 @@ export function ClientFormModal({
           </label>
         )}
 
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2.5">
-          <button
+        <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-end gap-2.5">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-2xs transition-colors"
           >
             Batal
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={saving}
-            className="h-9 px-4 rounded-lg bg-[#C81E1E] font-bold text-xs text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-2xs transition-colors"
+            loading={saving}
           >
-            {saving ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Tambah Klien'}
-          </button>
+            {editing ? 'Simpan Perubahan' : 'Tambah Klien'}
+          </Button>
         </div>
       </form>
     </Modal>

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { DownloadSimple } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { api } from '../../../lib/api/axios.js';
+import logoUrd from '../../../assets/logo-urd.png';
 
 export function ObjectQrModal({ qrModal, onClose }) {
   const [downloading, setDownloading] = useState(false);
@@ -40,6 +42,12 @@ export function ObjectQrModal({ qrModal, onClose }) {
       maxWidth="max-w-sm"
     >
       <div className="text-center space-y-3.5 text-xs text-slate-800 dark:text-slate-200">
+        <div className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 mx-auto">
+          <img src={logoUrd} alt="PT Upaya Riksa Daya" className="h-5 w-auto object-contain dark:brightness-110" />
+          <span className="font-bold text-[11px] tracking-wide text-slate-900 dark:text-white uppercase">
+            PT Upaya Riksa Daya
+          </span>
+        </div>
         <div className="inline-block p-3 bg-white rounded-xl border border-slate-200 dark:border-slate-700 mx-auto shadow-xs">
           <img
             src={qrModal.qrDataUrl}
@@ -58,15 +66,18 @@ export function ObjectQrModal({ qrModal, onClose }) {
         </p>
 
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="md"
+            icon={DownloadSimple}
             onClick={handleDownloadSticker}
             disabled={downloading}
-            className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-4 text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs disabled:opacity-60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
+            loading={downloading}
+            className="w-full justify-center"
           >
-            <DownloadSimple size={15} weight="bold" />
-            <span>{downloading ? 'Menyiapkan berkas...' : 'Cetak Stiker Label QR (PDF)'}</span>
-          </button>
+            Cetak Stiker Label QR (PDF)
+          </Button>
         </div>
       </div>
     </Modal>

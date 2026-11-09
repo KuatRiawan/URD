@@ -1,4 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { SUKET_STATUS_LABELS } from '../../../lib/utils/format.js';
 
 export function CreateSuketModal({
@@ -121,21 +122,24 @@ export function CreateSuketModal({
             className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
           />
         </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <button
+        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
           >
             Batal
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={submitting}
-            className="min-h-11 rounded-lg bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+            loading={submitting}
           >
-            {submitting ? 'Menyimpan...' : 'Simpan Suket K3'}
-          </button>
+            Simpan Suket K3
+          </Button>
         </div>
       </form>
     </Modal>

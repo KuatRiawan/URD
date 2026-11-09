@@ -65,7 +65,7 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const { rows } = await query(
-      `SELECT id, email, full_name, role, phone, password_hash, is_active
+      `SELECT id, email, full_name, role, phone, password_hash, is_active, avatar_url
        FROM users WHERE email = $1`,
       [email.trim()]
     );
@@ -114,7 +114,8 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
         email: user.email,
         fullName: user.full_name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        avatarUrl: user.avatar_url
       }
     });
   } catch (err) {
@@ -131,7 +132,7 @@ router.post('/refresh', async (req, res, next) => {
     const tokenHash = hashToken(rawRefresh);
     const rotated = await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `SELECT rs.*, u.email, u.full_name, u.role, u.phone, u.is_active
+        `SELECT rs.*, u.email, u.full_name, u.role, u.phone, u.is_active, u.avatar_url
          FROM refresh_sessions rs
          JOIN users u ON u.id = rs.user_id
          WHERE rs.token_hash = $1
@@ -186,7 +187,8 @@ router.post('/refresh', async (req, res, next) => {
           email: session.email,
           full_name: session.full_name,
           role: session.role,
-          phone: session.phone
+          phone: session.phone,
+          avatar_url: session.avatar_url
         },
         nextRawRefresh
       };
@@ -208,7 +210,8 @@ router.post('/refresh', async (req, res, next) => {
         email: user.email,
         fullName: user.full_name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        avatarUrl: user.avatar_url
       }
     });
   } catch (err) {

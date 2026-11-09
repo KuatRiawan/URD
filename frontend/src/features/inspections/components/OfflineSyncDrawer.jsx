@@ -134,7 +134,7 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
     try {
       const jsonStr = await exportOfflineDraftJson(inspectionId);
       if (!jsonStr) {
-        alert('Data draf tidak ditemukan');
+        setErrorMsg('Data draf tidak ditemukan.');
         return;
       }
       const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -147,7 +147,7 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Gagal mengekspor data draf: ' + err.message);
+      setErrorMsg('Gagal mengekspor data draf: ' + (err.message || 'Terjadi kesalahan sistem.'));
     }
   };
 

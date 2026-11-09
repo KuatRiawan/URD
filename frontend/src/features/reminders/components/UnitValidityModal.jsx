@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ClockCounterClockwise, User, ChatCircleText } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { api } from '../../../lib/api/axios.js';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
@@ -174,21 +175,24 @@ export function UnitValidityModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <button
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer text-xs transition-colors"
           >
             Batal
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={submitting}
-            className="h-10 px-4.5 rounded-lg bg-[#C81E1E] font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer text-xs transition-colors shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
+            loading={submitting}
           >
-            {submitting ? 'Menyimpan...' : 'Simpan Masa Berlaku'}
-          </button>
+            Simpan Masa Berlaku
+          </Button>
         </div>
       </form>
     </Modal>

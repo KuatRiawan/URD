@@ -16,14 +16,20 @@ router.use(authenticate);
 const objectSchema = Joi.object({
   clientId: Joi.string().uuid().required(),
   locationId: Joi.string().uuid().allow('', null),
-  categoryId: Joi.number().integer().min(1).max(7).required(),
+  categoryId: Joi.number().integer().min(1).max(20).optional(),
+  equipmentGroupId: Joi.string().uuid().allow('', null).optional(),
+  equipmentTypeId: Joi.string().uuid().allow('', null).optional(),
+  equipmentNameId: Joi.string().uuid().allow('', null).optional(),
+  equipmentSubtypeId: Joi.string().uuid().allow('', null).optional(),
+  inspectionTypeCode: Joi.string().allow('', null).valid('PERTAMA', 'BERKALA', 'KHUSUS', 'ULANG').default('BERKALA'),
   name: Joi.string().min(2).max(160).required(),
   brand: Joi.string().max(120).allow('', null),
   manufacturer: Joi.string().max(160).allow('', null),
   model: Joi.string().max(120).allow('', null),
   serialNumber: Joi.string().min(1).max(120).required(),
   manufactureYear: Joi.number().integer().min(1900).max(2100).allow(null),
-  capacity: Joi.string().max(100).allow('', null),
+  yearOfManufacture: Joi.number().integer().min(1900).max(2100).allow(null),
+  capacity: Joi.alternatives().try(Joi.string().max(100), Joi.number()).allow('', null),
   capacityUnit: Joi.string().max(40).allow('', null),
   installLocation: Joi.string().max(200).allow('', null),
   previousPermitNo: Joi.string().max(120).allow('', null),
@@ -199,12 +205,26 @@ router.get('/', async (req, res, next) => {
               oc.code AS category_code,
               oc.name AS category_name,
               cl.name AS location_name,
+              eg.name AS equipment_group_name,
+              eg.code AS equipment_group_code,
+              eg.name AS equipment_type_name,
+              eg.code AS equipment_type_code,
+              coalesce(en.name, et.name) AS equipment_name,
+              coalesce(en.code, et.code) AS equipment_name_code,
+              est.name AS equipment_subtype_name,
+              idom.code AS domain_code,
+              idom.name AS domain_name,
               (SELECT s.valid_until FROM suket_documents s WHERE s.object_id = t.id AND s.status = 'TERBIT' ORDER BY s.valid_until DESC LIMIT 1) AS active_suket_valid_until,
               (SELECT s.suket_no FROM suket_documents s WHERE s.object_id = t.id AND s.status = 'TERBIT' ORDER BY s.valid_until DESC LIMIT 1) AS active_suket_no
        FROM test_objects t
        JOIN clients c ON c.id = t.client_id
        JOIN object_categories oc ON oc.id = t.category_id
        LEFT JOIN client_locations cl ON cl.id = t.location_id
+       LEFT JOIN equipment_groups eg ON eg.id = t.equipment_group_id
+       LEFT JOIN equipment_types en ON en.id = coalesce(t.equipment_name_id, t.equipment_type_id)
+       LEFT JOIN equipment_types et ON et.id = t.equipment_type_id
+       LEFT JOIN equipment_types est ON est.id = t.equipment_subtype_id
+       LEFT JOIN inspection_domains idom ON idom.code = coalesce(en.domain_code, et.domain_code, eg.domain_code)
        ${whereSql}
        ORDER BY t.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -235,11 +255,26 @@ router.get('/:id', async (req, res, next) => {
 
     const { rows } = await query(
       `SELECT t.*, c.name AS client_name, oc.code AS category_code, oc.name AS category_name,
-              oc.attribute_schema, cl.name AS location_name
+              oc.attribute_schema, cl.name AS location_name,
+              eg.name AS equipment_group_name,
+              eg.code AS equipment_group_code,
+              coalesce(eg.name, et.name) AS equipment_type_name,
+              coalesce(eg.code, et.code) AS equipment_type_code,
+              coalesce(en.name, et.name) AS equipment_name,
+              coalesce(en.code, et.code) AS equipment_name_code,
+              est.name AS equipment_subtype_name,
+              coalesce(idom.code, eg.domain_code, en.domain_code) AS domain_code,
+              coalesce(idom.name, dom.name) AS domain_name
        FROM test_objects t
        JOIN clients c ON c.id = t.client_id
        JOIN object_categories oc ON oc.id = t.category_id
        LEFT JOIN client_locations cl ON cl.id = t.location_id
+       LEFT JOIN equipment_groups eg ON eg.id = t.equipment_group_id
+       LEFT JOIN equipment_types en ON en.id = coalesce(t.equipment_name_id, t.equipment_type_id)
+       LEFT JOIN equipment_types et ON et.id = t.equipment_type_id
+       LEFT JOIN equipment_types est ON est.id = t.equipment_subtype_id
+       LEFT JOIN inspection_domains idom ON idom.code = et.domain_code
+       LEFT JOIN inspection_domains dom ON dom.code = eg.domain_code
        WHERE t.id = $1`,
       [id]
     );
@@ -392,24 +427,50 @@ router.post(
         );
       }
 
+      let finalCategoryId = b.categoryId;
+      let finalGroupId = b.equipmentGroupId || null;
+      const finalNameId = b.equipmentNameId || b.equipmentTypeId || null;
+
+      if (finalNameId) {
+        const { rows: etRows } = await query(
+          `SELECT et.*, d.legacy_category_id FROM equipment_types et
+           JOIN inspection_domains d ON d.code = et.domain_code
+           WHERE et.id = $1`,
+          [finalNameId]
+        );
+        if (etRows[0]?.legacy_category_id && !finalCategoryId) {
+          finalCategoryId = etRows[0].legacy_category_id;
+        }
+        if (etRows[0]?.group_id && !finalGroupId) {
+          finalGroupId = etRows[0].group_id;
+        }
+      }
+      if (!finalCategoryId) finalCategoryId = 1;
+
       const created = await withTransaction(async (db) => {
         const { rows } = await db.query(
           `INSERT INTO test_objects
-             (client_id, location_id, category_id, name, brand, manufacturer, model, serial_number,
+             (client_id, location_id, category_id, equipment_group_id, equipment_type_id, equipment_name_id, equipment_subtype_id,
+              inspection_type_code, name, brand, manufacturer, model, serial_number,
               manufacture_year, capacity, capacity_unit, install_location, previous_permit_no,
               next_inspection_date, validity_notes, attributes, is_active, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
            RETURNING *`,
           [
             b.clientId,
             b.locationId || null,
-            b.categoryId,
+            finalCategoryId,
+            finalGroupId,
+            finalNameId,
+            finalNameId,
+            b.equipmentSubtypeId || null,
+            b.inspectionTypeCode || 'BERKALA',
             b.name.trim(),
             b.brand || b.manufacturer || null,
             b.manufacturer || b.brand || null,
             b.model || null,
             b.serialNumber.trim(),
-            b.manufactureYear || null,
+            b.manufactureYear || b.yearOfManufacture || null,
             b.capacity || null,
             b.capacityUnit || null,
             b.installLocation || null,
@@ -434,7 +495,7 @@ router.post(
         );
         return rows[0];
       });
-      return res.status(201).json({ object: created });
+      return res.status(201).json({ object: created, ...created });
     } catch (err) {
       return next(err);
     }
@@ -463,26 +524,56 @@ router.patch(
         );
       }
 
+      let finalCategoryId = b.categoryId;
+      let finalGroupId = b.equipmentGroupId || null;
+      const finalNameId = b.equipmentNameId || b.equipmentTypeId || null;
+
+      if (finalNameId) {
+        const { rows: etRows } = await query(
+          `SELECT et.*, d.legacy_category_id FROM equipment_types et
+           JOIN inspection_domains d ON d.code = et.domain_code
+           WHERE et.id = $1`,
+          [finalNameId]
+        );
+        if (etRows[0]?.legacy_category_id && !finalCategoryId) {
+          finalCategoryId = etRows[0].legacy_category_id;
+        }
+        if (etRows[0]?.group_id && !finalGroupId) {
+          finalGroupId = etRows[0].group_id;
+        }
+      }
+      if (!finalCategoryId) finalCategoryId = 1;
+
       const updated = await withTransaction(async (db) => {
         const { rows } = await db.query(
           `UPDATE test_objects
-           SET client_id = $1, location_id = $2, category_id = $3, name = $4, brand = $5,
-               manufacturer = $6, model = $7, serial_number = $8, manufacture_year = $9, capacity = $10,
-               capacity_unit = $11, install_location = $12, previous_permit_no = $13,
-               next_inspection_date = $14, validity_notes = $15, attributes = $16,
-               is_active = $17, updated_at = now()
-           WHERE id = $18
+           SET client_id = $1, location_id = $2, category_id = $3,
+               equipment_group_id = coalesce($4, equipment_group_id),
+               equipment_type_id = coalesce($5, equipment_type_id),
+               equipment_name_id = coalesce($5, equipment_name_id),
+               equipment_subtype_id = $6,
+               inspection_type_code = coalesce($7, inspection_type_code),
+               name = $8, brand = $9,
+               manufacturer = $10, model = $11, serial_number = $12, manufacture_year = $13, capacity = $14,
+               capacity_unit = $15, install_location = $16, previous_permit_no = $17,
+               next_inspection_date = $18, validity_notes = $19, attributes = $20,
+               is_active = $21, updated_at = now()
+           WHERE id = $22
            RETURNING *`,
           [
             b.clientId,
             b.locationId || null,
-            b.categoryId,
+            finalCategoryId,
+            finalGroupId,
+            finalNameId,
+            b.equipmentSubtypeId || null,
+            b.inspectionTypeCode || null,
             b.name.trim(),
             b.brand || b.manufacturer || null,
             b.manufacturer || b.brand || null,
             b.model || null,
             b.serialNumber.trim(),
-            b.manufactureYear || null,
+            b.manufactureYear || b.yearOfManufacture || null,
             b.capacity || null,
             b.capacityUnit || null,
             b.installLocation || null,

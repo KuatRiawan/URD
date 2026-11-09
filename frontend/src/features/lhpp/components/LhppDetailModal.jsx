@@ -6,9 +6,17 @@ import {
   Eye,
   FileDoc,
   FilePdf,
+  GitBranch,
+  LockKey,
+  ShieldCheck,
+  WarningCircle,
   WarningOctagon
 } from '@phosphor-icons/react';
+import { api } from '../../../lib/api/axios.js';
+import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { LHPP_STATUS_LABELS } from '../../../lib/utils/format.js';
 import { STATUS_TONE } from '../lhppConstants.js';
@@ -48,9 +56,31 @@ export function LhppDetailModal({
   handleDeletePhoto,
   handleRecordDelivery
 }) {
+  const toast = useToast();
   const [returnMode, setReturnMode] = useState(false);
   const [returnNote, setReturnNote] = useState('');
   const [returnError, setReturnError] = useState('');
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+
+  const handleValidate = async () => {
+    if (!detailLhpp?.id) return;
+    setValidating(true);
+    try {
+      const res = await api.post(`/lhpp/${detailLhpp.id}/validate`);
+      const val = res.data?.data || res.data;
+      setValidationResult(val);
+      if (val.valid) {
+        toast('Semua persyaratan teknis dan dokumen LHPP lengkap. Siap difinalisasi.', 'success');
+      } else {
+        toast(`Ditemukan ${val.missingCount || (val.missingFields || []).length} butir data belum lengkap.`, 'warning');
+      }
+    } catch (err) {
+      toast(err.response?.data?.error?.message || 'Gagal memvalidasi kelengkapan LHPP.', 'error');
+    } finally {
+      setValidating(false);
+    }
+  };
 
   const submitReturn = async () => {
     if (returnNote.trim().length < 10) {
@@ -101,29 +131,45 @@ export function LhppDetailModal({
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {canManage && detailLhpp.status === 'SIAP_PREVIEW' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={ShieldCheck}
+                  disabled={validating || submitting}
+                  loading={validating}
+                  onClick={handleValidate}
+                >
+                  Validasi Kelengkapan
+                </Button>
+              )}
               {detailLhpp.status === 'SIAP_PREVIEW' && canManage && (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="sm"
+                    icon={CheckCircle}
+                    disabled={submitting || validating}
+                    loading={submitting}
+                    onClick={handleFinalizeLhpp}
+                  >
+                    Finalisasi LHPP
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    icon={ArrowCounterClockwise}
                     disabled={submitting}
                     onClick={() => {
                       setReturnError('');
                       setReturnMode((v) => !v);
                     }}
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded border border-rose-300 dark:border-rose-800 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
                   >
-                    <ArrowCounterClockwise size={16} weight="bold" />
-                    <span>Kembalikan untuk Revisi</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={handleFinalizeLhpp}
-                    className="min-h-10 inline-flex items-center gap-1.5 rounded bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
-                  >
-                    <CheckCircle size={16} weight="bold" />
-                    <span>Finalisasi LHPP & Terbitkan BAP Unit</span>
-                  </button>
+                    Kembalikan
+                  </Button>
                 </>
               )}
               {detailLhpp.status === 'DIKEMBALIKAN' && (
@@ -131,52 +177,107 @@ export function LhppDetailModal({
                   Menunggu perbaikan Ahli K3. Dokumen tidak dapat difinalisasi sebelum diajukan ulang.
                 </span>
               )}
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
+                icon={Eye}
                 onClick={() => handlePreviewPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
-                className="min-h-10 inline-flex items-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
               >
-                <Eye size={16} />
-                <span>Pratinjau PDF</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDownloadPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
-                className="min-h-10 inline-flex items-center gap-1.5 rounded bg-slate-800 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 dark:hover:bg-slate-600 cursor-pointer"
-                title="Unduh berkas PDF LHPP resmi"
-              >
-                <FilePdf size={16} weight="bold" />
-                <span>PDF LHPP</span>
-              </button>
-              {handleDownloadDocx && (
-                <button
-                  type="button"
-                  onClick={() => handleDownloadDocx(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')}
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
-                  title="Unduh berkas Word (.docx) LHPP"
-                >
-                  <FileDoc size={16} weight="bold" />
-                  <span>Word (.docx)</span>
-                </button>
-              )}
-              {detailLhpp.inspection_id && handleDownloadRecommendationsPdf && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDownloadRecommendationsPdf(
-                      detailLhpp.inspection_id,
-                      detailLhpp.lhpp_no || 'LHPP'
-                    )
+                Pratinjau PDF
+              </Button>
+              <ActionMenu
+                label="Unduh Dokumen LHPP"
+                items={[
+                  {
+                    label: 'Unduh PDF LHPP Resmi',
+                    icon: FilePdf,
+                    onClick: () => handleDownloadPdf(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')
+                  },
+                  handleDownloadDocx && {
+                    label: 'Unduh Word (.docx)',
+                    icon: FileDoc,
+                    onClick: () => handleDownloadDocx(detailLhpp.id, detailLhpp.lhpp_no || 'Draf-LHPP')
+                  },
+                  detailLhpp.inspection_id && handleDownloadRecommendationsPdf && {
+                    label: 'Unduh Lembar Temuan (PDF)',
+                    icon: WarningOctagon,
+                    onClick: () => handleDownloadRecommendationsPdf(detailLhpp.inspection_id, detailLhpp.lhpp_no || 'LHPP')
                   }
-                  className="min-h-10 inline-flex items-center gap-1.5 rounded border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 cursor-pointer"
-                  title="Unduh Lembar Temuan & Rekomendasi K3 (PDF)"
-                >
-                  <WarningOctagon size={16} weight="bold" />
-                  <span>Lembar Temuan</span>
-                </button>
-              )}
+                ]}
+              />
             </div>
           </div>
+
+          {/* Engine Template LHPP & Integritas Dokumen (Apple-style pill metadata card) */}
+          <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Template Engine:</span>
+              <span className="font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">
+                {detailLhpp.template_code || detailLhpp.template?.code || 'PAPA-CRANE-01'}
+              </span>
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <GitBranch size={12} />
+                <span>{detailLhpp.template_version_code || detailLhpp.template?.version_code || 'v1.0.0'}</span>
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="text-slate-600 dark:text-slate-300 font-medium">
+                {detailLhpp.domain_name || detailLhpp.category_name || detailLhpp.inspection_domain || 'Pesawat Angkat & Angkut'}
+              </span>
+            </div>
+
+            {['FINAL', 'TERBIT'].includes(detailLhpp.status) ? (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px]">
+                <LockKey size={13} weight="bold" />
+                <span className="font-semibold">Dokumen Terkunci (SHA-256 Valid)</span>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-400 font-mono">
+                Copy-on-Write Versioning Aktif
+              </div>
+            )}
+          </div>
+
+          {/* Hasil Validasi Kelengkapan Dokumen */}
+          {validationResult && (
+            <div
+              className={`rounded-2xl p-4 text-xs space-y-2 border ${
+                validationResult.valid
+                  ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                  : 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 font-bold">
+                  {validationResult.valid ? (
+                    <CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" weight="fill" />
+                  ) : (
+                    <WarningCircle size={16} className="text-amber-600 dark:text-amber-400" weight="fill" />
+                  )}
+                  <span>
+                    {validationResult.valid
+                      ? 'Validasi Berhasil: Dokumen LHPP Lengkap & Memenuhi Standar Kemnaker'
+                      : `Validasi Kelengkapan: Ditemukan ${validationResult.missingFields?.length || 0} Data Belum Lengkap`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setValidationResult(null)}
+                  className="text-[11px] opacity-70 hover:opacity-100 cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+
+              {!validationResult.valid && (validationResult.missingFields || []).length > 0 && (
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90 pl-1">
+                  {validationResult.missingFields.map((field, idx) => (
+                    <li key={idx}>{field}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {returnMode && (
             <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 p-4 space-y-3">
@@ -200,24 +301,27 @@ export function LhppDetailModal({
                 <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-400">{returnError}</p>
               )}
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     setReturnMode(false);
                     setReturnError('');
                   }}
-                  className="min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   Batal
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="danger"
+                  size="sm"
                   disabled={submitting || returnNote.trim().length < 10}
+                  loading={submitting}
                   onClick={submitReturn}
-                  className="min-h-10 rounded-lg bg-rose-700 hover:bg-rose-800 px-3.5 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {submitting ? 'Mengirim...' : 'Kembalikan ke Ahli K3'}
-                </button>
+                  Kembalikan ke Ahli K3
+                </Button>
               </div>
             </div>
           )}

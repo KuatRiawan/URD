@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ArrowClockwise, ShareNetwork } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
 import { DISTRIBUTION_STATUS_LABELS } from '../../lib/utils/format.js';
 import { DistributionSummaryCards } from './components/DistributionSummaryCards.jsx';
@@ -15,6 +16,7 @@ import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 
 export function DocumentDistributionPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const initialStatusParam = searchParams.get('status');
 
@@ -34,6 +36,13 @@ export function DocumentDistributionPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,27 +195,21 @@ export function DocumentDistributionPage() {
     <div className="space-y-6">
       <PageHeader
         title={isReadOnly ? 'Monitoring Distribusi Dokumen K3' : 'Distribusi Dokumen K3'}
-        subtitle="Pengawasan pelacakan ekspedisi fisik Berita Acara (BAP) kepada Klien serta berkas LHPP & BAP ke Disnaker"
+        subtitle="Pelacakan pengiriman BAP ke klien serta berkas LHPP ke Disnaker."
         actions={
-          <button
+          <Button
             type="button"
-            onClick={() => loadData(true)}
+            variant="secondary"
+            size="md"
+            icon={ArrowClockwise}
+            loading={refreshing}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs transition-colors cursor-pointer"
+            onClick={() => loadData(true)}
           >
-            <ArrowClockwise size={15} className={refreshing ? 'animate-spin' : ''} />
-            <span>Perbarui Data</span>
-          </button>
+            Perbarui Data
+          </Button>
         }
       />
-
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={() => loadData(true)} />}
 
       <DistributionSummaryCards
         summary={summary}
@@ -227,6 +230,8 @@ export function DocumentDistributionPage() {
 
       {loading ? (
         <LoadingState message="Memuat daftar distribusi dokumen..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={() => loadData(true)} />
       ) : distributions.length === 0 ? (
         <EmptyState
           icon={ShareNetwork}

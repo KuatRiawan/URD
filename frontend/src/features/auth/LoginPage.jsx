@@ -55,22 +55,22 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-[#C81E1E] selection:text-white">
-      {/* Panel Merek & Identitas Perusahaan (Desktop) */}
-      <aside className="hidden lg:flex lg:w-[48%] xl:w-[45%] relative overflow-hidden flex-col justify-between bg-slate-950 p-12 text-white">
-        {/* Dekorasi Latar Belakang Gradien Halus */}
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#F5F5F7] dark:bg-[#0B0D11] text-[#1D1D1F] dark:text-[#F5F5F7] selection:bg-[#C81E1E] selection:text-white transition-colors">
+      {/* Panel Merek & Identitas Perusahaan (Desktop - Apple-Inspired Light Enterprise Surface) */}
+      <aside className="hidden lg:flex lg:w-[46%] xl:w-[44%] relative overflow-hidden flex-col justify-between bg-white dark:bg-[#151821] border-r border-black/[0.06] dark:border-white/[0.07] p-12">
+        {/* Aksen Halus Identitas URD */}
         <div
-          className="absolute inset-0 opacity-70 pointer-events-none"
+          className="absolute inset-0 pointer-events-none opacity-80 dark:opacity-35"
           style={{
             background:
-              'radial-gradient(55% 50% at 20% 15%, rgba(200,30,30,0.4) 0%, transparent 75%), radial-gradient(50% 50% at 85% 85%, rgba(30,41,59,0.7) 0%, transparent 80%)'
+              'radial-gradient(60% 50% at 12% 10%, rgba(200,30,30,0.07) 0%, transparent 75%), radial-gradient(50% 50% at 88% 90%, rgba(0,0,0,0.03) 0%, transparent 80%)'
           }}
           aria-hidden="true"
         />
 
-        {/* Header Panel Kiri */}
+        {/* Header Panel Kiri: Logo Resmi PT Upaya Riksa Daya */}
         <div className="relative z-10 flex items-center gap-3.5">
-          <span className="inline-flex h-12 items-center rounded-xl bg-white px-3 shadow-md">
+          <span className="inline-flex h-12 items-center rounded-2xl bg-white px-3 border border-black/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
             <img
               src={logoUrd}
               alt="Logo PT Upaya Riksa Daya"
@@ -80,23 +80,27 @@ export function LoginPage() {
             />
           </span>
           <div>
-            <p className="text-base font-extrabold tracking-tight">PT Upaya Riksa Daya</p>
-            <p className="text-xs text-slate-400">PJK3 Bidang Pemeriksaan dan Pengujian Teknik</p>
+            <p className="text-[15px] font-bold tracking-[-0.018em] text-[#1D1D1F] dark:text-[#F5F5F7]">
+              PT Upaya Riksa Daya
+            </p>
+            <p className="text-xs text-[#6E6E73] dark:text-[#98989D]">
+              PJK3 Bidang Pemeriksaan dan Pengujian Teknik
+            </p>
           </div>
         </div>
 
-        {/* Ringkasan fungsi portal */}
-        <div className="relative z-10 max-w-lg my-auto py-8">
-          <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
-            Portal Resmi Riksa Uji K3
+        {/* Identitas Portal */}
+        <div className="relative z-10 max-w-md my-auto py-8 space-y-3">
+          <p className="text-xs font-semibold text-[#C81E1E] dark:text-rose-400">
+            Sistem Operasional Riksa Uji K3
           </p>
-          <p className="text-3xl xl:text-4xl font-black leading-tight tracking-tight text-white">
-            Proses riksa uji dan dokumentasi K3 dalam satu portal.
-          </p>
+          <h2 className="text-3xl xl:text-[32px] font-bold leading-[1.18] tracking-[-0.025em] text-[#1D1D1F] dark:text-[#F5F5F7]">
+            Pemeriksaan, Pengujian, dan Dokumentasi K3.
+          </h2>
         </div>
 
         {/* Footer Panel Kiri */}
-        <p className="relative z-10 text-xs text-slate-500">
+        <p className="relative z-10 text-xs text-[#86868B] dark:text-[#8E8E93]">
           &copy; {new Date().getFullYear()} PT Upaya Riksa Daya
         </p>
       </aside>
@@ -104,19 +108,19 @@ export function LoginPage() {
       {/* Panel Formulir Login (Responsif Mobile & Desktop) */}
       <main className="flex-1 flex flex-col min-h-screen">
         {/* Top Navbar Mobile & Pengatur Tema */}
-        <header className="flex items-center justify-between border-b border-slate-200/90 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-4 sm:px-6 py-3.5">
-          <div className="flex items-center gap-3 lg:hidden">
-            <span className="inline-flex h-9 items-center rounded-lg bg-white p-1.5 shadow-2xs border border-slate-200">
+        <header className="flex items-center justify-between urd-glass-toolbar px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-2.5 lg:hidden">
+            <span className="inline-flex h-9 items-center rounded-xl bg-white p-1.5 border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <img
                 src={logoUrd}
                 alt="Logo PT Upaya Riksa Daya"
                 width="36"
                 height="24"
                 fetchPriority="high"
-                className="h-6 w-auto object-contain"
+                className="h-5 w-auto object-contain"
               />
             </span>
-            <p className="text-xs font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+            <p className="text-xs font-bold tracking-[-0.015em] text-[#1D1D1F] dark:text-[#F5F5F7] leading-tight">
               PT Upaya Riksa Daya
             </p>
           </div>
@@ -127,25 +131,25 @@ export function LoginPage() {
 
         {/* Konten Utama Form Login */}
         <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-9 shadow-sm">
-            {/* Header Form & Identitas */}
+          <div className="w-full max-w-[420px] rounded-[24px] border border-black/[0.07] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-6 sm:p-9 shadow-[0_4px_24px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)]">
+            {/* Header Form & Identitas Resmi */}
             <div className="flex flex-col items-center text-center mb-6">
-              <span className="inline-flex items-center justify-center p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 mb-3.5 shadow-2xs">
+              <span className="inline-flex items-center justify-center px-3.5 py-2.5 rounded-2xl bg-white border border-black/[0.08] mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                 <img
                   src={logoUrd}
                   alt="Logo Resmi PT Upaya Riksa Daya"
-                  width="130"
-                  height="90"
+                  width="124"
+                  height="86"
                   fetchPriority="high"
-                  className="h-12 sm:h-14 w-auto object-contain"
+                  className="h-11 sm:h-12 w-auto object-contain"
                 />
               </span>
 
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-xl sm:text-[22px] font-bold tracking-[-0.022em] text-[#1D1D1F] dark:text-[#F5F5F7]">
                 PT Upaya Riksa Daya
               </h1>
 
-              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-[#6E6E73] dark:text-[#98989D]">
                 Masuk ke Portal Resmi PT Upaya Riksa Daya
               </p>
             </div>
@@ -160,7 +164,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="login-email"
-                  className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5"
+                  className="block text-xs font-semibold text-[#1D1D1F] dark:text-[#E5E5EA] mb-1.5"
                 >
                   Alamat Email Karyawan
                 </label>
@@ -173,14 +177,14 @@ export function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nama@upayariksadaya.com"
-                  className="w-full min-h-[44px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#C81E1E] focus:ring-2 focus:ring-[#C81E1E]/20 transition-all"
+                  className="w-full min-h-[44px] rounded-[11px] border border-black/[0.14] dark:border-white/[0.14] bg-white dark:bg-[#1E222D] px-3.5 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:border-[#C81E1E] focus:ring-3 focus:ring-[#C81E1E]/16 transition-all"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="login-password"
-                  className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5"
+                  className="block text-xs font-semibold text-[#1D1D1F] dark:text-[#E5E5EA] mb-1.5"
                 >
                   Kata Sandi
                 </label>
@@ -194,13 +198,13 @@ export function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan kata sandi"
-                    className="w-full min-h-[44px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-3.5 pr-12 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#C81E1E] focus:ring-2 focus:ring-[#C81E1E]/20 transition-all"
+                    className="w-full min-h-[44px] rounded-[11px] border border-black/[0.14] dark:border-white/[0.14] bg-white dark:bg-[#1E222D] pl-3.5 pr-12 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:border-[#C81E1E] focus:ring-3 focus:ring-[#C81E1E]/16 transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-                    className="absolute right-1 min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
+                    className="absolute right-1 min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-lg text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.04] dark:hover:bg-white/[0.08] hover:text-[#1D1D1F] dark:hover:text-white transition-colors cursor-pointer"
                   >
                     {showPassword ? (
                       <EyeSlash size={18} aria-hidden="true" />
@@ -214,21 +218,17 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 rounded-lg bg-[#C81E1E] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#a61717] active:bg-[#851212] transition-all disabled:opacity-50 cursor-pointer"
+                className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 rounded-[11px] bg-[#C81E1E] px-4 text-sm font-semibold text-white shadow-[0_2px_6px_rgba(200,30,30,0.25)] hover:bg-[#A61717] active:bg-[#8A1212] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
               >
                 <LockKey size={18} weight="bold" aria-hidden="true" />
-                <span>{submitting ? 'Memverifikasi Sesi...' : 'Masuk ke Sistem Internal'}</span>
+                <span>{submitting ? 'Memverifikasi...' : 'Masuk ke Sistem Internal'}</span>
               </button>
             </form>
-
-            <p className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-[11px] leading-relaxed text-center text-slate-500 dark:text-slate-400">
-              Sistem ini terbatas untuk personel resmi PT Upaya Riksa Daya. Hubungi Administrator Sistem apabila Anda memerlukan bantuan akses akun.
-            </p>
           </div>
         </div>
 
         {/* Footer Mobile */}
-        <footer className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
+        <footer className="lg:hidden border-t border-black/[0.06] dark:border-white/[0.07] bg-white/80 dark:bg-[#151821]/80 px-4 py-3 text-center text-xs text-[#6E6E73] dark:text-[#98989D]">
           &copy; {new Date().getFullYear()} PT Upaya Riksa Daya
         </footer>
       </main>

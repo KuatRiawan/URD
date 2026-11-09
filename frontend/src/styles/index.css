@@ -4,20 +4,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Tipografi Sistem Bergaya Apple (macOS + iOS Native Stack) */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", "Plus Jakarta Sans Variable", "Plus Jakarta Sans", Roboto, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Identitas Resmi PT Upaya Riksa Daya (Merah & Hitam Korporat) */
   --color-brand-50: #FEF2F2;
   --color-brand-100: #FEE2E2;
   --color-brand-500: #DC2626;
   --color-brand-600: #C81E1E;
   --color-brand-700: #A11616;
+
   --color-ink: var(--urd-text-primary);
   --color-canvas: var(--urd-bg);
   --color-surface: var(--urd-surface);
   --color-card-border: var(--urd-border);
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-pop: 0 20px 45px -12px rgba(15, 23, 42, 0.35);
-  --animate-fade-in: fade-in 160ms ease-out both;
-  --animate-pop-in: pop-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Elevasi Halus Bergaya macOS & iOS */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-pop: 0 16px 40px -8px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06);
+
+  --animate-fade-in: fade-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop-in: pop-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-toast-in: toast-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @keyframes fade-in {
@@ -25,37 +33,39 @@
     to { opacity: 1; }
   }
   @keyframes pop-in {
-    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
   @keyframes toast-in {
-    from { opacity: 0; transform: translateX(16px); }
+    from { opacity: 0; transform: translateX(14px); }
     to { opacity: 1; transform: translateX(0); }
   }
 }
 
 :root {
-  /* Token Warna Light Mode PT Upaya Riksa Daya */
+  /* Token Warna Light Mode (Refined Apple-Inspired Light Interface + URD Brand) */
   --urd-brand-red: #C81E1E;
   --urd-brand-red-hover: #A11616;
-  --urd-bg: #F8FAFC;
+  --urd-brand-black: #1D1D1F;
+  --urd-bg: #F5F5F7;
   --urd-surface: #FFFFFF;
-  --urd-surface-subtle: #F1F5F9;
-  --urd-text-primary: #0F172A;
-  --urd-text-secondary: #475569;
-  --urd-border: #E2E8F0;
+  --urd-surface-subtle: #F2F2F7;
+  --urd-text-primary: #1D1D1F;
+  --urd-text-secondary: #6E6E73;
+  --urd-border: rgba(0, 0, 0, 0.07);
 }
 
 html.dark {
-  /* Token Warna Dark Mode Enterprise (Metis Dark Palette) */
+  /* Token Warna Dark Mode (macOS Dark Appearance + URD Brand) */
   --urd-brand-red: #E02424;
   --urd-brand-red-hover: #C81E1E;
-  --urd-bg: #0B0F19;
-  --urd-surface: #111827;
-  --urd-surface-subtle: #1F2937;
-  --urd-text-primary: #F8FAFC;
-  --urd-text-secondary: #94A3B8;
-  --urd-border: #1F2937;
+  --urd-brand-black: #F5F5F7;
+  --urd-bg: #0B0D11;
+  --urd-surface: #151821;
+  --urd-surface-subtle: #1E222D;
+  --urd-text-primary: #F5F5F7;
+  --urd-text-secondary: #98989D;
+  --urd-border: rgba(255, 255, 255, 0.08);
 }
 
 html {
@@ -63,42 +73,134 @@ html {
   background-color: var(--urd-bg);
   color: var(--urd-text-primary);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
 }
 
 body {
   background-color: var(--urd-bg);
   color: var(--urd-text-primary);
+  overflow-x: clip;
 }
 
-/* Kontrol formulir: adaptif terhadap tema Light & Dark */
+h1 {
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+h2, h3, h4 {
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+table, .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================================================================= */
+/* MATERIAL LIQUID GLASS SELEKTIF (Hanya untuk Sidebar, Toolbar & Tab Bar)   */
+/* ========================================================================= */
+.urd-glass-sidebar {
+  background-color: rgba(246, 246, 248, 0.86);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+html.dark .urd-glass-sidebar {
+  background-color: rgba(18, 21, 29, 0.86);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.urd-glass-toolbar {
+  background-color: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+html.dark .urd-glass-toolbar {
+  background-color: rgba(21, 24, 33, 0.80);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.urd-glass-bottom-bar {
+  background-color: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+html.dark .urd-glass-bottom-bar {
+  background-color: rgba(21, 24, 33, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Fallback Aksesibilitas untuk prefers-reduced-transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .urd-glass-sidebar {
+    background-color: #F5F5F7 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  html.dark .urd-glass-sidebar {
+    background-color: #12151D !important;
+  }
+  .urd-glass-toolbar {
+    background-color: #FFFFFF !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  html.dark .urd-glass-toolbar {
+    background-color: #151821 !important;
+  }
+  .urd-glass-bottom-bar {
+    background-color: #FFFFFF !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  html.dark .urd-glass-bottom-bar {
+    background-color: #151821 !important;
+  }
+}
+
+/* ========================================================================= */
+/* KONTROL FORMULIR: Presisi Bergaya Native macOS / iOS                      */
+/* ========================================================================= */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
 select,
 textarea {
-  border-color: #CBD5E1;
+  border-color: rgba(0, 0, 0, 0.14);
   background-color: #FFFFFF;
-  color: #0F172A;
+  color: #1D1D1F;
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
 
 html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
 html.dark select,
 html.dark textarea {
-  border-color: #374151;
-  background-color: #1F2937;
-  color: #F9FAFB;
+  border-color: rgba(255, 255, 255, 0.14);
+  background-color: #1E222D;
+  color: #F5F5F7;
 }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):hover,
 select:hover,
 textarea:hover {
-  border-color: #94A3B8;
+  border-color: rgba(0, 0, 0, 0.24);
 }
 
 html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):hover,
 html.dark select:hover,
 html.dark textarea:hover {
-  border-color: #4B5563;
+  border-color: rgba(255, 255, 255, 0.24);
 }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):focus,
@@ -106,32 +208,32 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--urd-brand-red);
-  box-shadow: 0 0 0 3px rgba(200, 30, 30, 0.18);
+  box-shadow: 0 0 0 3px rgba(200, 30, 30, 0.16);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #94A3B8;
+  color: #86868B;
 }
 
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: #6B7280;
+  color: #6E6E73;
 }
 
 input:disabled,
 select:disabled,
 textarea:disabled {
-  background-color: #F1F5F9;
-  color: #64748B;
+  background-color: #F2F2F7;
+  color: #86868B;
 }
 
 html.dark input:disabled,
 html.dark select:disabled,
 html.dark textarea:disabled {
-  background-color: #111827;
-  color: #4B5563;
-  border-color: #1F2937;
+  background-color: #151821;
+  color: #6E6E73;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 input[type="checkbox"],
@@ -139,17 +241,17 @@ input[type="radio"] {
   accent-color: var(--urd-brand-red);
 }
 
-/* Tabel data: tampilan bisnis yang rapi */
+/* Tabel data: tampilan bersih bergaya Finder / Mail */
 table thead tr {
-  background-color: #F8FAFC;
+  background-color: #FAFAFC;
 }
 
 html.dark table thead tr {
-  background-color: #1F2937;
+  background-color: #1B1F2A;
 }
 
 table thead th {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
@@ -165,11 +267,11 @@ a[class*="px-"] {
 }
 
 button:not(:disabled):active {
-  transform: translateY(0.5px);
+  transform: scale(0.985);
 }
 
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.50;
 }
 
 /* R-39: Setiap kontrol interaktif aktif menunjukkan cursor: pointer */
@@ -203,15 +305,15 @@ textarea:disabled,
 /* Scrollbar halus */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #CBD5E1 transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
 }
 
 html.dark * {
-  scrollbar-color: #374151 transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
 
 ::selection {
-  background-color: rgba(200, 30, 30, 0.22);
+  background-color: rgba(200, 30, 30, 0.18);
 }
 
 /* R-39: Hormati prefers-reduced-motion */

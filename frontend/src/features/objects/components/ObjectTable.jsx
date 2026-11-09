@@ -1,4 +1,13 @@
-import { ArrowsClockwise, Cube, QrCode } from '@phosphor-icons/react';
+import { ArrowsClockwise, Cube, Eye, QrCode } from '@phosphor-icons/react';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import { PaginationBar } from '../../../components/feedback/StateViews.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
@@ -78,34 +87,40 @@ export function ObjectTable({
               </div>
 
               {/* Tombol Aksi Mobile */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => openQr(obj.id)}
-                  aria-label={`QR Code ${obj.name}`}
-                  className="h-10 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                >
-                  <QrCode size={16} />
-                  <span>QR</span>
-                </button>
-                <button
-                  type="button"
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  touchFriendly
+                  icon={Eye}
                   onClick={() => openDetail(obj.id)}
-                  className="flex-1 h-10 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  className="flex-1"
                 >
-                  Riwayat &amp; Berkas
-                </button>
+                  Detail
+                </Button>
                 {canCreateRenewal && hasExpiredSuket && onCreateRenewal && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    touchFriendly
+                    icon={ArrowsClockwise}
                     onClick={() => onCreateRenewal(obj.id, obj.name)}
-                    aria-label={`Buat PO Perpanjangan untuk ${obj.name}`}
-                    className="h-10 px-3 inline-flex items-center justify-center gap-1 rounded-lg bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs"
+                    className="flex-1"
                   >
-                    <ArrowsClockwise size={15} weight="bold" />
-                    <span className="hidden xs:inline">PO Ulang</span>
-                  </button>
+                    PO Ulang
+                  </Button>
                 )}
+                <ActionMenu
+                  label={`Aksi unit ${obj.name}`}
+                  items={[
+                    {
+                      key: 'qr',
+                      label: 'Tampilkan QR Code',
+                      icon: QrCode,
+                      onClick: () => openQr(obj.id)
+                    }
+                  ]}
+                />
               </div>
             </div>
           );
@@ -113,97 +128,107 @@ export function ObjectTable({
       </div>
 
       {/* Tampilan Desktop & Tablet: Tabel Tabular Lengkap */}
-      <div className="hidden sm:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400">
-                <th className="py-3 px-4 font-bold">Kategori</th>
-                <th className="py-3 px-4 font-bold">Nama Objek &amp; Merek</th>
-                <th className="py-3 px-4 font-bold">Nomor Seri</th>
-                <th className="py-3 px-4 font-bold">Klien &amp; Lokasi</th>
-                <th className="py-3 px-4 font-bold">Suket K3 Aktif</th>
-                <th className="py-3 px-4 font-bold text-right">Tindakan</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {items.map((obj) => {
-                const hasExpiredSuket =
-                  obj.active_suket_valid_until &&
-                  new Date(obj.active_suket_valid_until).getTime() < Date.now() + 30 * 86400000;
+      <div className="hidden sm:block">
+        <TableWrapper>
+          <TableHead>
+            <tr>
+              <TableCell isHeader>Kategori</TableCell>
+              <TableCell isHeader>Nama Objek &amp; Merek</TableCell>
+              <TableCell isHeader>Nomor Seri</TableCell>
+              <TableCell isHeader>Klien &amp; Lokasi</TableCell>
+              <TableCell isHeader>Suket K3 Aktif</TableCell>
+              <TableCell isHeader align="right">Aksi</TableCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {items.map((obj) => {
+              const hasExpiredSuket =
+                obj.active_suket_valid_until &&
+                new Date(obj.active_suket_valid_until).getTime() < Date.now() + 30 * 86400000;
 
-                return (
-                  <tr key={obj.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-slate-100">
-                        {obj.category_code}
+              return (
+                <TableRow key={obj.id}>
+                  <TableCell>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="inline-block px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-slate-100 text-[11px]">
+                        {obj.domain_code || obj.category_code}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <p className="font-bold text-slate-900 dark:text-slate-100">{obj.name}</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {obj.brand || '-'} {obj.model ? `· ${obj.model}` : ''}{' '}
-                        {obj.capacity ? `· Kapasitas: ${obj.capacity}` : ''}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-slate-100">
-                      {obj.serial_number}
-                    </td>
-                    <td className="py-3 px-4">
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">{obj.client_name}</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {obj.install_location || obj.location_name || '-'}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4">
-                      {obj.active_suket_no ? (
-                        <div>
-                          <p className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
-                            {obj.active_suket_no}
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            s/d {formatDate(obj.active_suket_valid_until)}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 dark:text-slate-500">Belum ada</span>
+                      {obj.equipment_type_name && (
+                        <span className="text-[10px] font-semibold text-[#6E6E73] dark:text-[#98989D] truncate max-w-[120px]">
+                          {obj.equipment_type_name}
+                        </span>
                       )}
-                    </td>
-                    <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{obj.name}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {obj.brand || '-'} {obj.model ? `· ${obj.model}` : ''}{' '}
+                      {obj.capacity ? `· Kapasitas: ${obj.capacity}` : ''}
+                    </p>
+                  </TableCell>
+                  <TableCell className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                    {obj.serial_number}
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-semibold text-slate-900 dark:text-slate-100">{obj.client_name}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {obj.install_location || obj.location_name || '-'}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    {obj.active_suket_no ? (
+                      <div>
+                        <p className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                          {obj.active_suket_no}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          s/d {formatDate(obj.active_suket_valid_until)}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-500">Belum ada</span>
+                    )}
+                  </TableCell>
+                  <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                    <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
                       {canCreateRenewal && hasExpiredSuket && onCreateRenewal && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          icon={ArrowsClockwise}
                           onClick={() => onCreateRenewal(obj.id, obj.name)}
                           aria-label={`Buat PO Perpanjangan untuk ${obj.name}`}
-                          className="h-8.5 px-2.5 rounded-lg bg-[#C81E1E] text-white hover:bg-[#a11616] inline-flex items-center gap-1 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
                         >
-                          <ArrowsClockwise size={13} weight="bold" />
-                          <span>PO Ulang</span>
-                        </button>
+                          PO Ulang
+                        </Button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => openQr(obj.id)}
-                        aria-label={`Tampilkan QR Code ${obj.name}`}
-                        className="h-8.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 inline-flex items-center gap-1 font-semibold text-xs transition-colors cursor-pointer"
-                      >
-                        <QrCode size={15} aria-hidden="true" />
-                        <span>QR</span>
-                      </button>
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        icon={Eye}
                         onClick={() => openDetail(obj.id)}
-                        className="h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-xs transition-colors cursor-pointer"
                       >
-                        Riwayat &amp; Berkas
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        Detail
+                      </Button>
+                      <ActionMenu
+                        label={`Opsi unit ${obj.name}`}
+                        items={[
+                          {
+                            key: 'qr',
+                            label: 'Tampilkan QR Code',
+                            icon: QrCode,
+                            onClick: () => openQr(obj.id)
+                          }
+                        ]}
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </TableWrapper>
       </div>
 
       <PaginationBar page={page} limit={15} total={total} onPageChange={setPage} />

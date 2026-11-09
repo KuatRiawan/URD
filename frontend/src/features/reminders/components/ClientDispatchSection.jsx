@@ -10,30 +10,25 @@ export function ClientDispatchSection({ channels, clientLog }) {
       <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <PaperPlaneTilt size={20} className="text-[#C81E1E]" weight="bold" />
-          <div>
-            <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-              Pengiriman Otomatis ke Klien
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Pengiriman otomatis berkala H-30, H-14, dan H-7 ke kontak PIC klien.
-            </p>
-          </div>
+          <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+            Pengiriman Otomatis ke Klien
+          </h2>
         </div>
         {channels && (
           <div className="flex items-center gap-2">
             <Badge tone={channels.email === 'AKTIF' ? 'success' : 'warning'}>
-              Email: {channels.email === 'AKTIF' ? 'Aktif' : 'Simulasi'}
+              Email: {channels.email === 'AKTIF' ? 'Aktif' : 'Belum Dikonfigurasi'}
             </Badge>
             <Badge tone={channels.whatsapp === 'AKTIF' ? 'success' : 'warning'}>
-              WhatsApp: {channels.whatsapp === 'AKTIF' ? 'Aktif' : 'Simulasi'}
+              WhatsApp: {channels.whatsapp === 'AKTIF' ? 'Aktif' : 'Belum Dikonfigurasi'}
             </Badge>
           </div>
         )}
       </div>
       {channels && (channels.email !== 'AKTIF' || channels.whatsapp !== 'AKTIF') && (
         <div className="px-5 pt-4">
-          <Notice tone="warning" title="Kanal Pengiriman Simulasi">
-            Kanal WhatsApp atau Email belum aktif pada server. Notifikasi reminder dicatat pada log internal tanpa mengirim pesan keluar.
+          <Notice tone="warning" title="Gateway Pengiriman Belum Dikonfigurasi">
+            Kanal WhatsApp atau Email belum dikonfigurasi pada server. Pengingat tetap dicatat pada log internal sistem.
           </Notice>
         </div>
       )}
@@ -76,7 +71,7 @@ export function ClientDispatchSection({ channels, clientLog }) {
                       : row.status === 'GAGAL'
                         ? 'Gagal'
                         : row.status === 'SIMULASI'
-                          ? 'Simulasi'
+                          ? 'Tercatat Internal'
                           : 'Dilewati'}
                   </Badge>
                 </div>
@@ -149,7 +144,7 @@ export function ClientDispatchSection({ channels, clientLog }) {
                           : row.status === 'GAGAL'
                             ? 'Gagal'
                             : row.status === 'SIMULASI'
-                              ? 'Simulasi'
+                              ? 'Tercatat Internal'
                               : 'Dilewati'}
                       </Badge>
                       {row.error_message && (

@@ -73,16 +73,18 @@ function InspectorWorkloadCard({ workload = [] }) {
                   {insp.completed_inspections || 0} pengujian selesai
                 </p>
               </div>
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(insp.active_assignments || 0) > 3
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
+              <Badge
+                tone={
+                  Number(insp.active_assignments || 0) > 3
+                    ? 'warning'
                     : Number(insp.active_assignments || 0) > 0
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                  }`}
+                    ? 'info'
+                    : 'neutral'
+                }
+                size="xs"
               >
                 {insp.active_assignments || 0} tugas aktif
-              </span>
+              </Badge>
             </div>
           ))
         )}
@@ -149,7 +151,7 @@ export function ManagementDashboardView({
                 className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a61717] transition-all shadow-xs cursor-pointer"
               >
                 <Plus size={16} weight="bold" aria-hidden="true" />
-                <span>Catat PO Baru</span>
+                <span>Buat PO Baru</span>
               </button>
             )}
             <a
@@ -296,17 +298,17 @@ export function ManagementDashboardView({
             {/* Admin Kantor Card 1: PO Menunggu Jadwal */}
             <Link
               to="/app/schedule"
-              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all cursor-pointer block"
+              className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all cursor-pointer block"
             >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <CalendarCheck size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     PO Menunggu Jadwal
                   </p>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums leading-none tracking-[-0.02em]">
                     {m.newOrders || 0}
                   </div>
                   <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1.5">
@@ -320,20 +322,20 @@ export function ManagementDashboardView({
             {/* Admin Kantor Card 2: Unit Sedang Diinspeksi */}
             <Link
               to="/app/inspections"
-              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md transition-all cursor-pointer block"
+              className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all cursor-pointer block"
             >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Wrench size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     Unit Sedang Diinspeksi
                   </p>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums leading-none tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums leading-none tracking-[-0.02em]">
                     {m.inspectingUnits || 0}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span>{m.waitingInspectionUnits || 0} unit antre</span>
                     <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -344,20 +346,20 @@ export function ManagementDashboardView({
             {/* Admin Kantor Card 3: Antrean QC LHPP */}
             <Link
               to="/app/lhpp?status=SIAP_PREVIEW"
-              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all cursor-pointer block"
+              className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all cursor-pointer block"
             >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <div className="h-11 w-11 rounded-xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <HourglassMedium size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     Antrean QC: LHPP Siap
                   </p>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-[#C81E1E] dark:text-rose-400 tabular-nums leading-none tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-bold text-[#C81E1E] dark:text-rose-400 tabular-nums leading-none tracking-[-0.02em]">
                     {m.lhppWaitingReview || 0}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span className="text-amber-600 font-bold">{m.revisionUnits || 0} revisi</span>
                     <span>· {m.lhppPublished || 0} terbit</span>
                     <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
@@ -369,20 +371,20 @@ export function ManagementDashboardView({
             {/* Admin Kantor Card 4: Berkas Siap Kirim (BAST) */}
             <Link
               to="/app/distributions?status=SIAP_DIKIRIM"
-              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer block"
+              className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all cursor-pointer block"
             >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Truck size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     Berkas Siap Kirim (BAST)
                   </p>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none tracking-[-0.02em]">
                     {m.documentPipeline?.dist_pending ?? m.docsPendingDelivery ?? 0}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span>{m.documentPipeline?.dist_dispatched ?? m.docsDispatched ?? 0} terkirim</span>
                     <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -566,15 +568,10 @@ export function ManagementDashboardView({
       {isMarketing ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Briefcase size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                <span>Pipeline Komersial &amp; Siklus Order Klien</span>
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Monitoring perkembangan order klien dari pencatatan PO multi-unit hingga penyelesaian dan potensi perpanjangan Suket
-              </p>
-            </div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Briefcase size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+              <span>Pipeline Komersial &amp; Siklus Order Klien</span>
+            </h2>
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
               Total {m.totalOrders || (m.activeOrders || 0) + (m.completedOrders || 0)} Order Klien
             </span>
@@ -648,15 +645,10 @@ export function ManagementDashboardView({
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Wrench size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                <span>Pipeline Operasional: Siklus Unit &amp; Status Dokumen</span>
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Monitoring end-to-end progres per unit dari penugasan lapangan hingga distribusi dokumen resmi
-              </p>
-            </div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Wrench size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+              <span>Pipeline Operasional: Siklus Unit &amp; Status Dokumen</span>
+            </h2>
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
               Total {m.totalUnits || m.activeObjects || 0} Unit Alat
             </span>
@@ -768,15 +760,10 @@ export function ManagementDashboardView({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
             {/* Metis Card Header with Period Buttons */}
             <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <ChartLineUp size={18} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                  <span>Tren &amp; Volume Riksa Uji</span>
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Perbandingan order masuk dan pekerjaan yang terselesaikan
-                </p>
-              </div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <ChartLineUp size={18} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+                <span>Tren &amp; Volume Riksa Uji</span>
+              </h2>
 
               {/* Period Button Group */}
               <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-xs font-semibold self-start sm:self-center shadow-2xs">
@@ -784,7 +771,10 @@ export function ManagementDashboardView({
                   <button
                     key={p}
                     type="button"
-                    onClick={() => setPeriod(p)}
+                    onClick={() => {
+                      setPeriod(p);
+                      if (loadSummary) loadSummary(false, p);
+                    }}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${period === p
                         ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
@@ -807,9 +797,6 @@ export function ManagementDashboardView({
                     <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" /> Riksa Uji Selesai
                   </span>
                 </div>
-                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                  Arahkan kursor pada kurva untuk detail
-                </span>
               </div>
 
               <SplineAreaChart
@@ -821,23 +808,7 @@ export function ManagementDashboardView({
 
           {/* Action Queue: Only for Operational Admin roles, replaced by geographic distribution for Marketing */}
           {isMarketing ? (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Buildings size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                  <span>Sebaran Objek Uji per Wilayah &amp; Klien</span>
-                </h3>
-                <Link to="/app/clients" className="text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:underline">
-                  Lihat Semua Klien &rarr;
-                </Link>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Pemetaan lokasi alat K3 klien di seluruh wilayah Indonesia untuk perencanaan penawaran riksa uji berkala.
-              </p>
-              <div className="pt-2">
-                <IndonesiaMapWidget regions={data?.analytics?.regionalMapping || []} />
-              </div>
-            </div>
+            <IndonesiaMapWidget regions={data?.analytics?.regionalMapping || []} />
           ) : !isAdminKantor ? (
             <WorkQueueWidget onRefresh={() => loadSummary(true)} />
           ) : null}
@@ -862,10 +833,6 @@ export function ManagementDashboardView({
                 </div>
 
                 <div className="p-4 space-y-3">
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Objek uji K3 klien yang masa berlaku Suket Kemnaker-nya segera habis. Prioritas tindak lanjut penawaran riksa uji berkala:
-                  </p>
-
                   <div className="grid grid-cols-2 gap-3 pt-1">
                     <div className="p-3 rounded-xl border border-red-200/80 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 text-center">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-400">
@@ -965,7 +932,7 @@ export function ManagementDashboardView({
                   >
                     <span className="flex items-center gap-2">
                       <Plus size={15} weight="bold" />
-                      <span>Catat PO Baru Multi-Unit</span>
+                      <span>Buat PO Baru Multi-Unit</span>
                     </span>
                     <ArrowRight size={13} weight="bold" />
                   </button>

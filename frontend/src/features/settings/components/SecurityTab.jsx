@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { ShieldCheck, Key, Eye, EyeSlash } from '@phosphor-icons/react';
+import { ShieldCheck, Key, Eye, EyeSlash, WarningCircle } from '@phosphor-icons/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
 
 export function SecurityTab({
   passwordForm,
@@ -26,14 +25,10 @@ export function SecurityTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {passwordSuccess && (
-            <div className="mb-4">
-              <Notice tone="success">{passwordSuccess}</Notice>
-            </div>
-          )}
           {passwordError && (
-            <div className="mb-4">
-              <Notice tone="error">{passwordError}</Notice>
+            <div className="mb-4 flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
+              <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
+              <span>{passwordError}</span>
             </div>
           )}
 

@@ -11,10 +11,11 @@ import {
   WarningOctagon
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { ErrorBanner, EmptyState, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
 import { Modal } from '../../components/ui/Modal.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
 
 const TYPE_LABELS = {
@@ -44,6 +45,7 @@ const isOps = (role) => ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'].includes(r
 
 export function IssuesPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -51,6 +53,13 @@ export function IssuesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [quickTab, setQuickTab] = useState('ALL');
@@ -207,64 +216,64 @@ export function IssuesPage() {
         }
         actions={
           canCreate ? (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="md"
               onClick={openCreate}
-              className="min-h-11 w-full sm:w-auto rounded-xl bg-[#C81E1E] px-4 py-2 text-xs font-bold text-white hover:bg-[#a11616] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E] cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+              className="w-full sm:w-auto"
             >
               Laporkan Kendala
-            </button>
+            </Button>
           ) : null
         }
       />
-      {feedback && <Notice tone="success" onClose={() => setFeedback('')}>{feedback}</Notice>}
-      {error && <ErrorBanner message={error} onRetry={load} />}
 
       {/* Ringkasan Status Kendala Operasional */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7]">
             <ClipboardText size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Kendala</div>
-            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Laporan</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Total Kendala</div>
+            <div className="text-lg font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">{stats.total} Laporan</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-rose-100/80 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
             <WarningOctagon size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Prioritas Tinggi Aktif</div>
-            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">{stats.highPriority} Kendala</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Prioritas Tinggi Aktif</div>
+            <div className="text-lg font-bold tracking-tight text-rose-700 dark:text-rose-400">{stats.highPriority} Kendala</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-amber-100/80 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
             <Clock size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Dalam Penanganan</div>
-            <div className="text-base font-extrabold text-amber-700 dark:text-amber-400">{stats.inProgress} Proses</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Dalam Penanganan</div>
+            <div className="text-lg font-bold tracking-tight text-amber-700 dark:text-amber-400">{stats.inProgress} Proses</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
             <CheckCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Selesai Ditangani</div>
-            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.resolved} Selesai</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Selesai Ditangani</div>
+            <div className="text-lg font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{stats.resolved} Selesai</div>
           </div>
         </div>
       </div>
 
       {/* Segmented Filter Bar Cepat */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-xl overflow-x-auto">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-xl overflow-x-auto">
         {[
           { key: 'ALL', label: `Semua Kendala (${items.length})` },
           { key: 'ACTION_NEEDED', label: `Perlu Tindak Lanjut (${stats.inProgress})` },
@@ -275,10 +284,10 @@ export function IssuesPage() {
             key={tab.key}
             type="button"
             onClick={() => setQuickTab(tab.key)}
-            className={`py-2 px-3.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
               quickTab === tab.key
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
             }`}
           >
             {tab.label}
@@ -286,22 +295,26 @@ export function IssuesPage() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row items-stretch sm:items-end">
-        <label className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-black/[0.06] bg-white p-3.5 dark:border-white/[0.08] dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:flex-row items-stretch sm:items-end">
+        <label className="flex-1 text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
           Cari laporan
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nomor kendala, PO, unit, atau judul..." className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nomor kendala, PO, unit, atau judul..." className="mt-1 h-9 w-full rounded-[10px] border border-black/[0.10] bg-[#F5F5F7]/60 px-3 text-xs dark:border-white/[0.12] dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E]" />
         </label>
-        <label className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 sm:w-64">
+        <label className="w-full text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] sm:w-64">
           Status
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400">
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 h-9 w-full rounded-[10px] border border-black/[0.10] bg-[#F5F5F7]/60 px-3 text-xs dark:border-white/[0.12] dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] cursor-pointer focus:outline-hidden focus:border-[#C81E1E]">
             <option value="">Semua status</option>
             {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        <button type="button" onClick={load} aria-label="Muat ulang laporan" className="h-9 self-stretch sm:self-auto px-3 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"><ArrowClockwise size={16} /></button>
+        <button type="button" onClick={load} aria-label="Muat ulang laporan" className="h-9 self-stretch sm:self-auto px-3 inline-flex items-center justify-center rounded-[10px] border border-black/[0.10] text-[#1D1D1F] hover:bg-black/[0.04] dark:border-white/[0.12] dark:text-[#F5F5F7] dark:hover:bg-white/[0.06] cursor-pointer"><ArrowClockwise size={16} /></button>
       </div>
 
-      {loading ? <LoadingState message="Memuat laporan kendala..." /> : items.length === 0 ? (
+      {loading ? (
+        <LoadingState message="Memuat laporan kendala..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={load} />
+      ) : items.length === 0 ? (
         <EmptyState icon={ClipboardText} title="Belum ada laporan kendala" description="Laporan yang dibuat Inspector atau tim operasional akan tercatat di sini." />
       ) : displayedItems.length === 0 ? (
         <EmptyState icon={ClipboardText} title="Tidak ada kendala pada filter ini" description="Pilih tab filter status lain di atas untuk melihat laporan kendala." />
@@ -323,9 +336,16 @@ export function IssuesPage() {
                   <p className="mt-2.5 whitespace-pre-wrap text-xs sm:text-sm text-slate-700 dark:text-slate-200">{issue.description}</p>
                   <p className="mt-2 text-xs text-slate-500">Penanggung jawab: {issue.assignee_name || 'Belum ditentukan'}</p>
                 </div>
-                <button type="button" onClick={() => setSelected(selected?.id === issue.id ? null : issue)} className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                  {selected?.id === issue.id ? 'Tutup rincian' : 'Rincian & tindak lanjut'} <ArrowUpRight size={14} />
-                </button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="xs"
+                  icon={ArrowUpRight}
+                  iconPosition="right"
+                  onClick={() => setSelected(selected?.id === issue.id ? null : issue)}
+                >
+                  {selected?.id === issue.id ? 'Tutup Rincian' : 'Rincian & Tindak Lanjut'}
+                </Button>
               </div>
               {selected?.id === issue.id && <IssueDetails issue={issue} canUpdate={canUpdate} saving={saving} onUpdate={updateIssue} />}
             </article>
@@ -354,7 +374,26 @@ export function IssuesPage() {
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Keterangan dan tindak lanjut yang dibutuhkan *<textarea required minLength={5} maxLength={3000} rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-1 w-full rounded-md border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-950" /></label>
             <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"><Camera size={18} />{form.evidence ? form.evidence.name : 'Tambahkan bukti foto/PDF (opsional)'}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(event) => setForm({ ...form, evidence: event.target.files?.[0] || null })} /></label>
             {form.issueType === 'UNSAFE_CONDITION' && <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">Catat kondisi yang ditemukan dan hentikan pemeriksaan sesuai prosedur keselamatan kerja URD. Aplikasi tidak menentukan tindakan teknis K3.</p>}
-            <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-800"><button type="button" disabled={saving} onClick={() => setCreateOpen(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold dark:border-slate-700">Batal</button><button type="submit" disabled={saving} className="min-h-11 rounded-lg bg-[#C81E1E] px-4 text-sm font-bold text-white disabled:opacity-60">{saving ? 'Menyimpan...' : 'Simpan laporan'}</button></div>
+            <div className="flex justify-end gap-2 border-t border-black/[0.06] pt-4 dark:border-white/[0.08]">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                disabled={saving}
+                onClick={() => setCreateOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                disabled={saving}
+                loading={saving}
+              >
+                Simpan Laporan
+              </Button>
+            </div>
           </form>
         </Modal>
       )}

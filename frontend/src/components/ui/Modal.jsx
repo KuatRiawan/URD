@@ -23,7 +23,8 @@ export function Modal({
   size = 'md',
   closeOnBackdrop = true,
   closeOnEscape = true,
-  fullScreenMobile = false
+  fullScreenMobile = false,
+  closeAriaLabel = 'Tutup dialog'
 }) {
   const visible = Boolean(open ?? isOpen);
   const panelRef = useRef(null);
@@ -53,9 +54,9 @@ export function Modal({
       aria-modal="true"
       aria-label={title || 'Dialog'}
     >
-      {/* Backdrop Gelap (hanya aktif di luar panel pada desktop atau modal non-fullscreen) */}
+      {/* Backdrop Halus Bergaya macOS Sheet / iOS Modal */}
       <div
-        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] transition-opacity animate-fade-in ${
+        className={`absolute inset-0 bg-black/30 dark:bg-black/55 backdrop-blur-[3px] transition-opacity animate-fade-in ${
           isMobileFull ? 'hidden sm:block' : ''
         }`}
         onClick={(e) => {
@@ -73,38 +74,38 @@ export function Modal({
           isMobileFull
             ? 'h-full sm:h-auto min-h-0 max-h-none sm:max-h-[90vh] rounded-none sm:rounded-2xl border-0 sm:border'
             : 'rounded-t-[28px] sm:rounded-2xl max-h-[92dvh] sm:max-h-[90vh] border-t sm:border'
-        } bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overscroll-contain pb-safe z-10`}
+        } bg-white dark:bg-[#151821] border-black/[0.08] dark:border-white/[0.09] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.08)] flex flex-col overscroll-contain pb-safe z-10 animate-pop-in`}
       >
         {/* Indikator Handle Bar Lembar Bawah Mobile (hanya jika bukan layar penuh) */}
         {!isMobileFull && (
           <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
-            <span className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+            <span className="w-9 h-1 rounded-full bg-black/20 dark:bg-white/20" />
           </div>
         )}
 
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-5 sm:px-6 py-3.5 sm:py-4 shrink-0">
+        <div className="flex items-start justify-between gap-3 border-b border-black/[0.06] dark:border-white/[0.07] px-5 sm:px-6 py-4 shrink-0">
           <div className="min-w-0 pr-2">
-            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-snug truncate">
+            <h2 className="text-base sm:text-[17px] font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.018em] leading-snug truncate">
               {title}
             </h2>
             {subtitle && (
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-[#6E6E73] dark:text-[#98989D] truncate">{subtitle}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup dialog"
-            className="h-11 w-11 sm:h-9 sm:w-9 shrink-0 inline-flex items-center justify-center rounded-full sm:rounded-lg bg-slate-100 dark:bg-slate-800 sm:bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            aria-label={closeAriaLabel}
+            className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.07] text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] hover:text-[#1D1D1F] dark:hover:text-white transition-colors cursor-pointer"
           >
-            <X size={18} weight="bold" aria-hidden="true" />
+            <X size={16} weight="bold" aria-hidden="true" />
           </button>
         </div>
         <div className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto flex-1 overscroll-contain touch-pan-y">
           {children}
         </div>
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 px-6 py-3.5 rounded-b-2xl shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-black/[0.06] dark:border-white/[0.07] bg-[#FAFAFC] dark:bg-[#1B1F2A]/70 px-6 py-3.5 rounded-b-2xl shrink-0">
             {footer}
           </div>
         )}

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
-import { useConfirm } from '../../components/ui/FeedbackProvider.jsx';
+import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
 import { ScheduleAgendaSection } from './components/ScheduleAgendaSection.jsx';
@@ -11,6 +10,7 @@ import { AddCompetencyModal } from './components/AddCompetencyModal.jsx';
 
 export function SchedulePage() {
   const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
 
@@ -30,6 +30,13 @@ export function SchedulePage() {
     validUntil: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10)
   });
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -118,16 +125,10 @@ export function SchedulePage() {
         }
       />
 
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={loadData} />}
-
       {loading ? (
         <LoadingState label="Memuat kalender jadwal dan matriks kompetensi..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={loadData} />
       ) : (
         <div className="space-y-6">
           <ScheduleAgendaSection schedules={schedules} />

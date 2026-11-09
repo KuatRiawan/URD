@@ -1,5 +1,14 @@
 import { Buildings, DownloadSimple, Eye, PaperPlaneTilt } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import {
   formatDateTime,
   DISTRIBUTION_DOC_TYPE_LABELS,
@@ -96,37 +105,43 @@ export function DistributionTable({
                 )}
               </div>
 
-              {/* Tombol Aksi Mobile */}
-              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+              {/* Tombol Aksi Mobile: Aksi Operasional + Pratinjau & ActionMenu */}
+              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                 {isMarketingOrAdmin && item.status !== 'DITERIMA' && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    touchFriendly
+                    icon={PaperPlaneTilt}
                     onClick={() => onOpenUpdateModal(item)}
-                    className="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#C81E1E] text-xs font-bold text-white hover:bg-[#a11616] transition-colors cursor-pointer"
+                    className="flex-1"
                   >
-                    <PaperPlaneTilt size={15} weight="bold" />
-                    <span>Perbarui Status</span>
-                  </button>
+                    Perbarui Status
+                  </Button>
                 )}
                 {item.order_id && onPreviewBast && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    touchFriendly
+                    icon={Eye}
                     onClick={() => onPreviewBast(item.order_id, item.po_number || item.order_no || item.client_name)}
-                    className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    className="flex-1"
                   >
-                    <Eye size={15} weight="bold" />
-                    <span>Pratinjau BAST</span>
-                  </button>
+                    Pratinjau BAST
+                  </Button>
                 )}
                 {item.order_id && onDownloadBast && (
-                  <button
-                    type="button"
-                    onClick={() => onDownloadBast(item.order_id, item.po_number || item.order_no || item.client_name)}
-                    className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                  >
-                    <DownloadSimple size={15} weight="bold" />
-                    <span>Unduh</span>
-                  </button>
+                  <ActionMenu
+                    label="Dokumen BAST"
+                    items={[
+                      {
+                        label: 'Unduh BAST (PDF)',
+                        icon: DownloadSimple,
+                        onClick: () => onDownloadBast(item.order_id, item.po_number || item.order_no || item.client_name)
+                      }
+                    ]}
+                  />
                 )}
               </div>
             </div>
@@ -135,156 +150,151 @@ export function DistributionTable({
       </div>
 
       {/* Tampilan Desktop & Tablet: Tabel Tabular Lengkap */}
-      <div className="hidden sm:block overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              <tr>
-                <th scope="col" className="px-4 py-3.5">Dokumen &amp; Target</th>
-                <th scope="col" className="px-4 py-3.5">Perusahaan Klien &amp; PO</th>
-                <th scope="col" className="px-4 py-3.5">Unit Objek Uji</th>
-                <th scope="col" className="px-4 py-3.5">Nomor Referensi</th>
-                <th scope="col" className="px-4 py-3.5">Ekspedisi &amp; Resi</th>
-                <th scope="col" className="px-4 py-3.5">Status Pengiriman</th>
-                <th scope="col" className="px-4 py-3.5 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {distributions.map((item) => {
-                const target = item.target_destination || item.recipient_target || 'KLIEN';
-                const docNo = item.document_no || item.bap_no || item.lhpp_no;
-                const trackingRef = item.tracking_reference || item.tracking_number;
-                const dispatchDate = item.dispatch_date || item.dispatched_at;
-                return (
-                  <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3.5">
-                      <div className="space-y-1">
-                        <span className="font-bold text-slate-900 dark:text-white block">
-                          {DISTRIBUTION_DOC_TYPE_LABELS[item.document_type] || item.document_type}
+      <div className="hidden sm:block">
+        <TableWrapper>
+          <TableHead>
+            <tr>
+              <TableCell isHeader>Dokumen &amp; Target</TableCell>
+              <TableCell isHeader>Perusahaan Klien &amp; PO</TableCell>
+              <TableCell isHeader>Unit Objek Uji</TableCell>
+              <TableCell isHeader>Nomor Referensi</TableCell>
+              <TableCell isHeader>Ekspedisi &amp; Resi</TableCell>
+              <TableCell isHeader>Status Pengiriman</TableCell>
+              <TableCell isHeader align="right">Aksi</TableCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {distributions.map((item) => {
+              const target = item.target_destination || item.recipient_target || 'KLIEN';
+              const docNo = item.document_no || item.bap_no || item.lhpp_no;
+              const trackingRef = item.tracking_reference || item.tracking_number;
+              const dispatchDate = item.dispatch_date || item.dispatched_at;
+              return (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <span className="font-bold text-slate-900 dark:text-white block">
+                        {DISTRIBUTION_DOC_TYPE_LABELS[item.document_type] || item.document_type}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                          target === 'DISNAKER'
+                            ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400 border border-rose-200 dark:border-rose-900'
+                            : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
+                        }`}
+                      >
+                        <Buildings size={12} weight="bold" />
+                        <span>Penerima: {DISTRIBUTION_TARGET_LABELS[target] || target}</span>
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-slate-900 dark:text-white">
+                        {item.client_name || '-'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        {item.po_number || item.order_no || '-'}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-slate-800 dark:text-slate-200">
+                        {item.object_name || 'Unit Alat'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        SN: {item.serial_number || '-'}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1 text-[11px] font-mono">
+                      {docNo ? (
+                        <span className="block font-bold text-slate-800 dark:text-slate-200">
+                          {item.document_type}: {docNo}
                         </span>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                            target === 'DISNAKER'
-                              ? 'bg-rose-100 dark:bg-rose-950/60 text-[#C81E1E] dark:text-rose-400 border border-rose-200 dark:border-rose-900'
-                              : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
-                          }`}
-                        >
-                          <Buildings size={12} weight="bold" />
-                          <span>Penerima: {DISTRIBUTION_TARGET_LABELS[target] || target}</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="space-y-0.5">
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                          {item.client_name || '-'}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                          {item.po_number || item.order_no || '-'}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="space-y-0.5">
-                        <p className="font-medium text-slate-800 dark:text-slate-200">
-                          {item.object_name || 'Unit Alat'}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                          SN: {item.serial_number || '-'}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="space-y-1 text-[11px] font-mono">
-                        {docNo ? (
-                          <span className="block font-bold text-slate-800 dark:text-slate-200">
-                            {item.document_type}: {docNo}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                        {item.recipient_name && (
-                          <span className="block text-[10px] font-sans text-slate-500 dark:text-slate-400">
-                            UP: {item.recipient_name}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="space-y-0.5">
-                        <p className="font-medium text-slate-800 dark:text-slate-200">
-                          {item.dispatch_media ? (
-                            DISPATCH_MEDIA_OPTIONS.find((o) => o.value === item.dispatch_media)?.label || item.dispatch_media
-                          ) : (
-                            <span className="text-slate-400 italic">Belum dikirim</span>
-                          )}
-                        </p>
-                        {trackingRef && (
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
-                            Resi: {trackingRef}
-                          </p>
-                        )}
-                        {item.notes && (
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
-                            Catatan: {item.notes}
-                          </p>
-                        )}
-                        {dispatchDate && (
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                            Tanggal: {formatDateTime(dispatchDate)}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Badge tone={STATUS_TONES[item.status] || 'neutral'}>
-                        {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
-                      {item.order_id && onPreviewBast && (
-                        <button
-                          type="button"
-                          onClick={() => onPreviewBast(item.order_id, item.po_number || item.order_no || item.client_name)}
-                          title="Pratinjau Berita Acara Serah Terima (BAST)"
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                        >
-                          <Eye size={14} weight="bold" />
-                          <span>Pratinjau BAST</span>
-                        </button>
-                      )}
-                      {item.order_id && onDownloadBast && (
-                        <button
-                          type="button"
-                          onClick={() => onDownloadBast(item.order_id, item.po_number || item.order_no || item.client_name)}
-                          title="Unduh Berita Acara Serah Terima (BAST)"
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                        >
-                          <DownloadSimple size={14} weight="bold" />
-                          <span>Unduh BAST</span>
-                        </button>
-                      )}
-                      {isMarketingOrAdmin && item.status !== 'DITERIMA' ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenUpdateModal(item)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-[#C81E1E] hover:border-[#C81E1E] hover:text-white transition-colors cursor-pointer"
-                        >
-                          <PaperPlaneTilt size={14} weight="bold" />
-                          <span>Perbarui Status</span>
-                        </button>
                       ) : (
-                        <span className="text-[11px] text-slate-400 font-medium">
+                        <span className="text-slate-400">-</span>
+                      )}
+                      {item.recipient_name && (
+                        <span className="block text-[10px] font-sans text-slate-500 dark:text-slate-400">
+                          UP: {item.recipient_name}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-slate-800 dark:text-slate-200">
+                        {item.dispatch_media ? (
+                          DISPATCH_MEDIA_OPTIONS.find((o) => o.value === item.dispatch_media)?.label || item.dispatch_media
+                        ) : (
+                          <span className="text-slate-400 italic">Belum dikirim</span>
+                        )}
+                      </p>
+                      {trackingRef && (
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+                          Resi: {trackingRef}
+                        </p>
+                      )}
+                      {item.notes && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                          Catatan: {item.notes}
+                        </p>
+                      )}
+                      {dispatchDate && (
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                          Tanggal: {formatDateTime(dispatchDate)}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone={STATUS_TONES[item.status] || 'neutral'}>
+                      {DISTRIBUTION_STATUS_LABELS[item.status] || item.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell align="right">
+                    <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      {isMarketingOrAdmin && item.status !== 'DITERIMA' ? (
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          icon={PaperPlaneTilt}
+                          onClick={() => onOpenUpdateModal(item)}
+                        >
+                          Perbarui Status
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-[#86868B] dark:text-[#8E8E93] font-medium px-1.5">
                           {item.status === 'DITERIMA' ? 'Tuntas' : 'Monitoring'}
                         </span>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      {item.order_id && (onPreviewBast || onDownloadBast) && (
+                        <ActionMenu
+                          label="Dokumen BAST"
+                          items={[
+                            onPreviewBast && {
+                              label: 'Pratinjau BAST',
+                              icon: Eye,
+                              onClick: () => onPreviewBast(item.order_id, item.po_number || item.order_no || item.client_name)
+                            },
+                            onDownloadBast && {
+                              label: 'Unduh BAST (PDF)',
+                              icon: DownloadSimple,
+                              onClick: () => onDownloadBast(item.order_id, item.po_number || item.order_no || item.client_name)
+                            }
+                          ]}
+                        />
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </TableWrapper>
       </div>
     </div>
   );

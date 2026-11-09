@@ -12,11 +12,11 @@ export function ObjectFilterBar({
   onResetPage
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+    <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
       <div className="relative">
         <MagnifyingGlass
           size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
           aria-hidden="true"
         />
         <input
@@ -28,7 +28,7 @@ export function ObjectFilterBar({
             setQ(e.target.value);
           }}
           placeholder="Cari nama alat, merek, atau nomor seri..."
-          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+          className="w-full h-9 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] pl-9 pr-3 text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E]"
         />
       </div>
       <div>
@@ -39,7 +39,7 @@ export function ObjectFilterBar({
             onResetPage();
             setCategoryId(e.target.value);
           }}
-          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 px-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+          className="w-full h-9 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] px-3 bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] cursor-pointer focus:outline-hidden focus:border-[#C81E1E]"
         >
           <option value="">Semua Kategori Objek K3</option>
           {categories.map((cat) => (
@@ -57,7 +57,7 @@ export function ObjectFilterBar({
             onResetPage();
             setClientId(e.target.value);
           }}
-          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 px-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+          className="w-full h-9 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] px-3 bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] cursor-pointer focus:outline-hidden focus:border-[#C81E1E]"
         >
           <option value="">Semua Perusahaan Klien</option>
           {clients.map((cl) => (

@@ -1,5 +1,14 @@
 import { Eye, FileDoc, FilePdf } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
 export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx, onOpenDetail }) {
@@ -72,144 +81,136 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx,
             </div>
 
             {/* Tombol Aksi Mobile */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-              <button
-                type="button"
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                touchFriendly
                 onClick={() => onOpenDetail(b.id)}
-                className="flex-1 min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
+                className="flex-1"
               >
-                Detail BAP
-              </button>
-              <button
-                type="button"
-                onClick={() => onPreviewPdf(b.id, b.bap_no)}
-                className="min-h-[44px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
-              >
-                <Eye size={16} weight="bold" />
-                <span>Pratinjau</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onDownloadPdf(b.id, b.bap_no)}
-                className="min-h-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold shadow-xs active:scale-[0.98] transition-all cursor-pointer"
-                title="Unduh Berita Acara (PDF)"
-              >
-                <FilePdf size={16} weight="bold" />
-                <span>PDF</span>
-              </button>
-              {onDownloadDocx && (
-                <button
-                  type="button"
-                  onClick={() => onDownloadDocx(b.id, b.bap_no)}
-                  className="min-h-[44px] px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
-                  title="Unduh Berita Acara (Word .docx)"
-                >
-                  <FileDoc size={16} weight="bold" />
-                  <span>DOCX</span>
-                </button>
-              )}
+                Detail
+              </Button>
+              <ActionMenu
+                label="Dokumen BAP"
+                items={[
+                  {
+                    key: 'preview',
+                    label: 'Pratinjau PDF',
+                    icon: Eye,
+                    onClick: () => onPreviewPdf(b.id, b.bap_no)
+                  },
+                  {
+                    key: 'pdf',
+                    label: 'Unduh PDF BAP',
+                    icon: FilePdf,
+                    onClick: () => onDownloadPdf(b.id, b.bap_no)
+                  },
+                  onDownloadDocx && {
+                    key: 'docx',
+                    label: 'Unduh Word (.docx)',
+                    icon: FileDoc,
+                    onClick: () => onDownloadDocx(b.id, b.bap_no)
+                  }
+                ]}
+              />
             </div>
           </div>
         ))}
       </div>
 
       {/* Tampilan Desktop & Tablet: Tabel Tabular Lengkap */}
-      <div className="hidden sm:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Nomor BAP &amp; PO</th>
-                <th className="py-3.5 px-4">Klien &amp; Lokasi</th>
-                <th className="py-3.5 px-4">Unit Alat Diperiksa</th>
-                <th className="py-3.5 px-4">Inspector</th>
-                <th className="py-3.5 px-4">Hasil Riksa Uji</th>
-                <th className="py-3.5 px-4">Status BAP</th>
-                <th className="py-3.5 px-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-              {bapList.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div className="font-mono font-bold text-slate-900 dark:text-white">{b.bap_no}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      PO: <span className="font-mono font-semibold">{b.po_number || b.order_no}</span>
+      <div className="hidden sm:block">
+        <TableWrapper>
+          <TableHead>
+            <tr>
+              <TableCell isHeader>Nomor BAP &amp; PO</TableCell>
+              <TableCell isHeader>Klien &amp; Lokasi</TableCell>
+              <TableCell isHeader>Unit Alat Diperiksa</TableCell>
+              <TableCell isHeader>Inspector</TableCell>
+              <TableCell isHeader>Hasil Riksa Uji</TableCell>
+              <TableCell isHeader>Status BAP</TableCell>
+              <TableCell isHeader align="right">Aksi</TableCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {bapList.map((b) => (
+              <TableRow key={b.id}>
+                <TableCell>
+                  <div className="font-mono font-bold text-slate-900 dark:text-white">{b.bap_no}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    PO: <span className="font-mono font-semibold">{b.po_number || b.order_no}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 dark:text-slate-500">
+                    Tgl Periksa: {formatDate(b.inspection_date)}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-semibold text-slate-900 dark:text-white">{b.client_name}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{b.install_location || '-'}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-slate-900 dark:text-white">{b.object_name}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {b.category_code} · SN: {b.serial_number} {b.capacity ? `· ${b.capacity}` : ''}
+                  </div>
+                </TableCell>
+                <TableCell className="text-slate-700 dark:text-slate-300 text-xs font-medium">
+                  {b.inspector_name}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={b.is_compliant ? 'success' : 'danger'}>
+                    {b.is_compliant ? 'MEMENUHI SYARAT K3' : 'TIDAK MEMENUHI'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={b.status === 'FINAL' ? 'success' : 'warning'}>
+                    {b.status === 'FINAL' ? 'FINAL (TERKUNCI)' : 'DRAF BAP'}
+                  </Badge>
+                  {b.lhpp_no && (
+                    <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1">
+                      LHPP: {b.lhpp_no}
                     </div>
-                    <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                      Tgl Periksa: {formatDate(b.inspection_date)}
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-semibold text-slate-900 dark:text-white">{b.client_name}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">{b.install_location || '-'}</div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-medium text-slate-900 dark:text-white">{b.object_name}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {b.category_code} · SN: {b.serial_number} {b.capacity ? `· ${b.capacity}` : ''}
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                    {b.inspector_name}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <Badge variant={b.is_compliant ? 'success' : 'danger'}>
-                      {b.is_compliant ? 'MEMENUHI SYARAT K3' : 'TIDAK MEMENUHI'}
-                    </Badge>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <Badge variant={b.status === 'FINAL' ? 'success' : 'warning'}>
-                      {b.status === 'FINAL' ? 'FINAL (TERKUNCI)' : 'DRAF BAP'}
-                    </Badge>
-                    {b.lhpp_no && (
-                      <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1">
-                        LHPP: {b.lhpp_no}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4 text-right space-x-1.5">
-                    <button
-                      type="button"
-                      onClick={() => onPreviewPdf(b.id, b.bap_no)}
-                      className="h-8 inline-flex items-center gap-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
-                    >
-                      <Eye size={14} />
-                      <span>Pratinjau</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDownloadPdf(b.id, b.bap_no)}
-                      className="h-8 inline-flex items-center gap-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
-                      title="Unduh PDF BAP Resmi"
-                    >
-                      <FilePdf size={14} weight="bold" />
-                      <span>PDF</span>
-                    </button>
-                    {onDownloadDocx && (
-                      <button
-                        type="button"
-                        onClick={() => onDownloadDocx(b.id, b.bap_no)}
-                        className="h-8 inline-flex items-center gap-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
-                        title="Unduh Word (.docx) BAP Resmi"
-                      >
-                        <FileDoc size={14} weight="bold" />
-                        <span>DOCX</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
+                  )}
+                </TableCell>
+                <TableCell align="right" className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <div className="inline-flex items-center justify-end gap-1.5">
+                    <Button
+                      variant="secondary"
+                      size="xs"
                       onClick={() => onOpenDetail(b.id)}
-                      className="h-8 inline-flex items-center gap-1 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
                     >
                       Detail
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </Button>
+                    <ActionMenu
+                      label="Opsi Dokumen BAP"
+                      items={[
+                        {
+                          key: 'preview',
+                          label: 'Pratinjau PDF',
+                          icon: Eye,
+                          onClick: () => onPreviewPdf(b.id, b.bap_no)
+                        },
+                        {
+                          key: 'pdf',
+                          label: 'Unduh PDF BAP',
+                          icon: FilePdf,
+                          onClick: () => onDownloadPdf(b.id, b.bap_no)
+                        },
+                        onDownloadDocx && {
+                          key: 'docx',
+                          label: 'Unduh Word (.docx)',
+                          icon: FileDoc,
+                          onClick: () => onDownloadDocx(b.id, b.bap_no)
+                        }
+                      ]}
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </TableWrapper>
       </div>
     </div>
   );

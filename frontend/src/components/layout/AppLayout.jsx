@@ -118,17 +118,17 @@ function LayoutShell() {
     navigate('/login', { replace: true });
   };
 
-  const sidebarWidthClass = collapsed ? 'lg:w-20' : 'lg:w-64';
-  const mainPaddingClass = collapsed ? 'lg:pl-20' : 'lg:pl-64';
+  const sidebarWidthClass = collapsed ? 'lg:w-[76px]' : 'lg:w-[252px]';
+  const mainPaddingClass = collapsed ? 'lg:pl-[76px]' : 'lg:pl-[252px]';
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-canvas text-slate-900">
-      {/* Sidebar Desktop Bergaya Metis */}
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#F5F5F7] dark:bg-[#0B0D11] text-[#1D1D1F] dark:text-[#F5F5F7] transition-colors">
+      {/* Sidebar Desktop Bergaya macOS Tahoe / System Settings */}
       <aside
         aria-label="Navigasi utama"
-        className={`hidden lg:flex ${sidebarWidthClass} lg:flex-col lg:fixed lg:inset-y-0 bg-slate-950 text-white z-40 transition-all duration-200 border-r border-slate-800`}
+        className={`hidden lg:flex ${sidebarWidthClass} lg:flex-col lg:fixed lg:inset-y-0 urd-glass-sidebar text-[#1D1D1F] dark:text-[#F5F5F7] z-40 transition-all duration-200`}
       >
-        <div className={`py-4 border-b border-slate-800 ${collapsed ? 'px-3 flex justify-center' : 'px-5'}`}>
+        <div className={`py-4 border-b border-black/[0.06] dark:border-white/[0.07] ${collapsed ? 'px-2.5 flex justify-center' : 'px-4'}`}>
           <BrandBlock compact={collapsed} />
         </div>
 
@@ -154,17 +154,17 @@ function LayoutShell() {
         />
 
         {/* Konten Halaman Utama */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-7 max-w-[92rem] w-full mx-auto">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8 max-w-[92rem] w-full mx-auto">
           <ErrorBoundary resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>
         </main>
 
         {/* Footer Aplikasi Bergaya Enterprise */}
-        <footer className="hidden lg:flex border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 text-xs text-slate-500 dark:text-slate-400 items-center justify-between gap-2 transition-colors">
+        <footer className="hidden lg:flex border-t border-black/[0.06] dark:border-white/[0.07] bg-white/60 dark:bg-[#151821]/60 px-6 py-3 text-[11px] text-[#6E6E73] dark:text-[#98989D] items-center justify-between gap-2 transition-colors">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-700 dark:text-slate-300">PT Upaya Riksa Daya</span>
-            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">PT Upaya Riksa Daya</span>
+            <span className="text-black/20 dark:text-white/20">&middot;</span>
             <span>Sistem Informasi Terpadu Pemeriksaan dan Pengujian K3</span>
           </div>
         </footer>

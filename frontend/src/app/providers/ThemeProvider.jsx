@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
 const ThemeContext = createContext({
-  theme: 'system',
+  theme: 'light',
   resolvedTheme: 'light',
   setTheme: () => {}
 });
@@ -16,9 +16,9 @@ export function ThemeProvider({ children }) {
         return stored;
       }
     } catch {
-      // Preferensi tema kembali ke nilai sistem jika penyimpanan tidak tersedia.
+      // Preferensi tema kembali ke antarmuka terang jika penyimpanan tidak tersedia.
     }
-    return 'system';
+    return 'light';
   });
 
   const [systemIsDark, setSystemIsDark] = useState(() => {
@@ -65,7 +65,7 @@ export function ThemeProvider({ children }) {
     // Update meta theme-color for mobile address bar
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0B0F19' : '#FFFFFF');
+      metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0B0D11' : '#F5F5F7');
     }
   }, [resolvedTheme]);
 

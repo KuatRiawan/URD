@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowRight,
   Building,
@@ -17,6 +17,8 @@ import {
 } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { StatusBadge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { formatDateTime, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.js';
 import { api } from '../../../lib/api/axios.js';
 
@@ -29,7 +31,16 @@ export function AssignmentDetailModal({
   onOpenInspection,
   onPreviewPdf
 }) {
+  const toast = useToast();
   const [downloadingLetter, setDownloadingLetter] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+
+  useEffect(() => {
+    if (downloadError) {
+      toast(downloadError, 'error');
+      setDownloadError('');
+    }
+  }, [downloadError, toast]);
 
   if (!isOpen || !u) return null;
 
@@ -50,6 +61,7 @@ export function AssignmentDetailModal({
   const handleDownloadLetter = async () => {
     try {
       setDownloadingLetter(true);
+      setDownloadError('');
       const res = await api.get(`/orders/${u.order_id}/assignment-letter.pdf`, {
         responseType: 'blob'
       });
@@ -64,7 +76,7 @@ export function AssignmentDetailModal({
       link.click();
       link.remove();
     } catch {
-      alert('Gagal mengunduh berkas Surat Tugas. Pastikan Anda telah ditugaskan pada order ini.');
+      setDownloadError('Gagal mengunduh berkas Surat Tugas. Pastikan Anda telah ditugaskan pada order ini.');
     } finally {
       setDownloadingLetter(false);
     }
@@ -260,52 +272,62 @@ export function AssignmentDetailModal({
               Surat Tugas diterbitkan resmi oleh Kantor PT Upaya Riksa Daya untuk legitimasi di lapangan.
             </span>
             <div className="flex items-center gap-2 shrink-0">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
+                icon={FilePdf}
                 onClick={handlePreviewLetter}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
               >
-                <FilePdf size={15} weight="bold" className="text-[#C81E1E]" />
-                <span>Pratinjau Surat Tugas</span>
-              </button>
-              <button
+                Pratinjau Surat Tugas
+              </Button>
+              <Button
                 type="button"
-                onClick={handleDownloadLetter}
+                variant="primary"
+                size="sm"
                 disabled={downloadingLetter}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                loading={downloadingLetter}
+                onClick={handleDownloadLetter}
               >
-                <span>{downloadingLetter ? 'Mengunduh...' : 'Unduh PDF'}</span>
-              </button>
+                Unduh PDF
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Footer Modal: Action Buttons */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <button
+        <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3">
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="w-full sm:w-auto"
           >
             Tutup
-          </button>
+          </Button>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {u.assignment_status === 'MENUNGGU' ? (
               <>
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="md"
+                  icon={CheckCircle}
                   onClick={() => {
                     onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA');
                     onClose();
                   }}
-                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-initial"
                 >
-                  <CheckCircle size={16} weight="bold" />
-                  <span>Terima Penugasan</span>
-                </button>
-                <button
+                  Terima Penugasan
+                </Button>
+                <Button
                   type="button"
+                  variant="danger"
+                  size="md"
+                  icon={XCircle}
                   onClick={() => {
                     onClose();
                     onOpenRejectModal({
@@ -315,48 +337,53 @@ export function AssignmentDetailModal({
                       isCancel: false
                     });
                   }}
-                  className="px-4 py-2.5 rounded-xl border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold transition-colors cursor-pointer"
                 >
-                  <XCircle size={16} weight="bold" />
-                  <span>Tolak</span>
-                </button>
+                  Tolak
+                </Button>
               </>
             ) : isCompleted ? (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                icon={ArrowRight}
+                iconPosition="right"
                 onClick={() => {
                   onClose();
                   if (onOpenInspection) onOpenInspection(u);
                 }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto"
               >
-                <span>Lihat Dokumen Hasil Riksa Uji</span>
-                <ArrowRight size={15} weight="bold" />
-              </button>
+                Lihat Dokumen Hasil Riksa Uji
+              </Button>
             ) : isInProgress ? (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                icon={Play}
                 onClick={() => {
                   onClose();
                   if (onOpenInspection) onOpenInspection(u);
                 }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto"
               >
-                <Play size={15} weight="fill" />
-                <span>Lanjutkan Lembar Pemeriksaan</span>
-              </button>
+                Lanjutkan Lembar Pemeriksaan
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                icon={Play}
                 onClick={() => {
                   onClose();
                   if (onOpenInspection) onOpenInspection(u);
                 }}
-                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#C81E1E] hover:bg-[#a61717] text-white font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full sm:w-auto"
               >
-                <Play size={15} weight="fill" />
-                <span>Mulai Pemeriksaan Sekarang</span>
-              </button>
+                Mulai Pemeriksaan Sekarang
+              </Button>
             )}
           </div>
         </div>

@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router';
 import { FileCsv, Plus } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { api } from '../../lib/api/axios.js';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { ALLOWED_NEXT_STATUS } from './orderConstants.js';
 import { OrderFilterBar } from './components/OrderFilterBar.jsx';
 import { OrderTable } from './components/OrderTable.jsx';
@@ -16,6 +17,7 @@ import { useOrderManagement } from './hooks/useOrderManagement.js';
 
 export function OrdersPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
   const canCreatePo = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
   const canManageSchedule = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
@@ -100,6 +102,13 @@ export function OrdersPage() {
   const paramOrderNo = searchParams.get('orderNo') || searchParams.get('orderId') || searchParams.get('q');
   const openedParamRef = useRef(null);
   const userClosedRef = useRef(false);
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast, setFeedback]);
 
   // Otomatis deteksi parameter URL dari notifikasi untuk membuka detail PO secara instan
   useEffect(() => {
@@ -236,33 +245,35 @@ export function OrdersPage() {
         actions={
           canManage && (
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
+                icon={FileCsv}
                 onClick={() => handleOpenCsvImport(null)}
-                className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+                className="flex-1 sm:flex-initial"
               >
-                <FileCsv size={15} weight="bold" />
-                <span className="truncate">Impor CSV</span>
-              </button>
-              <button
-                type="button"
+                Impor CSV
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                icon={Plus}
                 onClick={() => {
                   setError('');
                   setCreateOpen(true);
                   setPoWizardStep(1);
                 }}
-                className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
+                className="flex-1 sm:flex-initial"
               >
-                <Plus size={15} weight="bold" />
-                <span className="truncate">+ Buat PO</span>
-              </button>
+                Buat PO Baru
+              </Button>
             </div>
           )
         }
       />
 
       {/* Ringkasan Operasional PO & Unit */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { key: '', label: 'Total PO Terdaftar', value: total || orders.length, sub: `${totalUnitsOnPage} unit alat tercatat`, tone: 'slate' },
           { key: 'ORDER_BARU', label: 'PO Baru / Siap Jadwal', value: waitingScheduleCount, sub: 'Menunggu penjadwalan', tone: 'amber' },
@@ -278,41 +289,33 @@ export function OrdersPage() {
                 setPage(1);
                 setStatusFilter(card.key);
               }}
-              className={`text-left p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+              className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
                 isSelected
-                  ? 'border-[#C81E1E] bg-rose-50/40 dark:bg-rose-950/20'
-                  : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                  ? 'border-[#C81E1E] bg-[#C81E1E]/[0.04] dark:bg-rose-950/20 shadow-[0_2px_10px_rgba(200,30,30,0.08)]'
+                  : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.15]'
               }`}
             >
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
                 {card.label}
               </p>
               <p
-                className={`text-2xl font-extrabold tabular-nums mt-1 ${
+                className={`text-2xl font-bold tracking-tight tabular-nums mt-1 ${
                   card.tone === 'amber' && card.value > 0
                     ? 'text-amber-600 dark:text-amber-400'
                     : card.tone === 'emerald' && card.value > 0
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : card.tone === 'blue' && card.value > 0
                     ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-slate-900 dark:text-slate-100'
+                    : 'text-[#1D1D1F] dark:text-[#F5F5F7]'
                 }`}
               >
                 {card.value}
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{card.sub}</p>
+              <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">{card.sub}</p>
             </button>
           );
         })}
       </div>
-
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={loadOrders} />}
 
       <OrderFilterBar
         q={q}
@@ -323,6 +326,8 @@ export function OrdersPage() {
 
       {loading ? (
         <LoadingState label="Memuat daftar PO &amp; order pemeriksaan..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={loadOrders} />
       ) : orders.length === 0 ? (
         <EmptyState
           title="Belum ada PO pemeriksaan"

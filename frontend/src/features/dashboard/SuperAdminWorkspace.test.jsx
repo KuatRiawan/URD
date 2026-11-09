@@ -150,15 +150,10 @@ describe('Super Admin Workspace Redesign Test Suite', () => {
       expect(screen.getAllByText(/bambang.s@urd.co.id/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Admin Sistem/i).length).toBeGreaterThan(0);
 
-      // Trigger view button
+      // Trigger view button (actions are cleanly consolidated into detail popup modal)
       const viewButtons = screen.getAllByText(/Detail/i);
       fireEvent.click(viewButtons[0]);
       expect(onView).toHaveBeenCalledWith(mockUsers[0]);
-
-      // Trigger edit button
-      const editButtons = screen.getAllByText(/Ubah|Edit/i);
-      fireEvent.click(editButtons[0]);
-      expect(onEdit).toHaveBeenCalledWith(mockUsers[0]);
     });
 
     it('RbacMatrixTab renders 5 roles across operational modules with security notices', () => {
@@ -231,12 +226,37 @@ describe('Super Admin Workspace Redesign Test Suite', () => {
       };
 
       const onClose = vi.fn();
-      render(<UserDetailDrawer user={mockUser} open={true} onClose={onClose} onEdit={vi.fn()} />);
+      const onEdit = vi.fn();
+      const onToggle = vi.fn();
+      const onDelete = vi.fn();
+      render(
+        <UserDetailDrawer
+          user={mockUser}
+          open={true}
+          onClose={onClose}
+          onEdit={onEdit}
+          onToggleActive={onToggle}
+          onDelete={onDelete}
+        />
+      );
 
       expect(screen.getByText(/Dossier Akun Pengguna/i)).toBeDefined();
       expect(screen.getAllByText(/Siti Rahmawati/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/siti.r@urd.co.id/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Admin Kantor/i).length).toBeGreaterThan(0);
+
+      // Verify and trigger action buttons inside popup modal
+      const editBtn = screen.getByText(/Ubah Data/i);
+      fireEvent.click(editBtn);
+      expect(onEdit).toHaveBeenCalledWith(mockUser);
+
+      const toggleBtn = screen.getByText(/Nonaktifkan Akun/i);
+      fireEvent.click(toggleBtn);
+      expect(onToggle).toHaveBeenCalledWith(mockUser);
+
+      const deleteBtn = screen.getByText(/Hapus Pengguna/i);
+      fireEvent.click(deleteBtn);
+      expect(onDelete).toHaveBeenCalledWith(mockUser);
 
       // Trigger close
       const closeBtn = screen.getByLabelText(/Tutup panel detail/i);

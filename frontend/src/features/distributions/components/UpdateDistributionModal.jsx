@@ -1,4 +1,5 @@
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import {
   DISTRIBUTION_DOC_TYPE_LABELS,
   DISTRIBUTION_TARGET_LABELS
@@ -109,21 +110,24 @@ export function UpdateDistributionModal({
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={onClose}
-              className="min-h-10 rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               Batal
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
+              size="md"
               disabled={submitting}
-              className="min-h-10 rounded-lg bg-[#C81E1E] px-4 py-2 font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer"
+              loading={submitting}
             >
-              {submitting ? 'Menyimpan...' : 'Simpan Status'}
-            </button>
+              Simpan Status
+            </Button>
           </div>
         </form>
       )}

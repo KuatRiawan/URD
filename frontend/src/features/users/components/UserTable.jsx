@@ -1,8 +1,17 @@
-import { Eye, PencilSimple, UserCheck, UserMinus } from '@phosphor-icons/react';
+import { Eye, Pencil, Prohibit, CheckCircle } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import { formatDateTime, ROLE_LABELS } from '../../../lib/utils/format.js';
 
-export function UserTable({ users, onEditUser, onToggleActive, onViewUser }) {
+export function UserTable({ users, onViewUser, onEditUser, onToggleActive }) {
   const getRoleBadge = (role) => {
     switch (role) {
       case 'ADMIN_SISTEM':
@@ -27,15 +36,15 @@ export function UserTable({ users, onEditUser, onToggleActive, onViewUser }) {
         {users.map((u) => (
           <div
             key={u.id}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
+            className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] space-y-3"
           >
             {/* Header: Nama & Status */}
-            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-black/[0.05] dark:border-white/[0.06]">
               <div className="min-w-0">
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">
+                <h3 className="font-bold text-sm text-[#1D1D1F] dark:text-[#F5F5F7] leading-snug">
                   {u.fullName}
                 </h3>
-                <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-[11px] font-mono text-[#6E6E73] dark:text-[#98989D] mt-0.5">
                   {u.email}
                 </p>
               </div>
@@ -47,137 +56,135 @@ export function UserTable({ users, onEditUser, onToggleActive, onViewUser }) {
             {/* Konten Detail */}
             <div className="space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Peran Sistem:</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getRoleBadge(u.role)}`}>
+                <span className="text-[#6E6E73] dark:text-[#98989D]">Peran Sistem:</span>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${getRoleBadge(u.role)}`}>
                   {ROLE_LABELS[u.role] || u.role}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Telepon:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-mono">{u.phone || '-'}</span>
+                <span className="text-[#6E6E73] dark:text-[#98989D]">Telepon:</span>
+                <span className="text-[#1D1D1F] dark:text-[#F5F5F7] font-mono">{u.phone || '-'}</span>
               </div>
-              <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="flex items-center justify-between pt-1 border-t border-black/[0.05] dark:border-white/[0.06] text-[11px] text-[#6E6E73] dark:text-[#98989D]">
                 <span>Login Terakhir:</span>
                 <span className="font-mono">{u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'Belum pernah login'}</span>
               </div>
             </div>
 
             {/* Tombol Aksi Mobile */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+            <div className="pt-2.5 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between gap-2">
               {onViewUser && (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  touchFriendly
+                  icon={Eye}
                   onClick={() => onViewUser(u)}
-                  className="min-h-[42px] px-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                  className="flex-1 justify-center"
                 >
-                  <Eye size={15} />
-                  <span>Detail</span>
-                </button>
+                  Detail
+                </Button>
               )}
-              <button
-                type="button"
-                onClick={() => onEditUser(u)}
-                className="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-              >
-                <PencilSimple size={15} />
-                <span>Ubah</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onToggleActive(u)}
-                className={`min-h-[42px] px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-white transition-colors cursor-pointer ${
-                  u.isActive
-                    ? 'bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600'
-                    : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
-              >
-                {u.isActive ? <UserMinus size={15} /> : <UserCheck size={15} />}
-                <span>{u.isActive ? 'Nonaktifkan' : 'Aktifkan'}</span>
-              </button>
+              {(onEditUser || onToggleActive) && (
+                <ActionMenu
+                  label={`Aksi pengguna ${u.fullName}`}
+                  items={[
+                    onEditUser && {
+                      label: 'Ubah Data Pengguna',
+                      icon: Pencil,
+                      onClick: () => onEditUser(u)
+                    },
+                    onToggleActive && {
+                      label: u.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun',
+                      icon: u.isActive ? Prohibit : CheckCircle,
+                      destructive: u.isActive,
+                      onClick: () => onToggleActive(u)
+                    }
+                  ]}
+                />
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Tampilan Desktop & Tablet: Tabel Tabular Lengkap */}
-      <div className="hidden sm:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <th className="py-3 px-4">Nama Lengkap &amp; Email</th>
-                <th className="py-3 px-4">Peran Sistem (RBAC)</th>
-                <th className="py-3 px-4">Telepon</th>
-                <th className="py-3 px-4">Login Terakhir</th>
-                <th className="py-3 px-4">Status Akun</th>
-                <th className="py-3 px-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4 text-xs">
-                    <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center font-bold text-[10px]">
-                        {u.fullName?.slice(0, 2).toUpperCase() || 'US'}
-                      </span>
-                      <span>{u.fullName}</span>
-                    </div>
-                    <div className="font-mono text-slate-500 dark:text-slate-400 pl-8">{u.email}</div>
-                  </td>
-                  <td className="py-3.5 px-4 text-xs">
-                    <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${getRoleBadge(u.role)}`}>
-                      {ROLE_LABELS[u.role] || u.role}
+      {/* Tampilan Desktop & Tablet: Tabel Tabular Bersih */}
+      <div className="hidden sm:block">
+        <TableWrapper>
+          <TableHead>
+            <tr>
+              <TableCell isHeader>Nama Lengkap &amp; Email</TableCell>
+              <TableCell isHeader>Peran Sistem (RBAC)</TableCell>
+              <TableCell isHeader>Telepon</TableCell>
+              <TableCell isHeader>Login Terakhir</TableCell>
+              <TableCell isHeader>Status Akun</TableCell>
+              <TableCell isHeader align="right">Aksi</TableCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {users.map((u) => (
+              <TableRow key={u.id}>
+                <TableCell className="text-xs">
+                  <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
+                    <span className="h-6 w-6 rounded-full bg-black/[0.06] dark:bg-white/[0.10] text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center justify-center font-bold text-[10px]">
+                      {u.fullName?.slice(0, 2).toUpperCase() || 'US'}
                     </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-xs text-slate-700 dark:text-slate-300 font-mono">{u.phone || '-'}</td>
-                  <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-400 font-mono text-[11px]">
-                    {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'Belum pernah login'}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <Badge tone={u.isActive ? 'success' : 'danger'}>
-                      {u.isActive ? 'Aktif' : 'Nonaktif'}
-                    </Badge>
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="inline-flex items-center gap-1.5">
-                      {onViewUser && (
-                        <button
-                          type="button"
-                          onClick={() => onViewUser(u)}
-                          className="min-h-9 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                          <Eye size={14} />
-                          <span>Detail</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onEditUser(u)}
-                        className="min-h-9 inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    <span>{u.fullName}</span>
+                  </div>
+                  <div className="font-mono text-[#6E6E73] dark:text-[#98989D] pl-8">{u.email}</div>
+                </TableCell>
+                <TableCell className="text-xs">
+                  <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${getRoleBadge(u.role)}`}>
+                    {ROLE_LABELS[u.role] || u.role}
+                  </span>
+                </TableCell>
+                <TableCell className="text-xs text-[#1D1D1F] dark:text-[#E5E5EA] font-mono tabular-nums">
+                  {u.phone || '-'}
+                </TableCell>
+                <TableCell className="text-[11px] text-[#6E6E73] dark:text-[#98989D] font-mono tabular-nums">
+                  {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'Belum pernah login'}
+                </TableCell>
+                <TableCell>
+                  <Badge tone={u.isActive ? 'success' : 'danger'}>
+                    {u.isActive ? 'Aktif' : 'Nonaktif'}
+                  </Badge>
+                </TableCell>
+                <TableCell align="right">
+                  <div className="inline-flex items-center gap-1.5 justify-end">
+                    {onViewUser && (
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        icon={Eye}
+                        onClick={() => onViewUser(u)}
                       >
-                        <PencilSimple size={14} />
-                        <span>Ubah</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onToggleActive(u)}
-                        className={`min-h-9 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer ${
-                          u.isActive
-                            ? 'bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500'
-                            : 'bg-emerald-700 hover:bg-emerald-800'
-                        }`}
-                      >
-                        {u.isActive ? <UserMinus size={14} /> : <UserCheck size={14} />}
-                        <span>{u.isActive ? 'Nonaktifkan' : 'Aktifkan'}</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        Detail
+                      </Button>
+                    )}
+                    {(onEditUser || onToggleActive) && (
+                      <ActionMenu
+                        label={`Opsi pengguna ${u.fullName}`}
+                        items={[
+                          onEditUser && {
+                            label: 'Ubah Data Pengguna',
+                            icon: Pencil,
+                            onClick: () => onEditUser(u)
+                          },
+                          onToggleActive && {
+                            label: u.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun',
+                            icon: u.isActive ? Prohibit : CheckCircle,
+                            destructive: u.isActive,
+                            onClick: () => onToggleActive(u)
+                          }
+                        ]}
+                      />
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </TableWrapper>
       </div>
     </div>
   );

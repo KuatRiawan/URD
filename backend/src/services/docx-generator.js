@@ -1,7 +1,9 @@
+import fs from 'node:fs';
 import {
   AlignmentType,
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   Table,
@@ -10,7 +12,7 @@ import {
   TextRun,
   WidthType
 } from 'docx';
-import { buildLhppReportContent } from './pdf-generator.js';
+import { buildLhppReportContent, getOfficialLogoPath } from './pdf-generator.js';
 import { getCompanyProfile } from './system-settings-service.js';
 
 export async function generateLhppDocxBuffer(data) {
@@ -18,6 +20,20 @@ export async function generateLhppDocxBuffer(data) {
     Promise.resolve(buildLhppReportContent(data)),
     getCompanyProfile().catch(() => null)
   ]);
+
+  const logoPath = getOfficialLogoPath();
+  const logoParagraph = logoPath && fs.existsSync(logoPath)
+    ? new Paragraph({
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(logoPath),
+            transformation: { width: 104, height: 73 }
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 160 }
+      })
+    : null;
 
   const titleParagraph = new Paragraph({
     text: report.title || 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP)',
@@ -181,6 +197,7 @@ export async function generateLhppDocxBuffer(data) {
       {
         properties: {},
         children: [
+          ...(logoParagraph ? [logoParagraph] : []),
           titleParagraph,
           subtitleParagraph,
           section1Title,
@@ -205,6 +222,20 @@ export async function generateBapDocxBuffer(bap) {
   const companyProfile = await getCompanyProfile().catch(() => null);
   const companyName = companyProfile?.company_name || 'PT UPAYA RIKSA DAYA';
   const tagline = companyProfile?.tagline || 'JASA PEMERIKSAAN & PENGUJIAN KESELAMATAN DAN KESEHATAN KERJA (PJK3)';
+
+  const logoPath = getOfficialLogoPath();
+  const logoParagraph = logoPath && fs.existsSync(logoPath)
+    ? new Paragraph({
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(logoPath),
+            transformation: { width: 92, height: 64 }
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 120 }
+      })
+    : null;
 
   const isNotCompliant = bap.conclusion === 'TIDAK_MEMENUHI_SYARAT';
   const statusColor = isNotCompliant ? '991B1B' : '107038';
@@ -445,6 +476,7 @@ export async function generateBapDocxBuffer(bap) {
       {
         properties: {},
         children: [
+          ...(logoParagraph ? [logoParagraph] : []),
           companyHeader,
           subHeader,
           titleParagraph,

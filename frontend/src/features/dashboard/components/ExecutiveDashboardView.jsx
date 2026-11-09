@@ -165,7 +165,7 @@ export function ExecutiveDashboardView({
       {/* 1. Executive Header */}
       <PageHeader
         title="Dasbor Eksekutif & Pemantauan Operasional"
-        subtitle="Pemantauan komprehensif riksa uji K3, efisiensi waktu siklus, beban tim ahli, dan kepatuhan hukum sertifikasi."
+        subtitle="Pemantauan riksa uji K3, beban tim ahli, dan kepatuhan sertifikasi."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -205,8 +205,8 @@ export function ExecutiveDashboardView({
         }
       />
 
-      {/* 2. Executive Navigation Tabs (Segmented Perspectives) */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full overflow-x-auto border border-slate-200/60 dark:border-slate-700/60">
+      {/* 2. Executive Navigation Tabs (Apple Segmented Control) */}
+      <div className="flex items-center gap-1.5 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-2xl w-full overflow-x-auto border border-black/[0.06] dark:border-white/[0.08]">
         {[
           { key: 'OVERVIEW', label: 'Ringkasan Eksekutif', icon: ChartLineUp },
           { key: 'ORDERS', label: 'Monitoring PO & Unit', icon: Briefcase, count: m.activeOrders },
@@ -221,20 +221,20 @@ export function ExecutiveDashboardView({
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 py-2 px-3.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 py-2 px-3.5 text-xs font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-[#151821] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
               }`}
             >
               <Icon size={15} weight={isActive ? 'bold' : 'regular'} />
               <span>{tab.label}</span>
               {tab.count !== undefined && Number(tab.count) > 0 && (
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                     isActive
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      ? 'bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400'
+                      : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#98989D]'
                   }`}
                 >
                   {tab.count}
@@ -255,20 +255,20 @@ export function ExecutiveDashboardView({
             {/* Card 1: Order PO Aktif */}
             <Link
               to="/app/orders"
-              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all block cursor-pointer"
+              className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block cursor-pointer"
             >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Briefcase size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     PO Aktif Diproses
                   </p>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums leading-none tracking-[-0.02em]">
                     {m.activeOrders || 0}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span className="text-blue-600 dark:text-blue-400 font-bold">{m.newOrders || 0} baru</span>
                     <span>·</span>
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">{m.completedOrders || 0} selesai</span>
@@ -281,20 +281,20 @@ export function ExecutiveDashboardView({
             {/* Card 2: Unit Alat Dalam Proses */}
             <Link
               to="/app/inspections"
-              className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 sm:p-5 shadow-xs hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md transition-all block cursor-pointer"
+              className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block cursor-pointer"
             >
               <div className="flex items-center">
-                <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Wrench size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     Unit Sedang Riksa Uji
                   </p>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums leading-none tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums leading-none tracking-[-0.02em]">
                     {(m.waitingInspectionUnits || 0) + (m.inspectingUnits || 0)}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span>{m.inspectingUnits || 0} diuji</span>
                     <span>·</span>
                     <span>{m.waitingInspectionUnits || 0} antre</span>
@@ -307,36 +307,36 @@ export function ExecutiveDashboardView({
             {/* Card 3: Unit Perlu Revisi / Antrean QC */}
             <Link
               to="/app/lhpp?status=DIKEMBALIKAN"
-              className={`group bg-white dark:bg-slate-900 border rounded-xl p-4.5 sm:p-5 shadow-xs hover:shadow-md transition-all block cursor-pointer ${
+              className={`group bg-white dark:bg-[#151821] border rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] transition-all block cursor-pointer ${
                 Number(m.revisionUnits || 0) > 0
-                  ? 'border-amber-300 dark:border-amber-800/80 hover:border-amber-400'
-                  : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300'
+                  ? 'border-amber-500/35 hover:border-amber-500/50'
+                  : 'border-black/[0.06] dark:border-white/[0.08] hover:border-black/[0.14]'
               }`}
             >
               <div className="flex items-center">
                 <div
-                  className={`h-11 w-11 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
+                  className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
                     Number(m.revisionUnits || 0) > 0
-                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
-                      : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                      : 'bg-[#F5F5F7] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D]'
                   }`}
                 >
                   <HourglassMedium size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     Unit Perlu Revisi
                   </p>
                   <div
-                    className={`text-2xl sm:text-3xl font-extrabold tabular-nums leading-none tracking-tight ${
+                    className={`text-2xl sm:text-3xl font-bold tabular-nums leading-none tracking-[-0.02em] ${
                       Number(m.revisionUnits || 0) > 0
                         ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-slate-900 dark:text-slate-100'
+                        : 'text-[#1D1D1F] dark:text-[#F5F5F7]'
                     }`}
                   >
                     {m.revisionUnits || 0}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span>{m.lhppWaitingReview || 0} antre QC</span>
                     <span>·</span>
                     <span>{m.lhppPublished || 0} terbit</span>
@@ -349,28 +349,28 @@ export function ExecutiveDashboardView({
             {/* Card 4: Suket Habis <= 30 Hari (Urgensi Kepatuhan) */}
             <Link
               to="/app/suket"
-              className={`group bg-white dark:bg-slate-900 border rounded-xl p-4.5 sm:p-5 shadow-xs hover:shadow-md transition-all block cursor-pointer ${
+              className={`group bg-white dark:bg-[#151821] border rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] transition-all block cursor-pointer ${
                 Number(m.suketExpiring30d || 0) > 0
-                  ? 'border-rose-300 dark:border-rose-900/80 hover:border-rose-400'
-                  : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300'
+                  ? 'border-[#C81E1E]/35 hover:border-[#C81E1E]/55'
+                  : 'border-black/[0.06] dark:border-white/[0.08] hover:border-black/[0.14]'
               }`}
             >
               <div className="flex items-center">
                 <div
-                  className={`h-11 w-11 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
+                  className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
                     Number(m.suketExpiring30d || 0) > 0
-                      ? 'bg-rose-500/15 text-[#C81E1E] dark:text-rose-400 border border-rose-500/30'
-                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                      ? 'bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400'
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                   }`}
                 >
                   <ShieldCheck size={22} weight="bold" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0 ms-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+                  <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                     Suket Habis &le; 30 Hari
                   </p>
                   <div
-                    className={`text-2xl sm:text-3xl font-extrabold tabular-nums leading-none tracking-tight ${
+                    className={`text-2xl sm:text-3xl font-bold tabular-nums leading-none tracking-[-0.02em] ${
                       Number(m.suketExpiring30d || 0) > 0
                         ? 'text-[#C81E1E] dark:text-rose-400'
                         : 'text-emerald-600 dark:text-emerald-400'
@@ -378,7 +378,7 @@ export function ExecutiveDashboardView({
                   >
                     {m.suketExpiring30d || 0}
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                     <span>{m.suketExpiring90d || 0} pipeline &le; 90 hari</span>
                     <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-slate-400 ms-auto" />
                   </div>
@@ -449,15 +449,10 @@ export function ExecutiveDashboardView({
           {/* C. End-to-End Operational Pipeline Tracker */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Wrench size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                  <span>Jalur Siklus Operasional Unit &amp; Dokumen</span>
-                </h2>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Distribusi progres {m.totalUnits || m.activeObjects || 0} unit alat dari order masuk hingga dokumen fisik diterima klien
-                </p>
-              </div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Wrench size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+                <span>Jalur Siklus Operasional Unit &amp; Dokumen</span>
+              </h2>
               <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                 Total {m.totalOrders || (m.activeOrders || 0) + (m.completedOrders || 0)} Order Aktif
               </span>
@@ -507,15 +502,10 @@ export function ExecutiveDashboardView({
             <div className="lg:col-span-8 space-y-6">
               <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
                 <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <ChartLineUp size={18} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                      <span>Tren &amp; Volume Riksa Uji K3</span>
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Perbandingan volume order masuk terhadap riksa uji yang berhasil dituntaskan
-                    </p>
-                  </div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <ChartLineUp size={18} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+                    <span>Tren &amp; Volume Riksa Uji K3</span>
+                  </h2>
 
                   {/* Period Filter Buttons */}
                   <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-xs font-semibold self-start sm:self-center shadow-2xs">
@@ -523,7 +513,10 @@ export function ExecutiveDashboardView({
                       <button
                         key={p}
                         type="button"
-                        onClick={() => setPeriod(p)}
+                        onClick={() => {
+                          setPeriod(p);
+                          if (loadSummary) loadSummary(false, p);
+                        }}
                         className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                           period === p
                             ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
@@ -546,9 +539,6 @@ export function ExecutiveDashboardView({
                         <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" /> Riksa Uji Selesai
                       </span>
                     </div>
-                    <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                      Hover kursor pada titik untuk detail
-                    </span>
                   </div>
 
                   <SplineAreaChart
@@ -634,17 +624,12 @@ export function ExecutiveDashboardView({
                               {insp.completed_inspections || 0} riksa uji selesai
                             </p>
                           </div>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                              isHigh
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
-                                : active > 0
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
-                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400'
-                            }`}
+                          <Badge
+                            tone={isHigh ? 'warning' : active > 0 ? 'info' : 'success'}
+                            size="xs"
                           >
                             {active > 0 ? `${active} tugas aktif` : 'Tersedia'}
-                          </span>
+                          </Badge>
                         </div>
                       );
                     })
@@ -1015,17 +1000,12 @@ export function ExecutiveDashboardView({
                             {completed}
                           </td>
                           <td className="py-3.5 px-4">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                isOverloaded
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
-                                  : isAvailable
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400'
-                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400'
-                              }`}
+                            <Badge
+                              tone={isOverloaded ? 'warning' : isAvailable ? 'success' : 'info'}
+                              size="sm"
                             >
                               {isOverloaded ? 'Beban Tinggi' : isAvailable ? 'Tersedia untuk Penugasan' : 'Kapasitas Normal'}
-                            </span>
+                            </Badge>
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <Link
@@ -1182,15 +1162,10 @@ export function ExecutiveDashboardView({
       {activeTab === 'ACTIVITIES' && (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Clock size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
-                <span>Kronologi Jejak Aktivitas Operasional Terkini</span>
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Audit trail lengkap seluruh tindakan pengguna pada sistem
-              </p>
-            </div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Clock size={16} className="text-[#C81E1E] dark:text-rose-400" weight="bold" />
+              <span>Kronologi Jejak Aktivitas Operasional Terkini</span>
+            </h2>
             <Link
               to="/app/audit-logs"
               className="text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:underline flex items-center gap-1"

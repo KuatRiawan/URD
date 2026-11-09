@@ -1,0 +1,1537 @@
+{
+  "totalChecks": 170,
+  "passedChecks": 170,
+  "failedChecks": 0,
+  "results": [
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/dashboard",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/dashboard",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/dashboard",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/dashboard",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/dashboard",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/orders",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/orders",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/orders",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/orders",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/orders",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/clients",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/clients",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/clients",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/clients",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/clients",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/objects",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/objects",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/objects",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/objects",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/objects",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/users",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/users",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/users",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/users",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/users",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/settings",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/settings",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/settings",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/settings",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/settings",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/audit-log",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/audit-log",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/audit-log",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/audit-log",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/audit-log",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/notifications",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/notifications",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/notifications",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/notifications",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_SISTEM",
+      "route": "/app/notifications",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/dashboard",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/dashboard",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/dashboard",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/dashboard",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/dashboard",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/orders",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/orders",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/orders",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/orders",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/orders",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/clients",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/clients",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/clients",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/clients",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/clients",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/objects",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/objects",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/objects",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/objects",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/objects",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/reminders",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/reminders",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/reminders",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/reminders",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/reminders",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/distributions",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/distributions",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/distributions",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/distributions",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "MARKETING",
+      "route": "/app/distributions",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/dashboard",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/dashboard",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/dashboard",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/dashboard",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/dashboard",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/inspections",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/inspections",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/inspections",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/inspections",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/inspections",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/bap",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/bap",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/bap",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/bap",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/bap",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/lhpp",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/lhpp",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/lhpp",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/lhpp",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/lhpp",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/history",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/history",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/history",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/history",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "AHLI_K3",
+      "route": "/app/history",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/dashboard",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/dashboard",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/dashboard",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/dashboard",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/dashboard",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/orders",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/orders",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/orders",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/orders",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/orders",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/scheduling",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/scheduling",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/scheduling",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/scheduling",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/scheduling",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/bap",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/bap",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/bap",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/bap",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/bap",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/lhpp",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/lhpp",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/lhpp",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/lhpp",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/lhpp",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/suket",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/suket",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/suket",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/suket",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/suket",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/distributions",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/distributions",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/distributions",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/distributions",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/distributions",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/issues",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/issues",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/issues",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/issues",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "ADMIN_KANTOR",
+      "route": "/app/issues",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/dashboard",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/dashboard",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/dashboard",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/dashboard",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/dashboard",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/orders",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/orders",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/orders",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/orders",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/orders",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/scheduling",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/scheduling",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/scheduling",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/scheduling",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/scheduling",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/lhpp",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/lhpp",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/lhpp",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/lhpp",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/lhpp",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/suket",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/suket",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/suket",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/suket",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/suket",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/distributions",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/distributions",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/distributions",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/distributions",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/distributions",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/audit-log",
+      "viewport": "mobile_360",
+      "width": 360,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/audit-log",
+      "viewport": "mobile_390",
+      "width": 390,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/audit-log",
+      "viewport": "tablet_768",
+      "width": 768,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/audit-log",
+      "viewport": "laptop_1366",
+      "width": 1366,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    },
+    {
+      "role": "PIMPINAN",
+      "route": "/app/audit-log",
+      "viewport": "desktop_1920",
+      "width": 1920,
+      "overflow": 0,
+      "status": "PASS",
+      "offending": []
+    }
+  ]
+}

@@ -24,7 +24,7 @@ import { Button } from '../../../components/ui/Button.jsx';
 import { formatDateTime, ROLE_LABELS } from '../../../lib/utils/format.js';
 
 export function SuperAdminDashboardView({
-  user,
+  user: _user,
   data,
   loadSummary,
   refreshing
@@ -33,22 +33,11 @@ export function SuperAdminDashboardView({
   const [_filterPeriod, _setFilterPeriod] = useState('ALL');
 
   const recentAudits =
-    (Array.isArray(data?.recentAudits) && data.recentAudits.length > 0
+    Array.isArray(data?.recentAudits) && data.recentAudits.length > 0
       ? data.recentAudits
       : Array.isArray(data?.recentActivities) && data.recentActivities.length > 0
         ? data.recentActivities
-        : [
-            {
-              id: 'audit-fallback-1',
-              action: 'SYSTEM_SETTING_UPDATE',
-              entity: 'system_settings',
-              summary: 'Pembaruan konfigurasi penomoran dokumen otomatis',
-              user_name: user?.fullName || 'Super Admin',
-              user_role: 'ADMIN_SISTEM',
-              ip_address: '127.0.0.1',
-              created_at: new Date().toISOString()
-            }
-          ]);
+        : [];
 
   const expiredSkp = Number(m.expiredSkpCount || 0);
   const expiringSkp = Number(m.expiringSkpCount || 0);
@@ -59,7 +48,7 @@ export function SuperAdminDashboardView({
       {/* 1. Header Ruang Kerja Super Admin */}
       <PageHeader
         title="Ruang Kerja Administrasi Sistem & Keamanan"
-        subtitle="Kendali konfigurasi teknis PJK3, manajemen pengguna RBAC, integritas master data, dan pemantauan sistem."
+        subtitle="Kendali akses pengguna RBAC, master data riksa uji K3, dan integritas sistem."
         actions={
           <div className="flex items-center gap-2">
             <Link to="/app/users">
@@ -91,39 +80,39 @@ export function SuperAdminDashboardView({
       />
 
       {/* 2. System Status & Security Telemetry Bar */}
-      <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
+      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <div className="flex items-center gap-2 pr-3 border-r border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2 pr-3 border-r border-black/[0.08] dark:border-white/[0.08]">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <span className="font-bold text-slate-900 dark:text-slate-100">Status Sistem:</span>
+              <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">Status Sistem:</span>
               <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Operasional Normal</span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-              <HardDrives size={15} className="text-slate-500" />
-              <span>Mesin Basis Data: <strong className="text-slate-800 dark:text-slate-200">PostgreSQL 16</strong></span>
+            <div className="flex items-center gap-1.5 text-[#6E6E73] dark:text-[#98989D]">
+              <HardDrives size={15} className="text-[#6E6E73]" />
+              <span>Mesin Basis Data: <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">PostgreSQL 16</strong></span>
             </div>
 
-            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <span className="text-black/20 dark:text-white/20">·</span>
 
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-[#6E6E73] dark:text-[#98989D]">
               <ShieldCheck size={15} className="text-emerald-600 dark:text-emerald-400" weight="bold" />
               <span>Jejak Audit: <strong className="text-emerald-700 dark:text-emerald-400">Pemicu Tak Terubah Aktif</strong></span>
             </div>
 
-            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <span className="text-black/20 dark:text-white/20">·</span>
 
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-[#6E6E73] dark:text-[#98989D]">
               <Database size={15} className="text-indigo-600 dark:text-indigo-400" />
-              <span>Ukuran Basis Data: <strong className="text-slate-800 dark:text-slate-200">{data?.systemInfo?.databaseSize || '14 MB'}</strong></span>
+              <span>Ukuran Basis Data: <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">{data?.systemInfo?.databaseSize || '14 MB'}</strong></span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-start lg:self-auto text-xs">
             <Link
               to="/app/settings?tab=BACKUPS"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] bg-[#F5F5F7] dark:bg-white/[0.06] hover:bg-black/[0.06] transition-colors"
             >
               <span>Snapshot Cadangan: <strong>{m.totalBackups ? `${m.totalBackups} Arsip` : 'Tersedia'}</strong></span>
               <ArrowRight size={11} weight="bold" />
@@ -137,18 +126,18 @@ export function SuperAdminDashboardView({
         {/* Card 1: Pengguna Internal & RBAC */}
         <Link
           to="/app/users"
-          className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
-            <div className="h-11 w-11 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <Users size={22} weight="bold" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0 ms-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+              <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                 Pengguna Sistem & RBAC
               </p>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none tracking-tight">
-                {m.totalUsers || 7} Akun
+              <div className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums leading-none tracking-[-0.02em]">
+                {m.totalUsers ?? 0} Akun
               </div>
               <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1.5">
                 <span>5 Peran Terkonfigurasi</span>
@@ -161,22 +150,22 @@ export function SuperAdminDashboardView({
         {/* Card 2: Personel Ahli K3 & Lisensi SKP */}
         <Link
           to="/app/users?tab=COMPETENCY"
-          className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-amber-400 dark:hover:border-amber-600 transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
-            <div className="h-11 w-11 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <ShieldCheck size={22} weight="bold" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0 ms-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+              <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                 Ahli K3 & Lisensi SKP
               </p>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none tracking-tight">
-                {m.totalInspectors || 2} Personel
+              <div className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums leading-none tracking-[-0.02em]">
+                {m.totalInspectors ?? 0} Personel
               </div>
               <div className={`text-xs font-semibold flex items-center gap-1 mt-1.5 ${
                 expiredSkp > 0
-                  ? 'text-rose-600 dark:text-rose-400'
+                  ? 'text-[#C81E1E] dark:text-rose-400'
                   : expiringSkp > 0
                     ? 'text-amber-600 dark:text-amber-400'
                     : 'text-emerald-600 dark:text-emerald-400'
@@ -197,17 +186,17 @@ export function SuperAdminDashboardView({
         {/* Card 3: Master 7 Bidang K3 & Checklist Templates */}
         <Link
           to="/app/settings?tab=CHECKLISTS"
-          className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-indigo-400 dark:hover:border-indigo-600 transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
-            <div className="h-11 w-11 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="h-11 w-11 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <ListChecks size={22} weight="bold" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0 ms-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+              <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                 Master Bidang & Ceklis
               </p>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none tracking-tight">
+              <div className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums leading-none tracking-[-0.02em]">
                 7 Bidang K3
               </div>
               <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 mt-1.5">
@@ -221,20 +210,20 @@ export function SuperAdminDashboardView({
         {/* Card 4: Jejak Audit & Aktivitas Sistem */}
         <Link
           to="/app/audit-logs"
-          className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4.5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-600 transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
-            <div className="h-11 w-11 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <Article size={22} weight="bold" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0 ms-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
+              <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] mb-0.5">
                 Rekam Jejak Audit
               </p>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums leading-none tracking-tight">
-                {m.totalAuditLogs || 45} Catatan
+              <div className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums leading-none tracking-[-0.02em]">
+                {m.totalAuditLogs ?? 0} Catatan
               </div>
-              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1.5">
+              <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] flex items-center gap-1 mt-1.5">
                 <span>Integritas Audit Terjamin</span>
                 <ArrowRight size={12} weight="bold" className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
               </div>
@@ -246,121 +235,106 @@ export function SuperAdminDashboardView({
       {/* 4. Structured Administrative Quick Hub (6 Action Cards) */}
       <section aria-label="Modul Administrasi Sistem" className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <h2 className="text-sm font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-[#F5F5F7]">
             Pusat Konfigurasi & Modul Administrasi
           </h2>
-          <span className="text-[11px] text-slate-400">
-            Akses cepat pengaturan dan master data
-          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {/* Hub 1: Pengguna & RBAC */}
           <Link
             to="/app/users"
-            className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xs transition-all flex items-start gap-3.5"
+            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
-            <div className="h-9 w-9 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200/50 dark:border-blue-800/40">
-              <Users size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Users size={18} weight="bold" />
+              </div>
+              <h3 className="font-semibold text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                 Manajemen Pengguna & RBAC
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                Pemberian hak akses per peran, aktivasi akun, dan pengelolaan kredensial.
-              </p>
             </div>
+            <ArrowRight size={14} weight="bold" className="text-[#86868B] group-hover:text-[#1D1D1F] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
           </Link>
 
           {/* Hub 2: Master 7 Bidang K3 & Checklist */}
           <Link
             to="/app/settings?tab=CHECKLISTS"
-            className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xs transition-all flex items-start gap-3.5"
+            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
-            <div className="h-9 w-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-200/50 dark:border-indigo-800/40">
-              <ListChecks size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <ListChecks size={18} weight="bold" />
+              </div>
+              <h3 className="font-semibold text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                 Master 7 Bidang K3 & Ceklis
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                Kustomisasi butir pertanyaan pemeriksaan, standar teknis batas ukur, dan input form.
-              </p>
             </div>
+            <ArrowRight size={14} weight="bold" className="text-[#86868B] group-hover:text-[#1D1D1F] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
           </Link>
 
           {/* Hub 3: Standar Penomoran Dokumen */}
           <Link
             to="/app/settings?tab=NUMBERING"
-            className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-xs transition-all flex items-start gap-3.5"
+            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
-            <div className="h-9 w-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/50 dark:border-emerald-800/40">
-              <FileText size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <FileText size={18} weight="bold" />
+              </div>
+              <h3 className="font-semibold text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                 Format Penomoran Dokumen
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                Pola penomoran otomatis PO, Surat Tugas, BAP, LHPP, Suket K3, dan BAST.
-              </p>
             </div>
+            <ArrowRight size={14} weight="bold" className="text-[#86868B] group-hover:text-[#1D1D1F] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
           </Link>
 
           {/* Hub 4: Profil Perusahaan PJK3 */}
           <Link
             to="/app/settings?tab=COMPANY"
-            className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-xs transition-all flex items-start gap-3.5"
+            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
-            <div className="h-9 w-9 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-200/50 dark:border-purple-800/40">
-              <Buildings size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <Buildings size={18} weight="bold" />
+              </div>
+              <h3 className="font-semibold text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                 Profil Resmi Lembaga PJK3
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                Identitas badan usaha, SKP Kemnaker, kontak kantor, dan tanda tangan direktur.
-              </p>
             </div>
+            <ArrowRight size={14} weight="bold" className="text-[#86868B] group-hover:text-[#1D1D1F] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
           </Link>
 
           {/* Hub 5: Integrasi WhatsApp & SMTP */}
           <Link
             to="/app/settings?tab=GATEWAYS"
-            className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-xs transition-all flex items-start gap-3.5"
+            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
-            <div className="h-9 w-9 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200/50 dark:border-amber-800/40">
-              <WhatsappLogo size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <WhatsappLogo size={18} weight="bold" />
+              </div>
+              <h3 className="font-semibold text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                 WhatsApp Gateway & SMTP Email
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                Kredensial gateway pengiriman pengingat berkala H-30/14/7 dan uji koneksi langsung.
-              </p>
             </div>
+            <ArrowRight size={14} weight="bold" className="text-[#86868B] group-hover:text-[#1D1D1F] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
           </Link>
 
           {/* Hub 6: Cadangan Database */}
           <Link
             to="/app/settings?tab=BACKUPS"
-            className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-rose-300 dark:hover:border-rose-700 hover:shadow-xs transition-all flex items-start gap-3.5"
+            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
-            <div className="h-9 w-9 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-200/50 dark:border-rose-800/40">
-              <Database size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Database size={18} weight="bold" />
+              </div>
+              <h3 className="font-semibold text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7] truncate">
                 Pencadangan Database & Recovery
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                Pembuatan snapshot SQL data relasional, pengunduhan arsip, dan runbook pemulihan.
-              </p>
             </div>
+            <ArrowRight size={14} weight="bold" className="text-[#86868B] group-hover:text-[#1D1D1F] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
           </Link>
         </div>
       </section>
@@ -396,28 +370,36 @@ export function SuperAdminDashboardView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {recentAudits.map((audit) => (
-                  <tr key={audit.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {formatDateTime(audit.created_at)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 block">{audit.user_name}</span>
-                      <span className="text-[10px] text-slate-400 block">{ROLE_LABELS[audit.user_role] || audit.user_role}</span>
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        {audit.action}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                      {typeof audit.summary === 'object' ? JSON.stringify(audit.summary) : audit.summary}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                      {audit.ip_address || '127.0.0.1'}
+                {recentAudits.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 dark:text-slate-500">
+                      Belum ada aktivitas audit tercatat.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentAudits.map((audit) => (
+                    <tr key={audit.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {formatDateTime(audit.created_at)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 block">{audit.user_name}</span>
+                        <span className="text-[10px] text-slate-400 block">{ROLE_LABELS[audit.user_role] || audit.user_role}</span>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                          {audit.action}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                        {typeof audit.summary === 'object' ? JSON.stringify(audit.summary) : audit.summary}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                        {audit.ip_address || '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

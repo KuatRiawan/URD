@@ -16,7 +16,13 @@ const router = Router();
 router.use(authenticate);
 
 const templateCreateSchema = Joi.object({
-  categoryId: Joi.number().integer().min(1).max(7).required(),
+  categoryId: Joi.number().integer().min(1).max(20).optional(),
+  domainCode: Joi.string().trim().uppercase().allow('', null).optional(),
+  equipmentGroupId: Joi.string().uuid().allow('', null).optional(),
+  equipmentTypeId: Joi.string().uuid().allow('', null).optional(),
+  equipmentNameId: Joi.string().uuid().allow('', null).optional(),
+  subtypeId: Joi.string().uuid().allow('', null).optional(),
+  inspectionTypeCode: Joi.string().allow('', null).optional(),
   name: Joi.string().min(3).max(160).required(),
   isValidated: Joi.boolean().default(false),
   items: Joi.array()
@@ -25,11 +31,32 @@ const templateCreateSchema = Joi.object({
         seq: Joi.number().integer().min(1).required(),
         section: Joi.string().min(2).max(120).required(),
         label: Joi.string().min(2).max(300).required(),
-        inputType: Joi.string().valid('CHOICE', 'NUMBER', 'TEXT', 'DATE').required(),
+        inputType: Joi.string()
+          .valid(
+            'CHOICE',
+            'CONFORMITY',
+            'YES_NO',
+            'TEXT',
+            'LONG_TEXT',
+            'NUMBER',
+            'MEASUREMENT',
+            'SINGLE_SELECT',
+            'MULTI_SELECT',
+            'DATE',
+            'PHOTO',
+            'FILE'
+          )
+          .required(),
         unit: Joi.string().max(40).allow('', null),
         minValue: Joi.number().allow(null),
         maxValue: Joi.number().allow(null),
-        isRequired: Joi.boolean().default(true)
+        isRequired: Joi.boolean().default(true),
+        options: Joi.array().default([]),
+        requiresNote: Joi.boolean().default(false),
+        requiresPhoto: Joi.boolean().default(false),
+        conditionParentSeq: Joi.number().integer().allow(null),
+        conditionExpectedValue: Joi.string().allow('', null),
+        validationRules: Joi.object().default({})
       })
     )
     .min(1)
@@ -83,22 +110,241 @@ const reopenSchema = Joi.object({
   targetSection: Joi.string().max(80).allow('', null).optional()
 });
 
+// Resolver Template Checklist Dinamis berdasarkan Bidang Riksa Uji, Jenis Alat, Nama Alat, dan Jenis Riksa
+router.get('/templates/resolve', async (req, res, next) => {
+  try {
+    let domainCode = (req.query.domainCode || req.query.domain || '').trim().toUpperCase();
+    const equipmentNameId = req.query.equipmentNameId || req.query.equipmentTypeId || req.query.equipmentType;
+    const equipmentGroupId = req.query.equipmentGroupId || req.query.groupId;
+    const subtypeId = req.query.subtypeId || req.query.subtype;
+    const inspectionTypeCode = (req.query.inspectionTypeCode || req.query.inspectionType || '').trim().toUpperCase();
+    let categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
+
+    let resolvedGroupId = equipmentGroupId || null;
+
+    if (equipmentNameId) {
+      const { rows: etRows } = await query(
+        'SELECT domain_code, group_id FROM equipment_types WHERE id = $1',
+        [equipmentNameId]
+      );
+      if (etRows[0]?.domain_code && !domainCode) domainCode = etRows[0].domain_code;
+      if (etRows[0]?.group_id && !resolvedGroupId) resolvedGroupId = etRows[0].group_id;
+    }
+
+    if (!categoryId && domainCode) {
+      const { rows: domRows } = await query(
+        'SELECT legacy_category_id FROM inspection_domains WHERE code = $1',
+        [domainCode]
+      );
+      if (domRows[0]?.legacy_category_id) categoryId = domRows[0].legacy_category_id;
+    }
+
+    let matchedTemplate = null;
+    let resolvedBy = null;
+
+    // 1. Coba cari berdasarkan Nama Alat spesifik (equipment_name_id) + inspection_type_code
+    if (equipmentNameId && inspectionTypeCode) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE (t.equipment_name_id = $1 OR t.equipment_type_id = $1)
+           AND t.inspection_type_code = $2 AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [equipmentNameId, inspectionTypeCode]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'EQUIPMENT_NAME_AND_INSPECTION_TYPE';
+      }
+    }
+
+    // 2. Coba cari berdasarkan Nama Alat spesifik (equipment_name_id)
+    if (!matchedTemplate && equipmentNameId) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE (t.equipment_name_id = $1 OR t.equipment_type_id = $1)
+           AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [equipmentNameId]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'EQUIPMENT_NAME';
+      }
+    }
+
+    // 3. Fallback: Cari berdasarkan subtipe legacy jika ada
+    if (!matchedTemplate && subtypeId && inspectionTypeCode) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE t.subtype_id = $1 AND t.inspection_type_code = $2 AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [subtypeId, inspectionTypeCode]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'SUBTYPE_AND_INSPECTION_TYPE';
+      }
+    }
+    if (!matchedTemplate && subtypeId) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE t.subtype_id = $1 AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [subtypeId]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'SUBTYPE';
+      }
+    }
+
+    // 4. Fallback: Cari berdasarkan Jenis Alat (equipment_group_id)
+    if (!matchedTemplate && resolvedGroupId) {
+      if (inspectionTypeCode) {
+        const { rows } = await query(
+          `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+           FROM inspection_templates t
+           JOIN inspection_template_versions tv ON tv.template_id = t.id
+           WHERE t.equipment_group_id = $1 AND t.inspection_type_code = $2 AND tv.status = 'AKTIF'
+           ORDER BY tv.version DESC LIMIT 1`,
+          [resolvedGroupId, inspectionTypeCode]
+        );
+        if (rows[0]) {
+          matchedTemplate = rows[0];
+          resolvedBy = 'EQUIPMENT_GROUP_AND_INSPECTION_TYPE';
+        }
+      }
+      if (!matchedTemplate) {
+        const { rows } = await query(
+          `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+           FROM inspection_templates t
+           JOIN inspection_template_versions tv ON tv.template_id = t.id
+           WHERE t.equipment_group_id = $1 AND tv.status = 'AKTIF'
+           ORDER BY tv.version DESC LIMIT 1`,
+          [resolvedGroupId]
+        );
+        if (rows[0]) {
+          matchedTemplate = rows[0];
+          resolvedBy = 'EQUIPMENT_GROUP';
+        }
+      }
+    }
+
+    // 5. Coba cari berdasarkan domain_code + inspection_type_code
+    if (!matchedTemplate && domainCode && inspectionTypeCode) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE t.domain_code = $1 AND t.inspection_type_code = $2 AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [domainCode, inspectionTypeCode]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'DOMAIN_AND_INSPECTION_TYPE';
+      }
+    }
+
+    // 6. Coba cari berdasarkan domain_code
+    if (!matchedTemplate && domainCode) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE (t.domain_code = $1 OR t.category_id = $2) AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [domainCode, categoryId || 0]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'DOMAIN';
+      }
+    }
+
+    // 7. Fallback legacy category_id
+    if (!matchedTemplate && categoryId) {
+      const { rows } = await query(
+        `SELECT t.*, tv.id AS version_id, tv.version, tv.is_validated, tv.status AS version_status
+         FROM inspection_templates t
+         JOIN inspection_template_versions tv ON tv.template_id = t.id
+         WHERE t.category_id = $1 AND tv.status = 'AKTIF'
+         ORDER BY tv.version DESC LIMIT 1`,
+        [categoryId]
+      );
+      if (rows[0]) {
+        matchedTemplate = rows[0];
+        resolvedBy = 'LEGACY_CATEGORY';
+      }
+    }
+
+    if (!matchedTemplate) {
+      throw new AppError(404, 'TEMPLATE_NOT_CONFIGURED', 'Tidak ditemukan template checklist aktif yang sesuai kriteria.');
+    }
+
+    // Ambil item checklist
+    const { rows: items } = await query(
+      `SELECT * FROM inspection_template_items WHERE version_id = $1 ORDER BY seq ASC`,
+      [matchedTemplate.version_id]
+    );
+
+    return res.json({
+      template: matchedTemplate,
+      versionId: matchedTemplate.version_id,
+      version: matchedTemplate.version,
+      isValidated: matchedTemplate.is_validated,
+      items,
+      resolvedBy
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 // Daftar template beserta versi aktif dan butirnya
 router.get('/templates', async (req, res, next) => {
   try {
     const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
+    const domainCode = (req.query.domainCode || '').trim().toUpperCase();
+    const equipmentTypeId = req.query.equipmentTypeId;
     const params = [];
-    const whereSql = categoryId ? (params.push(categoryId), 'WHERE t.category_id = $1') : '';
+    const conds = [];
+
+    if (categoryId) {
+      params.push(categoryId);
+      conds.push(`t.category_id = $${params.length}`);
+    }
+    if (domainCode) {
+      params.push(domainCode);
+      conds.push(`t.domain_code = $${params.length}`);
+    }
+    if (equipmentTypeId) {
+      params.push(equipmentTypeId);
+      conds.push(`t.equipment_type_id = $${params.length}`);
+    }
+
+    const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const { rows: templates } = await query(
       `SELECT t.*, oc.code AS category_code, oc.name AS category_name,
+              d.name AS domain_name, et.name AS equipment_type_name,
               tv.id AS active_version_id, tv.version AS active_version,
               tv.is_validated, tv.validated_at
        FROM inspection_templates t
-       JOIN object_categories oc ON oc.id = t.category_id
+       LEFT JOIN object_categories oc ON oc.id = t.category_id
+       LEFT JOIN inspection_domains d ON d.code = t.domain_code
+       LEFT JOIN equipment_types et ON et.id = t.equipment_type_id
        LEFT JOIN inspection_template_versions tv ON tv.template_id = t.id AND tv.status = 'AKTIF'
        ${whereSql}
-       ORDER BY t.category_id ASC, t.name ASC`,
+       ORDER BY coalesce(t.category_id, 0) ASC, t.name ASC`,
       params
     );
 
@@ -135,14 +381,70 @@ router.post(
   validate(templateCreateSchema),
   async (req, res, next) => {
     try {
-      const { categoryId, name, isValidated, items } = req.body;
+      const {
+        categoryId,
+        domainCode,
+        equipmentGroupId,
+        equipmentTypeId,
+        equipmentNameId,
+        subtypeId,
+        inspectionTypeCode,
+        name,
+        isValidated,
+        items
+      } = req.body;
+
+      let finalCategoryId = categoryId;
+      let finalDomainCode = domainCode || null;
+      let finalGroupId = equipmentGroupId || null;
+      const finalEquipmentNameId = equipmentNameId || equipmentTypeId || null;
+
+      if (finalEquipmentNameId) {
+        const { rows: etRows } = await query(
+          `SELECT et.*, d.legacy_category_id FROM equipment_types et
+           JOIN inspection_domains d ON d.code = et.domain_code
+           WHERE et.id = $1`,
+          [finalEquipmentNameId]
+        );
+        if (etRows[0]) {
+          if (!finalCategoryId && etRows[0].legacy_category_id) {
+            finalCategoryId = etRows[0].legacy_category_id;
+          }
+          if (!finalDomainCode) {
+            finalDomainCode = etRows[0].domain_code;
+          }
+          if (!finalGroupId && etRows[0].group_id) {
+            finalGroupId = etRows[0].group_id;
+          }
+        }
+      }
+      if (!finalCategoryId) finalCategoryId = 1;
+
       const result = await withTransaction(async (db) => {
         const { rows: tplRows } = await db.query(
-          `INSERT INTO inspection_templates (category_id, name, created_by)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (category_id, name) DO UPDATE SET name = EXCLUDED.name
+          `INSERT INTO inspection_templates
+             (category_id, domain_code, equipment_group_id, equipment_type_id, equipment_name_id, subtype_id, inspection_type_code, name, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (category_id, name) DO UPDATE
+           SET name = EXCLUDED.name,
+               domain_code = coalesce(EXCLUDED.domain_code, inspection_templates.domain_code),
+               equipment_group_id = coalesce(EXCLUDED.equipment_group_id, inspection_templates.equipment_group_id),
+               equipment_type_id = coalesce(EXCLUDED.equipment_type_id, inspection_templates.equipment_type_id),
+               equipment_name_id = coalesce(EXCLUDED.equipment_name_id, inspection_templates.equipment_name_id),
+               subtype_id = coalesce(EXCLUDED.subtype_id, inspection_templates.subtype_id),
+               inspection_type_code = coalesce(EXCLUDED.inspection_type_code, inspection_templates.inspection_type_code)
            RETURNING *`,
-          [categoryId, name.trim(), req.user.id]
+          [
+            finalCategoryId,
+            finalDomainCode,
+            finalGroupId,
+            finalEquipmentNameId,
+            finalEquipmentNameId,
+            subtypeId || null,
+            inspectionTypeCode || null,
+            name.trim(),
+            req.user.id
+          ]
         );
         const tpl = tplRows[0];
 
@@ -170,8 +472,9 @@ router.post(
         for (const it of items) {
           const { rows: itemRows } = await db.query(
             `INSERT INTO inspection_template_items
-               (version_id, seq, section, label, input_type, unit, min_value, max_value, is_required)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+               (version_id, seq, section, label, input_type, unit, min_value, max_value, is_required,
+                options, requires_note, requires_photo, condition_parent_seq, condition_expected_value, validation_rules)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
              RETURNING *`,
             [
               ver.id,
@@ -182,7 +485,13 @@ router.post(
               it.unit || null,
               it.minValue ?? null,
               it.maxValue ?? null,
-              it.isRequired ?? true
+              it.isRequired ?? true,
+              JSON.stringify(it.options || []),
+              it.requiresNote ?? false,
+              it.requiresPhoto ?? false,
+              it.conditionParentSeq || null,
+              it.conditionExpectedValue || null,
+              JSON.stringify(it.validationRules || {})
             ]
           );
           insertedItems.push(itemRows[0]);
@@ -204,6 +513,114 @@ router.post(
       });
 
       return res.status(201).json(result);
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// GET /templates/:id/versions: Riwayat versi template
+router.get(
+  '/templates/:id/versions',
+  authorize('ADMIN_SISTEM', 'PIMPINAN', 'ADMIN_KANTOR'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { rows: versions } = await query(
+        `SELECT tv.*,
+                u.full_name AS created_by_name,
+                uv.full_name AS validated_by_name,
+                (SELECT count(*)::int FROM inspection_template_items ti WHERE ti.version_id = tv.id) AS item_count,
+                (SELECT count(*)::int FROM inspections i WHERE i.template_version_id = tv.id) AS inspection_count
+         FROM inspection_template_versions tv
+         LEFT JOIN users u ON u.id = tv.created_by
+         LEFT JOIN users uv ON uv.id = tv.validated_by
+         WHERE tv.template_id = $1
+         ORDER BY tv.version DESC`,
+        [id]
+      );
+      return res.json({ versions });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// POST /templates/:id/versions: Terbitkan versi baru template (Copy-on-Write)
+router.post(
+  '/templates/:id/versions',
+  authorize('ADMIN_SISTEM', 'PIMPINAN'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { rows: tpls } = await query('SELECT * FROM inspection_templates WHERE id = $1', [id]);
+      if (!tpls[0]) throw new AppError(404, 'NOT_FOUND', 'Template tidak ditemukan.');
+      const tpl = tpls[0];
+
+      // Ambil versi aktif saat ini
+      const { rows: activeVers } = await query(
+        "SELECT * FROM inspection_template_versions WHERE template_id = $1 AND status = 'AKTIF' ORDER BY version DESC LIMIT 1",
+        [id]
+      );
+
+      const result = await withTransaction(async (db) => {
+        const { rows: maxVer } = await db.query(
+          'SELECT coalesce(max(version), 0)::int AS max_v FROM inspection_template_versions WHERE template_id = $1',
+          [id]
+        );
+        const nextVersion = maxVer[0].max_v + 1;
+
+        // Arsipkan versi lama
+        await db.query(
+          "UPDATE inspection_template_versions SET status = 'ARSIP' WHERE template_id = $1 AND status = 'AKTIF'",
+          [id]
+        );
+
+        // Buat versi baru
+        const { rows: newVers } = await db.query(
+          `INSERT INTO inspection_template_versions
+             (template_id, version, status, is_validated, validated_by, validated_at, published_at, created_by)
+           VALUES ($1, $2, 'AKTIF', false, NULL, NULL, now(), $3)
+           RETURNING *`,
+          [id, nextVersion, req.user.id]
+        );
+        const newVer = newVers[0];
+
+        // Jika ada versi sebelumnya, salin butir-butirnya ke versi baru
+        if (activeVers[0]) {
+          await db.query(
+            `INSERT INTO inspection_template_items
+               (version_id, seq, section, label, input_type, unit, min_value, max_value, is_required,
+                options, requires_note, requires_photo, condition_parent_seq, condition_expected_value, validation_rules)
+             SELECT $1, seq, section, label, input_type, unit, min_value, max_value, is_required,
+                    options, requires_note, requires_photo, condition_parent_seq, condition_expected_value, validation_rules
+             FROM inspection_template_items
+             WHERE version_id = $2
+             ORDER BY seq ASC`,
+            [newVer.id, activeVers[0].id]
+          );
+        }
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'TEMPLATE_VERSION_PUBLISH',
+            entity: 'inspection_template_versions',
+            entityId: newVer.id,
+            summary: { templateId: id, name: tpl.name, version: nextVersion },
+            ip: req.ip
+          },
+          db
+        );
+
+        return { template: tpl, version: newVer };
+      });
+
+      return res.status(201).json({
+        message: `Versi v${result.version.version} untuk template "${tpl.name}" berhasil diterbitkan.`,
+        newVersion: result.version.version,
+        ...result
+      });
     } catch (err) {
       return next(err);
     }
@@ -360,19 +777,32 @@ router.post('/start', authorize('AHLI_K3'), validate(startInspectionSchema), asy
 
       let verId = templateVersionId;
       if (!verId) {
+        // Dynamic Resolution: Subtype -> Equipment Type -> Category
         const { rows: verRows } = await db.query(
           `SELECT tv.id
            FROM inspection_templates t
            JOIN inspection_template_versions tv ON tv.template_id = t.id
-           WHERE t.category_id = $1 AND tv.status = 'AKTIF'
-           ORDER BY tv.version DESC LIMIT 1`,
-          [obj.category_id]
+           WHERE tv.status = 'AKTIF'
+             AND (
+               (t.subtype_id IS NOT NULL AND t.subtype_id = $1)
+               OR (t.equipment_type_id IS NOT NULL AND t.equipment_type_id = $2)
+               OR (t.category_id = $3)
+             )
+           ORDER BY
+             CASE
+               WHEN t.subtype_id IS NOT NULL AND t.subtype_id = $1 THEN 1
+               WHEN t.equipment_type_id IS NOT NULL AND t.equipment_type_id = $2 THEN 2
+               ELSE 3
+             END ASC,
+             tv.version DESC
+           LIMIT 1`,
+          [obj.equipment_subtype_id || null, obj.equipment_type_id || null, obj.category_id]
         );
         if (!verRows[0]) {
           throw new AppError(
             400,
             'TEMPLATE_NOT_FOUND',
-            'Belum ada template inspeksi aktif untuk kategori objek ini.'
+            'Belum ada template inspeksi aktif untuk kategori/jenis unit ini.'
           );
         }
         verId = verRows[0].id;

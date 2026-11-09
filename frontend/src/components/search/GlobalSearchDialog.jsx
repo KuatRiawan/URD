@@ -21,12 +21,12 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  ORDER: 'bg-blue-50 text-blue-700 border-blue-200',
-  CLIENT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  OBJECT: 'bg-amber-50 text-amber-700 border-amber-200',
-  BAP: 'bg-purple-50 text-purple-700 border-purple-200',
-  LHPP: 'bg-rose-50 text-rose-700 border-rose-200',
-  ISSUE: 'bg-amber-50 text-amber-800 border-amber-200'
+  ORDER: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
+  CLIENT: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
+  OBJECT: 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20',
+  BAP: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
+  LHPP: 'bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-300 border-[#C81E1E]/20',
+  ISSUE: 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20'
 };
 
 export function GlobalSearchDialog({ isOpen, onClose }) {
@@ -96,18 +96,19 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="global-search-title"
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 md:p-20 overflow-y-auto bg-slate-950/60 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 md:p-20 overflow-y-auto bg-black/35 dark:bg-black/65 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
+        className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.08)] border border-black/[0.08] dark:border-white/[0.10] transition-all text-[#1D1D1F] dark:text-[#F5F5F7] animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Input Bar */}
-        <div className="relative flex items-center border-b border-slate-200 dark:border-slate-800 px-4 py-3 sm:px-6">
+        {/* Spotlight Input Bar */}
+        <div className="relative flex items-center border-b border-black/[0.06] dark:border-white/[0.08] px-4 py-3.5 sm:px-5">
           <MagnifyingGlass
-            size={22}
-            className="shrink-0 text-slate-400 dark:text-slate-500 mr-3"
+            size={20}
+            weight="bold"
+            className="shrink-0 text-[#6E6E73] dark:text-[#98989D] mr-3"
             aria-hidden="true"
           />
           <input
@@ -116,88 +117,88 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ketik nomor PO, nama klien, nomor seri alat, nomor BAP, atau nomor LHPP..."
-            className="w-full border-0 bg-transparent py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:ring-0"
+            placeholder="Cari nomor PO, nama klien, nomor seri alat, nomor BAP, atau LHPP..."
+            className="w-full border-0 bg-transparent py-1.5 text-[15px] font-medium text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] dark:placeholder:text-[#636366] focus:outline-hidden focus:ring-0"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
               aria-label="Hapus kata kunci pencarian"
-              className="mr-2 p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-md"
+              className="mr-2 p-1.5 text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7] rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.08] cursor-pointer"
             >
-              <X size={16} />
+              <X size={15} weight="bold" />
             </button>
           )}
-          <span className="hidden sm:inline-block rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          <kbd className="hidden sm:inline-flex items-center rounded-[7px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D]">
             ESC
-          </span>
+          </kbd>
         </div>
 
         {/* Results Area */}
         <div className="max-h-96 overflow-y-auto p-3 sm:p-4">
           {loading && (
-            <div className="flex items-center justify-center py-10 text-slate-500 dark:text-slate-400 gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
-              <span className="text-xs">Mencari di seluruh basis data...</span>
+            <div className="flex items-center justify-center py-10 text-[#6E6E73] dark:text-[#98989D] gap-2.5">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#C81E1E] border-t-transparent" />
+              <span className="text-xs font-medium">Mencari di seluruh basis data...</span>
             </div>
           )}
 
           {!loading && !searched && query.trim().length < 2 && (
-            <div className="py-8 text-center text-slate-400 dark:text-slate-500">
-              <p className="text-xs">
+            <div className="py-9 text-center text-[#6E6E73] dark:text-[#98989D]">
+              <p className="text-xs font-medium">
                 Ketik minimal 2 karakter untuk mencari data operasional PT Upaya Riksa Daya.
               </p>
             </div>
           )}
 
           {!loading && searched && results.length === 0 && (
-            <div className="py-10 text-center text-slate-500 dark:text-slate-400">
-              <p className="text-sm font-semibold">Tidak ada hasil ditemukan</p>
-              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+            <div className="py-10 text-center">
+              <p className="text-sm font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">Tidak ada hasil ditemukan</p>
+              <p className="mt-1 text-xs text-[#6E6E73] dark:text-[#98989D]">
                 Tidak ada data PO, klien, alat, BAP, atau LHPP yang cocok dengan "{query}".
               </p>
             </div>
           )}
 
           {!loading && results.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                Ditemukan {results.length} Data
+            <div className="space-y-1">
+              <p className="px-2.5 pb-1 text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
+                Ditemukan {results.length} data
               </p>
               {results.map((item) => {
                 const IconComponent = TYPE_ICONS[item.type] || ClipboardText;
-                const badgeColor = TYPE_COLORS[item.type] || 'bg-slate-100 text-slate-700';
+                const badgeColor = TYPE_COLORS[item.type] || 'bg-black/[0.05] text-[#1D1D1F] border-black/[0.08]';
 
                 return (
                   <button
                     key={`${item.type}-${item.id}`}
                     type="button"
                     onClick={() => handleSelect(item)}
-                    className="w-full flex items-center justify-between gap-3 rounded-xl p-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/80 focus:bg-slate-50 dark:focus:bg-slate-800/80 focus:outline-hidden"
+                    className="w-full flex items-center justify-between gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] focus:bg-black/[0.04] dark:focus:bg-white/[0.06] focus:outline-hidden cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="shrink-0 rounded-lg p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        <IconComponent size={20} aria-hidden="true" />
+                      <span className="shrink-0 rounded-[10px] p-2 bg-[#F5F5F7] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7] border border-black/[0.05] dark:border-white/[0.06]">
+                        <IconComponent size={18} aria-hidden="true" />
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
+                          <span className="truncate text-[13px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
                             {item.title}
                           </span>
                           <span
-                            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${badgeColor}`}
+                            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${badgeColor}`}
                           >
                             {item.category}
                           </span>
                         </div>
-                        <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <p className="truncate text-xs text-[#6E6E73] dark:text-[#98989D] mt-0.5">
                           {item.subtitle}
                         </p>
                       </div>
                     </div>
                     {item.status && (
-                      <span className="shrink-0 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                      <span className="shrink-0 rounded-md bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D]">
                         {item.status}
                       </span>
                     )}
@@ -209,7 +210,7 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-4 py-2.5 text-[11px] text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between border-t border-black/[0.06] dark:border-white/[0.07] bg-[#F5F5F7]/70 dark:bg-[#11141C]/80 px-4 py-2.5 text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">
           <span>Pencarian Cepat Antar-Modul</span>
           <span>Tekan ESC untuk menutup</span>
         </div>
@@ -217,4 +218,3 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
     </div>
   );
 }
-

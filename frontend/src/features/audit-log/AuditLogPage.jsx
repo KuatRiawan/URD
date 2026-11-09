@@ -13,6 +13,13 @@ import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback
 import { Badge } from '../../components/ui/Badge.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { Modal } from '../../components/ui/Modal.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../components/ui/TableWrapper.jsx';
 import { api } from '../../lib/api/axios.js';
 import { formatDateTime, ROLE_LABELS } from '../../lib/utils/format.js';
 
@@ -104,7 +111,7 @@ export function AuditLogPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="Log Audit Operasional"
-        subtitle={`Rekam jejak seluruh perubahan data, autentikasi sesi, persetujuan dokumen, dan penerbitan Suket K3 (${total} entri tercatat).`}
+        subtitle={`Rekam jejak perubahan data, otentikasi sesi, dan dokumen resmi (${total} entri).`}
         actions={
           <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
             <ShieldCheck size={16} weight="bold" />
@@ -113,22 +120,20 @@ export function AuditLogPage() {
         }
       />
 
-      {error && <ErrorBanner message={error} onRetry={loadLogs} />}
-
       {/* Filter Bar & Quick Category Chips */}
-      <div className="space-y-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+      <div className="space-y-3 bg-white dark:bg-[#151821] p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <MagnifyingGlass
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
             />
             <input
               type="search"
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
               placeholder="Cari kode aksi sistem (contoh: LOGIN_SUCCESS, ORDER_CREATED, SYSTEM_SETTING_UPDATE)..."
-              className="w-full h-10 pl-9 pr-3 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[#C81E1E] focus:outline-none transition-colors"
+              className="w-full h-9 pl-9 pr-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E] focus:outline-none transition-colors"
             />
           </div>
 
@@ -136,7 +141,7 @@ export function AuditLogPage() {
             aria-label="Filter Entitas Audit"
             value={entityFilter}
             onChange={(e) => setEntityFilter(e.target.value)}
-            className="h-10 px-3 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-medium focus:border-[#C81E1E] focus:outline-none transition-colors"
+            className="h-9 px-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] font-medium focus:border-[#C81E1E] focus:outline-none transition-colors cursor-pointer"
           >
             <option value="">Semua Modul Entitas</option>
             <option value="users">Pengguna (users)</option>
@@ -159,7 +164,7 @@ export function AuditLogPage() {
 
         {/* Action Category Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto pt-1 scrollbar-none">
-          <span className="text-[10px] font-bold uppercase text-slate-400 shrink-0 mr-1">
+          <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D] shrink-0 mr-1">
             Kategori Aksi:
           </span>
           {categories.map((cat) => (
@@ -167,10 +172,10 @@ export function AuditLogPage() {
               key={cat.id}
               type="button"
               onClick={() => setCategoryFilter(cat.id)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap cursor-pointer transition-colors ${
+              className={`px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                 categoryFilter === cat.id
-                  ? 'bg-slate-900 text-white dark:bg-rose-600'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-[#1D1D1F] text-white dark:bg-[#C81E1E]'
+                  : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.08] dark:hover:bg-white/[0.10]'
               }`}
             >
               {cat.label}
@@ -181,6 +186,8 @@ export function AuditLogPage() {
 
       {loading ? (
         <LoadingState label="Memuat catatan log audit..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={loadLogs} />
       ) : filteredItems.length === 0 ? (
         <EmptyState
           title="Belum ada entri log audit"
@@ -221,68 +228,67 @@ export function AuditLogPage() {
           </div>
 
           {/* Tampilan Desktop & Tablet: Tabel Lengkap */}
-          <div className="hidden sm:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    <th className="py-3 px-4 min-w-[150px]">Waktu Kejadian</th>
-                    <th className="py-3 px-4 min-w-[180px]">Pelaku / Pengguna</th>
-                    <th className="py-3 px-4 min-w-[180px]">Aksi Sistem</th>
-                    <th className="py-3 px-4">Ringkasan Aktivitas</th>
-                    <th className="py-3 px-4 text-center">Entitas</th>
-                    <th className="py-3 px-4 text-right">Alamat IP</th>
-                    <th className="py-3 px-4 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {filteredItems.map((log) => (
-                    <tr
-                      key={log.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                    >
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        {formatDateTime(log.created_at)}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900 dark:text-slate-100">
-                          {displayValue(log.user_name, 'Sistem Internal')}
-                        </div>
-                        <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                          {getRoleLabel(log.user_role)}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                          {displayValue(log.action)}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-medium text-slate-800 dark:text-slate-200">
-                        {displayValue(log.summary)}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                          {displayValue(log.entity)}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        {displayValue(log.ip_address)}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLog(log)}
-                          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-                          title="Inspeksi Detail Rekam Jejak"
-                        >
-                          <Eye size={15} weight="bold" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="hidden sm:block">
+            <TableWrapper>
+              <TableHead>
+                <tr>
+                  <TableCell isHeader>Waktu Kejadian</TableCell>
+                  <TableCell isHeader>Pelaku / Pengguna</TableCell>
+                  <TableCell isHeader>Aksi Sistem</TableCell>
+                  <TableCell isHeader>Ringkasan Aktivitas</TableCell>
+                  <TableCell isHeader align="center">Entitas</TableCell>
+                  <TableCell isHeader align="right">Alamat IP</TableCell>
+                  <TableCell isHeader align="center">Aksi</TableCell>
+                </tr>
+              </TableHead>
+              <TableBody>
+                {filteredItems.map((log) => (
+                  <TableRow
+                    key={log.id}
+                    isClickable
+                    onClick={() => setSelectedLog(log)}
+                  >
+                    <TableCell className="font-mono text-[11px] text-[#6E6E73] dark:text-[#98989D] whitespace-nowrap">
+                      {formatDateTime(log.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+                        {displayValue(log.user_name, 'Sistem Internal')}
+                      </div>
+                      <div className="text-[10px] font-semibold text-[#86868B] dark:text-[#8E8E93]">
+                        {getRoleLabel(log.user_role)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-black/[0.04] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7] border border-black/[0.06] dark:border-white/[0.08]">
+                        {displayValue(log.action)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-medium text-[#1D1D1F] dark:text-[#F5F5F7]">
+                      {displayValue(log.summary)}
+                    </TableCell>
+                    <TableCell align="center">
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/[0.03] dark:bg-white/[0.04] text-[#6E6E73] dark:text-[#98989D] border border-black/[0.05] dark:border-white/[0.06]">
+                        {displayValue(log.entity)}
+                      </span>
+                    </TableCell>
+                    <TableCell align="right" className="font-mono text-[11px] text-[#6E6E73] dark:text-[#98989D] whitespace-nowrap">
+                      {displayValue(log.ip_address)}
+                    </TableCell>
+                    <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLog(log)}
+                        className="p-1.5 rounded-lg text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04] dark:text-[#98989D] dark:hover:text-[#F5F5F7] dark:hover:bg-white/[0.06] cursor-pointer transition-colors"
+                        title="Inspeksi Detail Rekam Jejak"
+                      >
+                        <Eye size={15} weight="bold" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </TableWrapper>
           </div>
         </div>
       )}

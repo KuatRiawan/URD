@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, CheckCircle } from '@phosphor-icons/react';
 import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
 import { PO_WIZARD_STEPS } from '../orderConstants.js';
 import { StepPoIdentity } from './StepPoIdentity.jsx';
@@ -129,46 +130,51 @@ export function CreatePoWizardModal({
         {/* Tombol Navigasi Wizard */}
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           {poWizardStep > 1 ? (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
+              icon={ArrowLeft}
               onClick={() => {
                 setError('');
                 setPoWizardStep((prev) => prev - 1);
               }}
-              className="h-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
             >
-              <ArrowLeft size={15} weight="bold" />
-              <span>Kembali</span>
-            </button>
+              Kembali
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={onClose}
-              className="h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
             >
               Batal
-            </button>
+            </Button>
           )}
 
           {poWizardStep < 5 ? (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="md"
+              icon={ArrowRight}
               onClick={handleWizardNext}
-              className="h-10 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-4.5 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer shadow-2xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
             >
-              <span>Lanjut</span>
-              <ArrowRight size={15} weight="bold" />
-            </button>
+              Lanjut
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="md"
+              icon={CheckCircle}
               disabled={submitting}
+              loading={submitting}
               onClick={handleCreateOrder}
-              className="h-10 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-5 text-xs font-bold text-white shadow-2xs disabled:opacity-50 cursor-pointer transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700"
             >
-              <CheckCircle size={16} weight="bold" />
-              <span>{submitting ? 'Menyimpan...' : 'Simpan Purchase Order'}</span>
-            </button>
+              Simpan Purchase Order
+            </Button>
           )}
         </div>
       </div>

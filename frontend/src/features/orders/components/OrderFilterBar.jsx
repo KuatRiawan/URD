@@ -16,7 +16,7 @@ export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
   return (
     <div className="space-y-3">
       {/* Quick Status Filter Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-2xl overflow-x-auto border border-slate-200/60 dark:border-slate-700/60">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl w-full max-w-2xl overflow-x-auto border border-black/[0.06] dark:border-white/[0.08]">
         {QUICK_TABS.map((tab) => {
           const isActive = statusFilter === tab.key;
           return (
@@ -24,10 +24,10 @@ export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
               key={tab.key}
               type="button"
               onClick={() => setStatusFilter(tab.key)}
-              className={`py-1.5 px-3 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+              className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
               }`}
             >
               {tab.label}
@@ -37,11 +37,11 @@ export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
       </div>
 
       {/* Search Input & Detailed Dropdown */}
-      <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 items-stretch sm:items-center shadow-2xs">
+      <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] items-stretch sm:items-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <div className="relative flex-1">
           <MagnifyingGlass
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
             aria-hidden="true"
           />
           <input
@@ -50,7 +50,7 @@ export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Cari nomor PO, nomor order, atau nama klien..."
-            className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+            className="w-full h-9 pl-9 pr-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E]"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
             aria-label="Filter Status Order"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 px-3 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+            className="h-9 px-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] cursor-pointer focus:outline-hidden focus:border-[#C81E1E]"
           >
             <option value="">Semua Status PO</option>
             {Object.entries(ORDER_STATUS_LABELS).map(([key, label]) => (
@@ -75,7 +75,7 @@ export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
                 setStatusFilter('');
               }}
               aria-label="Reset Filter"
-              className="h-9 px-2.5 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              className="h-9 px-2.5 inline-flex items-center gap-1 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-xs font-medium text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.04] dark:hover:bg-white/[0.10] cursor-pointer"
             >
               <X size={14} />
               <span>Reset</span>

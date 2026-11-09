@@ -3,25 +3,25 @@ import { ROLE_OPTIONS } from '../../../lib/utils/format.js';
 
 export function UserFilterBar({ q, setQ, roleFilter, setRoleFilter }) {
   return (
-    <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+    <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
       <div className="relative flex-1">
         <MagnifyingGlass
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
         />
         <input
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Cari nama lengkap atau alamat email personel..."
-          className="w-full min-h-11 pl-10 pr-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-[#C81E1E] focus:outline-none"
+          className="w-full h-9 pl-9 pr-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E] focus:outline-none"
         />
       </div>
       <select
         aria-label="Filter Peran Pengguna"
         value={roleFilter}
         onChange={(e) => setRoleFilter(e.target.value)}
-        className="min-h-11 px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+        className="h-9 px-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] focus:border-[#C81E1E] focus:outline-none cursor-pointer"
       >
         <option value="">Semua Peran RBAC</option>
         {ROLE_OPTIONS.map(({ value, label }) => (

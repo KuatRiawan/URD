@@ -41,7 +41,7 @@ export function RootRedirect() {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F5F8] p-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] dark:bg-[#0B0D11] p-6">
         <LoadingState message="Memeriksa sesi keamanan PT Upaya Riksa Daya..." />
       </div>
     );
@@ -58,7 +58,7 @@ export function RequireAuth({ children }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F5F8] p-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] dark:bg-[#0B0D11] p-6">
         <LoadingState message="Memverifikasi hak akses pengguna..." />
       </div>
     );

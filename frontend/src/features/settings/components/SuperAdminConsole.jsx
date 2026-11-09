@@ -16,7 +16,7 @@ import { api } from '../../../lib/api/axios.js';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { Notice } from '../../../components/ui/Notice.jsx';
-import { useConfirm } from '../../../components/ui/FeedbackProvider.jsx';
+import { useConfirm, useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { CompanyProfileSection } from './CompanyProfileSection.jsx';
 import { ChecklistBuilderSection } from './ChecklistBuilderSection.jsx';
 import { EquipmentMasterSection } from './EquipmentMasterSection.jsx';
@@ -25,6 +25,7 @@ import { GatewaysSection } from './GatewaysSection.jsx';
 import { ReminderTemplatesSection } from './ReminderTemplatesSection.jsx';
 import { DatabaseBackupsSection } from './DatabaseBackupsSection.jsx';
 import { SystemInfoSection } from './SystemInfoSection.jsx';
+import { LhppTemplatesSection } from './LhppTemplatesSection.jsx';
 
 const TAB_ALIAS_MAP = {
   company: 'company_profile',
@@ -33,6 +34,8 @@ const TAB_ALIAS_MAP = {
   equipment: 'equipment_master',
   equipment_master: 'equipment_master',
   numbering: 'numbering',
+  lhpp_templates: 'lhpp_templates',
+  lhpp: 'lhpp_templates',
   gateways: 'gateways',
   reminders: 'reminders',
   backups: 'backups',
@@ -42,6 +45,7 @@ const TAB_ALIAS_MAP = {
 
 export function SuperAdminConsole() {
   const confirm = useConfirm();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTabParam = (searchParams.get('subtab') || searchParams.get('tab') || 'company_profile').toLowerCase();
   const activeSubTab = TAB_ALIAS_MAP[rawTabParam] || 'company_profile';
@@ -53,6 +57,13 @@ export function SuperAdminConsole() {
   const [calibrationTools, setCalibrationTools] = useState([]);
   const [_loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback.message, feedback.type === 'error' ? 'error' : 'success');
+      setFeedback(null);
+    }
+  }, [feedback, toast]);
   const [savingKey, setSavingKey] = useState(null);
   const [testingConnection, setTestingConnection] = useState(null);
   const [publishingVersion, setPublishingVersion] = useState(false);
@@ -534,8 +545,9 @@ export function SuperAdminConsole() {
 
   const subtabs = [
     { id: 'company_profile', label: 'Profil Lembaga PJK3', icon: Buildings },
-    { id: 'checklists', label: 'Master 7 Bidang & Ceklis', icon: ListChecks },
-    { id: 'equipment_master', label: 'Master Data Alat & Kalibrasi', icon: Cube },
+    { id: 'checklists', label: 'Dynamic Checklist Pemeriksaan', icon: ListChecks },
+    { id: 'equipment_master', label: 'Katalog Klasifikasi Alat (3 Level)', icon: Cube },
+    { id: 'lhpp_templates', label: 'Template Dokumen LHPP', icon: FileText },
     { id: 'numbering', label: 'Format Nomor & Template Dokumen', icon: FileText },
     { id: 'gateways', label: 'Gateway WA & SMTP Email', icon: Bell },
     { id: 'reminders', label: 'Template Naskah Pengingat', icon: Alarm },
@@ -545,8 +557,8 @@ export function SuperAdminConsole() {
 
   return (
     <div className="space-y-6">
-      {/* Sub Tabs Navigasi Super Admin */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1 overflow-x-auto scrollbar-none pb-px">
+      {/* Sub Tabs Navigasi Super Admin — Apple Segmented Control */}
+      <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] overflow-x-auto max-w-full scrollbar-none">
         {subtabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -555,27 +567,18 @@ export function SuperAdminConsole() {
               key={tab.id}
               type="button"
               onClick={() => setSubTab(tab.id)}
-              className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold rounded-t-lg transition-all cursor-pointer whitespace-nowrap ${
+              className={`inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'bg-white dark:bg-slate-900 border-t-2 border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
+                  ? 'bg-white dark:bg-[#1C1E26] text-[#1D1D1F] dark:text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]'
+                  : 'text-[#6E6E73] dark:text-slate-400 hover:text-[#1D1D1F] dark:hover:text-slate-100'
               }`}
             >
-              <Icon size={15} weight={isActive ? 'bold' : 'regular'} />
+              <Icon size={15} weight={isActive ? 'fill' : 'regular'} className={isActive ? 'text-[#C81E1E] dark:text-rose-400' : ''} />
               <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
-
-      {feedback && (
-        <Notice
-          tone={feedback.type === 'success' ? 'success' : 'error'}
-          onClose={() => setFeedback(null)}
-        >
-          {feedback.message}
-        </Notice>
-      )}
 
       {/* 1. Profil Lembaga PJK3 */}
       {activeSubTab === 'company_profile' && (
@@ -587,41 +590,9 @@ export function SuperAdminConsole() {
         />
       )}
 
-      {/* 2. Checklist Builder */}
+      {/* 2. Dynamic Checklist Builder (Per Nama Alat) */}
       {activeSubTab === 'checklists' && (
-        <ChecklistBuilderSection
-          checklistsData={checklistsData}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          filteredItems={filteredItems}
-          onPublishNewVersion={handlePublishNewVersion}
-          publishingVersion={publishingVersion}
-          onOpenCreateItem={() => {
-            setItemForm({
-              section: 'Pemeriksaan Visual & Fisik',
-              label: '',
-              input_type: 'CHOICE',
-              unit: '',
-              min_value: '',
-              max_value: '',
-              is_required: true
-            });
-            setChecklistItemModal({ mode: 'create' });
-          }}
-          onOpenEditItem={(item) => {
-            setItemForm({
-              section: item.section,
-              label: item.label,
-              input_type: item.input_type,
-              unit: item.unit || '',
-              min_value: item.min_value ?? '',
-              max_value: item.max_value ?? '',
-              is_required: item.is_required
-            });
-            setChecklistItemModal({ mode: 'edit', item });
-          }}
-          onDeleteItem={handleDeleteChecklistItem}
-        />
+        <ChecklistBuilderSection />
       )}
 
       {/* 3. Master Data Alat & Kalibrasi */}
@@ -635,7 +606,12 @@ export function SuperAdminConsole() {
         />
       )}
 
-      {/* 4. Format Nomor Surat Otomatis & Template Dokumen Resmi */}
+      {/* 4. Engine Template Dokumen LHPP (Multi-Domain) */}
+      {activeSubTab === 'lhpp_templates' && (
+        <LhppTemplatesSection />
+      )}
+
+      {/* 5. Format Nomor Surat Otomatis & Template Dokumen Resmi */}
       {activeSubTab === 'numbering' && (
         <DocumentNumberingSection
           numberingForm={numberingForm}

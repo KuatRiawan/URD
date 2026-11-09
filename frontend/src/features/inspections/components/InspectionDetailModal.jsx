@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { useConfirm } from '../../../components/ui/FeedbackProvider.jsx';
+import { useConfirm, useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { useInspectionDetailForm } from '../hooks/useInspectionDetailForm.js';
 import { InspectionHeaderSection } from './InspectionHeaderSection.jsx';
 import { InspectionStepNav } from './InspectionStepNav.jsx';
@@ -21,6 +22,7 @@ export function InspectionDetailModal({
 }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const toast = useToast();
   const isInspector = Boolean(
     propIsInspector || ['AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'].includes(user?.role)
   );
@@ -71,6 +73,13 @@ export function InspectionDetailModal({
     clientSig,
     canSubmit
   } = useInspectionDetailForm({ inspectionId, user, onSaved, confirm });
+
+  useEffect(() => {
+    if (feedback && !feedback.includes('dipulihkan')) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast, setFeedback]);
 
   if (!inspectionId || !activeDetail?.inspection) return null;
 

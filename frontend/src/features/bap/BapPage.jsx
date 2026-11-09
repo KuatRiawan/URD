@@ -3,8 +3,7 @@ import { CheckCircle, Clock, FileText, MagnifyingGlass } from '@phosphor-icons/r
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { LoadingState, ErrorState, EmptyState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
-import { useConfirm } from '../../components/ui/FeedbackProvider.jsx';
+import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
 import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
@@ -13,6 +12,7 @@ import { BapDetailModal } from './components/BapDetailModal.jsx';
 
 export function BapPage() {
   const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
@@ -44,6 +44,13 @@ export function BapPage() {
   const [reopenReason, setReopenReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    if (feedback?.message) {
+      toast(feedback.message, feedback.type === 'error' ? 'error' : 'success');
+      setFeedback(null);
+    }
+  }, [feedback, toast]);
   const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [previewPdfTitle, setPreviewPdfTitle] = useState('');
@@ -352,50 +359,46 @@ export function BapPage() {
         title={isPimpinan ? 'Monitoring Berita Acara (BAP)' : 'Berita Acara Riksa Uji (BAP)'}
         subtitle={
           isPimpinan
-            ? 'Pengawasan penyelesaian Berita Acara riksa uji, penandatanganan para pihak, dan status pengesahan dokumen.'
+            ? 'Pengawasan Berita Acara riksa uji, penandatanganan pihak terkait, dan status pengesahan.'
             : 'Pemeriksaan ruang lingkup riksa uji, penandatanganan Berita Acara, dan penerbitan dokumen resmi.'
         }
       />
 
       {/* Ringkasan Status Berita Acara (BAP) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7]">
             <FileText size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Berkas BAP</div>
-            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Dokumen</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Total Berkas BAP</div>
+            <div className="text-lg font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">{stats.total} Dokumen</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-amber-100/80 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
             <Clock size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Draf Menunggu TTD / Finalisasi</div>
-            <div className="text-base font-extrabold text-amber-700 dark:text-amber-400">{stats.draft} Draf</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Draf Menunggu TTD / Finalisasi</div>
+            <div className="text-lg font-bold tracking-tight text-amber-700 dark:text-amber-400">{stats.draft} Draf</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-3.5 shadow-2xs flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
             <CheckCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">BAP Disahkan &amp; Final</div>
-            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.final} Selesai</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">BAP Disahkan &amp; Final</div>
+            <div className="text-lg font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{stats.final} Selesai</div>
           </div>
         </div>
       </div>
 
-      {feedback && !selectedBap && (
-        <Notice tone={feedback.type === 'error' ? 'error' : 'success'}>{feedback.message}</Notice>
-      )}
-
-      <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex flex-wrap gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
           {[
             { value: '', label: 'Semua BAP' },
             { value: 'DRAF', label: 'Draf BAP' },
@@ -405,9 +408,9 @@ export function BapPage() {
               key={f.value}
               type="button"
               onClick={() => setStatusFilter(f.value)}
-              className={`h-9 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${statusFilter === f.value
-                ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
-                : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'
+              className={`h-8 px-3 text-xs font-semibold rounded-[9px] transition-all cursor-pointer ${statusFilter === f.value
+                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
                 }`}
             >
               {f.label}
@@ -425,19 +428,19 @@ export function BapPage() {
           <div className="relative flex-1 sm:w-64">
             <MagnifyingGlass
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
             />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari No. BAP, PO, Klien..."
-              className="w-full h-9 pl-9 pr-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 rounded-lg focus:outline-none focus:border-[#C81E1E] transition-colors"
+              className="w-full h-9 pl-9 pr-3 text-xs border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] rounded-[10px] focus:outline-none focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E] transition-colors"
             />
           </div>
           <button
             type="submit"
-            className="h-9 px-3.5 text-xs font-bold bg-[#C81E1E] hover:bg-[#a61717] text-white rounded-lg shadow-2xs transition-colors cursor-pointer"
+            className="h-9 px-3.5 text-xs font-semibold bg-[#C81E1E] hover:bg-[#AD1919] text-white rounded-[10px] shadow-[0_1px_2px_rgba(200,30,30,0.2)] transition-colors cursor-pointer"
           >
             Cari
           </button>

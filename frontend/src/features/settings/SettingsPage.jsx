@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { useTheme } from '../../app/providers/ThemeProvider.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { api } from '../../lib/api/axios.js';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { ProfileTab } from './components/ProfileTab.jsx';
@@ -19,6 +20,7 @@ import { RoleSettingsTab } from './components/RoleSettingsTab.jsx';
 export function SettingsPage() {
   const { user, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Tab aktif (default ke role_specific jika Admin Sistem, selain itu profile)
@@ -61,6 +63,20 @@ export function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(null);
   const [passwordError, setPasswordError] = useState(null);
 
+  useEffect(() => {
+    if (profileSuccess) {
+      toast(profileSuccess, 'success');
+      setProfileSuccess(null);
+    }
+  }, [profileSuccess, toast]);
+
+  useEffect(() => {
+    if (passwordSuccess) {
+      toast(passwordSuccess, 'success');
+      setPasswordSuccess(null);
+    }
+  }, [passwordSuccess, toast]);
+
   // Data detail tambahan (SKP untuk Ahli K3, lisensi untuk Admin Sistem)
   const [meData, setMeData] = useState(null);
 
@@ -76,6 +92,7 @@ export function SettingsPage() {
             phone: data.user.phone || '',
             avatarUrl: data.user.avatarUrl || ''
           });
+          updateUser(data.user);
         }
       } catch {
         // Fallback ke data user di context
@@ -101,12 +118,14 @@ export function SettingsPage() {
       setProfileForm((prev) => ({ ...prev, avatarUrl: data.avatarUrl }));
       updateUser(data.user);
       setProfileSuccess('Foto profil berhasil diunggah.');
+      toast('Foto profil berhasil diunggah.', 'success');
     } catch (err) {
-      setProfileError(
+      const msg =
         err.response?.data?.error?.message ||
-          err.response?.data?.message ||
-          'Gagal mengunggah foto profil.'
-      );
+        err.response?.data?.message ||
+        'Gagal mengunggah foto profil.';
+      setProfileError(msg);
+      toast(msg, 'error');
     } finally {
       setProfileLoading(false);
     }
@@ -126,8 +145,11 @@ export function SettingsPage() {
       });
       updateUser(data.user);
       setProfileSuccess('Profil berhasil diperbarui.');
+      toast('Profil berhasil diperbarui.', 'success');
     } catch (err) {
-      setProfileError(err?.response?.data?.message || 'Gagal memperbarui profil. Silakan coba kembali.');
+      const msg = err?.response?.data?.message || 'Gagal memperbarui profil. Silakan coba kembali.';
+      setProfileError(msg);
+      toast(msg, 'error');
     } finally {
       setProfileLoading(false);
     }
@@ -140,13 +162,17 @@ export function SettingsPage() {
     setPasswordError(null);
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('Konfirmasi kata sandi baru tidak cocok.');
+      const msg = 'Konfirmasi kata sandi baru tidak cocok.';
+      setPasswordError(msg);
+      toast(msg, 'error');
       setPasswordLoading(false);
       return;
     }
 
     if (passwordForm.newPassword.length < 8) {
-      setPasswordError('Kata sandi baru minimal 8 karakter.');
+      const msg = 'Kata sandi baru minimal 8 karakter.';
+      setPasswordError(msg);
+      toast(msg, 'error');
       setPasswordLoading(false);
       return;
     }
@@ -156,14 +182,18 @@ export function SettingsPage() {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword
       });
-      setPasswordSuccess(data.message || 'Kata sandi berhasil diperbarui.');
+      const msg = data.message || 'Kata sandi berhasil diperbarui.';
+      setPasswordSuccess(msg);
+      toast(msg, 'success');
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
     } catch (err) {
-      setPasswordError(err?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi saat ini.');
+      const msg = err?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi saat ini.';
+      setPasswordError(msg);
+      toast(msg, 'error');
     } finally {
       setPasswordLoading(false);
     }
@@ -206,11 +236,11 @@ export function SettingsPage() {
   const pageHeader = user?.role === 'ADMIN_SISTEM'
     ? {
         title: 'Pengaturan Akun & Konfigurasi Sistem',
-        subtitle: 'Pusat pengaturan profil akun, keamanan otentikasi, master data 7 bidang K3, format dokumen, dan cadangan sistem.'
+        subtitle: 'Pengaturan akun, master data klasifikasi K3, template dokumen, dan sistem.'
       }
     : {
         title: 'Pengaturan Akun',
-        subtitle: 'Kelola profil akun, keamanan otentikasi, dan preferensi tampilan antarmuka.'
+        subtitle: 'Pengaturan profil akun, keamanan kata sandi, dan preferensi antarmuka.'
       };
 
   return (
@@ -221,14 +251,14 @@ export function SettingsPage() {
       />
 
       {/* Navigasi Tab Pengaturan */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-none gap-2">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => handleTabChange('profile')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'profile'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <User size={16} weight={activeTab === 'profile' ? 'bold' : 'regular'} />
@@ -238,10 +268,10 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => handleTabChange('security')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'security'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <ShieldCheck size={16} weight={activeTab === 'security' ? 'bold' : 'regular'} />
@@ -251,10 +281,10 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => handleTabChange('appearance')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'appearance'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <Palette size={16} weight={activeTab === 'appearance' ? 'bold' : 'regular'} />
@@ -264,10 +294,10 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => handleTabChange('role_specific')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'role_specific'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <Sliders size={16} weight={activeTab === 'role_specific' ? 'bold' : 'regular'} />

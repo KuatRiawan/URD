@@ -8,7 +8,18 @@ import { resolveAttachmentPath } from '../storage/file-storage.js';
 import { getCompanyProfile } from './system-settings-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const officialLogoPath = path.resolve(__dirname, '../../../logo-urd.png');
+
+export function getOfficialLogoPath() {
+  const candidates = [
+    path.resolve(__dirname, '../assets/logo-urd.png'),
+    path.resolve(__dirname, '../../assets/logo-urd.png'),
+    path.resolve(__dirname, '../../../logo-urd.png'),
+    path.resolve(__dirname, '../../../frontend/src/assets/logo-urd.png')
+  ];
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+const officialLogoPath = getOfficialLogoPath();
 
 // Lampiran diambil dari halaman SKP pada contoh LHPP tiap bidang.
 // Ganti atau tambah file di folder bidang ini saat tersedia dokumen terbaru.
@@ -156,8 +167,8 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     .strokeColor('#1D1414')
     .stroke();
 
-  if (fs.existsSync(officialLogoPath)) {
-    doc.image(officialLogoPath, 462, 32, { width: 82 });
+  if (officialLogoPath && fs.existsSync(officialLogoPath)) {
+    doc.image(officialLogoPath, 475, 22, { width: 70 });
   }
 
   // Judul utama & nomor BAP di atas garis titik-titik
@@ -165,7 +176,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     .font('Times-Bold')
     .fontSize(14)
     .fillColor('#1D1414')
-    .text('BERITA ACARA RIKSA UJI', 45, 76, { align: 'center', width: 455 });
+    .text('BERITA ACARA RIKSA UJI', 45, 76, { align: 'center', width: 450 });
 
   doc
     .font('Times-Roman')
@@ -175,13 +186,13 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
       `No: ${bap.bap_no || '...................................................'}`,
       45,
       95,
-      { align: 'center', width: 455 }
+      { align: 'center', width: 450 }
     );
 
   if (qrBuffer) {
-    doc.image(qrBuffer, 505, 77, { width: 40, height: 40 });
+    doc.image(qrBuffer, 505, 74, { width: 38, height: 38 });
     doc.font('Times-Roman').fontSize(6).fillColor('#475569')
-      .text('Verifikasi', 500, 119, { align: 'center', width: 50 });
+      .text('Verifikasi', 499, 114, { align: 'center', width: 50 });
   }
 
   // 2. Kalimat Pembuka (Hari, Tanggal, Bulan, Tahun)
@@ -810,8 +821,43 @@ function getInspectionResultValue(result) {
   return `${hasRecordedReportValue(value) ? value : 'Belum diisi'}${note}`;
 }
 
-export function buildLhppReportContent(data) {
-  const categoryCode = (data.category_code || 'PAA').toUpperCase();
+export function buildLhppReportContent(inputData) {
+  let data = { ...inputData };
+  if (data.data_snapshot) {
+    try {
+      const snap = typeof data.data_snapshot === 'string' ? JSON.parse(data.data_snapshot) : data.data_snapshot;
+      if (snap && typeof snap === 'object') {
+        data = {
+          ...data,
+          client_name: snap.client?.name || data.client_name,
+          client_address: snap.client?.address || data.client_address,
+          serial_number: snap.equipment?.serial_number || data.serial_number,
+          object_name: snap.equipment?.name || data.object_name,
+          brand: snap.equipment?.brand || data.brand,
+          model: snap.equipment?.model || data.model,
+          manufacturer: snap.equipment?.manufacturer || data.manufacturer,
+          manufacture_year: snap.equipment?.manufacture_year || data.manufacture_year,
+          capacity: snap.equipment?.capacity || data.capacity,
+          install_location: snap.equipment?.install_location || data.install_location,
+          technical_data: snap.equipment?.technical_data || data.technical_data,
+          inspector_name: snap.inspection?.inspector_name || data.inspector_name,
+          inspection_date: snap.inspection?.inspected_at || data.inspection_date,
+          conclusion: snap.inspection?.conclusion || data.conclusion,
+          conclusion_notes: snap.inspection?.conclusion_notes || data.conclusion_notes,
+          method_summary: snap.inspection?.method_summary || data.method_summary,
+          technical_notes: snap.inspection?.technical_notes || data.technical_notes,
+          recommendations: snap.inspection?.recommendations || data.recommendations,
+          recommended_valid_until: snap.inspection?.recommended_valid_until || data.recommended_valid_until,
+          results: snap.results || data.results,
+          findings: snap.findings || data.findings,
+          template_version_title: snap.template_version?.title || data.template_version_title,
+          template_regulation_reference: snap.template_version?.regulation_reference || data.template_regulation_reference
+        };
+      }
+    } catch (_snapErr) {}
+  }
+
+  const categoryCode = (data.domain_code || data.category_code || 'PAA').toUpperCase();
   const category = LHPP_CATEGORY_CONFIG[categoryCode] || LHPP_CATEGORY_CONFIG.PAA;
   const technicalData =
     data.technical_data &&
@@ -962,7 +1008,7 @@ export function buildLhppReportContent(data) {
     specialistTitle: category.specialistTitle,
     pageSize: category.pageSize || [615.24, 921.36],
     categoryName: data.category_name || category.fullName,
-    title: `LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP) - BIDANG ${categoryCode}`,
+    title: data.template_version_title || data.template_title || `LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP) - BIDANG ${categoryCode}`,
     sectionTitles: category.sectionTitles || [
       `1. Data Umum & Identitas Objek (${data.category_name || category.fullName})`,
       `2. Data Teknis Spesifik Bidang ${categoryCode}`,
@@ -1009,8 +1055,8 @@ export function buildLhppReportContent(data) {
       ? data.recommendations
       : 'Belum diisi.',
     noFindings: findings.length === 0,
-    coverTitle: category.coverTitle || data.category_name || category.fullName,
-    standardRef: category.standardRef || 'Standar Rujukan K3 Kemnaker R.I.',
+    coverTitle: data.template_version_title || data.template_title || category.coverTitle || data.category_name || category.fullName,
+    standardRef: data.template_regulation_reference || category.standardRef || 'Standar Rujukan K3 Kemnaker R.I.',
     rules: category.rules || [],
     signature: {
       inspector: data.inspector_name || '-',
@@ -1280,6 +1326,13 @@ function drawCoverPage(c, report, _data) {
   c.txt(report.coverYear, cv.yearX, cv.yearTop, { size: 28, bold: true });
   const yearW = c.textWidth(report.coverYear, 28, { bold: true });
   doc.rect(cv.yearX, cv.underlineY, yearW, 2.7).fillColor(LHPP_INK).fill();
+
+  // Logo resmi PT Upaya Riksa Daya di sudut kanan atas sampul LHPP
+  if (officialLogoPath && fs.existsSync(officialLogoPath)) {
+    const logoW = 76;
+    const logoX = W - (cv.yearX || 64) - logoW;
+    doc.image(officialLogoPath, logoX, cv.yearTop - 6, { width: logoW });
+  }
 
   // Judul 3 baris (tengah halaman)
   const titleLines = [
@@ -3202,19 +3255,19 @@ export async function generateObjectQrStickerPdfBuffer(data) {
       doc.rect(4, 4, 275.46, 204.6).lineWidth(2).strokeColor('#C81E1E').stroke();
       doc.rect(7, 7, 269.46, 198.6).lineWidth(0.6).strokeColor('#C81E1E').stroke();
 
-      if (fs.existsSync(officialLogoPath)) {
-        doc.image(officialLogoPath, 12, 11, { width: 28 });
+      if (officialLogoPath && fs.existsSync(officialLogoPath)) {
+        doc.image(officialLogoPath, 11, 10, { width: 32 });
       }
       doc
         .font('Helvetica-Bold')
         .fontSize(8.5)
         .fillColor('#C81E1E')
-        .text('PT UPAYA RIKSA DAYA', 44, 12)
+        .text('PT UPAYA RIKSA DAYA', 47, 12)
         .font('Helvetica')
         .fontSize(5.5)
         .fillColor('#334155')
-        .text('PJK3 SKP KEMNAKER R.I. NO. 560/URD/PJK3-RIKSALAP/2024', 44, 23)
-        .text('Telp. (021) 489 1409  |  upayariksadaya.com', 44, 30);
+        .text('PJK3 SKP KEMNAKER R.I. NO. 560/URD/PJK3-RIKSALAP/2024', 47, 22.5)
+        .text('Telp. (021) 489 1409  |  upayariksadaya.com', 47, 29.5);
 
       doc.rect(8, 38, 267.46, 15).fill('#C81E1E');
       doc

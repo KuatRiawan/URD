@@ -8,6 +8,7 @@ import {
   WarningOctagon
 } from '@phosphor-icons/react';
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { api } from '../../../lib/api/axios.js';
 import {
   FOLLOWUP_STATUS_LABELS,
@@ -133,8 +134,11 @@ export function SuketDetailModal({
                   />
                 </label>
                 {detailData.suket.scan_file_id && (
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
+                    icon={Eye}
                     onClick={() =>
                       openAuthenticatedPreview(
                         `/dashboard/files/${detailData.suket.scan_file_id}`,
@@ -142,14 +146,15 @@ export function SuketDetailModal({
                         `Scan-Suket-${(detailData.suket.suket_no || detailData.suket.id).replace(/[/\s]/g, '-')}.pdf`
                       )
                     }
-                    className="min-h-9 inline-flex items-center gap-1 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 cursor-pointer"
                   >
-                    <Eye size={15} />
-                    <span>Pratinjau Scan Suket</span>
-                  </button>
+                    Pratinjau Scan Suket
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={QrCode}
                   onClick={() =>
                     openAuthenticatedPreview(
                       `/suket/${detailData.suket.id}/qr-sticker.pdf`,
@@ -157,19 +162,19 @@ export function SuketDetailModal({
                       `Stiker-QR-${(detailData.suket.serial_number || detailData.suket.id).replace(/[/\s]/g, '-')}.pdf`
                     )
                   }
-                  className="min-h-9 inline-flex items-center gap-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
                 >
-                  <QrCode size={15} className="text-[#C81E1E]" />
-                  <span>Pratinjau &amp; Cetak Stiker QR</span>
-                </button>
+                  Pratinjau Stiker QR
+                </Button>
               </div>
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="sm"
                 disabled={submitting}
-                className="min-h-9 rounded bg-[#C81E1E] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#a11616] cursor-pointer"
+                loading={submitting}
               >
                 Simpan Perubahan Suket
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -238,13 +243,15 @@ export function SuketDetailModal({
                 placeholder="Hasil konfirmasi telepon/WA..."
                 className="min-h-9 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs text-slate-800 dark:text-slate-100"
               />
-              <button
+              <Button
                 type="submit"
+                variant="secondary"
+                size="sm"
                 disabled={submitting}
-                className="min-h-9 rounded bg-slate-800 dark:bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-700 dark:hover:bg-slate-600 cursor-pointer"
+                loading={submitting}
               >
                 Catat Follow-Up
-              </button>
+              </Button>
             </form>
           )}
         </div>

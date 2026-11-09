@@ -6,6 +6,7 @@ import {
   XCircle
 } from '@phosphor-icons/react';
 import { StatusBadge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { TableWrapper, TableHead, TableBody, TableRow, TableCell } from '../../../components/ui/TableWrapper.jsx';
 import { formatDateTime, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.js';
 
@@ -87,31 +88,33 @@ export function InspectorUnitTable({
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <div className="inline-flex items-center justify-end gap-1.5">
+                <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
                   {onOpenDetailModal && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      icon={Info}
                       onClick={() => onOpenDetailModal(u)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
                       title="Lihat rincian tugas &amp; Surat Tugas"
                     >
-                      <Info size={14} weight="bold" />
-                      <span>Detail</span>
-                    </button>
+                      Detail
+                    </Button>
                   )}
 
                   {u.assignment_status === 'MENUNGGU' ? (
                     <>
-                      <button
-                        type="button"
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        icon={CheckCircle}
                         onClick={() => onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA')}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
                       >
-                        <CheckCircle size={14} weight="bold" />
-                        <span>Terima</span>
-                      </button>
-                      <button
-                        type="button"
+                        Terima
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="xs"
+                        icon={XCircle}
                         onClick={() =>
                           onOpenRejectModal({
                             orderId: u.order_id,
@@ -120,41 +123,19 @@ export function InspectorUnitTable({
                             isCancel: false
                           })
                         }
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer"
                       >
-                        <XCircle size={14} weight="bold" />
-                        <span>Tolak</span>
-                      </button>
+                        Tolak
+                      </Button>
                     </>
                   ) : (
-                    <button
-                      type="button"
+                    <Button
+                      variant={isCompleted ? 'outline' : 'primary'}
+                      size="xs"
+                      icon={isCompleted ? Eye : Play}
                       onClick={() => (onOpenInspection ? onOpenInspection(u) : null)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer ${
-                        isCompleted
-                          ? 'border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
-                          : isInProgress
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-[#C81E1E] hover:bg-[#a61717] text-white'
-                      }`}
                     >
-                      {isCompleted ? (
-                        <>
-                          <Eye size={14} weight="bold" />
-                          <span>Hasil</span>
-                        </>
-                      ) : isInProgress ? (
-                        <>
-                          <Play size={13} weight="fill" />
-                          <span>Lanjut</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play size={13} weight="fill" />
-                          <span>Mulai</span>
-                        </>
-                      )}
-                    </button>
+                      {isCompleted ? 'Hasil' : isInProgress ? 'Lanjut' : 'Mulai'}
+                    </Button>
                   )}
                 </div>
               </TableCell>

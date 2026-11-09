@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 import { api } from '../../../lib/api/axios.js';
 import { StatusBadge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { formatDate, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.js';
 
 export function InspectorUnitCard({
@@ -39,11 +40,13 @@ export function InspectorUnitCard({
   const contactPhone = u.contact_phone || u.client_phone;
   const waNumber = contactPhone ? contactPhone.replace(/\D/g, '').replace(/^0/, '62') : null;
   const [downloadingLetter, setDownloadingLetter] = useState(false);
+  const [cardError, setCardError] = useState('');
 
   const handleDownloadLetter = async (e) => {
     e.stopPropagation();
     try {
       setDownloadingLetter(true);
+      setCardError('');
       const res = await api.get(`/orders/${u.order_id}/assignment-letter.pdf`, {
         responseType: 'blob'
       });
@@ -58,7 +61,7 @@ export function InspectorUnitCard({
       link.click();
       link.remove();
     } catch {
-      alert('Gagal mengunduh berkas Surat Tugas. Pastikan Anda telah ditugaskan pada order ini.');
+      setCardError('Gagal mengunduh berkas Surat Tugas. Pastikan Anda telah ditugaskan pada order ini.');
     } finally {
       setDownloadingLetter(false);
     }
@@ -83,12 +86,12 @@ export function InspectorUnitCard({
   return (
     <article
       aria-label={`Tugas pemeriksaan untuk ${u.object_name}`}
-      className={`rounded-2xl border bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between transition-all shadow-xs hover:shadow-md ${
+      className={`rounded-2xl border bg-white dark:bg-[#151821] p-4 sm:p-5 flex flex-col justify-between transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] ${
         isReturned
-          ? 'border-rose-300 dark:border-rose-800 bg-rose-50/20 dark:bg-rose-950/10'
+          ? 'border-[#C81E1E]/35 bg-rose-50/20 dark:bg-rose-950/10'
           : isInProgress
-          ? 'border-blue-300 dark:border-blue-800 bg-blue-50/10 dark:bg-blue-950/10 ring-1 ring-blue-400/20'
-          : 'border-slate-200/90 dark:border-slate-800'
+          ? 'border-blue-500/35 bg-blue-50/10 dark:bg-blue-950/10 ring-1 ring-blue-400/20'
+          : 'border-black/[0.06] dark:border-white/[0.08]'
       }`}
     >
       <div className="space-y-3">
@@ -151,6 +154,13 @@ export function InspectorUnitCard({
               <span>{downloadingLetter ? '...' : 'Surat Tugas'}</span>
             </button>
           </div>
+
+          {cardError && (
+            <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
+              <WarningCircle size={13} className="shrink-0" />
+              <span>{cardError}</span>
+            </p>
+          )}
 
           <div className="text-slate-600 dark:text-slate-400 flex items-start gap-1.5 text-[11px]">
             <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
@@ -216,30 +226,36 @@ export function InspectorUnitCard({
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {/* Tombol Detail Tugas */}
           {onOpenDetailModal && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              touchFriendly
+              icon={Info}
               onClick={() => onOpenDetailModal(u)}
-              className="inline-flex items-center justify-center gap-1 px-3 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
-              title="Lihat rincian lengkap tugas, alat &amp; klien"
+              title="Lihat rincian tugas &amp; Surat Tugas"
             >
-              <Info size={15} weight="bold" />
-              <span>Detail</span>
-            </button>
+              Detail
+            </Button>
           )}
 
           {/* Aksi Berdasarkan Status Penugasan */}
           {u.assignment_status === 'MENUNGGU' ? (
             <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
+                touchFriendly
+                icon={CheckCircle}
                 onClick={() => onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA')}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                className="flex-1 sm:flex-initial"
               >
-                <CheckCircle size={16} weight="bold" />
-                <span>Terima</span>
-              </button>
-              <button
-                type="button"
+                Terima
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                touchFriendly
+                icon={XCircle}
                 onClick={() =>
                   onOpenRejectModal({
                     orderId: u.order_id,
@@ -248,44 +264,49 @@ export function InspectorUnitCard({
                     isCancel: false
                   })
                 }
-                className="inline-flex items-center justify-center gap-1 px-3.5 min-h-[44px] rounded-xl border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer"
               >
-                <XCircle size={16} weight="bold" />
-                <span>Tolak</span>
-              </button>
+                Tolak
+              </Button>
             </div>
           ) : isCompleted ? (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
+              touchFriendly
+              icon={Eye}
               onClick={() => (onOpenInspection ? onOpenInspection(u) : null)}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-xl border border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all text-xs font-bold shadow-2xs cursor-pointer"
+              className="flex-1 sm:flex-initial"
             >
-              <Eye size={16} weight="bold" className="text-emerald-600" />
-              <span>Lihat Hasil Riksa Uji</span>
-            </button>
+              Lihat Hasil
+            </Button>
           ) : isInProgress ? (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
+              touchFriendly
+              icon={Play}
               onClick={() => (onOpenInspection ? onOpenInspection(u) : null)}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all text-xs font-bold shadow-sm shadow-blue-500/20 cursor-pointer"
+              className="flex-1 sm:flex-initial"
             >
-              <Play size={15} weight="fill" />
-              <span>Lanjutkan Pemeriksaan</span>
-            </button>
+              Lanjutkan
+            </Button>
           ) : (
             <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
+                touchFriendly
+                icon={Play}
                 onClick={() => (onOpenInspection ? onOpenInspection(u) : null)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 min-h-[44px] rounded-xl bg-[#C81E1E] text-white hover:bg-[#a61717] active:scale-[0.98] transition-all text-xs font-bold shadow-sm shadow-rose-500/20 cursor-pointer"
+                className="flex-1 sm:flex-initial"
               >
-                <Play size={14} weight="fill" />
-                <span>Mulai Pemeriksaan</span>
-              </button>
+                Mulai
+              </Button>
               {!u.inspection_id && (
-                <button
-                  type="button"
-                  title="Batalkan penerimaan penugasan ini"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  touchFriendly
                   onClick={() =>
                     onOpenRejectModal({
                       orderId: u.order_id,
@@ -294,10 +315,10 @@ export function InspectorUnitCard({
                       isCancel: true
                     })
                   }
-                  className="px-3 min-h-[44px] rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                  className="text-slate-500 hover:text-rose-600"
                 >
                   Batal
-                </button>
+                </Button>
               )}
             </div>
           )}

@@ -10,7 +10,12 @@ import { recordAudit } from '../../services/audit.js';
 import { notifyRoles, createNotification } from '../../services/notify.js';
 import { generateLhppPdfBuffer } from '../../services/pdf-generator.js';
 import { generateLhppDocxBuffer } from '../../services/docx-generator.js';
-import { formatDocumentNumber } from '../../services/system-settings-service.js';
+import { formatDocumentNumber, getCompanyProfile } from '../../services/system-settings-service.js';
+import {
+  resolveLhppTemplate,
+  validateLhppDocumentData,
+  buildLhppDataSnapshot
+} from '../../services/lhpp-template-service.js';
 import { syncOrderUnitStatus } from '../../services/workflow.js';
 import { resolveAttachmentPath, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
@@ -45,7 +50,12 @@ const deliverySchema = Joi.object({
   notes: Joi.string().max(1000).allow('', null)
 });
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 async function fetchFullLhppContext(db, id) {
+  if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+    return null;
+  }
   const runner = typeof db === 'function' ? db : (db?.query ? db.query.bind(db) : query);
   const { rows } = await runner(
     `SELECT l.*,
@@ -57,6 +67,14 @@ async function fetchFullLhppContext(db, id) {
             t.name AS object_name, t.brand, t.manufacturer, t.model, t.serial_number,
             t.manufacture_year, t.capacity, t.capacity_unit, t.install_location, t.previous_permit_no,
             t.attributes AS object_attributes,
+            COALESCE(eq.domain_code, oc.code) AS domain_code,
+            t.equipment_type_id, t.equipment_subtype_id, t.inspection_type_code,
+            eq.name AS equipment_type_name, eq.code AS equipment_type_code,
+            sub.name AS equipment_subtype_name, sub.code AS equipment_subtype_code,
+            dm.name AS domain_name,
+            ltv.title AS template_version_title, ltv.regulation_reference AS template_regulation_reference,
+            ltv.sections AS template_sections, ltv.field_mappings AS template_field_mappings,
+            lt.code AS template_code, lt.name AS template_name,
             oc.code AS category_code, oc.name AS category_name, oc.lhpp_schema,
             u_insp.full_name AS inspector_name,
             u_rev.full_name AS reviewer_name,
@@ -68,6 +86,11 @@ async function fetchFullLhppContext(db, id) {
      JOIN clients c ON c.id = o.client_id
      JOIN test_objects t ON t.id = i.object_id
      JOIN object_categories oc ON oc.id = t.category_id
+     LEFT JOIN equipment_types eq ON eq.id = t.equipment_type_id
+     LEFT JOIN equipment_types sub ON sub.id = t.equipment_subtype_id
+     LEFT JOIN inspection_domains dm ON dm.code = COALESCE(eq.domain_code, oc.code)
+     LEFT JOIN lhpp_template_versions ltv ON ltv.id = l.template_version_id
+     LEFT JOIN lhpp_templates lt ON lt.id = ltv.template_id
      JOIN users u_insp ON u_insp.id = i.inspector_id
      LEFT JOIN users u_rev ON u_rev.id = l.reviewed_by
      LEFT JOIN users u_app ON u_app.id = l.approved_by
@@ -234,11 +257,68 @@ router.get('/:id', async (req, res, next) => {
     if (!hasAccess) {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat melihat LHPP milik sendiri.');
     }
-    return res.json({ lhpp: data });
+
+    let resolvedTemplate = null;
+    let validation = null;
+    try {
+      resolvedTemplate = await resolveLhppTemplate(query, {
+        domainCode: data.domain_code || data.category_code,
+        equipmentTypeId: data.equipment_type_id,
+        equipmentSubtypeId: data.equipment_subtype_id,
+        inspectionTypeCode: data.inspection_type_code
+      });
+      validation = validateLhppDocumentData(data, resolvedTemplate);
+    } catch (_tErr) {
+      // Template belum dikonfigurasi / fallback
+    }
+
+    return res.json({
+      lhpp: {
+        ...data,
+        resolved_template: resolvedTemplate,
+        validation: validation
+      }
+    });
   } catch (err) {
     return next(err);
   }
 });
+
+// Validasi data LHPP terhadap template resmi sebelum finalisasi
+router.post(
+  '/:id/validate',
+  authorize('ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const cur = await fetchFullLhppContext({ query }, id);
+      if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
+
+      const resolvedTpl = await resolveLhppTemplate(query, {
+        domainCode: cur.domain_code || cur.category_code,
+        equipmentTypeId: cur.equipment_type_id,
+        equipmentSubtypeId: cur.equipment_subtype_id,
+        inspectionTypeCode: cur.inspection_type_code
+      });
+
+      const validation = validateLhppDocumentData(cur, resolvedTpl);
+      return res.json({
+        template: {
+          id: resolvedTpl.id,
+          code: resolvedTpl.code,
+          name: resolvedTpl.name,
+          version_code: resolvedTpl.version_code,
+          version_number: resolvedTpl.version_number,
+          version_title: resolvedTpl.version_title,
+          output_format: resolvedTpl.output_format
+        },
+        ...validation
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // Ahli K3 menyusun / memperbarui draf LHPP
 router.put(
@@ -499,6 +579,25 @@ router.post(
           );
         }
 
+        // Resolusi Template Dokumen LHPP Dinamis
+        const resolvedTpl = await resolveLhppTemplate(db, {
+          domainCode: cur.domain_code || cur.category_code,
+          equipmentTypeId: cur.equipment_type_id,
+          equipmentSubtypeId: cur.equipment_subtype_id,
+          inspectionTypeCode: cur.inspection_type_code
+        });
+
+        // Validasi kelengkapan data dokumen sebelum finalisasi resmi
+        const validation = validateLhppDocumentData(cur, resolvedTpl);
+        if (!validation.isValid) {
+          throw new AppError(
+            400,
+            'LHPP_VALIDATION_FAILED',
+            `Dokumen LHPP belum dapat difinalisasi karena masih ada data wajib yang belum lengkap: ${validation.missingFields.map((f) => f.label).join(', ')}.`,
+            { missingFields: validation.missingFields }
+          );
+        }
+
         const seqRes = await db.query("SELECT nextval('lhpp_no_seq') AS seq");
         const now = new Date();
         const lhppNo = await formatDocumentNumber('lhpp', {
@@ -518,8 +617,17 @@ router.post(
           verification_code: verificationCode,
           reviewer_name: cur.reviewer_name || req.user.fullName,
           approver_name: req.user.fullName,
-          published_at: now.toISOString()
+          published_at: now.toISOString(),
+          template_version_id: resolvedTpl.version_id,
+          template_title: resolvedTpl.version_title,
+          template_version_title: resolvedTpl.version_title,
+          template_regulation_reference: resolvedTpl.regulation_reference,
+          template_sections: resolvedTpl.sections,
+          template_field_mappings: resolvedTpl.field_mappings
         };
+
+        const companyProfile = await getCompanyProfile().catch(() => null);
+        const dataSnapshot = buildLhppDataSnapshot(fullForPdf, resolvedTpl, companyProfile);
 
         const pdfBuffer = await generateLhppPdfBuffer(fullForPdf);
         const docHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
@@ -536,6 +644,26 @@ router.post(
           db
         );
 
+        let savedDocxId = null;
+        try {
+          const docxBuffer = await generateLhppDocxBuffer(fullForPdf);
+          const savedDocx = await saveUploadedFile(
+            {
+              buffer: docxBuffer,
+              originalName: `${lhppNo.replace(/\//g, '-')}.docx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              ownerType: 'LHPP_DOCX',
+              ownerId: id,
+              caption: `Dokumen Resmi Editable ${lhppNo}`,
+              uploadedBy: req.user.id
+            },
+            db
+          );
+          savedDocxId = savedDocx.id;
+        } catch (_docxErr) {
+          // docx non-blocking
+        }
+
         const { rows: lhppRows } = await db.query(
           `UPDATE lhpp_documents
            SET lhpp_no = $1,
@@ -546,10 +674,29 @@ router.post(
                finalized_at = now(),
                published_at = now(),
                pdf_file_id = $5,
+               docx_file_id = $6,
+               template_version_id = $7,
+               equipment_type_id = $8,
+               equipment_subtype_id = $9,
+               inspection_type_code = $10,
+               data_snapshot = $11,
                updated_at = now()
-           WHERE id = $6
+           WHERE id = $12
            RETURNING *`,
-          [lhppNo, verificationCode, docHash, req.user.id, savedPdf.id, id]
+          [
+            lhppNo,
+            verificationCode,
+            docHash,
+            req.user.id,
+            savedPdf.id,
+            savedDocxId,
+            resolvedTpl.version_id,
+            cur.equipment_type_id || null,
+            cur.equipment_subtype_id || null,
+            cur.inspection_type_code || null,
+            JSON.stringify(dataSnapshot),
+            id
+          ]
         );
 
         await db.query(
@@ -559,7 +706,7 @@ router.post(
             id,
             cur.version,
             note || 'LHPP difinalisasi dan siap diterbitkan',
-            { lhpp_no: lhppNo, verification_code: verificationCode },
+            JSON.stringify(dataSnapshot),
             req.user.id
           ]
         );
@@ -820,7 +967,20 @@ router.get('/:id/docx', async (req, res, next) => {
       throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengunduh LHPP milik sendiri.');
     }
 
-    const docxBuffer = await generateLhppDocxBuffer(cur);
+    let docxBuffer;
+    if (cur.docx_file_id) {
+      const { rows } = await query(
+        `SELECT storage_key FROM file_attachments
+         WHERE id = $1 AND owner_type = 'LHPP_DOCX' AND owner_id = $2 AND deleted_at IS NULL`,
+        [cur.docx_file_id, cur.id]
+      );
+      if (rows[0]) {
+        docxBuffer = await readFile(resolveAttachmentPath(rows[0].storage_key));
+      }
+    }
+    if (!docxBuffer) {
+      docxBuffer = await generateLhppDocxBuffer(cur);
+    }
     await recordAudit({
       userId: req.user.id,
       action: 'LHPP_DOWNLOAD_DOCX',

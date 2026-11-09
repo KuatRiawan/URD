@@ -8,6 +8,8 @@ import {
   LoadingState
 } from '../../components/feedback/StateViews.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { api } from '../../lib/api/axios.js';
 import { extractErrorMessage } from '../../lib/utils/format.js';
 import { ObjectFilterBar } from './components/ObjectFilterBar.jsx';
@@ -19,6 +21,7 @@ import { ObjectQrModal } from './components/ObjectQrModal.jsx';
 
 export function ObjectsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { user } = useAuth();
   const canEdit = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
@@ -37,6 +40,9 @@ export function ObjectsPage() {
   const [formData, setFormData] = useState({
     clientId: '',
     categoryId: 1,
+    equipmentTypeId: '',
+    equipmentSubtypeId: '',
+    inspectionTypeCode: 'BERKALA',
     name: '',
     brand: '',
     model: '',
@@ -93,7 +99,9 @@ export function ObjectsPage() {
     e.preventDefault();
     setFormErr('');
     if (!formData.clientId || !formData.name.trim() || !formData.serialNumber.trim()) {
-      setFormErr('Klien, nama alat/objek, dan nomor seri wajib diisi.');
+      const msg = 'Klien, nama alat/objek, dan nomor seri wajib diisi.';
+      setFormErr(msg);
+      toast(msg, 'error');
       return;
     }
     try {
@@ -103,10 +111,13 @@ export function ObjectsPage() {
         categoryId: Number(formData.categoryId),
         manufactureYear: formData.manufactureYear ? Number(formData.manufactureYear) : null
       });
+      toast(`Unit alat ${formData.name} berhasil didaftarkan.`, 'success');
       setFormOpen(false);
       loadObjects();
     } catch (err) {
-      setFormErr(extractErrorMessage(err));
+      const msg = extractErrorMessage(err);
+      setFormErr(msg);
+      toast(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -116,7 +127,9 @@ export function ObjectsPage() {
     e.preventDefault();
     setCsvFeedback('');
     if (!csvClientId) {
-      setCsvFeedback('Pilih perusahaan klien terlebih dahulu.');
+      const msg = 'Pilih perusahaan klien terlebih dahulu.';
+      setCsvFeedback(msg);
+      toast(msg, 'error');
       return;
     }
     try {
@@ -124,10 +137,15 @@ export function ObjectsPage() {
         clientId: csvClientId,
         csvText
       });
-      setCsvFeedback(`Berhasil mengimpor ${res.data.imported} objek uji.`);
+      const msg = `Berhasil mengimpor ${res.data.imported} objek uji K3.`;
+      setCsvFeedback(msg);
+      toast(msg, 'success');
+      setCsvOpen(false);
       loadObjects();
     } catch (err) {
-      setCsvFeedback(extractErrorMessage(err));
+      const msg = extractErrorMessage(err);
+      setCsvFeedback(msg);
+      toast(msg, 'error');
     }
   };
 
@@ -196,16 +214,20 @@ export function ObjectsPage() {
         actions={
           canEdit && (
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="md"
+                icon={UploadSimple}
                 onClick={() => setCsvOpen(true)}
-                className="h-9 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
               >
-                <UploadSimple size={15} weight="bold" aria-hidden="true" />
-                <span>Impor CSV</span>
-              </button>
-              <button
+                Impor CSV
+              </Button>
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                icon={Plus}
                 onClick={() => {
                   setFormData({
                     clientId: clients[0]?.id || '',
@@ -223,53 +245,51 @@ export function ObjectsPage() {
                   setFormErr('');
                   setFormOpen(true);
                 }}
-                className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] shadow-xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
               >
-                <Plus size={15} weight="bold" aria-hidden="true" />
-                <span>Tambah Objek Uji</span>
-              </button>
+                Tambah Objek Uji
+              </Button>
             </div>
           )
         }
       />
 
       {/* Ringkasan Populasi Objek Uji K3 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Total Populasi Alat
           </p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-1">
             {total || items.length}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit alat &amp; pesawat terdaftar</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Unit alat &amp; pesawat terdaftar</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Bidang Regulasi K3
           </p>
-          <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400 tabular-nums mt-1">
             {categories.length || 5}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Kategori Permenaker aktif</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Kategori Permenaker aktif</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Unit Ditampilkan Aktif
           </p>
-          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
             {activeObjCount}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Siap dijadwalkan riksa uji</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Siap dijadwalkan riksa uji</p>
         </div>
-        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+          <p className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">
             Mitra Perusahaan
           </p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums mt-1">
+          <p className="text-2xl font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-1">
             {clients.length}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Klien pemilik objek uji</p>
+          <p className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">Klien pemilik objek uji</p>
         </div>
       </div>
 

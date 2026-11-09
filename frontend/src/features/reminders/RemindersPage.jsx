@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BellRinging, CalendarCheck, Clock, ShieldCheck, WarningOctagon } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
+import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
 import { ClientDispatchSection } from './components/ClientDispatchSection.jsx';
 import { ExpiringUnitsSection } from './components/ExpiringUnitsSection.jsx';
@@ -21,6 +22,7 @@ const EXPIRY_STATE_LABELS = {
 
 export function RemindersPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
 
   const [unitReminders, setUnitReminders] = useState([]);
@@ -34,6 +36,13 @@ export function RemindersPage() {
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('EXPIRING');
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
 
   const [validityModalUnit, setValidityModalUnit] = useState(null);
   const [validityForm, setValidityForm] = useState({
@@ -79,7 +88,7 @@ export function RemindersPage() {
       const count = res.data?.dispatchedCount ?? 0;
       const cr = res.data?.clientReminders;
       const clientText = cr
-        ? ` Pengingat klien: ${cr.sent} terkirim, ${cr.simulated} simulasi, ${cr.failed} gagal, ${cr.skipped} dilewati (kontak kosong).`
+        ? ` Pengingat klien: ${cr.sent} terkirim, ${cr.simulated} tercatat internal, ${cr.failed} gagal, ${cr.skipped} dilewati (kontak kosong).`
         : '';
       setFeedback(`Evaluasi pengingat dijalankan (${count} notifikasi internal baru).${clientText}`);
       await loadData();
@@ -163,7 +172,7 @@ export function RemindersPage() {
               aria-label="Jendela Hari Pengingat"
               value={daysWindow}
               onChange={(e) => setDaysWindow(Number(e.target.value))}
-              className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="h-9 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#151821] px-3 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               <option value={30}>Jendela H-30 Hari</option>
               <option value={60}>Jendela H-60 Hari</option>
@@ -172,30 +181,24 @@ export function RemindersPage() {
               <option value={365}>Jendela H-365 Hari (1 Tahun)</option>
             </select>
             {canManage && (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
                 disabled={submitting}
+                loading={submitting}
+                icon={BellRinging}
                 onClick={handleRunDispatch}
-                className="h-9 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#C81E1E] px-3.5 text-xs font-bold text-white hover:bg-[#a11616] disabled:opacity-50 cursor-pointer shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]"
               >
-                <BellRinging size={15} weight="bold" />
-                <span>Jalankan Dispatch</span>
-              </button>
+                Jalankan Dispatch
+              </Button>
             )}
           </div>
         }
       />
 
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={loadData} />}
-
       {/* Segmented Control Filter Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-3xl overflow-x-auto border border-slate-200/60 dark:border-slate-700/60">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl w-full max-w-3xl overflow-x-auto border border-black/[0.06] dark:border-white/[0.08]">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -203,10 +206,10 @@ export function RemindersPage() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`py-1.5 px-3 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                 isActive
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
               }`}
             >
               <span>{tab.label}</span>
@@ -214,8 +217,8 @@ export function RemindersPage() {
                 <span
                   className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
                     isActive
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                      : 'bg-slate-200/60 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                      ? 'bg-black/[0.06] dark:bg-white/[0.10] text-[#1D1D1F] dark:text-[#F5F5F7]'
+                      : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D]'
                   }`}
                 >
                   {tab.count}
@@ -228,6 +231,8 @@ export function RemindersPage() {
 
       {loading ? (
         <LoadingState label="Memuat pengingat perpanjangan unit K3, Suket, dan SKP..." />
+      ) : error ? (
+        <ErrorBanner message={error} onRetry={loadData} />
       ) : (
         <div className="space-y-6">
           {(activeTab === 'ALL' || activeTab === 'EXPIRING') && (

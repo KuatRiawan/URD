@@ -172,24 +172,19 @@ export function WorkQueueWidget({ onRefresh }) {
 
   return (
     <>
-      <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-        <div className="border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 px-5 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+        <div className="border-b border-black/[0.06] dark:border-white/[0.07] bg-[#F5F5F7]/60 dark:bg-[#11141C] px-5 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="h-8 w-8 rounded-lg bg-brand-500/10 dark:bg-rose-500/10 text-[#C81E1E] dark:text-rose-400 inline-flex items-center justify-center shrink-0 border border-brand-500/20">
+            <span className="h-8 w-8 rounded-xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400 inline-flex items-center justify-center shrink-0">
               <ListChecks size={18} weight="bold" aria-hidden="true" />
             </span>
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Antrean Tindakan Prioritas ({meta.total})
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                Alur kerja aktif yang membutuhkan respon, verifikasi, QC, atau distribusi
-              </p>
-            </div>
+            <h2 className="text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              Antrean Tindakan Prioritas ({meta.total})
+            </h2>
           </div>
 
           {/* Tab Filter Operasional */}
-          <div className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 text-xs font-semibold shadow-2xs">
+          <div className="inline-flex flex-wrap gap-1 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.05] p-1 text-xs font-semibold">
             <button
               type="button"
               onClick={() => setFilter('ALL')}

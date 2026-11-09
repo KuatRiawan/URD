@@ -24,12 +24,7 @@ const DashboardPoCreator = lazy(() =>
   import('./DashboardPoCreator.jsx').then((module) => ({ default: module.DashboardPoCreator }))
 );
 
-const PERIOD_OPTIONS = [
-  { id: '7D', label: '7 Hari' },
-  { id: '30D', label: '30 Hari' },
-  { id: '90D', label: '90 Hari' },
-  { id: '1Y', label: '1 Tahun' }
-];
+const PERIOD_OPTIONS = ['7D', '30D', '90D', '1Y'];
 
 function formatActivitySummary(act) {
   if (!act) return '-';
@@ -72,10 +67,19 @@ export function MarketingDashboardView({
   const { user } = useAuth();
   const navigate = useNavigate();
   const [poModalOpen, setPoModalOpen] = useState(false);
-  const [internalPeriod, setInternalPeriod] = useState('30D');
+  const [internalPeriod, setInternalPeriod] = useState(period || '30D');
 
   const activePeriod = period || internalPeriod;
-  const handlePeriodChange = setPeriod || setInternalPeriod;
+  const handlePeriodChange = (p) => {
+    if (setPeriod) {
+      setPeriod(p);
+    } else {
+      setInternalPeriod(p);
+    }
+    if (loadSummary) {
+      loadSummary(false, p);
+    }
+  };
 
   const metrics = data?.metrics || {};
   const recentOrders = data?.recentOrders || [];
@@ -96,7 +100,7 @@ export function MarketingDashboardView({
       {/* Header Workspace Marketing */}
       <PageHeader
         title={`${greetingTime}, ${user?.fullName || 'Tim Marketing'}`}
-        subtitle="Monitoring terpadu klien, Purchase Order pemeriksaan, dan siklus perpanjangan riksa uji K3."
+        subtitle="Monitoring klien, Purchase Order pemeriksaan, dan perpanjangan riksa uji K3."
         actions={
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <Link
@@ -124,21 +128,18 @@ export function MarketingDashboardView({
         <button
           type="button"
           onClick={() => navigate('/app/clients')}
-          className="group text-left p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-2xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="group text-left p-4.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.12] dark:hover:border-white/[0.14] transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]/30"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Klien Dikelola</span>
-            <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+          <div className="flex items-center justify-between text-[#6E6E73] dark:text-[#98989D] mb-2">
+            <span className="text-xs font-semibold">Klien Dikelola</span>
+            <span className="p-1.5 rounded-xl bg-[#F5F5F7] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7] transition-colors">
               <Buildings size={16} />
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <p className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.02em] tabular-nums">
               {metrics.managedClients ?? 0}
             </p>
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              Mitra aktif
-            </span>
           </div>
         </button>
 
@@ -146,21 +147,18 @@ export function MarketingDashboardView({
         <button
           type="button"
           onClick={() => navigate('/app/orders?status=TERDAFTAR')}
-          className="group text-left p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-2xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="group text-left p-4.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.12] dark:hover:border-white/[0.14] transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]/30"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">PO Menunggu Jadwal</span>
-            <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+          <div className="flex items-center justify-between text-[#6E6E73] dark:text-[#98989D] mb-2">
+            <span className="text-xs font-semibold">PO Menunggu Jadwal</span>
+            <span className="p-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-colors">
               <HourglassMedium size={16} />
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <p className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.02em] tabular-nums">
               {metrics.awaitingScheduleOrders ?? metrics.newOrders ?? 0}
             </p>
-            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-              Perlu penugasan
-            </span>
           </div>
         </button>
 
@@ -168,21 +166,18 @@ export function MarketingDashboardView({
         <button
           type="button"
           onClick={() => navigate('/app/orders')}
-          className="group text-left p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-2xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="group text-left p-4.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.12] dark:hover:border-white/[0.14] transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]/30"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">PO Sedang Berjalan</span>
-            <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+          <div className="flex items-center justify-between text-[#6E6E73] dark:text-[#98989D] mb-2">
+            <span className="text-xs font-semibold">PO Sedang Berjalan</span>
+            <span className="p-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors">
               <Briefcase size={16} />
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <p className="text-2xl font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.02em] tabular-nums">
               {metrics.activeOrders ?? 0}
             </p>
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              Tahap lapangan &amp; QC
-            </span>
           </div>
         </button>
 
@@ -190,27 +185,27 @@ export function MarketingDashboardView({
         <button
           type="button"
           onClick={() => navigate('/app/reminders')}
-          className="group text-left p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-2xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="group text-left p-4.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.12] dark:hover:border-white/[0.14] transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C81E1E]/30"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Jatuh Tempo Suket</span>
-            <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+          <div className="flex items-center justify-between text-[#6E6E73] dark:text-[#98989D] mb-2">
+            <span className="text-xs font-semibold">Jatuh Tempo Suket</span>
+            <span className="p-1.5 rounded-xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400 transition-colors">
               <BellRinging size={16} />
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-black text-[#C81E1E] dark:text-rose-400 tracking-tight">
+            <p className="text-2xl font-bold text-[#C81E1E] dark:text-rose-400 tracking-[-0.02em] tabular-nums">
               {metrics.expiringUnitsCount ?? 0}
             </p>
-            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-              Dalam &le; 30 Hari
+            <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D]">
+              &le; 30 Hari
             </span>
           </div>
         </button>
       </div>
 
       {/* Ringkasan Siklus Pengingat & Kinerja Konversi */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-3.5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] px-5 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-4">
           <span className="font-bold text-slate-800 dark:text-slate-200">
             Siklus Pengingat Klien:
@@ -258,21 +253,21 @@ export function MarketingDashboardView({
             </h3>
 
             {/* Filter Periode */}
-            <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-0.5 text-xs font-medium self-start sm:self-center">
-              {PERIOD_OPTIONS.map((opt) => {
-                const isActive = activePeriod === opt.id;
+            <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-xs font-semibold self-start sm:self-center shadow-2xs">
+              {PERIOD_OPTIONS.map((p) => {
+                const isActive = activePeriod === p;
                 return (
                   <button
-                    key={opt.id}
+                    key={p}
                     type="button"
-                    onClick={() => handlePeriodChange(opt.id)}
+                    onClick={() => handlePeriodChange(p)}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-2xs'
+                        ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                     }`}
                   >
-                    {opt.label}
+                    {p}
                   </button>
                 );
               })}
@@ -439,67 +434,12 @@ export function MarketingDashboardView({
           )}
         </div>
 
-        {/* Kolom Kanan (5 Col): Kinerja Follow-Up & Aktivitas Operasional */}
-        <div className="lg:col-span-5 space-y-5">
-          {/* Status Kinerja Follow-Up */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" weight="bold" />
-                <span>Kinerja Follow-Up &amp; Repeat Order</span>
-              </h3>
-              <Link
-                to="/app/reminders"
-                className="text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer"
-              >
-                Pengingat
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                  Perlu Dihubungi
-                </span>
-                <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                  {metrics.pendingFollowupsCount ?? 0}
-                </p>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Unit mendekati batas</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                  Konversi Berhasil
-                </span>
-                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-                  {metrics.renewedClientsCount ?? 0}
-                </p>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Repeat order klien</span>
-              </div>
-            </div>
-
-            <div className="pt-1 flex items-center gap-2">
-              <Link
-                to="/app/reminders"
-                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
-              >
-                Buka Jadwal Pengingat
-              </Link>
-              <button
-                type="button"
-                onClick={() => setPoModalOpen(true)}
-                className="flex-1 h-9 inline-flex items-center justify-center rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a11616] transition-colors cursor-pointer shadow-2xs"
-              >
-                + PO Perpanjangan
-              </button>
-            </div>
-          </div>
-
-          {/* Aktivitas Operasional Terkini */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <FileText size={16} className="text-blue-500" weight="bold" />
+        {/* Kolom Kanan (5 Col): Aktivitas Operasional Terkini */}
+        <div className="lg:col-span-5">
+          <div className="bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] space-y-3 h-full">
+            <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <h3 className="font-semibold text-sm tracking-[-0.015em] text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-2">
+                <FileText size={16} className="text-[#C81E1E]" weight="bold" />
                 <span>Aktivitas Operasional Terkini</span>
               </h3>
             </div>
@@ -526,22 +466,10 @@ export function MarketingDashboardView({
         </div>
       </div>
 
-      {/* Sebaran Geospasial Objek Uji Nasional */}
-      <div className="w-full space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-            <Buildings size={16} className="text-[#C81E1E]" weight="bold" />
-            <span>Sebaran Geospasial Objek Uji Nasional</span>
-          </h2>
-          <Link
-            to="/app/clients"
-            className="text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer"
-          >
-            Buka Direktori Klien
-          </Link>
-        </div>
+      {/* Sebaran Wilayah Objek Uji K3 */}
+      <section aria-label="Sebaran Wilayah Objek Uji K3">
         <IndonesiaMapWidget regions={analytics?.regionalMapping || []} />
-      </div>
+      </section>
 
       {/* Modal Pembuatan PO dari Dashboard */}
       {poModalOpen && (

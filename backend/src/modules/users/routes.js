@@ -254,4 +254,90 @@ router.patch('/:id', validate(updateUserSchema), async (req, res, next) => {
   }
 });
 
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (id === req.user.id) {
+      throw new AppError(400, 'SELF_DELETE', 'Anda tidak dapat menghapus akun Anda sendiri.');
+    }
+
+    const result = await withTransaction(async (client) => {
+      const { rows: existingRows } = await client.query('SELECT * FROM users WHERE id = $1', [id]);
+      if (!existingRows[0]) {
+        throw new AppError(404, 'USER_NOT_FOUND', 'Pengguna tidak ditemukan.');
+      }
+      const cur = existingRows[0];
+
+      // Periksa dependensi dokumen riksa uji & operasional
+      const depCheck = await client.query(
+        `SELECT
+           (SELECT count(*)::int FROM orders WHERE created_by = $1) AS orders_count,
+           (SELECT count(*)::int FROM inspections WHERE inspector_id = $1) AS inspections_count,
+           (SELECT count(*)::int FROM assignments WHERE inspector_id = $1 OR assigned_by = $1) AS assignments_count,
+           (SELECT count(*)::int FROM lhpp_documents WHERE prepared_by = $1 OR reviewed_by = $1 OR approved_by = $1) AS lhpp_count,
+           (SELECT count(*)::int FROM bap_documents WHERE created_by = $1 OR finalized_by = $1) AS bap_count,
+           (SELECT count(*)::int FROM clients WHERE created_by = $1) AS clients_count,
+           (SELECT count(*)::int FROM test_objects WHERE created_by = $1) AS objects_count,
+           (SELECT count(*)::int FROM operational_issues WHERE reported_by = $1 OR assigned_to = $1) AS issues_count,
+           (SELECT count(*)::int FROM audit_logs WHERE user_id = $1) AS audit_count`,
+        [id]
+      );
+      const deps = depCheck.rows[0];
+      const totalDeps =
+        (deps.orders_count || 0) +
+        (deps.inspections_count || 0) +
+        (deps.assignments_count || 0) +
+        (deps.lhpp_count || 0) +
+        (deps.bap_count || 0) +
+        (deps.clients_count || 0) +
+        (deps.objects_count || 0) +
+        (deps.issues_count || 0) +
+        (deps.audit_count || 0);
+
+      if (totalDeps > 0) {
+        throw new AppError(
+          400,
+          'USER_HAS_RECORDS',
+          'Pengguna tidak dapat dihapus permanen karena memiliki riwayat dokumen riksa uji, order, klien, atau jejak audit operasional. Gunakan opsi Nonaktifkan Akun untuk mencabut hak akses tanpa merusak keabsahan audit K3.'
+        );
+      }
+
+      // Bersihkan tabel satelit dan hapus akun (tidak ada dependensi operasional/audit)
+      await client.query('UPDATE file_attachments SET uploaded_by = NULL WHERE uploaded_by = $1', [id]);
+      await client.query('DELETE FROM refresh_sessions WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM notifications WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM inspector_competencies WHERE inspector_id = $1', [id]);
+      await client.query('DELETE FROM inspectors WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM users WHERE id = $1', [id]);
+
+      await recordAudit(
+        {
+          userId: req.user.id,
+          action: 'USER_DELETE',
+          entity: 'users',
+          entityId: id,
+          summary: {
+            deletedEmail: cur.email,
+            deletedFullName: cur.full_name,
+            deletedRole: cur.role
+          },
+          ip: req.ip
+        },
+        client
+      );
+
+      return { id, email: cur.email, fullName: cur.full_name };
+    });
+
+    return res.json({
+      success: true,
+      message: `Akun ${result.fullName} (${result.email}) berhasil dihapus permanen.`,
+      user: result
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 export default router;

@@ -1,6 +1,14 @@
 import { CalendarPlus, WarningOctagon } from '@phosphor-icons/react';
 import { EmptyState } from '../../../components/feedback/StateViews.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
 export function MissingValiditySection({
@@ -9,23 +17,21 @@ export function MissingValiditySection({
   onOpenValidityModal
 }) {
   return (
-    <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <WarningOctagon size={18} className="text-amber-600 dark:text-amber-400" weight="bold" />
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Unit Belum Ada Tanggal Masa Berlaku ({missingValidityItems.length})
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Sistem tidak mengarang tanggal jatuh tempo bila tanggal berlaku resmi belum dicatat pada Suket, LHPP, atau data unit.
-            </p>
-          </div>
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <WarningOctagon size={18} className="text-amber-600 dark:text-amber-400" weight="bold" />
+        <div>
+          <h2 className="text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+            Unit Belum Ada Tanggal Masa Berlaku ({missingValidityItems.length})
+          </h2>
+          <p className="text-xs text-[#6E6E73] dark:text-[#98989D]">
+            Sistem tidak mengarang tanggal jatuh tempo bila tanggal berlaku resmi belum dicatat pada Suket, LHPP, atau data unit.
+          </p>
         </div>
       </div>
 
       {missingValidityItems.length === 0 ? (
-        <div className="p-6">
+        <div className="p-6 bg-white dark:bg-[#151821] rounded-2xl border border-black/[0.06] dark:border-white/[0.08]">
           <EmptyState
             title="Seluruh unit aktif telah memiliki tanggal masa berlaku"
             description="Tidak ada unit yang belum tercatat tanggal masa berlakunya."
@@ -34,18 +40,18 @@ export function MissingValiditySection({
       ) : (
         <>
           {/* Tampilan Mobile: Kartu Responsif */}
-          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800 p-3 sm:p-4 space-y-3">
+          <div className="md:hidden space-y-3">
             {missingValidityItems.map((u) => (
               <div
                 key={u.object_id}
-                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3"
+                className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] space-y-3"
               >
-                <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-black/[0.05] dark:border-white/[0.06]">
                   <div>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">
+                    <h3 className="font-bold text-sm text-[#1D1D1F] dark:text-[#F5F5F7] leading-snug">
                       {u.object_name}
                     </h3>
-                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-[11px] font-mono text-[#6E6E73] dark:text-[#98989D] mt-0.5">
                       {u.category_code} · SN: {u.serial_number}
                     </p>
                   </div>
@@ -54,12 +60,12 @@ export function MissingValiditySection({
 
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Perusahaan Klien:</span>
-                    <span className="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">
+                    <span className="text-[#6E6E73] dark:text-[#98989D]">Perusahaan Klien:</span>
+                    <span className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7] text-right truncate max-w-[200px]">
                       {u.client_name}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#98989D]">
                     <span>Pemeriksaan Terakhir:</span>
                     <span className="text-right">
                       {u.last_inspected_at
@@ -70,15 +76,16 @@ export function MissingValiditySection({
                 </div>
 
                 {canManage && (
-                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
+                  <div className="pt-2.5 border-t border-black/[0.05] dark:border-white/[0.06]">
+                    <Button
+                      variant="primary"
+                      size="touch"
+                      icon={CalendarPlus}
                       onClick={() => onOpenValidityModal(u)}
-                      className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 px-3 text-xs font-bold text-white dark:text-slate-900 hover:bg-neutral-800 dark:hover:bg-white transition-colors cursor-pointer"
+                      className="w-full"
                     >
-                      <CalendarPlus size={15} />
-                      <span>Tetapkan Tanggal Masa Berlaku</span>
-                    </button>
+                      Tetapkan Tanggal Masa Berlaku
+                    </Button>
                   </div>
                 )}
               </div>
@@ -86,53 +93,53 @@ export function MissingValiditySection({
           </div>
 
           {/* Tampilan Desktop & Tablet: Tabel Lengkap */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <th className="py-3 px-4">Unit Alat &amp; Kategori</th>
-                  <th className="py-3 px-4">Perusahaan Klien</th>
-                  <th className="py-3 px-4">Pemeriksaan Terakhir</th>
-                  <th className="py-3 px-4">Status Data Masa Berlaku</th>
-                  <th className="py-3 px-4 text-right">Tindakan</th>
+          <div className="hidden md:block">
+            <TableWrapper>
+              <TableHead>
+                <tr>
+                  <TableCell isHeader className="min-w-[200px]">Unit Alat &amp; Kategori</TableCell>
+                  <TableCell isHeader className="min-w-[200px]">Perusahaan Klien</TableCell>
+                  <TableCell isHeader className="w-[180px]">Pemeriksaan Terakhir</TableCell>
+                  <TableCell isHeader className="w-[170px]">Status Data</TableCell>
+                  <TableCell isHeader align="right" className="w-[180px]">Tindakan</TableCell>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+              </TableHead>
+              <TableBody>
                 {missingValidityItems.map((u) => (
-                  <tr key={u.object_id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{u.object_name}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
-                        {u.category_code} · SN: <span className="font-mono">{u.serial_number}</span>
+                  <TableRow key={u.object_id}>
+                    <TableCell className="text-xs">
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{u.object_name}</div>
+                      <div className="text-[#6E6E73] dark:text-[#98989D]">
+                        {u.category_code} · SN: <span className="font-mono text-[#1D1D1F] dark:text-[#F5F5F7]">{u.serial_number}</span>
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    </TableCell>
+                    <TableCell className="text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
                       {u.client_name}
-                    </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-400">
+                    </TableCell>
+                    <TableCell className="text-xs text-[#6E6E73] dark:text-[#98989D]">
                       {u.last_inspected_at
-                        ? `Tgl: ${formatDate(u.last_inspected_at)} (${u.last_po_number || u.last_order_no})`
+                        ? `${formatDate(u.last_inspected_at)} (${u.last_po_number || u.last_order_no})`
                         : 'Belum pernah diperiksa'}
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
+                    </TableCell>
+                    <TableCell className="text-xs">
                       <Badge tone="warning">Belum Ada Tanggal</Badge>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
+                    </TableCell>
+                    <TableCell align="right">
                       {canManage && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          icon={CalendarPlus}
                           onClick={() => onOpenValidityModal(u)}
-                          className="h-8.5 inline-flex items-center gap-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-3 text-xs font-bold hover:bg-neutral-800 dark:hover:bg-white transition-colors cursor-pointer shadow-2xs"
                         >
-                          <CalendarPlus size={14} />
-                          <span>Tetapkan Tanggal</span>
-                        </button>
+                          Tetapkan Tanggal
+                        </Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </TableWrapper>
           </div>
         </>
       )}

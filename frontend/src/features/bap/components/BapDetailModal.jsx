@@ -7,12 +7,14 @@ import {
   LockKey,
   LockKeyOpen,
   PenNib,
-  SealCheck
+  SealCheck,
+  WarningCircle
 } from '@phosphor-icons/react';
 import logoUrd from '../../../assets/logo-urd.png';
 import { LoadingState } from '../../../components/feedback/StateViews.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
@@ -44,6 +46,7 @@ export function BapDetailModal({
 }) {
   const canvasRef = useRef(null);
   const [hasDrawn, setHasDrawn] = useState(false);
+  const [sigError, setSigError] = useState('');
   const isDrawingRef = useRef(false);
 
   const getCoordinates = (e) => {
@@ -104,15 +107,17 @@ export function BapDetailModal({
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasDrawn(false);
+    setSigError('');
   };
 
   const onSubmitSignature = (e) => {
     e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas || !hasDrawn) {
-      alert('Goreskan tanda tangan digital terlebih dahulu pada kotak tanda tangan.');
+      setSigError('Goreskan tanda tangan digital terlebih dahulu pada kotak tanda tangan.');
       return;
     }
+    setSigError('');
     const dataUrl = canvas.toDataURL('image/png');
     handleSaveSignature(e, dataUrl);
     clearCanvas();
@@ -134,10 +139,6 @@ export function BapDetailModal({
         <LoadingState message="Memuat lembar Berita Acara Riksa Uji..." />
       ) : (
         <div className="space-y-6">
-          {feedback && (
-            <Notice tone={feedback.type === 'error' ? 'error' : 'success'}>{feedback.message}</Notice>
-          )}
-
           {/* Kop Dokumen Resmi BAP */}
           <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[#C81E1E] pb-4">
@@ -312,13 +313,15 @@ export function BapDetailModal({
 
               {isEditable && (
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     type="submit"
+                    variant="secondary"
+                    size="sm"
                     disabled={submitting}
-                    className="px-4 py-2 text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 rounded-md disabled:opacity-50 cursor-pointer"
+                    loading={submitting}
                   >
                     Simpan Perubahan Draf BAP
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -472,17 +475,25 @@ export function BapDetailModal({
                         </div>
                       )}
                     </div>
+                    {sigError && (
+                      <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-1.5 flex items-center gap-1">
+                        <WarningCircle size={14} />
+                        <span>{sigError}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-1">
-                    <button
+                    <Button
                       type="submit"
+                      variant="primary"
+                      size="sm"
+                      icon={PenNib}
                       disabled={submitting || !hasDrawn}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#C81E1E] hover:bg-red-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs transition-colors"
+                      loading={submitting}
                     >
-                      <PenNib size={14} weight="bold" />
-                      {submitting ? 'Menyimpan...' : 'Bubuhkan Tanda Tangan'}
-                    </button>
+                      Bubuhkan Tanda Tangan
+                    </Button>
                   </div>
                 </form>
               )}
@@ -498,79 +509,71 @@ export function BapDetailModal({
                   Setelah ditandatangani oleh Inspector dan Perwakilan Klien, finalisasi BAP untuk mengunci dokumen serah terima dan menyelesaikan unit riksa uji.
                 </p>
 
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <button
+                <div className="flex items-center gap-2 pt-2 flex-wrap">
+                  <Button
                     type="button"
-                    onClick={() => handlePreviewPdf(selectedBap.id, selectedBap.bap_no)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md cursor-pointer"
-                  >
-                    <Eye size={16} />
-                    Pratinjau PDF
-                  </button>
-                  <button
-                    type="button"
+                    variant="primary"
+                    size="sm"
+                    icon={FilePdf}
                     onClick={() => handleDownloadPdf(selectedBap.id, selectedBap.bap_no)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-[#C81E1E] hover:bg-red-800 rounded-md cursor-pointer"
                   >
-                    <FilePdf size={16} weight="bold" />
-                    Unduh / Cetak PDF BAP Unit Ini
-                  </button>
-                  {handleDownloadDocx && (
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadDocx(selectedBap.id, selectedBap.bap_no)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200/60 dark:border-blue-800/60 rounded-md cursor-pointer"
-                    >
-                      <FileDoc size={16} weight="bold" />
-                      Unduh Word (.docx)
-                    </button>
-                  )}
-                  <button
+                    Unduh PDF BAP
+                  </Button>
+                  <Button
                     type="button"
-                    onClick={() =>
-                      handleDownloadBatchPoPdf(
-                        selectedBap.order_id,
-                        selectedBap.po_number || selectedBap.order_no
-                      )
-                    }
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md cursor-pointer"
+                    variant="secondary"
+                    size="sm"
+                    icon={Eye}
+                    onClick={() => handlePreviewPdf(selectedBap.id, selectedBap.bap_no)}
                   >
-                    <FilePdf size={16} weight="bold" />
-                    Cetak Gabungan BAP 1 PO
-                  </button>
-                  {selectedBap.lhpp_id && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onClose();
-                        navigate(`/app/lhpp?lhppId=${selectedBap.lhpp_id}`);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-md cursor-pointer"
-                    >
-                      <SealCheck size={16} weight="bold" />
-                      Buka Dokumen LHPP ({selectedBap.lhpp_status})
-                    </button>
-                  )}
+                    Pratinjau PDF
+                  </Button>
+                  <ActionMenu
+                    label="Aksi & Berkas Lainnya"
+                    items={[
+                      handleDownloadDocx && {
+                        label: 'Unduh Word (.docx)',
+                        icon: FileDoc,
+                        onClick: () => handleDownloadDocx(selectedBap.id, selectedBap.bap_no)
+                      },
+                      {
+                        label: 'Cetak Gabungan BAP 1 PO',
+                        icon: FilePdf,
+                        onClick: () => handleDownloadBatchPoPdf(selectedBap.order_id, selectedBap.po_number || selectedBap.order_no)
+                      },
+                      selectedBap.lhpp_id && {
+                        label: `Buka Dokumen LHPP (${selectedBap.lhpp_status})`,
+                        icon: SealCheck,
+                        onClick: () => {
+                          onClose();
+                          navigate(`/app/lhpp?lhppId=${selectedBap.lhpp_id}`);
+                        }
+                      }
+                    ]}
+                  />
                 </div>
               </div>
 
               {['DRAF', 'REVISI'].includes(selectedBap.status) && canFinalize && (
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
                   {!isLhppFinalized && (
                     <div className="p-2.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-900 dark:text-amber-200">
                       <strong>Urutan Dokumen Wajib:</strong> LHPP unit ini masih berstatus{' '}
                       <span className="font-mono font-bold">{selectedBap.lhpp_status}</span>. Selesaikan finalisasi LHPP terlebih dahulu sebelum menerbitkan BAP resmi.
                     </div>
                   )}
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="md"
+                    icon={LockKey}
                     disabled={submitting || !isLhppFinalized}
+                    loading={submitting}
                     onClick={handleFinalizeBap}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full justify-center"
                   >
-                    <LockKey size={16} weight="bold" />
                     Finalisasi &amp; Kunci Berita Acara Riksa Uji (BAP)
-                  </button>
+                  </Button>
                 </div>
               )}
 

@@ -38,9 +38,12 @@ async function collectBackendRoutes() {
     const { default: router } = await import(modulePath);
     for (const layer of router.stack || []) {
       if (!layer.route) continue;
-      const routePath = layer.route.path === '/' ? '' : layer.route.path;
-      for (const method of Object.keys(layer.route.methods)) {
-        routes.add(`${method.toUpperCase()} ${normalize(mountPath + routePath)}`);
+      const rawPaths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
+      for (const rawPath of rawPaths) {
+        const routePath = rawPath === '/' ? '' : rawPath;
+        for (const method of Object.keys(layer.route.methods)) {
+          routes.add(`${method.toUpperCase()} ${normalize(mountPath + routePath)}`);
+        }
       }
     }
   }

@@ -15,16 +15,31 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/Card.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
-import { useConfirm } from '../../../components/ui/FeedbackProvider.jsx';
+import { useConfirm, useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
 export function InspectorCompetencyTab() {
   const confirm = useConfirm();
+  const toast = useToast();
   const [inspectors, setInspectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'success');
+      setFeedback('');
+    }
+  }, [feedback, toast]);
+
+  useEffect(() => {
+    if (error) {
+      toast(error, 'error');
+      setError('');
+    }
+  }, [error, toast]);
+
   const [validityFilter, setValidityFilter] = useState('ALL'); // ALL | AKTIF | AKAN_HABIS | KEDALUWARSA
 
   // Modal Tambah / Edit Kompetensi SKP
@@ -196,18 +211,6 @@ export function InspectorCompetencyTab() {
 
   return (
     <div className="space-y-5">
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && (
-        <Notice tone="error" onClose={() => setError('')}>
-          {error}
-        </Notice>
-      )}
-
       {/* Info Card Regulasi & Ringkasan Validitas SKP */}
       <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -313,16 +316,9 @@ export function InspectorCompetencyTab() {
                       <div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                           <span>{ins.fullName}</span>
-                          {ins.isActive ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                              <CheckCircle size={12} weight="fill" />
-                              Aktif
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800">
-                              Nonaktif
-                            </span>
-                          )}
+                          <Badge tone={ins.isActive ? 'success' : 'danger'} size="xs">
+                            {ins.isActive ? 'Aktif' : 'Nonaktif'}
+                          </Badge>
                         </h4>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                           NIP / KTA: <strong className="text-slate-700 dark:text-slate-300">{ins.employeeNo || '-'}</strong> · {ins.email}

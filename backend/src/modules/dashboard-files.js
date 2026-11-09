@@ -65,6 +65,88 @@ async function inspectorCanAccessAttachment(file, inspectorId) {
   return rows[0].allowed;
 }
 
+function getTrendSql(periodParam) {
+  const normalized = String(periodParam || '').toUpperCase();
+  if (normalized === '7D') {
+    return `
+      SELECT to_char(d, 'YYYY-MM-DD') AS month_key,
+             to_char(d, 'DD Mon') AS month_label,
+             coalesce(count(o.id), 0)::int AS order_count,
+             coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+      FROM generate_series(
+        date_trunc('day', now() - interval '6 days'),
+        date_trunc('day', now()),
+        interval '1 day'
+      ) d
+      LEFT JOIN orders o ON date_trunc('day', o.created_at) = d
+      GROUP BY d
+      ORDER BY d ASC
+    `;
+  }
+  if (normalized === '30D') {
+    return `
+      SELECT to_char(d, 'YYYY-MM-DD') AS month_key,
+             to_char(d, 'DD Mon') AS month_label,
+             coalesce(count(o.id), 0)::int AS order_count,
+             coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+      FROM generate_series(
+        date_trunc('week', now() - interval '4 weeks'),
+        date_trunc('week', now()),
+        interval '1 week'
+      ) d
+      LEFT JOIN orders o ON date_trunc('week', o.created_at) = d
+      GROUP BY d
+      ORDER BY d ASC
+    `;
+  }
+  if (normalized === '90D') {
+    return `
+      SELECT to_char(d, 'YYYY-MM') AS month_key,
+             to_char(d, 'Mon') AS month_label,
+             coalesce(count(o.id), 0)::int AS order_count,
+             coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+      FROM generate_series(
+        date_trunc('month', now() - interval '2 months'),
+        date_trunc('month', now()),
+        interval '1 month'
+      ) d
+      LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+      GROUP BY d
+      ORDER BY d ASC
+    `;
+  }
+  if (normalized === '1Y') {
+    return `
+      SELECT to_char(d, 'YYYY-MM') AS month_key,
+             to_char(d, 'Mon YY') AS month_label,
+             coalesce(count(o.id), 0)::int AS order_count,
+             coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+      FROM generate_series(
+        date_trunc('month', now() - interval '11 months'),
+        date_trunc('month', now()),
+        interval '1 month'
+      ) d
+      LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+      GROUP BY d
+      ORDER BY d ASC
+    `;
+  }
+  return `
+    SELECT to_char(d, 'YYYY-MM') AS month_key,
+           to_char(d, 'Mon') AS month_label,
+           coalesce(count(o.id), 0)::int AS order_count,
+           coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
+    FROM generate_series(
+      date_trunc('month', now() - interval '5 months'),
+      date_trunc('month', now()),
+      interval '1 month'
+    ) d
+    LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
+    GROUP BY d
+    ORDER BY d ASC
+  `;
+}
+
 // MP-01: Dasbor berdasarkan peran dan data aktual dari database (tanpa angka fiktif)
 router.get('/summary', async (req, res, next) => {
   try {
@@ -297,20 +379,7 @@ router.get('/summary', async (req, res, next) => {
           ORDER BY unit_count DESC, order_count DESC
           LIMIT 8
         `),
-        query(`
-          SELECT to_char(d, 'YYYY-MM') AS month_key,
-                 to_char(d, 'Mon') AS month_label,
-                 coalesce(count(o.id), 0)::int AS order_count,
-                 coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-          FROM generate_series(
-            date_trunc('month', now() - interval '5 months'),
-            date_trunc('month', now()),
-            interval '1 month'
-          ) d
-          LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
-          GROUP BY d
-          ORDER BY d ASC
-        `)
+        query(getTrendSql(req.query.period))
       ]);
 
       const ordStats = orderStatsRes.rows[0] || {};
@@ -343,82 +412,7 @@ router.get('/summary', async (req, res, next) => {
       });
     }
 
-    const periodParam = String(req.query.period || '').toUpperCase();
-    let trendSql = `
-      SELECT to_char(d, 'YYYY-MM') AS month_key,
-             to_char(d, 'Mon') AS month_label,
-             coalesce(count(o.id), 0)::int AS order_count,
-             coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-      FROM generate_series(
-        date_trunc('month', now() - interval '5 months'),
-        date_trunc('month', now()),
-        interval '1 month'
-      ) d
-      LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
-      GROUP BY d
-      ORDER BY d ASC
-    `;
-    if (periodParam === '7D') {
-      trendSql = `
-        SELECT to_char(d, 'YYYY-MM-DD') AS month_key,
-               to_char(d, 'DD Mon') AS month_label,
-               coalesce(count(o.id), 0)::int AS order_count,
-               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-        FROM generate_series(
-          date_trunc('day', now() - interval '6 days'),
-          date_trunc('day', now()),
-          interval '1 day'
-        ) d
-        LEFT JOIN orders o ON date_trunc('day', o.created_at) = d
-        GROUP BY d
-        ORDER BY d ASC
-      `;
-    } else if (periodParam === '30D') {
-      trendSql = `
-        SELECT to_char(d, 'YYYY-MM-DD') AS month_key,
-               to_char(d, 'DD Mon') AS month_label,
-               coalesce(count(o.id), 0)::int AS order_count,
-               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-        FROM generate_series(
-          date_trunc('week', now() - interval '4 weeks'),
-          date_trunc('week', now()),
-          interval '1 week'
-        ) d
-        LEFT JOIN orders o ON date_trunc('week', o.created_at) = d
-        GROUP BY d
-        ORDER BY d ASC
-      `;
-    } else if (periodParam === '90D') {
-      trendSql = `
-        SELECT to_char(d, 'YYYY-MM') AS month_key,
-               to_char(d, 'Mon') AS month_label,
-               coalesce(count(o.id), 0)::int AS order_count,
-               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-        FROM generate_series(
-          date_trunc('month', now() - interval '2 months'),
-          date_trunc('month', now()),
-          interval '1 month'
-        ) d
-        LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
-        GROUP BY d
-        ORDER BY d ASC
-      `;
-    } else if (periodParam === '1Y') {
-      trendSql = `
-        SELECT to_char(d, 'YYYY-MM') AS month_key,
-               to_char(d, 'Mon YY') AS month_label,
-               coalesce(count(o.id), 0)::int AS order_count,
-               coalesce(sum(case when o.status = 'SELESAI' then 1 else 0 end), 0)::int AS completed_count
-        FROM generate_series(
-          date_trunc('month', now() - interval '11 months'),
-          date_trunc('month', now()),
-          interval '1 month'
-        ) d
-        LEFT JOIN orders o ON date_trunc('month', o.created_at) = d
-        GROUP BY d
-        ORDER BY d ASC
-      `;
-    }
+    const trendSql = getTrendSql(req.query.period);
 
     const [
       orderCounts,

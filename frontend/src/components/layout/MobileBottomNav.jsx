@@ -42,7 +42,7 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
     <>
       <nav
         aria-label="Navigasi bawah mobile"
-        className="lg:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] inset-x-3.5 max-w-md mx-auto z-40 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-[0_12px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.4)] px-2 py-1.5 transition-all"
+        className="lg:hidden fixed bottom-[calc(0.65rem+env(safe-area-inset-bottom))] inset-x-3.5 max-w-md mx-auto z-40 rounded-[26px] urd-glass-bottom-bar px-2 py-1 transition-all"
       >
         <div className="grid grid-cols-5 items-center">
           {primary.map((item) => {
@@ -55,8 +55,8 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
                 className={({ isActive }) =>
                   `flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all min-h-[48px] select-none cursor-pointer ${
                     isActive
-                      ? 'text-[#C81E1E] dark:text-rose-400 font-extrabold'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+                      ? 'text-[#C81E1E] dark:text-rose-400 font-semibold'
+                      : 'text-[#86868B] dark:text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7] font-medium'
                   }`
                 }
               >
@@ -65,7 +65,7 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
                     <div
                       className={`relative flex items-center justify-center w-10 h-7 rounded-full transition-all duration-200 ${
                         isActive
-                          ? 'bg-rose-50 dark:bg-rose-950/60 scale-105'
+                          ? 'bg-rose-500/12 dark:bg-rose-500/20'
                           : 'bg-transparent'
                       }`}
                     >
@@ -75,12 +75,9 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
                         aria-hidden="true"
                       />
                     </div>
-                    <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-full">
+                    <span className="text-[10px] tracking-[-0.01em] mt-0.5 truncate max-w-full">
                       {item.label}
                     </span>
-                    {isActive && (
-                      <span className="w-1 h-1 rounded-full bg-[#C81E1E] dark:bg-rose-400 mt-0.5" />
-                    )}
                   </>
                 )}
               </NavLink>
@@ -95,14 +92,14 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
             aria-expanded={moreDrawerOpen}
             className={`flex flex-col items-center justify-center w-full py-1 px-1 rounded-2xl transition-all min-h-[48px] select-none cursor-pointer ${
               isMoreActive || moreDrawerOpen
-                ? 'text-[#C81E1E] dark:text-rose-400 font-extrabold'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+                ? 'text-[#C81E1E] dark:text-rose-400 font-semibold'
+                : 'text-[#86868B] dark:text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7] font-medium'
             }`}
           >
             <div
               className={`relative flex items-center justify-center w-10 h-7 rounded-full transition-all duration-200 ${
                 isMoreActive || moreDrawerOpen
-                  ? 'bg-rose-50 dark:bg-rose-950/60 scale-105'
+                  ? 'bg-rose-500/12 dark:bg-rose-500/20'
                   : 'bg-transparent'
               }`}
             >
@@ -112,12 +109,9 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
                 aria-hidden="true"
               />
             </div>
-            <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-full">
+            <span className="text-[10px] tracking-[-0.01em] mt-0.5 truncate max-w-full">
               Lainnya
             </span>
-            {(isMoreActive || moreDrawerOpen) && (
-              <span className="w-1 h-1 rounded-full bg-[#C81E1E] dark:bg-rose-400 mt-0.5" />
-            )}
           </button>
         </div>
       </nav>

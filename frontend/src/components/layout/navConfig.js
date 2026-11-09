@@ -10,6 +10,7 @@ import {
   FileText,
   Gauge,
   Gear,
+  ListChecks,
   Scroll,
   ShareNetwork,
   ShieldCheck,
@@ -651,7 +652,8 @@ export function getMobileNavConfig(role) {
           title: 'Master Data & Klien',
           items: [
             { to: '/app/clients', label: 'Data Klien', icon: Buildings },
-            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube }
+            { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
+            { to: '/app/settings?tab=equipment_master', label: 'Master Jenis Unit & Bidang', icon: ListChecks }
           ]
         },
         {

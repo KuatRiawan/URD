@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import {
   ArrowSquareOut,
@@ -13,8 +13,7 @@ import {
   WarningCircle,
   WarningOctagon
 } from '@phosphor-icons/react';
-import { Notice } from '../../../components/ui/Notice.jsx';
-import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
+import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
@@ -43,9 +42,24 @@ export function InspectionHeaderSection({
   draftConclusion = '',
   setFormStep
 }) {
+  const toast = useToast();
   const inspection = activeDetail.inspection;
   const isFinal = inspection.status === 'TERKIRIM';
   const isAdminKantor = ['ADMIN_KANTOR', 'ADMIN_SISTEM', 'PIMPINAN'].includes(user?.role);
+
+  useEffect(() => {
+    if (error) {
+      toast(error, 'error');
+      setError('');
+    }
+  }, [error, toast, setError]);
+
+  useEffect(() => {
+    if (feedback) {
+      toast(feedback, 'info');
+      setFeedback('');
+    }
+  }, [feedback, toast, setFeedback]);
 
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
   const [revisionReasonInput, setRevisionReasonInput] = useState('');
@@ -145,7 +159,6 @@ export function InspectionHeaderSection({
         </div>
       </div>
 
-      {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
       {activeDetail.revisions?.length > 0 && (
         <div className="rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-3.5 space-y-2 shadow-2xs">
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -228,33 +241,15 @@ export function InspectionHeaderSection({
           </button>
         </div>
       )}
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span>{feedback}</span>
-            {onDiscardDraft && isInspector && !isFinal && feedback.includes('dipulihkan') && (
-              <button
-                type="button"
-                onClick={onDiscardDraft}
-                className="text-xs font-bold underline hover:text-emerald-950 dark:hover:text-emerald-100 cursor-pointer self-start sm:self-auto shrink-0"
-              >
-                Mulai ulang dari awal
-              </button>
-            )}
-          </div>
-        </Notice>
-      )}
-      {isInspector && !online && (
-        <Notice tone="warning" title="Anda sedang offline">
-          Isian form disimpan otomatis di perangkat. Foto yang diambil akan masuk antrean dan
-          dikirim saat sinyal kembali.
-        </Notice>
-      )}
-      {isInspector && queuedPhotoCount > 0 && (
-        <Notice tone="info">
-          {queuedPhotoCount} foto menunggu dikirim ke server
-          {online ? ' (sedang dikirim).' : '.'}
-        </Notice>
+
+      {isInspector && (!online || queuedPhotoCount > 0) && (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-800 dark:text-amber-300">
+          <WarningCircle size={14} weight="bold" />
+          <span>
+            {!online ? 'Mode Offline: Isian tersimpan otomatis di perangkat.' : ''}
+            {queuedPhotoCount > 0 ? ` ${queuedPhotoCount} foto dalam antrean pengiriman.` : ''}
+          </span>
+        </div>
       )}
 
       {/* Dokumen Resmi Riksa Uji (React-Native-UI-Templates Clean Document Bar) */}

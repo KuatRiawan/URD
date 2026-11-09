@@ -9,6 +9,13 @@ import {
 import { EmptyState } from '../../../components/feedback/StateViews.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import {
+  TableWrapper,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell
+} from '../../../components/ui/TableWrapper.jsx';
+import {
   formatDateTime,
   ORDER_STATUS_LABELS,
   SERVICE_TYPE_LABELS
@@ -73,38 +80,38 @@ export function ScheduleAgendaSection({ schedules }) {
   }, [schedules, filterStatus, searchQuery]);
 
   return (
-    <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs space-y-0">
+    <section className="bg-white dark:bg-[#151821] rounded-2xl border border-black/[0.06] dark:border-white/[0.08] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] space-y-0">
       {/* Header & Judul */}
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CalendarCheck size={20} className="text-[#C81E1E]" weight="bold" />
-          <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+          <h2 className="text-[15px] font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
             Agenda Jadwal Pemeriksaan Lapangan ({schedules.length})
           </h2>
         </div>
 
         {/* Input Pencarian Cepat */}
         <div className="relative w-full sm:w-64">
-          <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]" />
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari PO, Klien, atau Ahli K3..."
-            className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#C81E1E]"
+            className="w-full h-9 pl-8 pr-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E]"
           />
         </div>
       </div>
 
       {/* Ringkasan Metrik Pengawasan Jadwal */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800/80 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.05] dark:divide-white/[0.06] border-b border-black/[0.06] dark:border-white/[0.08] bg-[#F5F5F7]/60 dark:bg-white/[0.02]">
         <div className="p-3.5 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <div className="p-2 rounded-xl bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#98989D]">
             <CalendarCheck size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Terjadwal</div>
-            <div className="text-base font-extrabold text-slate-900 dark:text-white">{stats.total} Order</div>
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">Total Terjadwal</div>
+            <div className="text-base font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{stats.total} Order</div>
           </div>
         </div>
 
@@ -113,8 +120,8 @@ export function ScheduleAgendaSection({ schedules }) {
             <CheckCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Siap Uji (Konfirmasi)</div>
-            <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">{stats.confirmed} Order</div>
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">Siap Uji (Konfirmasi)</div>
+            <div className="text-base font-bold text-emerald-700 dark:text-emerald-400">{stats.confirmed} Order</div>
           </div>
         </div>
 
@@ -123,8 +130,8 @@ export function ScheduleAgendaSection({ schedules }) {
             <Clock size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Menunggu Respon</div>
-            <div className="text-base font-extrabold text-amber-700 dark:text-amber-400">{stats.pending} Order</div>
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">Menunggu Respon</div>
+            <div className="text-base font-bold text-amber-700 dark:text-amber-400">{stats.pending} Order</div>
           </div>
         </div>
 
@@ -133,14 +140,14 @@ export function ScheduleAgendaSection({ schedules }) {
             <WarningCircle size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Perlu Re-alokasi</div>
-            <div className="text-base font-extrabold text-rose-700 dark:text-rose-400">{stats.rejected} Order</div>
+            <div className="text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">Perlu Re-alokasi</div>
+            <div className="text-base font-bold text-rose-700 dark:text-rose-400">{stats.rejected} Order</div>
           </div>
         </div>
       </div>
 
       {/* Segmented Filter Pills */}
-      <div className="px-5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-1.5 overflow-x-auto">
+      <div className="px-5 py-2.5 border-b border-black/[0.05] dark:border-white/[0.06] bg-white dark:bg-[#151821] flex items-center gap-1.5 overflow-x-auto">
         {[
           { key: 'ALL', label: `Semua Agenda (${schedules.length})` },
           { key: 'CONFIRMED', label: `Terkonfirmasi (${stats.confirmed})` },
@@ -151,10 +158,10 @@ export function ScheduleAgendaSection({ schedules }) {
             key={tab.key}
             type="button"
             onClick={() => setFilterStatus(tab.key)}
-            className={`py-1.5 px-3 text-xs font-semibold rounded-lg whitespace-nowrap transition-all cursor-pointer ${
+            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
               filterStatus === tab.key
-                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] shadow-2xs'
+                : 'text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
             }`}
           >
             {tab.label}
@@ -259,50 +266,50 @@ export function ScheduleAgendaSection({ schedules }) {
           </div>
 
           {/* Tampilan Tabel Desktop (Layar >= 768px) */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <th className="py-3 px-4">Waktu Pelaksanaan</th>
-                  <th className="py-3 px-4">No. Order & Layanan</th>
-                  <th className="py-3 px-4">Klien & Lokasi</th>
-                  <th className="py-3 px-4">Tim Ahli K3</th>
-                  <th className="py-3 px-4">Status Order</th>
+          <div className="hidden md:block">
+            <TableWrapper>
+              <TableHead>
+                <tr>
+                  <TableCell isHeader className="w-[180px]">Waktu Pelaksanaan</TableCell>
+                  <TableCell isHeader className="min-w-[170px]">No. Order &amp; Layanan</TableCell>
+                  <TableCell isHeader className="min-w-[200px]">Klien &amp; Lokasi</TableCell>
+                  <TableCell isHeader className="min-w-[200px]">Tim Ahli K3</TableCell>
+                  <TableCell isHeader align="right" className="w-[140px]">Status Order</TableCell>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+              </TableHead>
+              <TableBody>
                 {filteredSchedules.map((sch) => (
-                  <tr key={sch.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">
+                  <TableRow key={sch.id}>
+                    <TableCell className="text-xs">
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7] font-mono tabular-nums">
                         {formatDateTime(sch.start_at)}
                       </div>
-                      <div className="text-slate-500 dark:text-slate-400">s/d {formatDateTime(sch.end_at)}</div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-mono font-bold text-slate-900 dark:text-slate-100">{sch.order_no}</div>
-                      <div className="text-slate-600 dark:text-slate-400">
+                      <div className="text-[11px] text-[#6E6E73] dark:text-[#98989D]">s/d {formatDateTime(sch.end_at)}</div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-mono font-bold text-[#C81E1E] dark:text-red-400">{sch.order_no}</div>
+                      <div className="text-[#6E6E73] dark:text-[#98989D]">
                         {SERVICE_TYPE_LABELS[sch.service_type] || sch.service_type}
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{sch.client_name}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">{sch.client_name}</div>
+                      <div className="text-[#6E6E73] dark:text-[#98989D]">
                         {sch.location_name || 'Lokasi Utama'}
                         {sch.location_city ? ` · ${sch.location_city}` : ''}
                       </div>
                       {sch.notes && (
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{sch.notes}</div>
+                        <div className="text-[11px] text-[#86868B] dark:text-[#8E8E93] mt-0.5">{sch.notes}</div>
                       )}
-                    </td>
-                    <td className="py-3.5 px-4 text-xs">
+                    </TableCell>
+                    <TableCell className="text-xs">
                       {(sch.assignments || []).length === 0 ? (
-                        <span className="text-slate-400 dark:text-slate-500">Belum ada penugasan</span>
+                        <span className="text-[#86868B] dark:text-[#8E8E93]">Belum ada penugasan</span>
                       ) : (
                         <div className="space-y-1">
                           {(sch.assignments || []).map((asg) => (
                             <div key={asg.id} className="flex items-center gap-1.5">
-                              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                              <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
                                 {asg.fullName}
                               </span>
                               <Badge
@@ -320,16 +327,16 @@ export function ScheduleAgendaSection({ schedules }) {
                           ))}
                         </div>
                       )}
-                    </td>
-                    <td className="py-3.5 px-4">
+                    </TableCell>
+                    <TableCell align="right">
                       <Badge tone="info">
                         {ORDER_STATUS_LABELS[sch.order_status] || sch.order_status}
                       </Badge>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </TableWrapper>
           </div>
         </>
       )}

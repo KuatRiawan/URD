@@ -7,8 +7,8 @@ import {
   Users
 } from '@phosphor-icons/react';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
-import { Notice } from '../../components/ui/Notice.jsx';
-import { useConfirm } from '../../components/ui/FeedbackProvider.jsx';
+import { useAuth } from '../../app/providers/AuthProvider.jsx';
+import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
@@ -21,7 +21,9 @@ import { InspectorCompetencyTab } from './components/InspectorCompetencyTab.jsx'
 import { UserDetailDrawer } from './components/UserDetailDrawer.jsx';
 
 export function UsersPage() {
+  const { user: currentUser } = useAuth();
   const confirm = useConfirm();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = (searchParams.get('tab') || 'users').toLowerCase();
   const activeTab =
@@ -33,8 +35,7 @@ export function UsersPage() {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [feedback, setFeedback] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [q, setQ] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
 
@@ -72,14 +73,14 @@ export function UsersPage() {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setLoadError('');
     try {
       const res = await api.get('/users', {
         params: { q: q || undefined, role: roleFilter || undefined, limit: 50 }
       });
       setUsers(res.data?.items || []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal memuat daftar akun pengguna internal.');
+      setLoadError(err.response?.data?.message || 'Gagal memuat daftar akun pengguna internal.');
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,6 @@ export function UsersPage() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError('');
     try {
       await api.post('/users', createForm);
       setCreateOpen(false);
@@ -106,10 +106,10 @@ export function UsersPage() {
         employeeNo: '',
         password: ''
       });
-      setFeedback('Akun pengguna internal baru berhasil ditambahkan.');
+      toast('Akun pengguna baru berhasil ditambahkan.', 'success');
       await loadUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menambahkan akun pengguna.');
+      toast(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menambahkan akun pengguna.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -142,7 +142,6 @@ export function UsersPage() {
     }
 
     setSubmitting(true);
-    setError('');
     try {
       const payload = {
         fullName: editForm.fullName,
@@ -158,16 +157,20 @@ export function UsersPage() {
       }
       await api.patch(`/users/${editUser.id}`, payload);
       setEditUser(null);
-      setFeedback(`Data pengguna ${editForm.fullName} berhasil diperbarui.`);
+      toast(`Data pengguna ${editForm.fullName} berhasil diperbarui.`, 'success');
       await loadUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal memperbarui akun pengguna.');
+      toast(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal memperbarui akun pengguna.', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleToggleActive = async (u) => {
+    if (u.id === currentUser?.id) {
+      toast('Anda tidak dapat menonaktifkan akun Anda sendiri.', 'error');
+      return;
+    }
     const ok = await confirm({
       title: u.isActive ? 'Nonaktifkan Akun Pengguna' : 'Aktifkan Akun Pengguna',
       message: u.isActive
@@ -177,15 +180,43 @@ export function UsersPage() {
       tone: u.isActive ? 'danger' : 'default'
     });
     if (!ok) return;
-    setError('');
     try {
       await api.patch(`/users/${u.id}`, { isActive: !u.isActive });
-      setFeedback(
-        `Status akun ${u.fullName} berhasil diubah menjadi ${!u.isActive ? 'Aktif' : 'Nonaktif'}.`
+      toast(
+        `Status akun ${u.fullName} berhasil diubah menjadi ${!u.isActive ? 'Aktif' : 'Nonaktif'}.`,
+        'success'
       );
+      setViewUser((prev) => (prev && prev.id === u.id ? { ...prev, isActive: !prev.isActive } : prev));
       await loadUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal mengubah status keaktifan akun.');
+      toast(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal mengubah status keaktifan akun.', 'error');
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    if (u.id === currentUser?.id) {
+      toast('Anda tidak dapat menghapus akun Anda sendiri.', 'error');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Hapus Akun Pengguna',
+      message: `Apakah Anda yakin ingin menghapus akun ${u.fullName} (${u.email}) secara permanen? Data yang telah dihapus tidak dapat dipulihkan.`,
+      confirmLabel: 'Ya, Hapus Akun',
+      tone: 'danger'
+    });
+    if (!ok) return;
+    try {
+      const res = await api.delete(`/users/${u.id}`);
+      setViewUser(null);
+      toast(res.data?.message || `Akun ${u.fullName} berhasil dihapus permanen.`, 'success');
+      await loadUsers();
+    } catch (err) {
+      toast(
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Gagal menghapus akun pengguna.',
+        'error'
+      );
     }
   };
 
@@ -193,7 +224,7 @@ export function UsersPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="Manajemen Pengguna & Hak Akses (RBAC)"
-        subtitle="Kelola akun personel, verifikasi kompetensi SKP Ahli K3, dan pantau matriks wewenang operasional PJK3."
+        subtitle="Kelola akun pengguna, penugasan peran RBAC, dan verifikasi SKP Ahli K3."
         actions={
           activeTab === 'users' ? (
             <Button
@@ -209,23 +240,15 @@ export function UsersPage() {
         }
       />
 
-      {feedback && (
-        <Notice tone="success" onClose={() => setFeedback('')}>
-          {feedback}
-        </Notice>
-      )}
-
-      {error && <ErrorBanner message={error} onRetry={loadUsers} />}
-
       {/* Navigasi Tab Manajemen Pengguna */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto scrollbar-none pb-px">
+      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setTab('users')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'users'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <Users size={16} weight={activeTab === 'users' ? 'bold' : 'regular'} />
@@ -235,10 +258,10 @@ export function UsersPage() {
         <button
           type="button"
           onClick={() => setTab('rbac_matrix')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'rbac_matrix'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <ShieldCheck size={16} weight={activeTab === 'rbac_matrix' ? 'bold' : 'regular'} />
@@ -248,10 +271,10 @@ export function UsersPage() {
         <button
           type="button"
           onClick={() => setTab('competencies')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'competencies'
-              ? 'border-[#C81E1E] text-[#C81E1E] dark:border-rose-500 dark:text-rose-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
           }`}
         >
           <Certificate size={16} weight={activeTab === 'competencies' ? 'bold' : 'regular'} />
@@ -271,6 +294,8 @@ export function UsersPage() {
 
           {loading ? (
             <LoadingState label="Memuat daftar pengguna internal..." />
+          ) : loadError ? (
+            <ErrorBanner message={loadError} onRetry={loadUsers} />
           ) : users.length === 0 ? (
             <EmptyState
               title="Tidak ada pengguna ditemukan"
@@ -279,8 +304,6 @@ export function UsersPage() {
           ) : (
             <UserTable
               users={users}
-              onEditUser={openEditUser}
-              onToggleActive={handleToggleActive}
               onViewUser={(u) => setViewUser(u)}
             />
           )}
@@ -296,22 +319,20 @@ export function UsersPage() {
       {/* Modals & Drawers */}
       <CreateUserModal
         open={createOpen}
-        onClose={() => { setCreateOpen(false); setError(''); }}
+        onClose={() => setCreateOpen(false)}
         createForm={createForm}
         setCreateForm={setCreateForm}
         submitting={submitting}
         onSubmit={handleCreateUser}
-        error={createOpen ? error : ''}
       />
 
       <EditUserModal
         editUser={editUser}
-        onClose={() => { setEditUser(null); setError(''); }}
+        onClose={() => setEditUser(null)}
         editForm={editForm}
         setEditForm={setEditForm}
         submitting={submitting}
         onSubmit={handleUpdateUser}
-        error={editUser ? error : ''}
       />
 
       <UserDetailDrawer
@@ -322,6 +343,9 @@ export function UsersPage() {
           setViewUser(null);
           openEditUser(u);
         }}
+        onToggleActive={handleToggleActive}
+        onDelete={handleDeleteUser}
+        isCurrentUser={viewUser?.id === currentUser?.id}
       />
     </div>
   );

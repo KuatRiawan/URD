@@ -19,15 +19,15 @@ export function RoleSettingsTab({ user, meData }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Nomor Pegawai / KTA</span>
-                  <p className="font-bold text-sm text-slate-900 dark:text-slate-100 mt-1">
+                <div className="p-3.5 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-[#F5F5F7]/70 dark:bg-white/[0.03]">
+                  <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-slate-400">Nomor Pegawai / KTA</span>
+                  <p className="font-semibold text-sm text-[#1D1D1F] dark:text-slate-100 mt-1">
                     {meData?.inspector?.employeeNo || 'Belum tercatat'}
                   </p>
                 </div>
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Otorisasi Form Pengujian</span>
-                  <p className="font-bold text-sm text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1.5">
+                <div className="p-3.5 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-[#F5F5F7]/70 dark:bg-white/[0.03]">
+                  <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-slate-400">Otorisasi Form Pengujian</span>
+                  <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1.5">
                     <CheckCircle size={15} weight="fill" />
                     Diizinkan Entry Data &amp; TTD BAP
                   </p>
@@ -35,7 +35,7 @@ export function RoleSettingsTab({ user, meData }) {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">
+                <h4 className="text-xs font-semibold text-[#1D1D1F] dark:text-slate-200 mb-2">
                   Bidang Kompetensi Riksa Uji Terdaftar:
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
@@ -43,12 +43,12 @@ export function RoleSettingsTab({ user, meData }) {
                     meData.inspector.competencies.map((comp, i) => (
                       <div
                         key={i}
-                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs"
+                        className="p-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1C1E26] text-xs"
                       >
-                        <span className="font-bold text-slate-900 dark:text-slate-100 block">
+                        <span className="font-semibold text-[#1D1D1F] dark:text-slate-100 block">
                           {comp.categoryName}
                         </span>
-                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block mt-0.5">
+                        <span className="text-[11px] font-mono text-[#6E6E73] dark:text-slate-400 block mt-0.5">
                           No. {comp.certificateNo}
                         </span>
                         <span className="text-[10px] text-amber-600 dark:text-amber-400 block mt-1">
@@ -58,17 +58,17 @@ export function RoleSettingsTab({ user, meData }) {
                     ))
                   ) : (
                     <>
-                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 block">Pesawat Angkat &amp; Angkut (PAA)</span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">SKP Ahli K3 Spesialis</span>
+                      <div className="p-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1C1E26] text-xs">
+                        <span className="font-semibold text-[#1D1D1F] dark:text-slate-100 block">Pesawat Angkat &amp; Angkut (PAA)</span>
+                        <span className="text-[11px] text-[#6E6E73] dark:text-slate-400 block mt-0.5">SKP Ahli K3 Spesialis</span>
                       </div>
-                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 block">Pesawat Tenaga &amp; Produksi (PTP)</span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">SKP Ahli K3 Spesialis</span>
+                      <div className="p-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1C1E26] text-xs">
+                        <span className="font-semibold text-[#1D1D1F] dark:text-slate-100 block">Pesawat Tenaga &amp; Produksi (PTP)</span>
+                        <span className="text-[11px] text-[#6E6E73] dark:text-slate-400 block mt-0.5">SKP Ahli K3 Spesialis</span>
                       </div>
-                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 block">Bejana Tekan &amp; Tangki Timbun (PUBT)</span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">SKP Ahli K3 Spesialis</span>
+                      <div className="p-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1C1E26] text-xs">
+                        <span className="font-semibold text-[#1D1D1F] dark:text-slate-100 block">Bejana Tekan &amp; Tangki Timbun (PUBT)</span>
+                        <span className="text-[11px] text-[#6E6E73] dark:text-slate-400 block mt-0.5">SKP Ahli K3 Spesialis</span>
                       </div>
                     </>
                   )}
