@@ -16,7 +16,7 @@ import { api } from '../../../lib/api/axios.js';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { Notice } from '../../../components/ui/Notice.jsx';
-import { useConfirm, useToast } from '../../../components/ui/FeedbackProvider.jsx';
+import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { CompanyProfileSection } from './CompanyProfileSection.jsx';
 import { ChecklistBuilderSection } from './ChecklistBuilderSection.jsx';
 import { EquipmentMasterSection } from './EquipmentMasterSection.jsx';
@@ -44,7 +44,6 @@ const TAB_ALIAS_MAP = {
 };
 
 export function SuperAdminConsole() {
-  const confirm = useConfirm();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTabParam = (searchParams.get('subtab') || searchParams.get('tab') || 'company_profile').toLowerCase();
@@ -66,7 +65,6 @@ export function SuperAdminConsole() {
   }, [feedback, toast]);
   const [savingKey, setSavingKey] = useState(null);
   const [testingConnection, setTestingConnection] = useState(null);
-  const [publishingVersion, setPublishingVersion] = useState(false);
   const [verifyingBackupId, setVerifyingBackupId] = useState(null);
 
   // Form Standar Template Dokumen Resmi
@@ -390,33 +388,6 @@ export function SuperAdminConsole() {
     }
   };
 
-  const handlePublishNewVersion = async (cat) => {
-    if (!cat?.id) return;
-    const ok = await confirm({
-      title: `Terbitkan Versi Baru Template [${cat.code}]`,
-      message: `Anda akan menerbitkan versi baru untuk template riksa uji bidang ${cat.name}. Versi sebelumnya (v${cat.active_version_no || 1}) akan diarsipkan secara utuh agar seluruh rekaman inspeksi historis tetap terlindungi.`,
-      confirmLabel: 'Ya, Terbitkan Versi Baru',
-      tone: 'default'
-    });
-    if (!ok) return;
-    try {
-      setPublishingVersion(true);
-      const res = await api.post('/system-settings/checklists/versions', { category_id: cat.id });
-      setFeedback({
-        type: 'success',
-        message: res.data?.message || 'Versi baru template ceklis berhasil diterbitkan.'
-      });
-      await refreshChecklists();
-    } catch (err) {
-      setFeedback({
-        type: 'error',
-        message: err.response?.data?.message || 'Gagal menerbitkan versi baru template.'
-      });
-    } finally {
-      setPublishingVersion(false);
-    }
-  };
-
   const handleSaveChecklistItem = async (e) => {
     e.preventDefault();
     if (!checklistItemModal) return;
@@ -458,29 +429,6 @@ export function SuperAdminConsole() {
       });
     } finally {
       setSavingItem(false);
-    }
-  };
-
-  const handleDeleteChecklistItem = async (itemId) => {
-    const ok = await confirm({
-      title: 'Hapus Butir Pertanyaan Checklist',
-      message: 'Hapus butir pertanyaan pemeriksaan ini dari template aktif? (Bila versi ini telah digunakan pada inspeksi historis, sistem otomatis membuat versi baru agar data historis tetap utuh).',
-      confirmLabel: 'Ya, Hapus Butir',
-      tone: 'danger'
-    });
-    if (!ok) return;
-    try {
-      const res = await api.delete(`/system-settings/checklists/items/${itemId}`);
-      setFeedback({
-        type: 'success',
-        message: res.data?.message || 'Butir checklist berhasil dihapus.'
-      });
-      await refreshChecklists();
-    } catch (err) {
-      setFeedback({
-        type: 'error',
-        message: err.response?.data?.message || 'Gagal menghapus butir checklist.'
-      });
     }
   };
 
@@ -538,10 +486,6 @@ export function SuperAdminConsole() {
       setFeedback({ type: 'error', message: 'Gagal mengunduh file arsip snapshot database.' });
     }
   };
-
-  const filteredItems = (checklistsData?.templateItems || []).filter(
-    (item) => selectedCategory && item.category_id === selectedCategory.id
-  );
 
   const subtabs = [
     { id: 'company_profile', label: 'Profil Lembaga PJK3', icon: Buildings },

@@ -71,13 +71,8 @@ function ChecklistBuilderWithRouter(props) {
 }
 
 function ChecklistBuilderContent({
-  checklistsData,
   selectedCategory,
-  setSelectedCategory,
   filteredItems: propFilteredItems,
-  onOpenCreateItem,
-  onOpenEditItem,
-  onDeleteItem,
   onPublishNewVersion,
   publishingVersion,
   searchParams: propSearchParams,
@@ -760,7 +755,7 @@ function ChecklistBuilderContent({
       return;
     }
 
-    let updatedItems = [];
+    let updatedItems;
     if (itemModal.mode === 'edit' && itemModal.item) {
       updatedItems = effectiveItems.map((i) =>
         i.seq === itemModal.item.seq ? { ...i, ...itemForm } : i

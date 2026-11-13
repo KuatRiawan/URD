@@ -10,7 +10,6 @@ export function ProfileTab({
   profileForm,
   setProfileForm,
   profileLoading,
-  profileSuccess,
   profileError,
   onUpdateProfile,
   onAvatarUpload,

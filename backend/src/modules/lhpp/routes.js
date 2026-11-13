@@ -268,7 +268,7 @@ router.get('/:id', async (req, res, next) => {
         inspectionTypeCode: data.inspection_type_code
       });
       validation = validateLhppDocumentData(data, resolvedTemplate);
-    } catch (_tErr) {
+    } catch {
       // Template belum dikonfigurasi / fallback
     }
 
@@ -734,7 +734,7 @@ router.post(
             db
           );
           savedDocxId = savedDocx.id;
-        } catch (_docxErr) {
+        } catch {
           // docx non-blocking
         }
 

@@ -46,7 +46,7 @@ export function ActionMenu({
     // Buka ke atas jika ruang di bawah tidak cukup dan ruang di atas lebih luas
     const shouldOpenUp = spaceBelow < estimatedHeight + 12 && spaceAbove > spaceBelow;
 
-    let top = 0;
+    let top;
     if (shouldOpenUp) {
       top = triggerRect.top - estimatedHeight - 6;
       if (top < 8) top = 8;
@@ -57,7 +57,7 @@ export function ActionMenu({
       }
     }
 
-    let left = 0;
+    let left;
     if (align === 'right') {
       left = triggerRect.right - menuWidth;
     } else {

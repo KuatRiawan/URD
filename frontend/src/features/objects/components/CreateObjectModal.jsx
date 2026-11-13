@@ -14,7 +14,6 @@ export function CreateObjectModal({
   formErr,
   saving,
   clients,
-  categories,
   selectedCatMeta
 }) {
   const [domains, setDomains] = useState([]);
@@ -22,13 +21,11 @@ export function CreateObjectModal({
   const [allEquipmentTypes, setAllEquipmentTypes] = useState([]);
   const [inspectionTypes, setInspectionTypes] = useState([]);
   const [selectedDomainCode, setSelectedDomainCode] = useState('');
-  const [loadingMeta, setLoadingMeta] = useState(false);
 
   // Fetch dynamic master data on open
   useEffect(() => {
     if (!open) return;
     let isMounted = true;
-    setLoadingMeta(true);
 
     Promise.all([
       api.get('/equipment-types/domains'),
@@ -51,10 +48,7 @@ export function CreateObjectModal({
           setSelectedDomainCode(matchedDom ? matchedDom.code : domRes.data.domains[0].code);
         }
       })
-      .catch(() => {})
-      .finally(() => {
-        if (isMounted) setLoadingMeta(false);
-      });
+      .catch(() => {});
 
     return () => {
       isMounted = false;

@@ -22,7 +22,6 @@ export function BapDetailModal({
   selectedBap,
   onClose,
   detailLoading,
-  feedback,
   canManage,
   canFinalize,
   draftForm,

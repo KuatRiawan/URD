@@ -854,7 +854,9 @@ export function buildLhppReportContent(inputData) {
           template_regulation_reference: snap.template_version?.regulation_reference || data.template_regulation_reference
         };
       }
-    } catch (_snapErr) {}
+    } catch {
+      // Snapshot opsional; gunakan data dokumen terkini
+    }
   }
 
   const categoryCode = (data.domain_code || data.category_code || 'PAA').toUpperCase();

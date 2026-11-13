@@ -7,7 +7,6 @@ export function SecurityTab({
   passwordForm,
   setPasswordForm,
   passwordLoading,
-  passwordSuccess,
   passwordError,
   onChangePassword
 }) {

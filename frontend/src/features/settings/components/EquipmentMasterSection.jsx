@@ -93,7 +93,7 @@ export function EquipmentMasterSection({
 
   // Filters
   const [selectedDomainFilter, setSelectedDomainFilter] = useState('ALL');
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
+  const [selectedGroupFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'INACTIVE'
 
@@ -129,11 +129,6 @@ export function EquipmentMasterSection({
   // Modal Konfirmasi Hapus / Nonaktifkan
   const [deleteModal, setDeleteModal] = useState(null); // { item }
   const [deletingUnit, setDeletingUnit] = useState(false);
-
-  // Modal Edit Atribut Kategori Legacy
-  const [editingCategory, setEditingCategory] = useState(null);
-  const [catForm, setCatForm] = useState({ name: '', scopesText: '', attributes: [] });
-  const [savingCat, setSavingCat] = useState(false);
 
   // Modal Alat Kalibrasi
   const [toolModal, setToolModal] = useState(null);
@@ -337,18 +332,6 @@ export function EquipmentMasterSection({
     const start = (toolPage - 1) * toolLimit;
     return localTools.slice(start, start + toolLimit);
   }, [localTools, toolPage, toolLimit]);
-
-  // Grouped Parent Types for sub-selection dropdown
-  const parentOptionsByDomain = useMemo(() => {
-    const map = {};
-    for (const t of equipmentTypes) {
-      if (!t.parent_id) {
-        if (!map[t.domain_code]) map[t.domain_code] = [];
-        map[t.domain_code].push(t);
-      }
-    }
-    return map;
-  }, [equipmentTypes]);
 
   // Group Handlers
   const handleOpenAddGroup = (defaultDomain = null) => {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import Joi from 'joi';
-import { query, withTransaction } from '../../database/pool.js';
+import { query } from '../../database/pool.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';

@@ -10,7 +10,7 @@ import {
 } from '@phosphor-icons/react';
 
 export function IndonesiaMapWidget({ regions = [] }) {
-  const { totalUnits, totalOrders, totalClients, sortedRegions } = useMemo(() => {
+  const { totalUnits, totalOrders, sortedRegions } = useMemo(() => {
     const sorted = [...regions].sort((a, b) => {
       const uA = Number(a.unit_count ?? a.count ?? 0);
       const uB = Number(b.unit_count ?? b.count ?? 0);
@@ -19,12 +19,10 @@ export function IndonesiaMapWidget({ regions = [] }) {
 
     const units = sorted.reduce((acc, r) => acc + Number(r.unit_count ?? r.count ?? 0), 0);
     const orders = sorted.reduce((acc, r) => acc + Number(r.order_count ?? r.orders ?? 0), 0);
-    const clients = sorted.reduce((acc, r) => acc + Number(r.client_count ?? r.clients ?? 0), 0);
 
     return {
       totalUnits: units,
       totalOrders: orders,
-      totalClients: clients,
       sortedRegions: sorted
     };
   }, [regions]);

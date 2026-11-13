@@ -25,7 +25,6 @@ export function OrderTable({
   user
 }) {
   const isMarketing = user?.role === 'MARKETING';
-  const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
   const detailLabel = 'Detail';
 
   return (

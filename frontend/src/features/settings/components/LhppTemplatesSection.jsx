@@ -218,7 +218,7 @@ export function LhppTemplatesSection() {
         publish_now: true
       });
       setVersionModalOpen(true);
-    } catch (err) {
+    } catch {
       toast('Gagal memuat detail versi template.', 'error');
     }
   };

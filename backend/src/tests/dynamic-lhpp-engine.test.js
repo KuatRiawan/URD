@@ -11,7 +11,6 @@ describe('Dynamic LHPP Document Generation Engine', () => {
   let adminSistemToken;
   let adminKantorToken;
   let inspectorToken;
-  let marketingToken;
   let createdTplId;
 
   beforeAll(async () => {
@@ -39,7 +38,7 @@ describe('Dynamic LHPP Document Generation Engine', () => {
     const resMkt = await request
       .post('/api/v1/auth/login')
       .send({ email: 'marketing@upayariksadaya.com', password: TEST_PW });
-    marketingToken = resMkt.body.accessToken;
+    expect(resMkt.status).toBe(200);
 
     // Setup order, unit, inspection & LHPP untuk pengujian validasi & finalisasi
     const clientRes = await query('SELECT id FROM clients LIMIT 1');

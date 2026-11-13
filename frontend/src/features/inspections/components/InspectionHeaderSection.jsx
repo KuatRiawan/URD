@@ -29,7 +29,6 @@ export function InspectionHeaderSection({
   online,
   queuedPhotoCount,
   onPreviewPdf,
-  onDiscardDraft,
   onReopenInspection,
   totalItems = 0,
   evaluatedItems = 0,

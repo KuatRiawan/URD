@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { app } from '../app.js';
-import { query } from '../database/pool.js';
 import { seedDatabase } from '../../seeds/seed.js';
 
 describe('Dynamic Equipment Master & Checklist Engine', () => {

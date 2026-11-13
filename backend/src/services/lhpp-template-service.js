@@ -117,7 +117,7 @@ export function validateLhppDocumentData(fullContext, templateVersion) {
   const technical = fullContext.technical_data || {};
   for (const m of mappings) {
     if (m.required) {
-      let val = null;
+      let val;
       if (m.source.startsWith('technical.')) {
         const key = m.source.replace('technical.', '');
         val = technical[key];

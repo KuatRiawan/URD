@@ -30,7 +30,6 @@ export function ClientDetailModal({
   onClose,
   canEdit,
   onOpenEdit,
-  subFeedback,
   portalUrl,
   portalCopied,
   portalLoading,
