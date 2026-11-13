@@ -22,6 +22,7 @@ import { PageHeader } from '../../../components/ui/PageHeader.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { formatDateTime, ROLE_LABELS } from '../../../lib/utils/format.js';
+import { formatAuditAction, formatAuditSummary, groupConsecutiveAudit } from '../../../lib/utils/audit.js';
 
 export function SuperAdminDashboardView({
   user: _user,
@@ -39,12 +40,13 @@ export function SuperAdminDashboardView({
         ? data.recentActivities
         : [];
 
+  const auditRows = groupConsecutiveAudit(recentAudits);
   const expiredSkp = Number(m.expiredSkpCount || 0);
   const expiringSkp = Number(m.expiringSkpCount || 0);
   const validSkp = Number(m.validSkpCount || 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto urd-stagger">
       {/* 1. Header Ruang Kerja Super Admin */}
       <PageHeader
         title="Ruang Kerja Administrasi Sistem & Keamanan"
@@ -80,7 +82,7 @@ export function SuperAdminDashboardView({
       />
 
       {/* 2. System Status & Security Telemetry Bar */}
-      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
+      <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div className="flex items-center gap-2 pr-3 border-r border-black/[0.08] dark:border-white/[0.08]">
@@ -126,7 +128,7 @@ export function SuperAdminDashboardView({
         {/* Card 1: Pengguna Internal & RBAC */}
         <Link
           to="/app/users"
-          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
             <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -150,7 +152,7 @@ export function SuperAdminDashboardView({
         {/* Card 2: Personel Ahli K3 & Lisensi SKP */}
         <Link
           to="/app/users?tab=COMPETENCY"
-          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
             <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -186,7 +188,7 @@ export function SuperAdminDashboardView({
         {/* Card 3: Master 7 Bidang K3 & Checklist Templates */}
         <Link
           to="/app/settings?tab=CHECKLISTS"
-          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
             <div className="h-11 w-11 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -210,7 +212,7 @@ export function SuperAdminDashboardView({
         {/* Card 4: Jejak Audit & Aktivitas Sistem */}
         <Link
           to="/app/audit-logs"
-          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
+          className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block"
         >
           <div className="flex items-center">
             <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -244,7 +246,7 @@ export function SuperAdminDashboardView({
           {/* Hub 1: Pengguna & RBAC */}
           <Link
             to="/app/users"
-            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
+            className="p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
@@ -260,7 +262,7 @@ export function SuperAdminDashboardView({
           {/* Hub 2: Master 7 Bidang K3 & Checklist */}
           <Link
             to="/app/settings?tab=CHECKLISTS"
-            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
+            className="p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -276,7 +278,7 @@ export function SuperAdminDashboardView({
           {/* Hub 3: Standar Penomoran Dokumen */}
           <Link
             to="/app/settings?tab=NUMBERING"
-            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
+            className="p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -292,7 +294,7 @@ export function SuperAdminDashboardView({
           {/* Hub 4: Profil Perusahaan PJK3 */}
           <Link
             to="/app/settings?tab=COMPANY"
-            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
+            className="p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
@@ -308,7 +310,7 @@ export function SuperAdminDashboardView({
           {/* Hub 5: Integrasi WhatsApp & SMTP */}
           <Link
             to="/app/settings?tab=GATEWAYS"
-            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
+            className="p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -324,7 +326,7 @@ export function SuperAdminDashboardView({
           {/* Hub 6: Cadangan Database */}
           <Link
             to="/app/settings?tab=BACKUPS"
-            className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
+            className="p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] hover:border-black/[0.14] dark:hover:border-white/[0.14] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-3.5 group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400 flex items-center justify-center shrink-0">
@@ -366,18 +368,18 @@ export function SuperAdminDashboardView({
                   <th className="py-2.5 px-4">Pelaku / Pengguna</th>
                   <th className="py-2.5 px-4">Aksi Sistem</th>
                   <th className="py-2.5 px-4">Ringkasan Aktivitas</th>
-                  <th className="py-2.5 px-4 text-right">Alamat IP</th>
+                  <th className="py-2.5 px-4 text-right hidden xl:table-cell">Alamat IP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {recentAudits.length === 0 ? (
+                {auditRows.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400 dark:text-slate-500">
                       Belum ada aktivitas audit tercatat.
                     </td>
                   </tr>
                 ) : (
-                  recentAudits.map((audit) => (
+                  auditRows.map((audit) => (
                     <tr key={audit.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {formatDateTime(audit.created_at)}
@@ -388,13 +390,16 @@ export function SuperAdminDashboardView({
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {audit.action}
+                          {formatAuditAction(audit.action)}
+                          {audit.count > 1 && (
+                            <span className="ml-1 text-slate-500">&times;{audit.count}</span>
+                          )}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                        {typeof audit.summary === 'object' ? JSON.stringify(audit.summary) : audit.summary}
+                        {formatAuditSummary(audit)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                      <td className="py-3 px-4 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap hidden xl:table-cell">
                         {audit.ip_address || '-'}
                       </td>
                     </tr>

@@ -90,3 +90,6 @@ test_output_*.pdf
 test_*.pdf
 sample_*.pdf
 *.test.pdf
+
+# Artefak audit visual lokal
+ui-audit/

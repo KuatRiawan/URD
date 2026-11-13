@@ -156,7 +156,9 @@ function LayoutShell() {
         {/* Konten Halaman Utama */}
         <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8 max-w-[92rem] w-full mx-auto">
           <ErrorBoundary resetKey={location.pathname}>
-            <Outlet />
+            <div key={location.pathname} className="urd-page-enter">
+              <Outlet />
+            </div>
           </ErrorBoundary>
         </main>
 

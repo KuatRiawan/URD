@@ -96,7 +96,7 @@ export function MarketingDashboardView({
   }, []);
 
   return (
-    <div className="space-y-6 text-slate-900 dark:text-slate-100">
+    <div className="space-y-6 text-slate-900 dark:text-slate-100 urd-stagger">
       {/* Header Workspace Marketing */}
       <PageHeader
         title={`${greetingTime}, ${user?.fullName || 'Tim Marketing'}`}

@@ -33,6 +33,7 @@ import { IndonesiaMapWidget } from '../IndonesiaMapWidget.jsx';
 import { WorkQueueWidget } from '../WorkQueueWidget.jsx';
 import { formatRelativeTime, ORDER_STATUS_LABELS } from '../../../lib/utils/format.js';
 import { ExecutiveDashboardView } from './ExecutiveDashboardView.jsx';
+import { formatAuditAction, operationalActivities } from '../../../lib/utils/audit.js';
 
 const DashboardPoCreator = lazy(() =>
   import('./DashboardPoCreator.jsx').then((module) => ({ default: module.DashboardPoCreator }))
@@ -103,6 +104,7 @@ export function ManagementDashboardView({
 }) {
   const m = data?.metrics || {};
   const [poCreatorOpen, setPoCreatorOpen] = useState(false);
+  const recentOps = operationalActivities(data?.recentActivities);
 
   const role = user?.role;
   const isMarketing = role === 'MARKETING';
@@ -1023,24 +1025,24 @@ export function ManagementDashboardView({
                     </h2>
                   </div>
                   <span className="text-[11px] font-medium text-slate-400">
-                    {(data?.recentActivities || []).length} entri
+                    {recentOps.length} entri
                   </span>
                 </div>
 
                 <div className="p-4 divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[360px] overflow-y-auto">
-                  {(data?.recentActivities || []).length === 0 ? (
+                  {recentOps.length === 0 ? (
                     <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                      Belum ada aktivitas operasional hari ini.
+                      Belum ada aktivitas operasional terbaru.
                     </p>
                   ) : (
-                    (data?.recentActivities || []).map((act) => (
+                    recentOps.map((act) => (
                       <div key={act.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-3">
                         <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                           <User size={13} weight="bold" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {act.action?.replace(/_/g, ' ') || 'Aktivitas'}
+                            {formatAuditAction(act.action)}
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                             {act.user_name || 'Sistem'} · {act.user_role || '-'}
@@ -1115,24 +1117,24 @@ export function ManagementDashboardView({
                     </h2>
                   </div>
                   <span className="text-[11px] font-medium text-slate-400">
-                    {(data?.recentActivities || []).length} entri
+                    {recentOps.length} entri
                   </span>
                 </div>
 
                 <div className="p-4 divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[360px] overflow-y-auto">
-                  {(data?.recentActivities || []).length === 0 ? (
+                  {recentOps.length === 0 ? (
                     <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
                       Belum ada aktivitas operasional tercatat.
                     </p>
                   ) : (
-                    (data?.recentActivities || []).map((act) => (
+                    recentOps.map((act) => (
                       <div key={act.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-3">
                         <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                           <User size={13} weight="bold" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {act.action?.replace(/_/g, ' ') || 'Aktivitas'}
+                            {formatAuditAction(act.action)}
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                             {act.user_name || 'Sistem'} · {act.user_role || '-'}
@@ -1201,24 +1203,24 @@ export function ManagementDashboardView({
                     </h2>
                   </div>
                   <span className="text-[11px] font-medium text-slate-400">
-                    {(data?.recentActivities || []).length} entri
+                    {recentOps.length} entri
                   </span>
                 </div>
 
                 <div className="p-4 divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[340px] overflow-y-auto">
-                  {(data?.recentActivities || []).length === 0 ? (
+                  {recentOps.length === 0 ? (
                     <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
                       Belum ada aktivitas tercatat hari ini.
                     </p>
                   ) : (
-                    (data?.recentActivities || []).map((act) => (
+                    recentOps.map((act) => (
                       <div key={act.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-3">
                         <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                           <User size={13} weight="bold" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {act.action?.replace(/_/g, ' ') || 'Aktivitas'}
+                            {formatAuditAction(act.action)}
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                             {act.user_name || 'Sistem'} · {act.user_role || '-'}

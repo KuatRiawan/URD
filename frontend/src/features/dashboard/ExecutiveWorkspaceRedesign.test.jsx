@@ -143,7 +143,7 @@ describe('Executive Management Workspace Redesign Tests', () => {
     // Switch to ACTIVITIES tab
     fireEvent.click(screen.getByText(/Jejak Aktivitas/i));
     expect(screen.getByText(/LHPP Diterbitkan/i)).toBeDefined();
-    expect(screen.getByText(/Autentikasi Sesi Login/i)).toBeDefined();
+    expect(screen.getByText(/Masuk ke sistem/i)).toBeDefined();
     expect(screen.getByText(/Akun: pimpinan@upayariksadaya\.com/i)).toBeDefined();
   });
 

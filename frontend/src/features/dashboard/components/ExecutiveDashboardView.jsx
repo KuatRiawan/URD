@@ -40,10 +40,11 @@ import {
   ROLE_LABELS,
   SERVICE_TYPE_LABELS
 } from '../../../lib/utils/format.js';
+import { operationalActivities } from '../../../lib/utils/audit.js';
 
 const ACTION_LABELS = {
-  LOGIN: 'Autentikasi Sesi Login',
-  AUTH_LOGIN: 'Autentikasi Sesi Login',
+  LOGIN: 'Masuk ke sistem',
+  AUTH_LOGIN: 'Masuk ke sistem',
   LOGOUT: 'Keluar Sesi Pengguna',
   AUTH_LOGOUT: 'Keluar Sesi Pengguna',
   USER_UPDATE_PROFILE: 'Pembaruan Profil Pengguna',
@@ -119,6 +120,7 @@ export function ExecutiveDashboardView({
   setPeriod
 }) {
   const m = data?.metrics || {};
+  const recentOps = operationalActivities(data?.recentActivities);
   const [activeTab, setActiveTab] = useState('OVERVIEW'); // 'OVERVIEW' | 'ORDERS' | 'WORKLOAD' | 'DOCUMENTS' | 'ACTIVITIES'
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
@@ -706,17 +708,17 @@ export function ExecutiveDashboardView({
                     onClick={() => setActiveTab('ACTIVITIES')}
                     className="text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
                   >
-                    Semua ({ (data?.recentActivities || []).length }) &rarr;
+                    Semua ({recentOps.length}) &rarr;
                   </button>
                 </div>
 
                 <div className="p-4 divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[320px] overflow-y-auto">
-                  {(data?.recentActivities || []).length === 0 ? (
+                  {recentOps.length === 0 ? (
                     <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                      Belum ada aktivitas operasional tercatat hari ini.
+                      Belum ada aktivitas operasional terbaru. Riwayat login tersedia di Log Audit.
                     </p>
                   ) : (
-                    (data?.recentActivities || []).slice(0, 5).map((act) => {
+                    recentOps.slice(0, 5).map((act) => {
                       const titleText = formatActivityTitle(act);
                       const detailText = formatActivitySummary(act);
                       const actorName = typeof act.user_name === 'string' && act.user_name ? act.user_name : 'Sistem';
