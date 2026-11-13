@@ -548,6 +548,7 @@ export function LhppPage() {
         handleUploadPhoto={handleUploadPhoto}
         handleDeletePhoto={handleDeletePhoto}
         handleRecordDelivery={handleRecordDelivery}
+        handleRefreshDetail={() => openDetail(detailLhpp?.id)}
       />
 
       {/* Modal Pratinjau PDF Aktual */}

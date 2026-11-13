@@ -2,7 +2,7 @@ import { Router } from 'express';
 import Joi from 'joi';
 import { query, withTransaction } from '../../database/pool.js';
 import { authenticate } from '../../middleware/authenticate.js';
-import { authorize } from '../../middleware/authorize.js';
+import { authorize, authorizeScheduleApproval } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
 import { recordOrderRevision } from '../../services/order-revisions.js';
@@ -12,6 +12,12 @@ import {
   generateBastPdfBuffer
 } from '../../services/pdf-generator.js';
 import { computePoUnitProgress, syncOrderUnitStatus } from '../../services/workflow.js';
+import {
+  assertScheduleWithinPoValidity,
+  findInspectorScheduleConflicts,
+  recordActivityHistory,
+  syncUnitStatusFromActivities
+} from '../../services/inspection-activities.js';
 import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
 
@@ -53,6 +59,8 @@ const inlineUnitSchema = Joi.object({
 const createOrderSchema = Joi.object({
   poNumber: Joi.string().max(120).allow('', null),
   poDate: Joi.date().iso().allow('', null),
+  validFrom: Joi.date().iso().allow('', null),
+  validUntil: Joi.date().iso().allow('', null),
   clientId: Joi.string().uuid().allow('', null),
   newClient: Joi.object({
     name: Joi.string().min(2).max(200).allow('', null),
@@ -92,6 +100,8 @@ const createOrderSchema = Joi.object({
 const updateOrderSchema = Joi.object({
   poNumber: Joi.string().max(120).allow('', null),
   poDate: Joi.date().iso().allow('', null),
+  validFrom: Joi.date().iso().allow('', null),
+  validUntil: Joi.date().iso().allow('', null),
   serviceType: Joi.string()
     .valid('PEMERIKSAAN_PERTAMA', 'PEMERIKSAAN_BERKALA', 'PERPANJANGAN', 'PEMERIKSAAN_ULANG'),
   source: Joi.string()
@@ -165,6 +175,137 @@ const respondAssignmentSchema = Joi.object({
     otherwise: Joi.string().allow('', null)
   })
 });
+
+const activityCreateSchema = Joi.object({
+  objectId: Joi.string().uuid().required(),
+  inspectionTypeCode: Joi.string().max(40).required(),
+  plannedStartAt: Joi.date().iso().allow('', null),
+  plannedEndAt: Joi.date().iso().allow('', null),
+  inspectorId: Joi.string().uuid().allow('', null),
+  notes: Joi.string().max(1000).allow('', null)
+});
+
+const activityUpdateSchema = Joi.object({
+  notes: Joi.string().max(1000).allow('', null)
+});
+
+const activityScheduleSchema = Joi.object({
+  startAt: Joi.date().iso().required(),
+  endAt: Joi.date().iso().greater(Joi.ref('startAt')).required(),
+  reason: Joi.string().max(500).allow('', null)
+});
+
+const activityApprovalSchema = Joi.object({
+  decision: Joi.string().valid('DISETUJUI', 'DITOLAK').required(),
+  reason: Joi.string().max(500).when('decision', {
+    is: 'DITOLAK',
+    then: Joi.string().trim().min(5).required(),
+    otherwise: Joi.string().allow('', null)
+  })
+});
+
+const activityAssignSchema = Joi.object({
+  inspectorId: Joi.string().uuid().required()
+});
+
+const activityCancelSchema = Joi.object({
+  reason: Joi.string().trim().min(5).max(500).required()
+});
+
+const ACTIVITY_SELECT = `SELECT ia.*,
+  it.name AS inspection_type_name,
+  t.name AS object_name, t.serial_number, t.capacity, t.capacity_unit, t.brand,
+  t.install_location, t.category_id,
+  oc.code AS category_code, oc.name AS category_name,
+  u_insp.full_name AS inspector_name,
+  u_prop.full_name AS proposed_by_name,
+  u_app.full_name AS approved_by_name,
+  i.id AS inspection_id, i.status AS inspection_status, i.submitted_at AS inspection_submitted_at,
+  l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status, l.review_notes AS lhpp_review_notes,
+  b.id AS bap_id, b.bap_no, b.status AS bap_status, b.finalized_at AS bap_finalized_at
+FROM inspection_activities ia
+JOIN inspection_types it ON it.code = ia.inspection_type_code
+JOIN test_objects t ON t.id = ia.object_id
+JOIN object_categories oc ON oc.id = t.category_id
+LEFT JOIN users u_insp ON u_insp.id = ia.inspector_id
+LEFT JOIN users u_prop ON u_prop.id = ia.proposed_by
+LEFT JOIN users u_app ON u_app.id = ia.approved_by
+LEFT JOIN inspections i ON i.activity_id = ia.id
+LEFT JOIN lhpp_documents l ON l.inspection_id = i.id
+LEFT JOIN bap_documents b ON b.inspection_id = i.id`;
+
+async function listOrderActivities(db, orderId) {
+  const runner = typeof db === 'function' ? db : db.query.bind(db);
+  const { rows } = await runner(
+    `${ACTIVITY_SELECT}
+     WHERE ia.order_id = $1
+     ORDER BY t.name ASC, ia.sequence_no ASC, ia.planned_start_at ASC NULLS LAST`,
+    [orderId]
+  );
+  return rows;
+}
+
+async function loadActivityContext(db, orderId, activityId) {
+  const { rows } = await db.query(
+    `${ACTIVITY_SELECT}
+     WHERE ia.order_id = $1 AND ia.id = $2`,
+    [orderId, activityId]
+  );
+  if (!rows[0]) {
+    throw new AppError(404, 'ACTIVITY_NOT_FOUND', 'Aktivitas pemeriksaan tidak ditemukan pada PO ini.');
+  }
+  return rows[0];
+}
+
+function resolvePoValidity({ poDate, validFrom, validUntil }) {
+  const toDate = (v) => (v ? new Date(v).toISOString().slice(0, 10) : null);
+  const base = toDate(validFrom || poDate) || new Date().toISOString().slice(0, 10);
+  const resolvedFrom = toDate(validFrom) || base;
+  let resolvedUntil = toDate(validUntil);
+  if (!resolvedUntil) {
+    const d = new Date(`${base}T00:00:00.000Z`);
+    d.setUTCFullYear(d.getUTCFullYear() + 1);
+    d.setUTCDate(d.getUTCDate() - 1);
+    resolvedUntil = d.toISOString().slice(0, 10);
+  }
+  if (resolvedUntil < resolvedFrom) {
+    throw new AppError(400, 'INVALID_PO_VALIDITY', 'Masa berlaku PO berakhir sebelum tanggal mulainya.');
+  }
+  const maxUntil = new Date(`${resolvedFrom}T00:00:00.000Z`);
+  maxUntil.setUTCFullYear(maxUntil.getUTCFullYear() + 1);
+  maxUntil.setUTCDate(maxUntil.getUTCDate() - 1);
+  if (resolvedUntil > maxUntil.toISOString().slice(0, 10)) {
+    throw new AppError(400, 'PO_VALIDITY_TOO_LONG', 'Masa berlaku satu PO maksimal satu tahun.');
+  }
+  return { validFrom: resolvedFrom, validUntil: resolvedUntil };
+}
+
+async function resolveActivityInspector(db, inspectorId, { categoryId, scheduleDate }) {
+  const { rows: userRows } = await db.query(
+    "SELECT id, full_name FROM users WHERE id = $1 AND role IN ('AHLI_K3', 'INSPECTOR') AND is_active = true",
+    [inspectorId]
+  );
+  if (!userRows[0]) {
+    throw new AppError(400, 'INVALID_INSPECTOR', 'Ahli K3 tidak ditemukan atau tidak aktif.');
+  }
+  if (categoryId && scheduleDate) {
+    const { rows: certRows } = await db.query(
+      `SELECT id FROM inspector_competencies
+       WHERE inspector_id = $1 AND category_id = $2
+         AND (valid_from IS NULL OR valid_from <= $3::date)
+         AND valid_until >= $3::date`,
+      [inspectorId, categoryId, scheduleDate]
+    );
+    if (!certRows[0]) {
+      throw new AppError(
+        400,
+        'COMPETENCY_INVALID',
+        `Ahli K3 ${userRows[0].full_name} tidak memiliki sertifikat kompetensi aktif untuk bidang unit ini pada tanggal jadwal.`
+      );
+    }
+  }
+  return userRows[0];
+}
 
 async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, objectIds = [], units = [], userId }) {
   const { rows: cats } = await db.query('SELECT id, code, default_bap_scopes FROM object_categories');
@@ -316,8 +457,9 @@ router.get('/', async (req, res, next) => {
 
     if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       params.push(req.user.id);
-      conds.push(`o.id IN (
-        SELECT order_id FROM assignments WHERE inspector_id = $${params.length}
+      conds.push(`(
+        o.id IN (SELECT order_id FROM assignments WHERE inspector_id = $${params.length})
+        OR o.id IN (SELECT order_id FROM inspection_activities WHERE inspector_id = $${params.length})
       )`);
     }
     if (status) {
@@ -393,7 +535,9 @@ router.get('/:id', async (req, res, next) => {
     const { id } = req.params;
     if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       const { rows: own } = await query(
-        'SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 LIMIT 1',
+        `SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2
+         UNION SELECT 1 FROM inspection_activities WHERE order_id = $1 AND inspector_id = $2
+         LIMIT 1`,
         [id, req.user.id]
       );
       if (!own[0]) {
@@ -416,7 +560,7 @@ router.get('/:id', async (req, res, next) => {
     );
     if (!rows[0]) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order tidak ditemukan.');
 
-    const [objects, schedule, assignments, history, inspections, revisions] = await Promise.all([
+    const [objects, schedule, assignments, history, inspections, revisions, activities] = await Promise.all([
       query(
         `SELECT t.*,
                 oc.code AS category_code, oc.name AS category_name, oc.default_bap_scopes,
@@ -469,7 +613,8 @@ router.get('/:id', async (req, res, next) => {
          FROM order_revisions r LEFT JOIN users u ON u.id = r.actor_id
          WHERE r.order_id = $1 ORDER BY r.version DESC`,
         [id]
-      )
+      ),
+      listOrderActivities(query, id)
     ]);
 
     let scheduleChanges = [];
@@ -494,6 +639,7 @@ router.get('/:id', async (req, res, next) => {
       },
       unitProgress,
       objects: objects.rows,
+      activities,
       schedule: schedule.rows[0] || null,
       scheduleChanges,
       assignments: assignments.rows,
@@ -638,15 +784,24 @@ router.post(
         const orderNo = `ORD/${ym}/${String(seqRes.rows[0].seq).padStart(4, '0')}`;
         const poNo = b.poNumber && b.poNumber.trim() ? b.poNumber.trim() : `PO-${orderNo.replace(/\//g, '-')}`;
 
+        const poDate = b.poDate || b.requestedDate || now.toISOString().slice(0, 10);
+        const poValidity = resolvePoValidity({
+          poDate,
+          validFrom: b.validFrom,
+          validUntil: b.validUntil
+        });
+
         const { rows } = await db.query(
           `INSERT INTO orders
-             (order_no, po_number, po_date, client_id, location_id, contact_id, service_type, source, requested_date, notes, renewal_of_suket, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             (order_no, po_number, po_date, valid_from, valid_until, client_id, location_id, contact_id, service_type, source, requested_date, notes, renewal_of_suket, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
            RETURNING *`,
           [
             orderNo,
             poNo,
-            b.poDate || b.requestedDate || now.toISOString().slice(0, 10),
+            poDate,
+            poValidity.validFrom,
+            poValidity.validUntil,
             resolvedClientId,
             resolvedLocationId,
             resolvedContactId,
@@ -846,6 +1001,17 @@ router.patch(
         if (b.poDate !== undefined) {
           params.push(b.poDate || null);
           updates.push(`po_date = $${params.length}`);
+        }
+        if (b.validFrom !== undefined || b.validUntil !== undefined) {
+          const validity = resolvePoValidity({
+            poDate: b.poDate !== undefined ? b.poDate : order.po_date,
+            validFrom: b.validFrom !== undefined ? b.validFrom : order.valid_from,
+            validUntil: b.validUntil !== undefined ? b.validUntil : order.valid_until
+          });
+          params.push(validity.validFrom);
+          updates.push(`valid_from = $${params.length}`);
+          params.push(validity.validUntil);
+          updates.push(`valid_until = $${params.length}`);
         }
         if (b.serviceType !== undefined) {
           params.push(b.serviceType);
@@ -1655,7 +1821,9 @@ router.get('/:id/assignment-letter.pdf', async (req, res, next) => {
     const { id } = req.params;
     if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
       const { rows: own } = await query(
-        'SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2 LIMIT 1',
+        `SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2
+         UNION SELECT 1 FROM inspection_activities WHERE order_id = $1 AND inspector_id = $2
+         LIMIT 1`,
         [id, req.user.id]
       );
       if (!own[0]) throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
@@ -1768,5 +1936,584 @@ router.get('/:id/bast.pdf', async (req, res, next) => {
     return next(err);
   }
 });
+
+// ============================================================================
+// AKTIVITAS PEMERIKSAAN MANDIRI
+// Satu PO dapat memiliki banyak unit, banyak jenis pemeriksaan, dan banyak
+// jadwal. Setiap aktivitas berjalan dengan status dan persetujuan sendiri.
+// ============================================================================
+
+router.get('/:id/activities', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
+      const { rows: own } = await query(
+        `SELECT 1 FROM inspection_activities WHERE order_id = $1 AND inspector_id = $2
+         UNION SELECT 1 FROM assignments WHERE order_id = $1 AND inspector_id = $2
+         LIMIT 1`,
+        [id, req.user.id]
+      );
+      if (!own[0]) throw new AppError(403, 'FORBIDDEN', 'PO ini tidak ditugaskan kepada Anda.');
+    }
+    const activities = await listOrderActivities(query, id);
+    return res.json({ activities });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Tambah aktivitas pemeriksaan (jenis pemeriksaan + jadwal) pada unit dalam PO.
+router.post(
+  '/:id/activities',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  validate(activityCreateSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const b = req.body;
+
+      const created = await withTransaction(async (db) => {
+        const { rows: ordRows } = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
+        const order = ordRows[0];
+        if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'PO tidak ditemukan.');
+        if (['SELESAI', 'DIBATALKAN'].includes(order.status)) {
+          throw new AppError(400, 'ORDER_CLOSED', 'PO yang sudah selesai atau dibatalkan tidak dapat ditambah aktivitas.');
+        }
+
+        const { rows: unitRows } = await db.query(
+          `SELECT oo.*, t.category_id
+           FROM order_objects oo JOIN test_objects t ON t.id = oo.object_id
+           WHERE oo.order_id = $1 AND oo.object_id = $2`,
+          [id, b.objectId]
+        );
+        const unit = unitRows[0];
+        if (!unit) throw new AppError(404, 'UNIT_NOT_FOUND', 'Unit alat tidak terdaftar pada PO ini.');
+        if (unit.unit_status === 'DIBATALKAN') {
+          throw new AppError(400, 'UNIT_CANCELLED', 'Unit yang dibatalkan tidak dapat dijadwalkan ulang.');
+        }
+
+        const { rows: typeRows } = await db.query(
+          'SELECT code, name FROM inspection_types WHERE code = $1 AND is_active = true',
+          [b.inspectionTypeCode]
+        );
+        if (!typeRows[0]) {
+          throw new AppError(400, 'INVALID_INSPECTION_TYPE', 'Jenis pemeriksaan tidak valid atau tidak aktif.');
+        }
+
+        const { rows: dupRows } = await db.query(
+          `SELECT id, status FROM inspection_activities
+           WHERE order_object_id = $1 AND inspection_type_code = $2
+             AND status NOT IN ('SELESAI', 'DIBATALKAN')`,
+          [unit.id, b.inspectionTypeCode]
+        );
+        if (dupRows[0]) {
+          throw new AppError(
+            409,
+            'DUPLICATE_ACTIVITY',
+            `Unit ini masih memiliki aktivitas ${typeRows[0].name} yang belum selesai. Tambahkan jadwal baru pada aktivitas tersebut atau selesaikan aktivitas berjalan.`
+          );
+        }
+
+        const hasSchedule = Boolean(b.plannedStartAt || b.plannedEndAt);
+        if (hasSchedule && (!b.plannedStartAt || !b.plannedEndAt)) {
+          throw new AppError(400, 'INCOMPLETE_SCHEDULE', 'Tanggal mulai dan selesai aktivitas wajib diisi bersamaan.');
+        }
+        if (hasSchedule) assertScheduleWithinPoValidity(order, b.plannedStartAt, b.plannedEndAt);
+
+        if (b.inspectorId && !['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(req.user.role)) {
+          throw new AppError(403, 'FORBIDDEN', 'Penugasan Ahli K3 dilakukan oleh Admin Kantor.');
+        }
+        if (b.inspectorId) {
+          await resolveActivityInspector(db, b.inspectorId, {
+            categoryId: unit.category_id,
+            scheduleDate: hasSchedule ? b.plannedStartAt : null
+          });
+        }
+
+        const { rows: seqRows } = await db.query(
+          'SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next FROM inspection_activities WHERE order_object_id = $1',
+          [unit.id]
+        );
+
+        const activityStatus = hasSchedule ? 'MENUNGGU_PERSETUJUAN' : 'BELUM_DIJADWALKAN';
+        const scheduleStatus = hasSchedule ? 'DIUSULKAN' : 'BELUM_DIUSULKAN';
+
+        const { rows } = await db.query(
+          `INSERT INTO inspection_activities
+             (order_id, order_object_id, object_id, inspection_type_code, sequence_no,
+              planned_start_at, planned_end_at, schedule_status, proposed_by, proposed_at,
+              inspector_id, status, notes, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+           RETURNING *`,
+          [
+            id,
+            unit.id,
+            b.objectId,
+            b.inspectionTypeCode,
+            seqRows[0].next,
+            b.plannedStartAt || null,
+            b.plannedEndAt || null,
+            scheduleStatus,
+            hasSchedule ? req.user.id : null,
+            hasSchedule ? new Date() : null,
+            b.inspectorId || null,
+            b.inspectorId ? 'DITUGASKAN' : activityStatus,
+            b.notes || null,
+            req.user.id
+          ]
+        );
+        const activity = rows[0];
+
+        await recordActivityHistory(db, {
+          activityId: activity.id,
+          action: 'CREATED',
+          toStatus: activity.status,
+          scheduleStatus: activity.schedule_status,
+          note: `Aktivitas ${typeRows[0].name} ditambahkan ke PO`,
+          snapshot: { inspectionTypeCode: b.inspectionTypeCode, objectId: b.objectId },
+          actorId: req.user.id
+        });
+
+        if (hasSchedule) {
+          await recordActivityHistory(db, {
+            activityId: activity.id,
+            action: 'SCHEDULE_PROPOSED',
+            toStatus: activity.status,
+            scheduleStatus: 'DIUSULKAN',
+            note: 'Jadwal diajukan untuk persetujuan Manager',
+            snapshot: { startAt: activity.planned_start_at, endAt: activity.planned_end_at },
+            actorId: req.user.id
+          });
+          await notifyRoles(
+            {
+              roles: ['PIMPINAN'],
+              type: 'SCHEDULE_APPROVAL_REQUESTED',
+              title: `Persetujuan Jadwal: ${order.po_number || order.order_no}`,
+              body: `Jadwal ${typeRows[0].name} untuk unit ${b.objectId ? 'pada PO ini' : ''} diajukan dan menunggu persetujuan Manager.`,
+              link: '/app/schedules'
+            },
+            db
+          );
+        }
+
+        await syncUnitStatusFromActivities(db, {
+          orderId: id,
+          objectId: b.objectId,
+          actorId: req.user.id
+        });
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'ORDER_ACTIVITY_CREATE',
+            entity: 'inspection_activities',
+            entityId: activity.id,
+            summary: { orderId: id, objectId: b.objectId, inspectionTypeCode: b.inspectionTypeCode },
+            ip: req.ip
+          },
+          db
+        );
+
+        return loadActivityContext(db, id, activity.id);
+      });
+
+      return res.status(201).json({ activity: created });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+router.patch(
+  '/:id/activities/:activityId',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  validate(activityUpdateSchema),
+  async (req, res, next) => {
+    try {
+      const { id, activityId } = req.params;
+      const updated = await withTransaction(async (db) => {
+        const cur = await loadActivityContext(db, id, activityId);
+        if (cur.status === 'SELESAI') {
+          throw new AppError(409, 'ACTIVITY_COMPLETED', 'Aktivitas yang sudah selesai tidak dapat diubah.');
+        }
+        await db.query(
+          'UPDATE inspection_activities SET notes = $1, updated_at = now() WHERE id = $2',
+          [req.body.notes ?? null, activityId]
+        );
+        await recordActivityHistory(db, {
+          activityId,
+          action: 'UPDATED',
+          note: 'Catatan aktivitas diperbarui',
+          actorId: req.user.id
+        });
+        return loadActivityContext(db, id, activityId);
+      });
+      return res.json({ activity: updated });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Ajukan / ubah jadwal aktivitas. Riwayat jadwal lama tetap tersimpan.
+router.patch(
+  '/:id/activities/:activityId/schedule',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  validate(activityScheduleSchema),
+  async (req, res, next) => {
+    try {
+      const { id, activityId } = req.params;
+      const { startAt, endAt, reason } = req.body;
+
+      const updated = await withTransaction(async (db) => {
+        const cur = await loadActivityContext(db, id, activityId);
+        const { rows: ordRows } = await db.query(
+          'SELECT id, order_no, po_number, valid_from, valid_until FROM orders WHERE id = $1',
+          [id]
+        );
+        const order = ordRows[0];
+        if (['SELESAI', 'DIBATALKAN'].includes(cur.status)) {
+          throw new AppError(400, 'ACTIVITY_CLOSED', 'Aktivitas yang selesai/dibatalkan tidak dapat dijadwalkan.');
+        }
+        if (cur.inspection_id && cur.inspection_status !== 'DRAF') {
+          throw new AppError(
+            409,
+            'INSPECTION_ALREADY_RUNNING',
+            'Pemeriksaan lapangan sudah berjalan; perubahan jadwal tidak lagi mengubah jadwal aktivitas ini.'
+          );
+        }
+        if (cur.planned_start_at && (!reason || reason.trim().length < 3)) {
+          throw new AppError(400, 'RESCHEDULE_REASON_REQUIRED', 'Alasan perubahan jadwal wajib diisi.');
+        }
+        assertScheduleWithinPoValidity(order, startAt, endAt);
+
+        const { rows } = await db.query(
+          `UPDATE inspection_activities
+           SET planned_start_at = $1,
+               planned_end_at = $2,
+               schedule_status = 'DIUSULKAN',
+               rejection_reason = NULL,
+               proposed_by = $3,
+               proposed_at = now(),
+               approved_by = NULL,
+               approved_at = NULL,
+               status = 'MENUNGGU_PERSETUJUAN',
+               updated_at = now()
+           WHERE id = $4
+           RETURNING *`,
+          [startAt, endAt, req.user.id, activityId]
+        );
+
+        await recordActivityHistory(db, {
+          activityId,
+          action: cur.planned_start_at ? 'SCHEDULE_CHANGED' : 'SCHEDULE_PROPOSED',
+          fromStatus: cur.status,
+          toStatus: 'MENUNGGU_PERSETUJUAN',
+          scheduleStatus: 'DIUSULKAN',
+          note: reason?.trim() || 'Jadwal diajukan untuk persetujuan Manager',
+          snapshot: {
+            previous: { startAt: cur.planned_start_at, endAt: cur.planned_end_at },
+            proposed: { startAt, endAt }
+          },
+          actorId: req.user.id
+        });
+
+        await notifyRoles(
+          {
+            roles: ['PIMPINAN'],
+            type: 'SCHEDULE_APPROVAL_REQUESTED',
+            title: `Persetujuan Jadwal: ${order.po_number || order.order_no}`,
+            body: `Jadwal ${cur.inspection_type_name} untuk unit ${cur.object_name} diajukan dan menunggu persetujuan Manager.`,
+            link: '/app/schedules'
+          },
+          db
+        );
+
+        await syncUnitStatusFromActivities(db, {
+          orderId: id,
+          objectId: cur.object_id,
+          actorId: req.user.id
+        });
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'ORDER_ACTIVITY_SCHEDULE_PROPOSE',
+            entity: 'inspection_activities',
+            entityId: activityId,
+            summary: { orderId: id, startAt, endAt, reason: reason || null },
+            ip: req.ip
+          },
+          db
+        );
+
+        return { activity: rows[0], context: cur };
+      });
+
+      return res.json({ activity: updated.activity });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Manager/Pimpinan menyetujui atau menolak usulan jadwal. Wewenang ini hanya
+// untuk jadwal, bukan persetujuan teknis atau finalisasi dokumen.
+router.post(
+  '/:id/activities/:activityId/approval',
+  authorizeScheduleApproval('PIMPINAN'),
+  validate(activityApprovalSchema),
+  async (req, res, next) => {
+    try {
+      const { id, activityId } = req.params;
+      const { decision, reason } = req.body;
+
+      const updated = await withTransaction(async (db) => {
+        const cur = await loadActivityContext(db, id, activityId);
+        if (cur.schedule_status !== 'DIUSULKAN') {
+          throw new AppError(409, 'SCHEDULE_NOT_PROPOSED', 'Tidak ada usulan jadwal yang menunggu persetujuan untuk aktivitas ini.');
+        }
+        if (['SELESAI', 'DIBATALKAN'].includes(cur.status)) {
+          throw new AppError(400, 'ACTIVITY_CLOSED', 'Aktivitas yang selesai/dibatalkan tidak dapat disetujui jadwalnya.');
+        }
+
+        const nextStatus = decision === 'DISETUJUI' ? (cur.inspector_id ? 'DITUGASKAN' : 'TERJADWAL') : 'BELUM_DIJADWALKAN';
+
+        const { rows } = await db.query(
+          `UPDATE inspection_activities
+           SET schedule_status = $1,
+               rejection_reason = $2,
+               approved_by = $3,
+               approved_at = now(),
+               status = $4,
+               updated_at = now()
+           WHERE id = $5
+           RETURNING *`,
+          [decision, decision === 'DITOLAK' ? reason.trim() : null, req.user.id, nextStatus, activityId]
+        );
+
+        await recordActivityHistory(db, {
+          activityId,
+          action: decision === 'DISETUJUI' ? 'SCHEDULE_APPROVED' : 'SCHEDULE_REJECTED',
+          fromStatus: cur.status,
+          toStatus: nextStatus,
+          scheduleStatus: decision,
+          note: reason?.trim() || (decision === 'DISETUJUI' ? 'Jadwal disetujui Manager' : null),
+          snapshot: { startAt: cur.planned_start_at, endAt: cur.planned_end_at },
+          actorId: req.user.id
+        });
+
+        await syncUnitStatusFromActivities(db, {
+          orderId: id,
+          objectId: cur.object_id,
+          actorId: req.user.id
+        });
+
+        const recipients = new Set([cur.proposed_by].filter(Boolean));
+        if (cur.inspector_id) recipients.add(cur.inspector_id);
+        for (const userId of recipients) {
+          await createNotification(
+            {
+              userId,
+              type: decision === 'DISETUJUI' ? 'SCHEDULE_APPROVED' : 'SCHEDULE_REJECTED',
+              title: `Jadwal ${decision === 'DISETUJUI' ? 'Disetujui' : 'Ditolak'}: ${cur.object_name}`,
+              body:
+                decision === 'DISETUJUI'
+                  ? `Jadwal ${cur.inspection_type_name} disetujui Manager.`
+                  : `Jadwal ditolak Manager: ${reason.trim()}`,
+              link: `/app/orders?orderId=${id}`
+            },
+            db
+          );
+        }
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: decision === 'DISETUJUI' ? 'SCHEDULE_APPROVED' : 'SCHEDULE_REJECTED',
+            entity: 'inspection_activities',
+            entityId: activityId,
+            summary: { orderId: id, decision, reason: reason || null },
+            ip: req.ip
+          },
+          db
+        );
+
+        return rows[0];
+      });
+
+      return res.json({ activity: updated });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Penugasan Ahli K3 untuk satu aktivitas (setelah jadwal disetujui).
+router.post(
+  '/:id/activities/:activityId/assign',
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR'),
+  validate(activityAssignSchema),
+  async (req, res, next) => {
+    try {
+      const { id, activityId } = req.params;
+      const { inspectorId } = req.body;
+
+      const updated = await withTransaction(async (db) => {
+        const cur = await loadActivityContext(db, id, activityId);
+        if (cur.schedule_status !== 'DISETUJUI' || !cur.planned_start_at) {
+          throw new AppError(409, 'SCHEDULE_NOT_APPROVED', 'Jadwal aktivitas harus disetujui Manager sebelum penugasan Ahli K3.');
+        }
+        if (['SELESAI', 'DIBATALKAN'].includes(cur.status)) {
+          throw new AppError(400, 'ACTIVITY_CLOSED', 'Aktivitas yang selesai/dibatalkan tidak dapat ditugaskan.');
+        }
+
+        const inspector = await resolveActivityInspector(db, inspectorId, {
+          categoryId: cur.category_id,
+          scheduleDate: cur.planned_start_at
+        });
+
+        const conflicts = await findInspectorScheduleConflicts(db, {
+          inspectorId,
+          startAt: cur.planned_start_at,
+          endAt: cur.planned_end_at,
+          excludeActivityId: activityId
+        });
+        if (conflicts[0]) {
+          throw new AppError(
+            409,
+            'SCHEDULE_CONFLICT',
+            `Jadwal bentrok: ${inspector.full_name} sudah memiliki agenda pada ${conflicts[0].order_no} (${new Date(conflicts[0].start_at).toLocaleString('id-ID')}).`
+          );
+        }
+
+        const { rows } = await db.query(
+          `UPDATE inspection_activities
+           SET inspector_id = $1,
+               status = CASE WHEN status IN ('BELUM_DIJADWALKAN', 'MENUNGGU_PERSETUJUAN', 'TERJADWAL') THEN 'DITUGASKAN' ELSE status END,
+               updated_at = now()
+           WHERE id = $2
+           RETURNING *`,
+          [inspectorId, activityId]
+        );
+
+        await db.query(
+          `UPDATE order_objects
+           SET inspector_id = COALESCE(inspector_id, $1), updated_at = now()
+           WHERE order_id = $2 AND object_id = $3`,
+          [inspectorId, id, cur.object_id]
+        );
+
+        await recordActivityHistory(db, {
+          activityId,
+          action: 'INSPECTOR_ASSIGNED',
+          fromStatus: cur.status,
+          toStatus: rows[0].status,
+          note: `Ditugaskan kepada ${inspector.full_name}`,
+          snapshot: { inspectorId },
+          actorId: req.user.id
+        });
+
+        await createNotification(
+          {
+            userId: inspectorId,
+            type: 'ASSIGNMENT_NEW',
+            title: `Penugasan Baru: ${cur.object_name}`,
+            body: `Anda ditugaskan untuk ${cur.inspection_type_name} pada PO ${cur.po_number || cur.order_no}.`,
+            link: '/app/schedules'
+          },
+          db
+        );
+
+        await syncUnitStatusFromActivities(db, {
+          orderId: id,
+          objectId: cur.object_id,
+          actorId: req.user.id
+        });
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'ORDER_ACTIVITY_ASSIGN',
+            entity: 'inspection_activities',
+            entityId: activityId,
+            summary: { orderId: id, inspectorId },
+            ip: req.ip
+          },
+          db
+        );
+
+        return rows[0];
+      });
+
+      return res.json({ activity: updated });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+router.post(
+  '/:id/activities/:activityId/cancel',
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'),
+  validate(activityCancelSchema),
+  async (req, res, next) => {
+    try {
+      const { id, activityId } = req.params;
+      const reason = req.body.reason.trim();
+
+      const updated = await withTransaction(async (db) => {
+        const cur = await loadActivityContext(db, id, activityId);
+        if (cur.status === 'SELESAI') {
+          throw new AppError(409, 'ACTIVITY_COMPLETED', 'Aktivitas yang sudah selesai tidak dapat dibatalkan.');
+        }
+        if (['FINAL', 'TERBIT'].includes(cur.lhpp_status) || cur.bap_status === 'FINAL') {
+          throw new AppError(409, 'DOCUMENT_FINALIZED', 'Aktivitas yang dokumennya sudah final tidak dapat dibatalkan.');
+        }
+
+        const { rows } = await db.query(
+          `UPDATE inspection_activities
+           SET status = 'DIBATALKAN', cancel_reason = $1, updated_at = now()
+           WHERE id = $2 RETURNING *`,
+          [reason, activityId]
+        );
+
+        await recordActivityHistory(db, {
+          activityId,
+          action: 'CANCELLED',
+          fromStatus: cur.status,
+          toStatus: 'DIBATALKAN',
+          note: reason,
+          actorId: req.user.id
+        });
+
+        await syncUnitStatusFromActivities(db, {
+          orderId: id,
+          objectId: cur.object_id,
+          actorId: req.user.id
+        });
+
+        if (cur.inspector_id) {
+          await createNotification(
+            {
+              userId: cur.inspector_id,
+              type: 'ACTIVITY_CANCELLED',
+              title: `Aktivitas Dibatalkan: ${cur.object_name}`,
+              body: `Aktivitas ${cur.inspection_type_name} dibatalkan. Alasan: ${reason}`,
+              link: `/app/orders?orderId=${id}`
+            },
+            db
+          );
+        }
+
+        return rows[0];
+      });
+
+      return res.json({ activity: updated });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
 
 export default router;

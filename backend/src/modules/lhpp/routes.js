@@ -461,6 +461,80 @@ router.delete(
 );
 
 // Inspector mengirim draf LHPP kepada Admin Kantor untuk pratinjau dan finalisasi.
+// Unggah dokumen LHPP yang telah diedit (Word/PDF) selama dokumen belum final.
+// Berlaku untuk penyusunan awal maupun setelah Admin Kantor meminta revisi.
+router.post(
+  '/:id/document',
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'),
+  uploadMiddleware.single('file'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      if (!req.file) throw new AppError(400, 'NO_FILE', 'Berkas dokumen LHPP wajib dipilih.');
+
+      const saved = await withTransaction(async (db) => {
+        const cur = await fetchFullLhppContext(db, id);
+        if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
+        const hasAccess = await canAccessLhpp(db, cur, req.user);
+        if (!hasAccess) {
+          throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengunggah dokumen LHPP milik sendiri.');
+        }
+        if (['FINAL', 'TERBIT'].includes(cur.status)) {
+          throw new AppError(409, 'LHPP_IMMUTABLE', 'LHPP yang sudah final/terbit terkunci dan tidak dapat diunggah ulang.');
+        }
+
+        const file = await saveUploadedFile(
+          {
+            buffer: req.file.buffer,
+            originalName: req.file.originalname,
+            mimeType: req.file.mimetype,
+            ownerType: 'LHPP_SOURCE',
+            ownerId: id,
+            caption: req.body.caption || 'Dokumen LHPP hasil penyuntingan Inspector',
+            uploadedBy: req.user.id
+          },
+          db
+        );
+
+        await db.query(
+          'UPDATE lhpp_documents SET source_file_id = $1, updated_at = now() WHERE id = $2',
+          [file.id, id]
+        );
+
+        await db.query(
+          `INSERT INTO lhpp_revisions (lhpp_id, version, action, note, snapshot, actor_id)
+           VALUES ($1, $2, 'DOCUMENT_UPLOADED', $3, $4::jsonb, $5)`,
+          [
+            id,
+            cur.version,
+            req.body.caption || 'Inspector mengunggah dokumen LHPP yang telah diperbarui',
+            JSON.stringify({ file_id: file.id, original_name: req.file.originalname, status: cur.status }),
+            req.user.id
+          ]
+        );
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'LHPP_DOCUMENT_UPLOAD',
+            entity: 'lhpp_documents',
+            entityId: id,
+            summary: { fileId: file.id, originalName: req.file.originalname, status: cur.status },
+            ip: req.ip
+          },
+          db
+        );
+
+        return file;
+      });
+
+      return res.status(201).json({ file: saved });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
 router.post('/:id/submit-finalization', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), async (req, res, next) => {
   try {
     const { id } = req.params;

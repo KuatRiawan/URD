@@ -11,6 +11,8 @@ import { notifyRoles } from '../../services/notify.js';
 import { generateBapPdfBuffer } from '../../services/pdf-generator.js';
 import { generateBapDocxBuffer } from '../../services/docx-generator.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
+import { recordActivityHistory } from '../../services/inspection-activities.js';
+import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import {
   resolveAttachmentPath,
   saveDataUrlPng,
@@ -123,12 +125,204 @@ export async function canAccessBap(db, bap, user) {
   return Boolean(rows[0]);
 }
 
+const prepareBapSchema = Joi.object({
+  orderId: Joi.string().uuid().required(),
+  activityId: Joi.string().uuid().allow('', null),
+  objectId: Joi.string().uuid().allow('', null),
+  inspectionDate: Joi.date().iso().allow('', null),
+  scopeItems: Joi.array().items(Joi.string().max(160)).default([])
+});
+
 router.get('/scopes', async (_req, res, next) => {
   try {
     const { rows: categories } = await query(
       'SELECT id, code, name, default_bap_scopes, lhpp_schema FROM object_categories ORDER BY id ASC'
     );
     return res.json({ catalog: BAP_SCOPE_CATALOG, scopes: BAP_SCOPE_CATALOG, categories });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Siapkan draf BAP lebih awal, bahkan sebelum checklist lapangan selesai,
+// agar Inspector dapat meminta tanda tangan PIC klien. Status BAP terpisah
+// dari status pemeriksaan dan tidak menandai pekerjaan lapangan sebagai selesai.
+router.post('/prepare', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM', 'ADMIN_KANTOR'), validate(prepareBapSchema), async (req, res, next) => {
+  try {
+    const { orderId, activityId, objectId, inspectionDate, scopeItems } = req.body;
+
+    const bap = await withTransaction(async (db) => {
+      const { rows: ordRows } = await db.query(
+        'SELECT id, order_no, po_number, client_id FROM orders WHERE id = $1',
+        [orderId]
+      );
+      const order = ordRows[0];
+      if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'PO tidak ditemukan.');
+
+      let activity = null;
+      if (activityId) {
+        const { rows } = await db.query(
+          'SELECT * FROM inspection_activities WHERE id = $1 AND order_id = $2',
+          [activityId, orderId]
+        );
+        activity = rows[0];
+        if (!activity) throw new AppError(404, 'ACTIVITY_NOT_FOUND', 'Aktivitas pemeriksaan tidak ditemukan pada PO ini.');
+      } else if (objectId) {
+        const { rows } = await db.query(
+          `SELECT * FROM inspection_activities
+           WHERE order_id = $1 AND object_id = $2 AND status <> 'DIBATALKAN'
+           ORDER BY sequence_no DESC LIMIT 1`,
+          [orderId, objectId]
+        );
+        activity = rows[0] || null;
+      }
+      const resolvedObjectId = activity?.object_id || objectId;
+      if (!resolvedObjectId) {
+        throw new AppError(400, 'OBJECT_REQUIRED', 'Unit alat wajib dipilih untuk menyiapkan BAP.');
+      }
+
+      const { rows: unitRows } = await db.query(
+        `SELECT t.id, t.name, t.category_id, oc.code AS category_code, oo.scope_items, oc.default_bap_scopes
+         FROM order_objects oo
+         JOIN test_objects t ON t.id = oo.object_id
+         JOIN object_categories oc ON oc.id = t.category_id
+         WHERE oo.order_id = $1 AND oo.object_id = $2`,
+        [orderId, resolvedObjectId]
+      );
+      const unit = unitRows[0];
+      if (!unit) throw new AppError(404, 'UNIT_NOT_FOUND', 'Unit alat tidak terdaftar pada PO ini.');
+
+      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
+        const ownsActivity = activity?.inspector_id === req.user.id;
+        const { rows: asgRows } = await db.query(
+          `SELECT 1 FROM assignments
+           WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU', 'DITERIMA') LIMIT 1`,
+          [orderId, req.user.id]
+        );
+        if (!ownsActivity && !asgRows[0]) {
+          throw new AppError(403, 'FORBIDDEN', 'Anda tidak ditugaskan untuk menyiapkan BAP pada unit ini.');
+        }
+      }
+
+      // Idempoten: gunakan BAP yang sudah ada untuk unit/aktivitas yang sama.
+      const { rows: existingBap } = await db.query(
+        activity
+          ? `SELECT b.id FROM bap_documents b
+             JOIN inspections i ON i.id = b.inspection_id
+             WHERE i.activity_id = $1 LIMIT 1`
+          : `SELECT b.id FROM bap_documents b
+             WHERE b.order_id = $1 AND b.object_id = $2 ORDER BY b.created_at DESC LIMIT 1`,
+        activity ? [activity.id] : [orderId, resolvedObjectId]
+      );
+      if (existingBap[0]) {
+        return fetchFullBapContext(db, existingBap[0].id);
+      }
+
+      let { rows: inspectionRows } = await db.query(
+        activity
+          ? 'SELECT * FROM inspections WHERE activity_id = $1'
+          : `SELECT * FROM inspections
+             WHERE order_id = $1 AND object_id = $2 AND activity_id IS NULL`,
+        activity ? [activity.id] : [orderId, resolvedObjectId]
+      );
+      let inspection = inspectionRows[0];
+
+      if (!inspection) {
+        const { rows: verRows } = await db.query(
+          `SELECT tv.id
+           FROM inspection_templates t
+           JOIN inspection_template_versions tv ON tv.template_id = t.id
+           WHERE tv.status = 'AKTIF'
+             AND (
+               (t.subtype_id IS NOT NULL AND t.subtype_id = (SELECT equipment_subtype_id FROM test_objects WHERE id = $1))
+               OR (t.equipment_type_id IS NOT NULL AND t.equipment_type_id = (SELECT equipment_type_id FROM test_objects WHERE id = $1))
+               OR (t.category_id = $2)
+             )
+           ORDER BY CASE WHEN t.subtype_id IS NOT NULL THEN 1 WHEN t.equipment_type_id IS NOT NULL THEN 2 ELSE 3 END, tv.version DESC
+           LIMIT 1`,
+          [resolvedObjectId, unit.category_id]
+        );
+        if (!verRows[0]) {
+          throw new AppError(
+            400,
+            'TEMPLATE_NOT_FOUND',
+            'Belum ada template inspeksi aktif untuk unit ini sehingga BAP awal belum dapat disiapkan.'
+          );
+        }
+        const { rows: createdInsp } = await db.query(
+          `INSERT INTO inspections (order_id, object_id, activity_id, template_version_id, inspector_id, status)
+           VALUES ($1, $2, $3, $4, $5, 'DRAF') RETURNING *`,
+          [orderId, resolvedObjectId, activity?.id || null, verRows[0].id, req.user.id]
+        );
+        inspection = createdInsp[0];
+      }
+
+      const { rows: seqRows } = await db.query("SELECT nextval('bap_no_seq') AS seq");
+      const bapNo = await formatDocumentNumber('bap', {
+        counter: seqRows[0].seq,
+        categoryCode: unit.category_code,
+        date: new Date()
+      }).catch(() => `BAP/URD/${new Date().getFullYear()}/${String(seqRows[0].seq).padStart(4, '0')}`);
+
+      const scopes = scopeItems?.length
+        ? scopeItems
+        : Array.isArray(unit.scope_items) && unit.scope_items.length
+        ? unit.scope_items
+        : Array.isArray(unit.default_bap_scopes) && unit.default_bap_scopes.length
+        ? unit.default_bap_scopes
+        : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
+
+      const { rows: bapRows } = await db.query(
+        `INSERT INTO bap_documents
+           (bap_no, inspection_id, order_id, object_id, status, inspection_date, scope_items, created_by)
+         VALUES ($1, $2, $3, $4, 'DRAF', COALESCE($5::date, CURRENT_DATE), $6::jsonb, $7)
+         RETURNING *`,
+        [bapNo, inspection.id, orderId, resolvedObjectId, inspectionDate || null, JSON.stringify(scopes), req.user.id]
+      );
+
+      await db.query(
+        `INSERT INTO bap_revisions (bap_id, version, action, reason, snapshot, actor_id)
+         VALUES ($1, 1, 'PREPARED', 'Draf BAP disiapkan untuk proses tanda tangan PIC klien', $2, $3)`,
+        [bapRows[0].id, JSON.stringify({ scope_items: scopes, before_checklist_complete: true }), req.user.id]
+      );
+
+      if (activity) {
+        await recordActivityHistory(db, {
+          activityId: activity.id,
+          action: 'BAP_PREPARED',
+          note: 'Draf BAP disiapkan sebelum pemeriksaan selesai untuk tanda tangan PIC klien',
+          snapshot: { bapNo },
+          actorId: req.user.id
+        });
+      }
+
+      await notifyRoles(
+        {
+          roles: ['ADMIN_KANTOR', 'ADMIN_SISTEM'],
+          type: 'BAP_PREPARED',
+          title: `Draf BAP Disiapkan: ${unit.name}`,
+          body: `Draf BAP ${bapNo} telah disiapkan pada PO ${order.po_number || order.order_no}. Checklist lapangan belum tentu selesai.`,
+          link: '/app/bap'
+        },
+        db
+      );
+
+      await recordAudit(
+        {
+          userId: req.user.id,
+          action: 'BAP_PREPARE',
+          entity: 'bap_documents',
+          entityId: bapRows[0].id,
+          summary: { bapNo, orderId, objectId: resolvedObjectId, activityId: activity?.id || null },
+          ip: req.ip
+        },
+        db
+      );
+
+      return fetchFullBapContext(db, bapRows[0].id);
+    });
+
+    return res.status(201).json({ bap });
   } catch (err) {
     return next(err);
   }
@@ -504,6 +698,28 @@ router.post(
           unitStatus: 'SIAP_DISTRIBUSI',
           actorId: req.user.id
         });
+
+        // Aktivitas pemeriksaan terkait selesai setelah dokumennya final.
+        const { rows: actRows } = await db.query(
+          `SELECT ia.id, ia.status FROM inspection_activities ia
+           JOIN inspections i ON i.activity_id = ia.id
+           WHERE i.id = $1`,
+          [cur.inspection_id]
+        );
+        if (actRows[0]) {
+          await db.query(
+            "UPDATE inspection_activities SET status = 'SELESAI', updated_at = now() WHERE id = $1",
+            [actRows[0].id]
+          );
+          await recordActivityHistory(db, {
+            activityId: actRows[0].id,
+            action: 'COMPLETED',
+            fromStatus: actRows[0].status,
+            toStatus: 'SELESAI',
+            note: `BAP ${cur.bap_no} difinalisasi`,
+            actorId: req.user.id
+          });
+        }
 
         // Daftarkan otomatis antrean distribusi dokumen wajib:
         // 1. BAP ke Klien

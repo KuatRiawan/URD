@@ -23,6 +23,10 @@ export function useOrderManagement() {
   const [createForm, setCreateForm] = useState({
     poNumber: '',
     poDate: new Date().toISOString().slice(0, 10),
+    validFrom: new Date().toISOString().slice(0, 10),
+    validUntil: new Date(new Date().setFullYear(new Date().getFullYear() + 1) - 86400000)
+      .toISOString()
+      .slice(0, 10),
     clientId: '',
     newClientName: '',
     newClientIndustry: '',
@@ -264,6 +268,8 @@ export function useOrderManagement() {
       await api.post('/orders', {
         poNumber: createForm.poNumber?.trim() || null,
         poDate: createForm.poDate || null,
+        validFrom: createForm.validFrom || null,
+        validUntil: createForm.validUntil || null,
         clientId: clientMode === 'EXISTING' ? createForm.clientId || null : null,
         newClient:
           clientMode === 'NEW'

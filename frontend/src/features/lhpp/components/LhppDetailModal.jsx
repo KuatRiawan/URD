@@ -54,7 +54,8 @@ export function LhppDetailModal({
   handleSubmitReview,
   handleUploadPhoto,
   handleDeletePhoto,
-  handleRecordDelivery
+  handleRecordDelivery,
+  handleRefreshDetail
 }) {
   const toast = useToast();
   const [returnMode, setReturnMode] = useState(false);
@@ -62,6 +63,8 @@ export function LhppDetailModal({
   const [returnError, setReturnError] = useState('');
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
+  const [sourceDocFile, setSourceDocFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const handleValidate = async () => {
     if (!detailLhpp?.id) return;
@@ -79,6 +82,26 @@ export function LhppDetailModal({
       toast(err.response?.data?.error?.message || 'Gagal memvalidasi kelengkapan LHPP.', 'error');
     } finally {
       setValidating(false);
+    }
+  };
+
+  const uploadSourceDocument = async () => {
+    if (!detailLhpp?.id || !sourceDocFile) return;
+    setUploadingDoc(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', sourceDocFile);
+      fd.append('caption', 'Dokumen LHPP hasil penyuntingan Inspector');
+      await api.post(`/lhpp/${detailLhpp.id}/document`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast('Dokumen LHPP berhasil diunggah. Dokumen tetap dapat diperbaiki sampai difinalisasi.', 'success');
+      setSourceDocFile(null);
+      await handleRefreshDetail?.();
+    } catch (err) {
+      toast(err.response?.data?.error?.message || 'Gagal mengunggah dokumen LHPP.', 'error');
+    } finally {
+      setUploadingDoc(false);
     }
   };
 
@@ -467,6 +490,47 @@ export function LhppDetailModal({
                 <strong>Mode Pantau Eksekutif (Hanya Baca):</strong> Pimpinan dapat memantau status dokumen dan mengunduh berkas PDF resmi ber-QR verifikasi tanpa memerlukan proses persetujuan administratif.
               </span>
             </div>
+          )}
+
+          {/* Dokumen LHPP (Word/PDF) yang dapat diunggah ulang sebelum finalisasi */}
+          {!['FINAL', 'TERBIT'].includes(detailLhpp.status) && (isInspector || canManage) && (
+            <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-3.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Dokumen LHPP (Word/PDF) Sebelum Finalisasi
+                </span>
+                {detailLhpp.source_file_id && (
+                  <a
+                    href={`/api/v1/dashboard/files/${detailLhpp.source_file_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-semibold text-[#C81E1E] dark:text-red-400 hover:underline inline-flex items-center gap-1"
+                  >
+                    <DownloadSimple size={13} /> Unduh dokumen terunggah
+                  </a>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Inspector dapat mengunggah dokumen hasil penyuntingan kapan saja selama LHPP belum difinalisasi,
+                termasuk setelah dikembalikan Admin Kantor untuk revisi.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  accept=".doc,.docx,.pdf"
+                  onChange={(e) => setSourceDocFile(e.target.files?.[0] || null)}
+                  className="text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-slate-100 dark:file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold cursor-pointer"
+                />
+                <button
+                  type="button"
+                  disabled={!sourceDocFile || uploadingDoc}
+                  onClick={uploadSourceDocument}
+                  className="h-8 px-3 rounded-lg bg-slate-900 dark:bg-slate-700 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                >
+                  {uploadingDoc ? 'Mengunggah…' : 'Unggah Dokumen'}
+                </button>
+              </div>
+            </section>
           )}
 
           {/* Form Narasi & Evaluasi Teknis */}

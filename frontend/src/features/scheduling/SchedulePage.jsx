@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { api } from '../../lib/api/axios.js';
 import { ScheduleAgendaSection } from './components/ScheduleAgendaSection.jsx';
 import { InspectorCompetencySection } from './components/InspectorCompetencySection.jsx';
+import { ScheduleApprovalSection } from './components/ScheduleApprovalSection.jsx';
 import { AddCompetencyModal } from './components/AddCompetencyModal.jsx';
 
 export function SchedulePage() {
@@ -113,6 +114,7 @@ export function SchedulePage() {
   };
 
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+  const canReviewSchedule = isPimpinan || ['ADMIN_KANTOR', 'ADMIN_SISTEM'].includes(user?.role);
 
   return (
     <div className="space-y-6">
@@ -131,6 +133,8 @@ export function SchedulePage() {
         <ErrorBanner message={error} onRetry={loadData} />
       ) : (
         <div className="space-y-6">
+          {canReviewSchedule && <ScheduleApprovalSection canApprove={isPimpinan} />}
+
           <ScheduleAgendaSection schedules={schedules} />
 
           <InspectorCompetencySection

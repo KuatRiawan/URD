@@ -27,6 +27,7 @@ import {
   SERVICE_TYPE_LABELS
 } from '../../../lib/utils/format.js';
 import { STATUS_TONE, UNIT_STATUS_LABELS } from '../orderConstants.js';
+import { InspectionActivitiesSection } from './InspectionActivitiesSection.jsx';
 
 export function OrderDetailModal({
   open,
@@ -66,7 +67,8 @@ export function OrderDetailModal({
   handleUpdateOrder,
   handleAddUnitsToOrder,
   handleUploadPoAttachment,
-  handleUpdateOrderUnit
+  handleUpdateOrderUnit,
+  openOrderDetail
 }) {
   const [activeTab, setActiveTab] = useState('UNITS');
   const canManageSchedule = propCanManageSchedule ?? ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
@@ -76,6 +78,8 @@ export function OrderDetailModal({
   const [poForm, setPoForm] = useState({
     poNumber: '',
     poDate: '',
+    validFrom: '',
+    validUntil: '',
     serviceType: 'PEMERIKSAAN_BERKALA',
     source: 'DOKUMEN_PO',
     requestedDate: '',
@@ -110,6 +114,8 @@ export function OrderDetailModal({
       setPoForm({
         poNumber: activeOrder.po_number || '',
         poDate: activeOrder.po_date ? new Date(activeOrder.po_date).toISOString().slice(0, 10) : '',
+        validFrom: activeOrder.valid_from ? new Date(activeOrder.valid_from).toISOString().slice(0, 10) : '',
+        validUntil: activeOrder.valid_until ? new Date(activeOrder.valid_until).toISOString().slice(0, 10) : '',
         serviceType: activeOrder.service_type || 'PEMERIKSAAN_BERKALA',
         source: activeOrder.source || 'DOKUMEN_PO',
         requestedDate: activeOrder.requested_date ? new Date(activeOrder.requested_date).toISOString().slice(0, 10) : '',
@@ -231,7 +237,9 @@ export function OrderDetailModal({
           {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
 
           {/* Segmented Control Navigasi Tab Gaya Native Mobile */}
-          {(canManage || user?.role === 'AHLI_K3' || (nextStatuses || []).length > 0) && (
+          {(canManage ||
+            ['AHLI_K3', 'INSPECTOR', 'PIMPINAN', 'MANAGER'].includes(user?.role) ||
+            (nextStatuses || []).length > 0) && (
             <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl gap-1">
               <button
                 type="button"
@@ -243,6 +251,17 @@ export function OrderDetailModal({
                 }`}
               >
                 Unit &amp; Dokumen
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('ACTIVITIES')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'ACTIVITIES'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Aktivitas
               </button>
               <button
                 type="button"
@@ -286,6 +305,11 @@ export function OrderDetailModal({
                     <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5">
                       Tgl PO: {formatDate(activeOrder.po_date || activeOrder.requested_date)}
                     </span>
+                    {(activeOrder.valid_from || activeOrder.valid_until) && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5">
+                        Masa berlaku PO: {formatDate(activeOrder.valid_from)} – {formatDate(activeOrder.valid_until)}
+                      </span>
+                    )}
                   </div>
                   <Badge tone={STATUS_TONE[activeOrder.status] || 'neutral'}>
                     {ORDER_STATUS_LABELS[activeOrder.status] || activeOrder.status}
@@ -380,6 +404,28 @@ export function OrderDetailModal({
                         type="date"
                         value={poForm.poDate}
                         onChange={(e) => setPoForm({ ...poForm, poDate: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        PO Berlaku Mulai
+                      </label>
+                      <input
+                        type="date"
+                        value={poForm.validFrom}
+                        onChange={(e) => setPoForm({ ...poForm, validFrom: e.target.value })}
+                        className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+                        PO Berlaku Sampai (maks. 1 tahun)
+                      </label>
+                      <input
+                        type="date"
+                        value={poForm.validUntil}
+                        onChange={(e) => setPoForm({ ...poForm, validUntil: e.target.value })}
                         className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100"
                       />
                     </div>
@@ -935,6 +981,20 @@ export function OrderDetailModal({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB: AKTIVITAS PEMERIKSAAN PER UNIT                      */}
+          {/* ======================================================== */}
+          {activeTab === 'ACTIVITIES' && (
+            <InspectionActivitiesSection
+              order={activeOrder}
+              units={detailData?.objects || []}
+              activities={detailData?.activities || []}
+              inspectors={inspectors}
+              user={user}
+              onReload={() => openOrderDetail?.(activeOrder.id)}
+            />
           )}
 
           {/* ======================================================== */}

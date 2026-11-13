@@ -13,14 +13,18 @@ const ROLE_ALIASES = {
   ADMIN_SISTEM: ['ADMIN_SISTEM']
 };
 
-export function authorize(...allowedRoles) {
-  // Ekspansi peran yang diizinkan berdasarkan alias
+function expandRoles(allowedRoles) {
   const expandedAllowedRoles = new Set();
   for (const role of allowedRoles) {
     expandedAllowedRoles.add(role);
     const aliases = ROLE_ALIASES[role] || [];
     for (const a of aliases) expandedAllowedRoles.add(a);
   }
+  return expandedAllowedRoles;
+}
+
+function buildAuthorizer(allowedRoles, { allowManagerMutation = false } = {}) {
+  const expandedAllowedRoles = expandRoles(allowedRoles);
 
   return (req, _res, next) => {
     if (!req.user) {
@@ -29,10 +33,11 @@ export function authorize(...allowedRoles) {
 
     const userRole = req.user.role;
 
-    // PIMPINAN / MANAGER hanya memiliki hak akses MONITORING (Read-Only)
-    // Blokir mutasi (POST, PUT, PATCH, DELETE) jika dilakukan oleh PIMPINAN
+    // PIMPINAN / MANAGER secara default hanya memiliki hak akses MONITORING.
+    // Pengecualian eksplisit hanya untuk wewenang yang memang diberikan:
+    // persetujuan jadwal pemeriksaan (lihat authorizeScheduleApproval).
     const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method.toUpperCase());
-    if (['PIMPINAN', 'MANAGER'].includes(userRole) && isMutation) {
+    if (!allowManagerMutation && ['PIMPINAN', 'MANAGER'].includes(userRole) && isMutation) {
       return next(
         new AppError(
           403,
@@ -49,4 +54,14 @@ export function authorize(...allowedRoles) {
     }
     return next();
   };
+}
+
+export function authorize(...allowedRoles) {
+  return buildAuthorizer(allowedRoles);
+}
+
+// Wewenang Manager yang diakui secara eksplisit: menyetujui/menolak jadwal
+// aktivitas pemeriksaan. Tidak membuka akses teknis atau finalisasi dokumen.
+export function authorizeScheduleApproval(...allowedRoles) {
+  return buildAuthorizer(allowedRoles, { allowManagerMutation: true });
 }

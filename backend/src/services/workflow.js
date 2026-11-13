@@ -32,6 +32,7 @@ export const BAP_SCOPE_CATALOG = [
 export function computePoUnitProgress(units = []) {
   const totalUnits = units.length;
   let unscheduledUnits = 0;
+  let awaitingApprovalUnits = 0;
   let scheduledUnits = 0;
   let inProgressUnits = 0;
   let waitingBapLhppUnits = 0;
@@ -44,6 +45,8 @@ export function computePoUnitProgress(units = []) {
       cancelledUnits += 1;
     } else if (st === 'BELUM_DIJADWALKAN') {
       unscheduledUnits += 1;
+    } else if (st === 'MENUNGGU_PERSETUJUAN') {
+      awaitingApprovalUnits += 1;
     } else if (st === 'TERJADWAL' || st === 'DITUGASKAN') {
       scheduledUnits += 1;
     } else if (st === 'SEDANG_DIPERIKSA' || st === 'CHECKLIST_BELUM_LENGKAP' || st === 'MENUNGGU_TTD') {
@@ -86,6 +89,8 @@ export function computePoUnitProgress(units = []) {
     poProgressLabel = 'Sedang Berjalan';
   } else if (scheduledUnits > 0) {
     poProgressLabel = 'Terjadwal';
+  } else if (awaitingApprovalUnits > 0) {
+    poProgressLabel = 'Menunggu Persetujuan Jadwal';
   } else if (unscheduledUnits > 0) {
     poProgressLabel = 'Siap Dijadwalkan';
   }
@@ -94,12 +99,14 @@ export function computePoUnitProgress(units = []) {
     totalUnits,
     activeUnits,
     unscheduledUnits,
+    awaitingApprovalUnits,
     scheduledUnits,
     inProgressUnits,
     waitingBapLhppUnits,
     completedUnits,
     cancelledUnits,
     unscheduled: unscheduledUnits,
+    awaitingApproval: awaitingApprovalUnits,
     scheduled: scheduledUnits,
     inspecting: inProgressUnits,
     waitingDocs: waitingBapLhppUnits,
@@ -150,6 +157,8 @@ export async function syncOrderUnitStatus(
   } else if (unitRows.some((u) => u.unit_status === 'DITUGASKAN')) {
     nextOrderStatus = 'DITUGASKAN';
   } else if (unitRows.some((u) => u.unit_status === 'TERJADWAL')) {
+    nextOrderStatus = 'TERJADWAL';
+  } else if (unitRows.some((u) => u.unit_status === 'MENUNGGU_PERSETUJUAN')) {
     nextOrderStatus = 'TERJADWAL';
   }
 

@@ -53,6 +53,83 @@ router.get('/conflicts', authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'P
   }
 });
 
+// Antrean persetujuan jadwal aktivitas untuk Manager/Pimpinan.
+router.get('/approvals', authorize('PIMPINAN', 'ADMIN_KANTOR', 'ADMIN_SISTEM'), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT ia.id, ia.order_id, ia.object_id, ia.order_object_id,
+              ia.inspection_type_code, it.name AS inspection_type_name,
+              ia.planned_start_at, ia.planned_end_at, ia.schedule_status,
+              ia.status, ia.rejection_reason, ia.proposed_at, ia.notes,
+              o.order_no, o.po_number, o.valid_from, o.valid_until,
+              c.name AS client_name,
+              t.name AS object_name, t.serial_number, t.install_location,
+              oc.code AS category_code, oc.name AS category_name,
+              u.full_name AS proposed_by_name,
+              insp.full_name AS inspector_name
+       FROM inspection_activities ia
+       JOIN orders o ON o.id = ia.order_id
+       JOIN clients c ON c.id = o.client_id
+       JOIN test_objects t ON t.id = ia.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN inspection_types it ON it.code = ia.inspection_type_code
+       LEFT JOIN users u ON u.id = ia.proposed_by
+       LEFT JOIN users insp ON insp.id = ia.inspector_id
+       WHERE ia.schedule_status = 'DIUSULKAN'
+         AND ia.status NOT IN ('SELESAI', 'DIBATALKAN')
+       ORDER BY ia.planned_start_at ASC NULLS LAST, ia.proposed_at ASC`
+    );
+    return res.json({ items: rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Agenda aktivitas pemeriksaan yang sudah disetujui (per rentang tanggal).
+router.get('/activities', authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'AHLI_K3', 'INSPECTOR'), async (req, res, next) => {
+  try {
+    const from = req.query.from ? new Date(req.query.from).toISOString() : null;
+    const to = req.query.to ? new Date(req.query.to).toISOString() : null;
+    const params = [];
+    const conds = ["ia.schedule_status = 'DISETUJUI'", "ia.status <> 'DIBATALKAN'"];
+
+    if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
+      params.push(req.user.id);
+      conds.push(`ia.inspector_id = $${params.length}`);
+    }
+    if (from) {
+      params.push(from);
+      conds.push(`ia.planned_end_at >= $${params.length}::timestamptz`);
+    }
+    if (to) {
+      params.push(to);
+      conds.push(`ia.planned_start_at <= $${params.length}::timestamptz`);
+    }
+
+    const { rows } = await query(
+      `SELECT ia.id, ia.order_id, ia.object_id, ia.inspection_type_code,
+              it.name AS inspection_type_name,
+              ia.planned_start_at, ia.planned_end_at, ia.status,
+              o.order_no, o.po_number, c.name AS client_name,
+              t.name AS object_name, t.serial_number, t.install_location,
+              oc.name AS category_name, u.full_name AS inspector_name
+       FROM inspection_activities ia
+       JOIN orders o ON o.id = ia.order_id
+       JOIN clients c ON c.id = o.client_id
+       JOIN test_objects t ON t.id = ia.object_id
+       JOIN object_categories oc ON oc.id = t.category_id
+       JOIN inspection_types it ON it.code = ia.inspection_type_code
+       LEFT JOIN users u ON u.id = ia.inspector_id
+       WHERE ${conds.join(' AND ')}
+       ORDER BY ia.planned_start_at ASC`,
+      params
+    );
+    return res.json({ items: rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const from = req.query.from ? new Date(req.query.from).toISOString() : null;

@@ -9,6 +9,7 @@ import { createNotification } from '../../services/notify.js';
 import { generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
 import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
+import { recordActivityHistory } from '../../services/inspection-activities.js';
 import { saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
 
@@ -64,10 +65,11 @@ const templateCreateSchema = Joi.object({
 });
 
 const startInspectionSchema = Joi.object({
-  orderId: Joi.string().uuid().required(),
-  objectId: Joi.string().uuid().required(),
+  orderId: Joi.string().uuid(),
+  objectId: Joi.string().uuid(),
+  activityId: Joi.string().uuid().allow('', null),
   templateVersionId: Joi.string().uuid().allow('', null)
-});
+}).or('activityId', 'orderId');
 
 const saveDraftSchema = Joi.object({
   conclusion: Joi.string()
@@ -710,11 +712,14 @@ router.get('/', async (req, res, next) => {
 
     params.push(limit, offset);
     const { rows } = await query(
-      `SELECT i.*, o.order_no, o.po_number, c.name AS client_name,
+      `SELECT i.*, o.order_no, o.po_number, o.valid_from, o.valid_until, c.name AS client_name,
               t.name AS object_name, t.serial_number,
               oc.code AS category_code, oc.name AS category_name,
               u.full_name AS inspector_name,
               tv.is_validated AS template_is_validated,
+              act.inspection_type_code, itype.name AS inspection_type_name,
+              act.planned_start_at AS activity_start_at, act.planned_end_at AS activity_end_at,
+              act.schedule_status AS activity_schedule_status,
               b.id AS bap_id, b.bap_no, b.status AS bap_status,
               l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status
        FROM inspections i
@@ -724,6 +729,8 @@ router.get('/', async (req, res, next) => {
        JOIN object_categories oc ON oc.id = t.category_id
        JOIN users u ON u.id = i.inspector_id
        JOIN inspection_template_versions tv ON tv.id = i.template_version_id
+       LEFT JOIN inspection_activities act ON act.id = i.activity_id
+       LEFT JOIN inspection_types itype ON itype.code = act.inspection_type_code
        LEFT JOIN bap_documents b ON b.inspection_id = i.id
        LEFT JOIN lhpp_documents l ON l.inspection_id = i.id
        ${whereSql}
@@ -739,23 +746,65 @@ router.get('/', async (req, res, next) => {
 });
 
 // Mulai atau ambil form inspeksi untuk order & objek tertentu
-router.post('/start', authorize('AHLI_K3'), validate(startInspectionSchema), async (req, res, next) => {
+router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectionSchema), async (req, res, next) => {
   try {
-    const { orderId, objectId, templateVersionId } = req.body;
+    const { templateVersionId } = req.body;
+    let { orderId, objectId } = req.body;
+    const { activityId } = req.body;
 
     const inspection = await withTransaction(async (db) => {
-      // Pastikan Ahli K3 ditugaskan ke order ini
-      const { rows: asgRows } = await db.query(
-        `SELECT * FROM assignments
-         WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU', 'DITERIMA')`,
-        [orderId, req.user.id]
-      );
-      if (!asgRows[0]) {
-        throw new AppError(
-          403,
-          'FORBIDDEN',
-          'Anda tidak ditugaskan pada order ini untuk melakukan pemeriksaan.'
+      let activity = null;
+      if (activityId) {
+        const { rows: actRows } = await db.query(
+          `SELECT ia.*, o.order_no, o.po_number, t.name AS object_name
+           FROM inspection_activities ia
+           JOIN orders o ON o.id = ia.order_id
+           JOIN test_objects t ON t.id = ia.object_id
+           WHERE ia.id = $1`,
+          [activityId]
         );
+        activity = actRows[0];
+        if (!activity) throw new AppError(404, 'ACTIVITY_NOT_FOUND', 'Aktivitas pemeriksaan tidak ditemukan.');
+        if (activity.status === 'DIBATALKAN') {
+          throw new AppError(400, 'ACTIVITY_CANCELLED', 'Aktivitas pemeriksaan ini telah dibatalkan.');
+        }
+        if (orderId && activity.order_id !== orderId) {
+          throw new AppError(400, 'ACTIVITY_MISMATCH', 'Aktivitas bukan bagian dari PO yang dipilih.');
+        }
+        orderId = activity.order_id;
+        objectId = activity.object_id;
+
+        const { rows: ownAssignment } = await db.query(
+          `SELECT 1 FROM assignments
+           WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU', 'DITERIMA') LIMIT 1`,
+          [orderId, req.user.id]
+        );
+        if (activity.inspector_id !== req.user.id && !ownAssignment[0]) {
+          throw new AppError(403, 'FORBIDDEN', 'Aktivitas ini tidak ditugaskan kepada Anda.');
+        }
+        if (activity.inspector_id && activity.inspector_id !== req.user.id) {
+          throw new AppError(403, 'FORBIDDEN', 'Aktivitas ini ditugaskan kepada Ahli K3 lain.');
+        }
+      }
+
+      if (!objectId) {
+        throw new AppError(400, 'OBJECT_REQUIRED', 'Unit alat wajib dipilih untuk memulai pemeriksaan.');
+      }
+
+      if (!activity) {
+        // Pastikan Ahli K3 ditugaskan ke order ini
+        const { rows: asgRows } = await db.query(
+          `SELECT * FROM assignments
+           WHERE order_id = $1 AND inspector_id = $2 AND status IN ('MENUNGGU', 'DITERIMA')`,
+          [orderId, req.user.id]
+        );
+        if (!asgRows[0]) {
+          throw new AppError(
+            403,
+            'FORBIDDEN',
+            'Anda tidak ditugaskan pada order ini untuk melakukan pemeriksaan.'
+          );
+        }
       }
 
       const { rows: objRows } = await db.query(
@@ -769,11 +818,40 @@ router.post('/start', authorize('AHLI_K3'), validate(startInspectionSchema), asy
         throw new AppError(400, 'OBJECT_NOT_IN_ORDER', 'Objek uji tidak terdaftar pada order ini.');
       }
 
-      const { rows: existing } = await db.query(
-        'SELECT * FROM inspections WHERE order_id = $1 AND object_id = $2',
-        [orderId, objectId]
-      );
-      if (existing[0]) return existing[0];
+      const { rows: existing } = activity
+        ? await db.query('SELECT * FROM inspections WHERE activity_id = $1', [activityId])
+        : await db.query(
+            'SELECT * FROM inspections WHERE order_id = $1 AND object_id = $2 AND activity_id IS NULL',
+            [orderId, objectId]
+          );
+      if (existing[0]) {
+        // Pemeriksaan mungkin sudah dibuat lebih awal saat BAP disiapkan.
+        // Memulai pemeriksaan tetap harus menandai aktivitas sedang diperiksa.
+        if (activity) {
+          await db.query(
+            `UPDATE inspection_activities
+             SET status = 'SEDANG_DIPERIKSA', inspector_id = COALESCE(inspector_id, $1), updated_at = now()
+             WHERE id = $2`,
+            [req.user.id, activityId]
+          );
+          await recordActivityHistory(db, {
+            activityId,
+            action: 'INSPECTION_STARTED',
+            fromStatus: activity.status,
+            toStatus: 'SEDANG_DIPERIKSA',
+            note: 'Pemeriksaan lapangan dimulai',
+            actorId: req.user.id
+          });
+          await syncOrderUnitStatus(db, {
+            orderId,
+            objectId,
+            unitStatus: 'SEDANG_DIPERIKSA',
+            inspectorId: req.user.id,
+            actorId: req.user.id
+          });
+        }
+        return existing[0];
+      }
 
       let verId = templateVersionId;
       if (!verId) {
@@ -809,11 +887,28 @@ router.post('/start', authorize('AHLI_K3'), validate(startInspectionSchema), asy
       }
 
       const { rows: created } = await db.query(
-        `INSERT INTO inspections (order_id, object_id, template_version_id, inspector_id, status, inspected_at)
-         VALUES ($1, $2, $3, $4, 'DRAF', now())
+        `INSERT INTO inspections (order_id, object_id, activity_id, template_version_id, inspector_id, status, inspected_at)
+         VALUES ($1, $2, $3, $4, $5, 'DRAF', now())
          RETURNING *`,
-        [orderId, objectId, verId, req.user.id]
+        [orderId, objectId, activityId || null, verId, req.user.id]
       );
+
+      if (activity) {
+        await db.query(
+          `UPDATE inspection_activities
+           SET status = 'SEDANG_DIPERIKSA', inspector_id = COALESCE(inspector_id, $1), updated_at = now()
+           WHERE id = $2`,
+          [req.user.id, activityId]
+        );
+        await recordActivityHistory(db, {
+          activityId,
+          action: 'INSPECTION_STARTED',
+          fromStatus: activity.status,
+          toStatus: 'SEDANG_DIPERIKSA',
+          note: 'Pemeriksaan lapangan dimulai',
+          actorId: req.user.id
+        });
+      }
 
       await syncOrderUnitStatus(db, {
         orderId,
@@ -840,14 +935,14 @@ router.post('/start', authorize('AHLI_K3'), validate(startInspectionSchema), asy
           action: 'INSPECTION_START',
           entity: 'inspections',
           entityId: created[0].id,
-          summary: { orderId, objectId },
-          ip: req.ip
-        },
-        db
-      );
+                      summary: { orderId, objectId, activityId: activityId || null },
+            ip: req.ip
+          },
+          db
+        );
 
-      return created[0];
-    });
+        return created[0];
+      });
 
     return res.status(201).json({ inspection });
   } catch (err) {
@@ -864,6 +959,9 @@ router.get('/:id', async (req, res, next) => {
               cl.name AS location_name, cl.address AS location_address, cl.city AS location_city,
               cc.name AS contact_name, cc.phone AS contact_phone, cc.email AS contact_email,
               s.start_at AS schedule_start_at, s.end_at AS schedule_end_at, s.notes AS schedule_notes,
+              act.inspection_type_code, itype.name AS inspection_type_name,
+              act.planned_start_at AS activity_start_at, act.planned_end_at AS activity_end_at,
+              act.schedule_status AS activity_schedule_status,
               t.name AS object_name, t.serial_number, t.brand, t.manufacturer, t.model, t.capacity, t.install_location,
               t.attributes AS object_attributes,
               oc.code AS category_code, oc.name AS category_name, oc.attribute_schema, oc.default_bap_scopes,
@@ -880,6 +978,8 @@ router.get('/:id', async (req, res, next) => {
        LEFT JOIN client_locations cl ON cl.id = o.location_id
        LEFT JOIN client_contacts cc ON cc.id = o.contact_id
        LEFT JOIN schedules s ON s.order_id = o.id
+       LEFT JOIN inspection_activities act ON act.id = i.activity_id
+       LEFT JOIN inspection_types itype ON itype.code = act.inspection_type_code
        JOIN test_objects t ON t.id = i.object_id
        JOIN object_categories oc ON oc.id = t.category_id
        LEFT JOIN order_objects oo ON oo.order_id = i.order_id AND oo.object_id = i.object_id

@@ -36,6 +36,35 @@ export function StepPoIdentity({ createForm, setCreateForm }) {
         </div>
 
         <div>
+          <label htmlFor="po-valid-from" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+            PO Berlaku Mulai
+          </label>
+          <input
+            id="po-valid-from"
+            type="date"
+            value={createForm.validFrom || ''}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, validFrom: e.target.value }))}
+            className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="po-valid-until" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+            PO Berlaku Sampai (maks. 1 tahun)
+          </label>
+          <input
+            id="po-valid-until"
+            type="date"
+            value={createForm.validUntil || ''}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, validUntil: e.target.value }))}
+            className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
+          />
+          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+            Satu PO dapat mencakup beberapa unit dan beberapa aktivitas pemeriksaan selama masa berlaku ini.
+          </p>
+        </div>
+
+        <div>
           <label htmlFor="po-service-type" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
             Jenis Layanan Riksa Uji *
           </label>

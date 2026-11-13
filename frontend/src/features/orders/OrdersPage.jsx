@@ -430,6 +430,7 @@ export function OrdersPage() {
         handleAddUnitsToOrder={handleAddUnitsToOrder}
         handleUploadPoAttachment={handleUploadPoAttachment}
         handleUpdateOrderUnit={handleUpdateOrderUnit}
+        openOrderDetail={openOrderDetail}
         categories={categories}
         clients={clients}
       />

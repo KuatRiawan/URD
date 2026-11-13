@@ -26,6 +26,23 @@ export const ALLOWED_NEXT_STATUS = {
   DIBATALKAN: []
 };
 
+export const ACTIVITY_STATUS_LABELS = {
+  BELUM_DIJADWALKAN: 'Belum Dijadwalkan',
+  MENUNGGU_PERSETUJUAN: 'Menunggu Persetujuan',
+  TERJADWAL: 'Terjadwal',
+  DITUGASKAN: 'Ditugaskan',
+  SEDANG_DIPERIKSA: 'Sedang Diperiksa',
+  SELESAI: 'Selesai',
+  DIBATALKAN: 'Dibatalkan'
+};
+
+export const SCHEDULE_STATUS_LABELS = {
+  BELUM_DIUSULKAN: 'Jadwal Belum Diajukan',
+  DIUSULKAN: 'Menunggu Persetujuan Manager',
+  DISETUJUI: 'Jadwal Disetujui',
+  DITOLAK: 'Jadwal Ditolak'
+};
+
 export const PO_WIZARD_STEPS = [
   'Info PO & Layanan',
   'Data Klien & PIC',
