@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import { useDialogFocus } from './useDialogFocus.js';
 
@@ -47,7 +48,10 @@ export function Modal({
   const widthClass = maxWidth || SIZE_CLASSES[size] || SIZE_CLASSES.md;
   const isMobileFull = fullScreenMobile;
 
-  return (
+  // Dirender sebagai portal ke <body> agar overlay full-screen tidak terkurung
+  // oleh ancestor ber-transform/overflow (mis. animasi masuk halaman) yang
+  // membuat position: fixed terpotong dan backdrop tidak menutup seluruh layar.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto overscroll-contain"
       role="dialog"
@@ -108,6 +112,7 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

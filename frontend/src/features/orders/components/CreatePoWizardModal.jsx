@@ -129,7 +129,7 @@ export function CreatePoWizardModal({
                       {isCompleted ? <Check size={12} weight="bold" /> : stepNumber}
                     </span>
                     <span
-                      className={`text-xs whitespace-nowrap transition-colors ${
+                      className={`hidden lg:inline text-xs whitespace-nowrap transition-colors ${
                         isCurrent
                           ? 'text-slate-900 dark:text-white font-semibold'
                           : isCompleted

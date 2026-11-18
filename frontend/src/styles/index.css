@@ -379,12 +379,15 @@ html.dark * {
   }
 }
 
+/* fill-mode `backwards` (bukan `both`): setelah animasi selesai transform dilepas.
+   Transform yang menetap membuat ancestor menjadi containing block sehingga
+   child ber-position: fixed (modal/backdrop) terkurung dan terpotong. */
 .urd-page-enter {
-  animation: urd-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: urd-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .urd-stagger > * {
-  animation: urd-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: urd-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .urd-stagger > *:nth-child(2) { animation-delay: 40ms; }
