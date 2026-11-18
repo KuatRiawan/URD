@@ -92,10 +92,10 @@ export function LoginPage() {
         {/* Identitas Portal */}
         <div className="relative z-10 max-w-md my-auto py-8 space-y-3">
           <p className="text-xs font-semibold text-[#C81E1E] dark:text-rose-400">
-            Sistem Operasional Riksa Uji K3
+            Beter Safety Partner.
           </p>
           <h2 className="text-3xl xl:text-[32px] font-bold leading-[1.18] tracking-[-0.025em] text-[#1D1D1F] dark:text-[#F5F5F7]">
-            Pemeriksaan, Pengujian, dan Dokumentasi K3.
+            Riksa Uji, URD Pasti!
           </h2>
         </div>
 
@@ -146,11 +146,11 @@ export function LoginPage() {
               </span>
 
               <h1 className="text-xl sm:text-[22px] font-bold tracking-[-0.022em] text-[#1D1D1F] dark:text-[#F5F5F7]">
-                PT Upaya Riksa Daya
+                Riksa Uji, URD Pasti!
               </h1>
 
               <p className="mt-1 text-xs text-[#6E6E73] dark:text-[#98989D]">
-                Masuk ke Portal Resmi PT Upaya Riksa Daya
+                Beter Safety Partner.
               </p>
             </div>
 
