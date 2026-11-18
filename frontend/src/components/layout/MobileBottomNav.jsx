@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { SquaresFour } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
-import { getMobileNavConfig } from './navConfig.js';
+import { getMobileNavConfig, attachSubmenus } from './navConfig.js';
 import { MobileNavDrawer } from './MobileNavDrawer.jsx';
 
 export function MobileBottomNav({ onOpenSearch, onLogout }) {
@@ -20,7 +20,18 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
     setMoreDrawerOpen((prev) => !prev);
   }, []);
 
-  const { primary, moreGroups } = useMemo(() => getMobileNavConfig(role), [role]);
+  // Item drawer memakai submenu yang sama dengan sidebar agar sub-halaman
+  // tidak lagi ditampilkan sebagai deretan tab di dalam halaman.
+  const { primary, moreGroups } = useMemo(() => {
+    const config = getMobileNavConfig(role);
+    return {
+      primary: config.primary,
+      moreGroups: config.moreGroups.map((group) => ({
+        ...group,
+        items: group.items.map((item) => attachSubmenus(item, role))
+      }))
+    };
+  }, [role]);
 
   // Sembunyikan navigasi bawah ketika lembar inspeksi lapangan sedang aktif agar tidak menghalangi form atau disentuh tidak sengaja
   const isInspectionOpen = useMemo(() => {
@@ -30,7 +41,7 @@ export function MobileBottomNav({ onOpenSearch, onLogout }) {
   // Periksa apakah rute saat ini berada dalam salah satu item menu di dalam drawer "Lainnya"
   const isMoreActive = useMemo(() => {
     return moreGroups.some((group) =>
-      group.items.some((item) => location.pathname.startsWith(item.to))
+      group.items.some((item) => location.pathname.startsWith(item.to.split('?')[0]))
     );
   }, [moreGroups, location.pathname]);
 

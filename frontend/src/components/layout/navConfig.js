@@ -34,6 +34,124 @@ export const PO_SUBMENUS = [
   { to: '/app/orders?status=SELESAI', label: 'Selesai', statusKey: 'SELESAI' }
 ];
 
+export const EXECUTIVE_DASHBOARD_SUBMENUS = [
+  { to: '/app/dashboard?tab=overview', label: 'Ringkasan Eksekutif' },
+  { to: '/app/dashboard?tab=orders', label: 'Monitoring PO & Unit' },
+  { to: '/app/dashboard?tab=workload', label: 'Beban Kerja Tim K3' },
+  { to: '/app/dashboard?tab=documents', label: 'Dokumen & Kepatuhan' },
+  { to: '/app/dashboard?tab=activities', label: 'Jejak Aktivitas' }
+];
+
+export const INSPECTION_SUBMENUS = [
+  { to: '/app/inspections?tab=worksheets', label: 'Lembar Kerja' },
+  { to: '/app/inspections?tab=templates', label: 'Master Template' }
+];
+
+export const USERS_SUBMENUS = [
+  { to: '/app/users?tab=users', label: 'Daftar Akun Pengguna' },
+  { to: '/app/users?tab=rbac_matrix', label: 'Matriks Peran & Hak Akses' },
+  { to: '/app/users?tab=competencies', label: 'Kredensial Ahli K3 & SKP' }
+];
+
+export const REMINDER_SUBMENUS = [
+  { to: '/app/reminders?tab=expiring', label: 'Jatuh Tempo Suket' },
+  { to: '/app/reminders?tab=log', label: 'Pengiriman Klien' },
+  { to: '/app/reminders?tab=missing', label: 'Tanpa Tanggal Berlaku' },
+  { to: '/app/reminders?tab=skp', label: 'SKP Ahli K3' },
+  { to: '/app/reminders?tab=all', label: 'Semua Data' }
+];
+
+const ROLE_TAB_TITLES = {
+  ADMIN_SISTEM: 'Konfigurasi Sistem PJK3',
+  AHLI_K3: 'Kredensial Ahli K3',
+  INSPECTOR: 'Kredensial Ahli K3',
+  ADMIN_KANTOR: 'Operasional Kantor',
+  PIMPINAN: 'Kebijakan & Approval',
+  MANAGER: 'Kebijakan & Approval',
+  MARKETING: 'Kewenangan Komersial'
+};
+
+export const SYSTEM_CONFIG_SUBMENUS = [
+  { to: '/app/settings?tab=role_specific&subtab=company_profile', label: 'Profil Lembaga PJK3' },
+  { to: '/app/settings?tab=role_specific&subtab=checklists', label: 'Checklist Pemeriksaan' },
+  { to: '/app/settings?tab=role_specific&subtab=equipment_master', label: 'Katalog Klasifikasi Alat' },
+  { to: '/app/settings?tab=role_specific&subtab=lhpp_templates', label: 'Template Dokumen LHPP' },
+  { to: '/app/settings?tab=role_specific&subtab=numbering', label: 'Format Nomor Dokumen' },
+  { to: '/app/settings?tab=role_specific&subtab=gateways', label: 'Gateway WA & SMTP' },
+  { to: '/app/settings?tab=role_specific&subtab=reminders', label: 'Template Pengingat' },
+  { to: '/app/settings?tab=role_specific&subtab=backups', label: 'Cadangan Database' },
+  { to: '/app/settings?tab=role_specific&subtab=system_info', label: 'Integritas Sistem' }
+];
+
+export function getSettingsSubmenus(role) {
+  const items = [
+    { to: '/app/settings?tab=profile', label: 'Profil Saya' },
+    { to: '/app/settings?tab=security', label: 'Keamanan & Sandi' },
+    { to: '/app/settings?tab=appearance', label: 'Tampilan & Tema' },
+    { to: '/app/settings?tab=role_specific', label: ROLE_TAB_TITLES[role] || 'Konfigurasi Peran' }
+  ];
+
+  if (role === 'ADMIN_SISTEM') {
+    items.push({ header: 'Sistem & Master Data' }, ...SYSTEM_CONFIG_SUBMENUS);
+  }
+
+  return items;
+}
+
+/**
+ * Menempelkan submenu navigasi pada item sidebar agar seluruh sub-halaman
+ * (tab yang dulu tampil di dalam halaman) dapat diakses dari sidebar.
+ */
+export function attachSubmenus(item, role) {
+  const byPath = {
+    '/app/dashboard': ['PIMPINAN', 'MANAGER'].includes(role) ? EXECUTIVE_DASHBOARD_SUBMENUS : null,
+    '/app/orders': PO_SUBMENUS,
+    '/app/inspections': INSPECTION_SUBMENUS,
+    '/app/reminders': REMINDER_SUBMENUS,
+    '/app/users': USERS_SUBMENUS,
+    '/app/settings': getSettingsSubmenus(role)
+  };
+
+  const submenus = byPath[item.to];
+  return submenus ? { ...item, submenus } : item;
+}
+
+/**
+ * Menentukan submenu sidebar yang sedang aktif berdasarkan path dan query-nya.
+ * Submenu dengan query paling spesifik menang atas submenu tanpa query.
+ */
+export function resolveActiveSubmenu(submenus = [], location) {
+  let bestTo = null;
+  let bestScore = -1;
+
+  for (const sub of submenus) {
+    if (!sub?.to || sub.header) continue;
+
+    const [pathname, search = ''] = sub.to.split('?');
+    if (location.pathname !== pathname) continue;
+
+    const params = new URLSearchParams(search);
+    const current = new URLSearchParams(location.search);
+    let matched = true;
+    for (const [key, value] of params.entries()) {
+      if ((current.get(key) || '') !== value) {
+        matched = false;
+        break;
+      }
+    }
+
+    if (!matched) continue;
+
+    const score = [...params.keys()].length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestTo = sub.to;
+    }
+  }
+
+  return bestTo;
+}
+
 export const NAV_ITEMS = [
   {
     to: '/app/dashboard',
@@ -150,7 +268,7 @@ export const NAV_ITEMS = [
   }
 ];
 
-export function getVisibleNav(role) {
+function buildNav(role) {
   if (!role) return [];
 
   // 1. Menu khusus Inspector / Ahli K3: Fokus alur riksa uji lapangan, agenda, dan pelaporan
@@ -573,6 +691,10 @@ export function getVisibleNav(role) {
   });
 }
 
+export function getVisibleNav(role) {
+  return buildNav(role).map((item) => attachSubmenus(item, role));
+}
+
 /**
  * Konfigurasi navigasi mobile adaptif per peran:
  * Menyediakan 4 item navigasi primer untuk bottom bar,
@@ -668,7 +790,7 @@ export function getMobileNavConfig(role) {
           items: [
             { to: '/app/clients', label: 'Data Klien', icon: Buildings },
             { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
-            { to: '/app/settings?tab=equipment_master', label: 'Master Jenis Unit & Bidang', icon: ListChecks }
+            { to: '/app/settings?tab=role_specific&subtab=equipment_master', label: 'Master Jenis Unit & Bidang', icon: ListChecks }
           ]
         },
         {

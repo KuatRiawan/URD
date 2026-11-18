@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { CaretDown, SignOut } from '@phosphor-icons/react';
 import logoUrd from '../../assets/logo-urd.png';
+import { resolveActiveSubmenu } from './navConfig.js';
 
 export function getInitials(name = '') {
   return (
@@ -82,6 +83,7 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
   const [expandedKeys, setExpandedKeys] = useState(() => ({
     '/app/orders': true
   }));
+  const navRef = useRef(null);
 
   // Otomatis buka parent dropdown jika rute saat ini berada di dalam menu tersebut
   useEffect(() => {
@@ -91,6 +93,15 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
       }
     }
   }, [location.pathname, items]);
+
+  // Daftar submenu bisa lebih panjang dari tinggi sidebar: pastikan submenu yang
+  // sedang aktif selalu ikut terlihat saat grup dibuka atau halaman berganti.
+  useEffect(() => {
+    const container = navRef.current;
+    if (!container) return;
+    const activeItems = container.querySelectorAll('[data-submenu-active="true"]');
+    activeItems[activeItems.length - 1]?.scrollIntoView?.({ block: 'nearest' });
+  }, [location.pathname, location.search, expandedKeys]);
 
   const groups = [];
   for (const item of items) {
@@ -104,6 +115,7 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
 
   return (
     <nav
+      ref={navRef}
       aria-label="Menu utama"
       className={`flex-1 overflow-y-auto scrollbar-thin py-3.5 space-y-5 ${
         collapsed ? 'px-2' : 'px-3'
@@ -128,6 +140,7 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
               if (hasSubmenus && !collapsed) {
                 const isExpanded = Boolean(expandedKeys[item.to]);
                 const isParentActive = location.pathname.startsWith(item.to);
+                const activeSubmenuTo = resolveActiveSubmenu(item.submenus, location);
 
                 const toggleSubmenu = (e) => {
                   e.preventDefault();
@@ -177,12 +190,19 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
                         role="menu"
                         aria-label={`Submenu ${item.label}`}
                       >
-                        {item.submenus.map((sub) => {
-                          const currentStatus =
-                            new URLSearchParams(location.search).get('status') || '';
-                          const isSubActive =
-                            location.pathname === '/app/orders' &&
-                            currentStatus === (sub.statusKey || '');
+                        {item.submenus.map((sub, subIdx) => {
+                          if (sub.header) {
+                            return (
+                              <p
+                                key={`submenu-header-${subIdx}`}
+                                className="mt-1.5 px-2.5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#86868B] dark:text-[#8E8E93] border-t border-black/[0.06] dark:border-white/[0.07] select-none"
+                              >
+                                {sub.header}
+                              </p>
+                            );
+                          }
+
+                          const isSubActive = activeSubmenuTo === sub.to;
 
                           return (
                             <Link
@@ -190,6 +210,8 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
                               to={sub.to}
                               onClick={onNavigate}
                               role="menuitem"
+                              data-submenu-active={isSubActive ? 'true' : undefined}
+                              aria-current={isSubActive ? 'page' : undefined}
                               className={`flex items-center justify-between px-2.5 py-1.5 rounded-[8px] text-[12px] tracking-[-0.01em] transition-all duration-150 cursor-pointer ${
                                 isSubActive
                                   ? 'bg-[#C81E1E] text-white font-semibold shadow-[0_1px_3px_rgba(200,30,30,0.25)]'

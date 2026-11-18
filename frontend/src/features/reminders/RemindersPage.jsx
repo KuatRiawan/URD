@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { BellRinging, CalendarCheck, Clock, ShieldCheck, WarningOctagon } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { useToast } from '../../components/ui/FeedbackProvider.jsx';
@@ -35,7 +36,11 @@ export function RemindersPage() {
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('EXPIRING');
+  // Sub-halaman pengingat dipilih dari sidebar (?tab=log|missing|skp|all).
+  const [searchParams] = useSearchParams();
+  const REMINDER_TABS = ['EXPIRING', 'LOG', 'MISSING', 'SKP', 'ALL'];
+  const requestedTab = (searchParams.get('tab') || '').toUpperCase();
+  const activeTab = REMINDER_TABS.includes(requestedTab) ? requestedTab : 'EXPIRING';
 
   useEffect(() => {
     if (feedback) {
@@ -149,14 +154,6 @@ export function RemindersPage() {
   const datedUnits = unitReminders.filter((u) => u.has_dated_validity !== false);
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
 
-  const TABS = [
-    { id: 'EXPIRING', label: 'Jatuh Tempo Suket', count: datedUnits.length, icon: WarningOctagon },
-    { id: 'LOG', label: 'Pengiriman Klien', count: clientLog.length, icon: BellRinging },
-    { id: 'MISSING', label: 'Tanpa Tanggal', count: missingValidityItems.length, icon: Clock },
-    { id: 'SKP', label: 'SKP Ahli K3', count: competencyItems.length, icon: ShieldCheck },
-    { id: 'ALL', label: 'Semua', count: null, icon: null }
-  ];
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -197,37 +194,7 @@ export function RemindersPage() {
         }
       />
 
-      {/* Segmented Control Filter Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl w-full max-w-3xl overflow-x-auto border border-black/[0.06] dark:border-white/[0.08]">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                isActive
-                  ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-              }`}
-            >
-              <span>{tab.label}</span>
-              {typeof tab.count === 'number' && (
-                <span
-                  className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                    isActive
-                      ? 'bg-black/[0.06] dark:bg-white/[0.10] text-[#1D1D1F] dark:text-[#F5F5F7]'
-                      : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D]'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+
 
       {loading ? (
         <LoadingState label="Memuat pengingat perpanjangan unit K3, Suket, dan SKP..." />

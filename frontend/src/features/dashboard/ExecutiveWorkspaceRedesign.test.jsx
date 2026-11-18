@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router';
+import { render, screen } from '@testing-library/react';
+import { BrowserRouter, MemoryRouter } from 'react-router';
 import { ExecutiveDashboardView } from './components/ExecutiveDashboardView.jsx';
 import { OrderTable } from '../orders/components/OrderTable.jsx';
 import { ScheduleAgendaSection } from '../scheduling/components/ScheduleAgendaSection.jsx';
@@ -81,7 +81,7 @@ describe('Executive Management Workspace Redesign Tests', () => {
     ]
   };
 
-  it('ExecutiveDashboardView: renders executive summary KPIs, health badge, and perspective tabs', () => {
+  it('ExecutiveDashboardView: renders executive summary KPIs and health badge without in-page tabs', () => {
     render(
       <BrowserRouter>
         <ExecutiveDashboardView
@@ -104,44 +104,41 @@ describe('Executive Management Workspace Redesign Tests', () => {
     // Pipeline Tracker
     expect(screen.getByText(/Jalur Siklus Operasional Unit & Dokumen/i)).toBeDefined();
 
-    // Perspective Navigation Tabs
-    expect(screen.getByText(/Ringkasan Eksekutif/i)).toBeDefined();
-    expect(screen.getByText(/Monitoring PO & Unit/i)).toBeDefined();
-    expect(screen.getByText(/Beban Kerja Tim K3/i)).toBeDefined();
-    expect(screen.getByText(/Dokumen & Kepatuhan/i)).toBeDefined();
-    expect(screen.getByText(/Jejak Aktivitas/i)).toBeDefined();
+    // Sub-navigasi kini berada di sidebar, bukan sebagai tab di dalam halaman.
+    expect(screen.queryByText(/Ringkasan Eksekutif/i)).toBeNull();
+    expect(screen.queryByText(/Monitoring PO & Unit/i)).toBeNull();
   });
 
-  it('ExecutiveDashboardView: switches tabs cleanly without error', () => {
-    render(
-      <BrowserRouter>
-        <ExecutiveDashboardView
-          data={{ metrics: mockSummary, ...mockSummary }}
-          loadSummary={vi.fn()}
-          onNewOrder={vi.fn()}
-        />
-      </BrowserRouter>
-    );
+  it('ExecutiveDashboardView: sub-halaman dasbor dibuka lewat parameter URL dari sidebar', () => {
+    const renderAt = (entry) =>
+      render(
+        <MemoryRouter initialEntries={[entry]}>
+          <ExecutiveDashboardView
+            data={{ metrics: mockSummary, ...mockSummary }}
+            loadSummary={vi.fn()}
+            onNewOrder={vi.fn()}
+          />
+        </MemoryRouter>
+      );
 
-    // Switch to ORDERS tab
-    fireEvent.click(screen.getByText(/Monitoring PO & Unit/i));
+    const ordersView = renderAt('/app/dashboard?tab=orders');
     expect(screen.getByText('PT Petro Kimia Nusantara')).toBeDefined();
     expect(screen.getByText(/3 \/ 5 Unit Selesai/i)).toBeDefined();
+    ordersView.unmount();
 
-    // Switch to WORKLOAD tab
-    fireEvent.click(screen.getByText(/Beban Kerja Tim K3/i));
+    const workloadView = renderAt('/app/dashboard?tab=workload');
     expect(screen.getByText('Ir. Budi')).toBeDefined();
     expect(screen.getByText(/5 Unit/i)).toBeDefined();
+    workloadView.unmount();
 
-    // Switch to DOCUMENTS tab
-    fireEvent.click(screen.getByText(/Dokumen & Kepatuhan/i));
+    const documentsView = renderAt('/app/dashboard?tab=documents');
     expect(screen.getByText(/Berita Acara \(BAP\)/i)).toBeDefined();
     expect(screen.getByText(/Laporan LHPP/i)).toBeDefined();
     expect(screen.getByText(/Suket K3 Disnaker/i)).toBeDefined();
     expect(screen.getByText(/Distribusi & BAST/i)).toBeDefined();
+    documentsView.unmount();
 
-    // Switch to ACTIVITIES tab
-    fireEvent.click(screen.getByText(/Jejak Aktivitas/i));
+    renderAt('/app/dashboard?tab=activities');
     expect(screen.getByText(/LHPP Diterbitkan/i)).toBeDefined();
     expect(screen.getByText(/Masuk ke sistem/i)).toBeDefined();
     expect(screen.getByText(/Akun: pimpinan@upayariksadaya\.com/i)).toBeDefined();
@@ -150,6 +147,12 @@ describe('Executive Management Workspace Redesign Tests', () => {
   it('navConfig: exposes complete Pimpinan/Manager routes including inspections and history', () => {
     const desktopNav = getVisibleNav('PIMPINAN');
     const paths = desktopNav.map((item) => item.to);
+
+    // Sub-halaman dasbor eksekutif dan pengaturan tersedia sebagai dropdown sidebar
+    const dashboardNav = desktopNav.find((item) => item.to === '/app/dashboard');
+    expect(dashboardNav.submenus.map((sub) => sub.to)).toContain('/app/dashboard?tab=workload');
+    const settingsNav = desktopNav.find((item) => item.to === '/app/settings');
+    expect(settingsNav.submenus.map((sub) => sub.to)).toContain('/app/settings?tab=security');
     expect(paths).toContain('/app/dashboard');
     expect(paths).toContain('/app/orders');
     expect(paths).toContain('/app/schedule');

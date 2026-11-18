@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
   Alarm,
   ArrowClockwise,
@@ -121,7 +121,18 @@ export function ExecutiveDashboardView({
 }) {
   const m = data?.metrics || {};
   const recentOps = operationalActivities(data?.recentActivities);
-  const [activeTab, setActiveTab] = useState('OVERVIEW'); // 'OVERVIEW' | 'ORDERS' | 'WORKLOAD' | 'DOCUMENTS' | 'ACTIVITIES'
+  // Sub-halaman dasbor eksekutif dipilih dari sidebar (?tab=workload, dst.).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const EXECUTIVE_TABS = ['OVERVIEW', 'ORDERS', 'WORKLOAD', 'DOCUMENTS', 'ACTIVITIES'];
+  const requestedTab = (searchParams.get('tab') || '').toUpperCase();
+  const activeTab = EXECUTIVE_TABS.includes(requestedTab) ? requestedTab : 'OVERVIEW';
+  const setActiveTab = (tabKey) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', String(tabKey).toLowerCase());
+      return next;
+    });
+  };
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [inspectorFilter, setInspectorFilter] = useState('ALL'); // 'ALL' | 'OVERLOAD' | 'ACTIVE' | 'AVAILABLE'
@@ -207,45 +218,7 @@ export function ExecutiveDashboardView({
         }
       />
 
-      {/* 2. Executive Navigation Tabs (Apple Segmented Control) */}
-      <div className="flex items-center gap-1.5 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-2xl w-full overflow-x-auto border border-black/[0.06] dark:border-white/[0.08]">
-        {[
-          { key: 'OVERVIEW', label: 'Ringkasan Eksekutif', icon: ChartLineUp },
-          { key: 'ORDERS', label: 'Monitoring PO & Unit', icon: Briefcase, count: m.activeOrders },
-          { key: 'WORKLOAD', label: 'Beban Kerja Tim K3', icon: UsersThree, count: workloadList.length },
-          { key: 'DOCUMENTS', label: 'Dokumen & Kepatuhan', icon: ShieldCheck, count: m.lhppWaitingReview },
-          { key: 'ACTIVITIES', label: 'Jejak Aktivitas', icon: Clock }
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 py-2 px-3.5 text-xs font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-white dark:bg-[#151821] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
-                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-              }`}
-            >
-              <Icon size={15} weight={isActive ? 'bold' : 'regular'} />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && Number(tab.count) > 0 && (
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    isActive
-                      ? 'bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400'
-                      : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#98989D]'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+
 
       {/* ========================================================= */}
       {/* PERSPECTIVE 1: RINGKASAN EKSEKUTIF (OVERVIEW)             */}

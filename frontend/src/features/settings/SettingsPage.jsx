@@ -21,27 +21,20 @@ export function SettingsPage() {
   const { user, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const toast = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  // Tab aktif (default ke role_specific jika Admin Sistem, selain itu profile)
-  const paramTab = searchParams.get('tab');
-  const defaultTab = paramTab || (user?.role === 'ADMIN_SISTEM' ? 'role_specific' : 'profile');
-  const [activeTab, setActiveTab] = useState(defaultTab);
-
-  useEffect(() => {
-    if (paramTab) {
-      setActiveTab(paramTab);
-    }
-  }, [paramTab]);
-
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('tab', newTab);
-      return next;
-    });
-  };
+  // Sub-halaman pengaturan dipilih dari sidebar (?tab=...). Nilai lain
+  // (mis. tautan lama ?tab=BACKUPS) diarahkan ke konfigurasi peran.
+  const PERSONAL_TABS = ['profile', 'security', 'appearance'];
+  const paramTab = (searchParams.get('tab') || '').toLowerCase();
+  const activeTab =
+    paramTab === 'role_specific' || (!PERSONAL_TABS.includes(paramTab) && paramTab)
+      ? 'role_specific'
+      : PERSONAL_TABS.includes(paramTab)
+        ? paramTab
+        : user?.role === 'ADMIN_SISTEM'
+          ? 'role_specific'
+          : 'profile';
 
   // State Profil
   const [profileForm, setProfileForm] = useState({
@@ -199,23 +192,6 @@ export function SettingsPage() {
     }
   };
 
-  const getRoleTabTitle = () => {
-    switch (user?.role) {
-      case 'ADMIN_SISTEM':
-        return 'Konfigurasi Sistem PJK3';
-      case 'AHLI_K3':
-        return 'Kredensial Ahli K3';
-      case 'ADMIN_KANTOR':
-        return 'Operasional Kantor';
-      case 'PIMPINAN':
-        return 'Kebijakan & Approval';
-      case 'MARKETING':
-        return 'Kewenangan Komersial';
-      default:
-        return 'Konfigurasi Peran';
-    }
-  };
-
   const getRoleBadgeColor = () => {
     switch (user?.role) {
       case 'ADMIN_SISTEM':
@@ -250,60 +226,7 @@ export function SettingsPage() {
         subtitle={pageHeader.subtitle}
       />
 
-      {/* Navigasi Tab Pengaturan */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          onClick={() => handleTabChange('profile')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'profile'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <User size={16} weight={activeTab === 'profile' ? 'bold' : 'regular'} />
-          <span>Profil Saya</span>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => handleTabChange('security')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'security'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <ShieldCheck size={16} weight={activeTab === 'security' ? 'bold' : 'regular'} />
-          <span>Keamanan &amp; Sandi</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabChange('appearance')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'appearance'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <Palette size={16} weight={activeTab === 'appearance' ? 'bold' : 'regular'} />
-          <span>Tampilan &amp; Tema</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabChange('role_specific')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'role_specific'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <Sliders size={16} weight={activeTab === 'role_specific' ? 'bold' : 'regular'} />
-          <span>{getRoleTabTitle()}</span>
-        </button>
-      </div>
 
       {activeTab === 'profile' && (
         <ProfileTab

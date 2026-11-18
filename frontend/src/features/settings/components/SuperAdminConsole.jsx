@@ -45,7 +45,7 @@ const TAB_ALIAS_MAP = {
 
 export function SuperAdminConsole() {
   const toast = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const rawTabParam = (searchParams.get('subtab') || searchParams.get('tab') || 'company_profile').toLowerCase();
   const activeSubTab = TAB_ALIAS_MAP[rawTabParam] || 'company_profile';
 
@@ -170,16 +170,6 @@ export function SuperAdminConsole() {
   });
   const [savingItem, setSavingItem] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
-
-  const setSubTab = (id) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('tab');
-      next.set('subtab', id);
-      return next;
-    });
-    setFeedback(null);
-  };
 
   const fetchOverview = async () => {
     try {
@@ -487,42 +477,9 @@ export function SuperAdminConsole() {
     }
   };
 
-  const subtabs = [
-    { id: 'company_profile', label: 'Profil Lembaga PJK3', icon: Buildings },
-    { id: 'checklists', label: 'Dynamic Checklist Pemeriksaan', icon: ListChecks },
-    { id: 'equipment_master', label: 'Katalog Klasifikasi Alat (3 Level)', icon: Cube },
-    { id: 'lhpp_templates', label: 'Template Dokumen LHPP', icon: FileText },
-    { id: 'numbering', label: 'Format Nomor & Template Dokumen', icon: FileText },
-    { id: 'gateways', label: 'Gateway WA & SMTP Email', icon: Bell },
-    { id: 'reminders', label: 'Template Naskah Pengingat', icon: Alarm },
-    { id: 'backups', label: 'Cadangan Database & Recovery', icon: Database },
-    { id: 'system_info', label: 'Integritas Sistem & Lingkungan', icon: ShieldCheck }
-  ];
-
   return (
     <div className="space-y-6">
-      {/* Sub Tabs Navigasi Super Admin — Apple Segmented Control */}
-      <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] overflow-x-auto max-w-full scrollbar-none">
-        {subtabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeSubTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSubTab(tab.id)}
-              className={`inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? 'bg-white dark:bg-[#1C1E26] text-[#1D1D1F] dark:text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]'
-                  : 'text-[#6E6E73] dark:text-slate-400 hover:text-[#1D1D1F] dark:hover:text-slate-100'
-              }`}
-            >
-              <Icon size={15} weight={isActive ? 'fill' : 'regular'} className={isActive ? 'text-[#C81E1E] dark:text-rose-400' : ''} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+
 
       {/* 1. Profil Lembaga PJK3 */}
       {activeSubTab === 'company_profile' && (

@@ -24,7 +24,7 @@ export function UsersPage() {
   const { user: currentUser } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const rawTab = (searchParams.get('tab') || 'users').toLowerCase();
   const activeTab =
     rawTab === 'competency' || rawTab === 'competencies'
@@ -62,14 +62,6 @@ export function UsersPage() {
 
   const [viewUser, setViewUser] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const setTab = (tab) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('tab', tab);
-      return next;
-    });
-  };
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -240,47 +232,7 @@ export function UsersPage() {
         }
       />
 
-      {/* Navigasi Tab Manajemen Pengguna */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setTab('users')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'users'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <Users size={16} weight={activeTab === 'users' ? 'bold' : 'regular'} />
-          <span>Daftar Akun Pengguna</span>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => setTab('rbac_matrix')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'rbac_matrix'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <ShieldCheck size={16} weight={activeTab === 'rbac_matrix' ? 'bold' : 'regular'} />
-          <span>Matriks Peran & Hak Akses (RBAC)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTab('competencies')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-[9px] transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'competencies'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <Certificate size={16} weight={activeTab === 'competencies' ? 'bold' : 'regular'} />
-          <span>Kredensial Ahli K3 & SKP</span>
-        </button>
-      </div>
 
       {/* Tab 1: Akun Pengguna Internal */}
       {activeTab === 'users' && (

@@ -10,6 +10,7 @@ import { ROLE_LABELS } from '../../lib/utils/format.js';
 import { ThemeToggle } from '../ui/ThemeToggle.jsx';
 import { useDialogFocus } from '../ui/useDialogFocus.js';
 import { getInitials } from './SidebarNav.jsx';
+import { resolveActiveSubmenu } from './navConfig.js';
 
 export function MobileNavDrawer({
   open,
@@ -21,6 +22,7 @@ export function MobileNavDrawer({
 }) {
   const location = useLocation();
   const drawerRef = useRef(null);
+  const listRef = useRef(null);
   const lastPathnameRef = useRef(location.pathname);
   const [mobileExpandedKeys, setMobileExpandedKeys] = useState(() => ({
     '/app/orders': true
@@ -37,6 +39,28 @@ export function MobileNavDrawer({
       document.body.style.overflow = prevOverflow;
     };
   }, [open]);
+
+  // Buka otomatis grup submenu yang memuat halaman aktif.
+  useEffect(() => {
+    if (!open) return;
+    moreGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        if (item.submenus && location.pathname.startsWith(item.to)) {
+          setMobileExpandedKeys((prev) =>
+            prev[item.to] ? prev : { ...prev, [item.to]: true }
+          );
+        }
+      });
+    });
+  }, [open, location.pathname, moreGroups]);
+
+  // Daftar submenu bisa panjang: gulirkan drawer ke submenu yang sedang aktif.
+  useEffect(() => {
+    if (!open) return;
+    const container = listRef.current;
+    const activeItems = container?.querySelectorAll('[data-submenu-active="true"]');
+    activeItems?.[activeItems.length - 1]?.scrollIntoView?.({ block: 'nearest' });
+  }, [open, location.pathname, location.search, mobileExpandedKeys]);
 
   // Tutup drawer secara otomatis hanya jika rute berpindah saat drawer sedang terbuka
   useEffect(() => {
@@ -121,7 +145,7 @@ export function MobileNavDrawer({
         </div>
 
         {/* Daftar Menu Tambahan per Kategori (iOS Grouped Inset List) */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-5">
+        <div ref={listRef} className="p-4 sm:p-5 overflow-y-auto space-y-5">
           {moreGroups.map((group, groupIdx) => (
             <div key={group.title || groupIdx}>
               <h3 className="text-[11px] font-semibold tracking-[-0.005em] text-[#6E6E73] dark:text-[#98989D] mb-2 px-1.5">
@@ -136,6 +160,7 @@ export function MobileNavDrawer({
 
                   if (hasSubmenus) {
                     const isExpanded = Boolean(mobileExpandedKeys[item.to]);
+                    const activeSubmenuTo = resolveActiveSubmenu(item.submenus, location);
                     return (
                       <div key={item.to} className="flex flex-col">
                         <button
@@ -176,18 +201,27 @@ export function MobileNavDrawer({
 
                         {isExpanded && (
                           <div className="bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/[0.04] dark:border-white/[0.04] pl-11 pr-3 py-1 space-y-0.5">
-                            {item.submenus.map((sub) => {
-                              const currentStatus =
-                                new URLSearchParams(location.search).get('status') || '';
-                              const isSubActive =
-                                location.pathname === '/app/orders' &&
-                                currentStatus === (sub.statusKey || '');
+                            {item.submenus.map((sub, subIdx) => {
+                              if (sub.header) {
+                                return (
+                                  <p
+                                    key={`submenu-header-${subIdx}`}
+                                    className="mt-1.5 px-2.5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#86868B] dark:text-[#8E8E93] border-t border-black/[0.06] dark:border-white/[0.07]"
+                                  >
+                                    {sub.header}
+                                  </p>
+                                );
+                              }
+
+                              const isSubActive = activeSubmenuTo === sub.to;
 
                               return (
                                 <Link
                                   key={sub.to}
                                   to={sub.to}
                                   onClick={onClose}
+                                  data-submenu-active={isSubActive ? 'true' : undefined}
+                                  aria-current={isSubActive ? 'page' : undefined}
                                   className={`flex items-center justify-between py-2 px-2.5 rounded-[8px] text-[12px] transition-all cursor-pointer ${
                                     isSubActive
                                       ? 'bg-[#C81E1E] text-white font-semibold shadow-xs'

@@ -58,8 +58,19 @@ export function InspectionsPage() {
     }
   }, [feedback, toast]);
 
-  // Navigasi Tab Segmented: Lembar Kerja vs Master Template
-  const [activeTab, setActiveTab] = useState('worksheets'); // 'worksheets' | 'templates'
+  // Sub-halaman (Lembar Kerja / Master Template) dipilih dari sidebar (?tab=templates).
+  const activeTab = searchParams.get('tab') === 'templates' ? 'templates' : 'worksheets';
+  const setActiveTab = (tab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'templates') {
+        next.set('tab', 'templates');
+      } else {
+        next.delete('tab');
+      }
+      return next;
+    });
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -380,34 +391,7 @@ export function InspectionsPage() {
         })}
       </div>
 
-      {/* Segmented Control / Tabs: Lembar Kerja vs Master Template */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-md">
-        <button
-          type="button"
-          onClick={() => setActiveTab('worksheets')}
-          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-[9px] transition-all cursor-pointer flex items-center justify-center gap-2 ${
-            activeTab === 'worksheets'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <FileText size={16} weight="bold" />
-          <span>Lembar Kerja ({inspections.length})</span>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('templates')}
-          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-[9px] transition-all cursor-pointer flex items-center justify-center gap-2 ${
-            activeTab === 'templates'
-              ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-              : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-          }`}
-        >
-          <SealCheck size={16} weight="bold" />
-          <span>Master Template ({templates.length})</span>
-        </button>
-      </div>
 
       {loading ? (
         <LoadingState label="Memuat daftar form inspeksi dan data lapangan..." />
