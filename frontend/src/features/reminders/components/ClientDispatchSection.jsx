@@ -15,7 +15,7 @@ export function ClientDispatchSection({ channels, clientLog }) {
           </h2>
         </div>
         {channels && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <Badge tone={channels.email === 'AKTIF' ? 'success' : 'warning'}>
               Email: {channels.email === 'AKTIF' ? 'Aktif' : 'Belum Dikonfigurasi'}
             </Badge>
