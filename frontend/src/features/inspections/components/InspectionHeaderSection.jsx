@@ -1,178 +1,116 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import {
   ArrowSquareOut,
   ArrowUUpLeft,
-  CaretDown,
-  CaretUp,
   CheckCircle,
+  Clock,
+  DownloadSimple,
+  Eye,
+  FileDoc,
   FileText,
-  FloppyDisk,
-  LockKey,
-  QrCode,
+  IdentificationBadge,
+  MapPin,
   WarningCircle,
-  WarningOctagon
+  Wrench
 } from '@phosphor-icons/react';
+import { Button } from '../../../components/ui/Button.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { formatDateTime } from '../../../lib/utils/format.js';
+import { api } from '../../../lib/api/axios.js';
 
 export function InspectionHeaderSection({
   activeDetail,
   lastSavedAt,
-  error: _error,
-  setError: _setError,
-  feedback: _feedback,
-  setFeedback: _setFeedback,
   isInspector,
   user,
-  online,
-  queuedPhotoCount,
-  workPhase = 'FIELD',
-  setWorkPhase,
   onPreviewPdf,
   onDownloadDocx,
-  onReopenInspection,
-  totalItems = 0,
-  evaluatedItems = 0,
-  missingItems = 0,
-  photosCount = 0,
-  inspectorSig,
-  clientSig,
-  draftResults = {},
-  draftObjectAttributes = {},
-  draftConclusion = '',
-  setFormStep
+  onReopenInspection
 }) {
-  const inspection = activeDetail.inspection;
+  const inspection = activeDetail?.inspection || {};
   const isFinal = inspection.status === 'TERKIRIM';
-  const hasAnyDocument = isFinal || Boolean(inspection.bap_id) || Boolean(inspection.lhpp_id);
   const isAdminKantor = ['ADMIN_KANTOR', 'ADMIN_SISTEM', 'PIMPINAN'].includes(user?.role);
-
-  const hierarchyNodes = [
-    inspection.domain_name || inspection.domain_code || inspection.category_name,
-    inspection.equipment_group_name,
-    inspection.equipment_type_name || inspection.object_name,
-    inspection.equipment_subtype_name
-  ].filter(Boolean);
-
-  const stageItems = [
-    {
-      key: 'field',
-      label: '1. Lapangan',
-      state:
-        isFinal || photosCount > 0 || evaluatedItems > 0 || Boolean(inspectorSig)
-          ? 'DONE'
-          : 'ACTIVE'
-    },
-    {
-      key: 'checklist',
-      label: '2. Checklist',
-      state:
-        isFinal || (totalItems > 0 && missingItems === 0)
-          ? 'DONE'
-          : evaluatedItems > 0
-          ? 'PROGRESS'
-          : 'PENDING'
-    },
-    {
-      key: 'bap',
-      label: '3. BAP & TTD',
-      state:
-        inspection.bap_status === 'FINAL' || (inspection.bap_id && inspectorSig && clientSig)
-          ? 'DONE'
-          : inspection.bap_id || inspectorSig || clientSig
-          ? 'PROGRESS'
-          : 'PENDING'
-    },
-    {
-      key: 'lhpp',
-      label: '4. Draf LHPP',
-      state: inspection.lhpp_id ? 'DONE' : 'PENDING'
-    },
-    {
-      key: 'qc',
-      label: '5. QC Kantor',
-      state: ['APPROVED', 'FINAL'].includes(inspection.lhpp_status)
-        ? 'DONE'
-        : inspection.lhpp_status === 'REVISION'
-        ? 'REVISION'
-        : inspection.lhpp_id
-        ? 'PROGRESS'
-        : 'PENDING'
-    },
-    {
-      key: 'final',
-      label: '6. Final',
-      state:
-        ['FINAL', 'SENT'].includes(inspection.lhpp_status) || inspection.bap_status === 'FINAL'
-          ? 'DONE'
-          : 'PENDING'
-    }
-  ];
 
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
   const [revisionReasonInput, setRevisionReasonInput] = useState('');
   const [revisionSectionInput, setRevisionSectionInput] = useState('Checklist & Pengukuran');
   const [submittingReopen, setSubmittingReopen] = useState(false);
-  const [showFullRevisionHistory, setShowFullRevisionHistory] = useState(false);
-  const [showQcCards, setShowQcCards] = useState(false);
+  const [downloadingBap, setDownloadingBap] = useState(false);
 
   const REVISION_SECTIONS = [
-    'Checklist & Pengukuran',
-    'Spesifikasi Teknis / Nameplate',
+    'Data Umum & Identitas Alat',
     'Dokumentasi Foto Lapangan',
     'Temuan & Rekomendasi K3',
-    'Kesimpulan & Tanda Tangan'
+    'Tanda Tangan & BAP'
   ];
 
-  const QUICK_REVISION_TEMPLATES = [
-    'Foto nameplate atau gauge alat tidak terbaca jelas',
-    'Nilai hasil pengukuran teknis belum lengkap',
-    'Catatan temuan belum mencantumkan klausul regulasi K3',
-    'Koreksi spesifikasi kapasitas atau nomor seri alat'
-  ];
+  const handleDownloadBapPdf = async () => {
+    try {
+      setDownloadingBap(true);
+      const res = await api.get(`/inspections/${inspection.id}/bap/pdf`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `BAP-${(inspection.object_name || 'Unit').replace(/\s+/g, '-')}-${(inspection.order_no || 'Draf').replace(/\//g, '-')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // fallback
+    } finally {
+      setDownloadingBap(false);
+    }
+  };
 
-  // Hitung indikator QC untuk panel kelengkapan
-  const itemsList = activeDetail.items || [];
-  let nonCompliantCount = 0;
-  let outOfBoundsCount = 0;
-  for (const item of itemsList) {
-    const r = draftResults[item.id];
-    if (!r) continue;
-    if (r.choiceValue === 'TIDAK_SESUAI') nonCompliantCount += 1;
-    if (item.input_type === 'NUMBER' && r.numberValue !== '' && r.numberValue !== null && r.numberValue !== undefined) {
-      const num = Number(r.numberValue);
-      if (!Number.isNaN(num)) {
-        if (item.min_value !== null && item.min_value !== undefined && num < Number(item.min_value)) {
-          outOfBoundsCount += 1;
-        } else if (item.max_value !== null && item.max_value !== undefined && num > Number(item.max_value)) {
-          outOfBoundsCount += 1;
-        }
+  const handleDownloadBapDocx = async () => {
+    try {
+      setDownloadingBap(true);
+      const res = await api.get(`/inspections/${inspection.id}/bap/docx`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data]);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `BAP-${(inspection.object_name || 'Unit').replace(/\s+/g, '-')}-${(inspection.order_no || 'Draf').replace(/\//g, '-')}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // fallback
+    } finally {
+      setDownloadingBap(false);
+    }
+  };
+
+  const handlePreviewBap = () => {
+    if (onPreviewPdf) {
+      if (inspection.bap_id) {
+        onPreviewPdf(
+          `/api/bap/${inspection.bap_id}/pdf`,
+          `Pratinjau BAP: ${inspection.object_name || 'Unit'}`
+        );
+      } else {
+        onPreviewPdf(
+          `/api/inspections/${inspection.id}/bap/pdf`,
+          `Pratinjau BAP: ${inspection.object_name || 'Unit'}`
+        );
       }
     }
-  }
+  };
 
-  const attrSchema = Array.isArray(inspection.attribute_schema) ? inspection.attribute_schema : [];
-  const filledAttrsCount = attrSchema.length
-    ? attrSchema.filter((f) => {
-        const val = draftObjectAttributes?.[f.key];
-        return val !== undefined && val !== null && String(val).trim() !== '';
-      }).length
-    : Object.values(draftObjectAttributes || {}).filter(
-        (v) => v !== undefined && v !== null && String(v).trim() !== ''
-      ).length;
-  const findingsList = activeDetail.findings || [];
-  const criticalOrMajorFindings = findingsList.filter((f) =>
-    ['KRITIS', 'MAYOR'].includes(f.severity)
-  ).length;
-  const hasBothSignatures = Boolean(inspectorSig && clientSig);
-
-  const handleConfirmReopen = async (e) => {
-    e?.preventDefault();
-    if (!revisionReasonInput.trim() || !onReopenInspection) return;
-    setSubmittingReopen(true);
+  const executeReopen = async (e) => {
+    e.preventDefault();
+    if (!revisionReasonInput.trim()) return;
     try {
-      await onReopenInspection(revisionReasonInput.trim(), revisionSectionInput);
+      setSubmittingReopen(true);
+      if (onReopenInspection) {
+        await onReopenInspection(revisionReasonInput.trim(), revisionSectionInput);
+      }
       setRevisionModalOpen(false);
       setRevisionReasonInput('');
     } finally {
@@ -180,683 +118,171 @@ export function InspectionHeaderSection({
     }
   };
 
+  const revisions = activeDetail?.revisions || [];
+  const latestRevision = revisions[0] || null;
+
   return (
     <div className="space-y-3.5">
-      {/* Header Status & Indikator */}
-      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-        <span className="font-bold text-slate-700 dark:text-slate-300">
-          Lembar Pemeriksaan Teknis Lapangan
-        </span>
-        <div className="flex items-center gap-1.5 text-[11px] font-medium bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl shrink-0 whitespace-nowrap">
-          {isFinal ? (
-            <>
-              <LockKey size={13} weight="bold" className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span className="font-semibold text-emerald-700 dark:text-emerald-300">Terkunci (Final)</span>
-            </>
-          ) : lastSavedAt ? (
-            <>
-              <CheckCircle size={13} weight="bold" className="text-emerald-500 shrink-0" />
-              <span>
-                Tersimpan {lastSavedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+      {/* CARD IDENTITAS UNIT & AKSI CEPAT BAP */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Sisi Kiri: Identitas Utama Alat */}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white flex items-center gap-2">
+                <Wrench size={20} className="text-[#C81E1E]" weight="bold" />
+                {inspection.equipment_type_name || inspection.object_name || 'Peralatan Riksa Uji'}
               </span>
-            </>
-          ) : (
-            <>
-              <FloppyDisk size={13} className="text-slate-400 shrink-0" />
-              <span>Autosave aktif</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {activeDetail.revisions?.length > 0 && (
-        <div className="rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-3.5 space-y-2 shadow-2xs">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 font-bold text-xs">
-              <WarningCircle size={16} weight="bold" />
-              <span>
-                Catatan Revisi dari QC / Admin Kantor (Revisi #{activeDetail.revisions[0].revision_no}):
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                No. Seri: {inspection.serial_number || '-'}
               </span>
-            </div>
-            {isFinal && (isInspector || isAdminKantor) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setRevisionReasonInput(activeDetail.revisions[0].reason || '');
-                  setRevisionModalOpen(true);
-                }}
-                className="px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white font-bold text-xs hover:bg-[#a61717] active:scale-95 transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <ArrowUUpLeft size={14} weight="bold" />
-                <span>Buka Kunci untuk Revisi</span>
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-rose-900 dark:text-rose-200 pl-5 leading-relaxed font-medium">
-            {activeDetail.revisions[0].reason}
-          </p>
-
-          {activeDetail.revisions.length > 1 && (
-            <div className="pt-2 border-t border-rose-200 dark:border-rose-900/60">
-              <button
-                type="button"
-                onClick={() => setShowFullRevisionHistory(!showFullRevisionHistory)}
-                className="text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
-              >
-                {showFullRevisionHistory ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
-                <span>
-                  {showFullRevisionHistory ? 'Sembunyikan Riwayat Revisi' : `Lihat Riwayat Revisi Sebelumnya (${activeDetail.revisions.length - 1})`}
-                </span>
-              </button>
-
-              {showFullRevisionHistory && (
-                <div className="mt-2 space-y-2 pl-3 border-l-2 border-rose-300 dark:border-rose-800 animate-accordion-in">
-                  {activeDetail.revisions.slice(1).map((rev) => (
-                    <div key={rev.id || rev.revision_no} className="text-[11px] text-slate-700 dark:text-slate-300 space-y-0.5">
-                      <div className="flex items-center justify-between font-semibold text-rose-800 dark:text-rose-300">
-                        <span>Revisi #{rev.revision_no}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {rev.created_at ? formatDateTime(rev.created_at) : ''}
-                        </span>
-                      </div>
-                      <p className="italic text-slate-600 dark:text-slate-400">
-                        &quot;{rev.reason}&quot;
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Jika belum ada revisi tercatat dan status sudah TERKIRIM, izinkan Admin Kantor atau Ahli K3 untuk membuka revisi */}
-      {isFinal && (!activeDetail.revisions || activeDetail.revisions.length === 0) && (isInspector || isAdminKantor) && (
-        <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-xs">
-          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-            <WarningCircle size={16} className="text-amber-500" />
-            <span>Hasil pemeriksaan telah diserahkan. Perlu koreksi data teknis atau foto?</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setRevisionReasonInput('');
-              setRevisionModalOpen(true);
-            }}
-            className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:border-[#C81E1E] hover:text-[#C81E1E] active:scale-95 transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1.5 shrink-0"
-          >
-            <ArrowUUpLeft size={13} weight="bold" />
-            <span>{isAdminKantor ? 'Minta Revisi Lapangan (QC)' : 'Buka Kunci untuk Revisi'}</span>
-          </button>
-        </div>
-      )}
-
-      {isInspector && (!online || queuedPhotoCount > 0) && (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-800 dark:text-amber-300">
-          <WarningCircle size={14} weight="bold" />
-          <span>
-            {!online ? 'Mode Offline: Isian tersimpan otomatis di perangkat.' : ''}
-            {queuedPhotoCount > 0 ? ` ${queuedPhotoCount} foto dalam antrean pengiriman.` : ''}
-          </span>
-        </div>
-      )}
-
-      {/* Dokumen Resmi & Draf Lapangan (BAP & LHPP PDF/DOCX) */}
-      {hasAnyDocument && (
-        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 p-3.5 space-y-2.5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle
-                size={18}
-                weight="fill"
-                className={`${
-                  isFinal ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'
-                } shrink-0`}
-              />
-              <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                {isFinal ? 'Dokumen Riksa Uji Tersedia' : 'Draf Dokumen Lapangan Aktif'}
-              </span>
-            </div>
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                isFinal
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-              }`}
-            >
-              {isFinal ? 'Siap Review & Cetak' : 'BAP Lapangan Aktif'}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {/* Kartu Dokumen BAP */}
-            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-              <div className="min-w-0 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-[#C81E1E] flex items-center justify-center shrink-0">
-                  <FileText size={18} weight="bold" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    Berita Acara (BAP)
-                  </p>
-                  <p className="text-[10px] font-mono text-slate-500 truncate">
-                    {inspection.bap_no || (inspection.bap_id ? 'Draf BAP' : 'Belum Dibuat')}
-                  </p>
-                </div>
-              </div>
-              {inspection.bap_id ? (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onPreviewPdf(
-                        `/bap/${inspection.bap_id}/pdf`,
-                        `Pratinjau BAP - ${inspection.bap_no || 'BAP'}`,
-                        `${(inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.pdf`
-                      )
-                    }
-                    className="px-2.5 py-1.5 rounded-lg bg-[#C81E1E] text-white text-[11px] font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
-                  >
-                    PDF
-                  </button>
-                  {onDownloadDocx && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onDownloadDocx(
-                          `/bap/${inspection.bap_id}/docx`,
-                          `${(inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.docx`
-                        )
-                      }
-                      className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
-                    >
-                      DOCX
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <span className="text-[11px] text-slate-400">Draf</span>
-              )}
-            </div>
-
-            {/* Kartu Dokumen LHPP */}
-            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-              <div className="min-w-0 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
-                  <FileText size={18} weight="bold" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    Laporan Hasil (LHPP)
-                  </p>
-                  <p className="text-[10px] font-mono text-slate-500 truncate">
-                    {inspection.lhpp_no || (inspection.lhpp_id ? 'Draf LHPP' : 'Menunggu Fase 2')}
-                  </p>
-                </div>
-              </div>
-              {inspection.lhpp_id ? (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onPreviewPdf(
-                        `/lhpp/${inspection.lhpp_id}/pdf`,
-                        `Pratinjau LHPP - ${inspection.lhpp_no || 'LHPP'}`,
-                        `${(inspection.lhpp_no || 'LHPP').replace(/[/\s]/g, '-')}.pdf`
-                      )
-                    }
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
-                  >
-                    PDF
-                  </button>
-                  {onDownloadDocx && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onDownloadDocx(
-                          `/lhpp/${inspection.lhpp_id}/docx`,
-                          `${(inspection.lhpp_no || 'LHPP').replace(/[/\s]/g, '-')}.docx`
-                        )
-                      }
-                      className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
-                    >
-                      DOCX
-                    </button>
-                  )}
-                  {(isInspector || isAdminKantor) && (
-                    <Link
-                      to={`/app/lhpp?lhppId=${inspection.lhpp_id}`}
-                      className="px-2 py-1.5 rounded-lg bg-[#C81E1E] text-white text-[11px] font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-2xs inline-flex items-center gap-1"
-                      title="Buka Editor & Pratinjau LHPP"
-                    >
-                      <span>{isAdminKantor ? 'QC' : 'Edit'}</span>
-                      <ArrowSquareOut size={12} weight="bold" />
-                    </Link>
-                  )}
-                </div>
-              ) : (
-                <span className="text-[11px] text-slate-400">Fase 2</span>
-              )}
-            </div>
-
-            {/* Kartu Lembar Rekomendasi K3 */}
-            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-              <div className="min-w-0 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <WarningOctagon size={18} weight="bold" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    Rekomendasi K3
-                  </p>
-                  <p className="text-[10px] text-slate-500 truncate">
-                    Temuan &amp; Tindakan
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  onPreviewPdf(
-                    `/inspections/${inspection.id}/recommendation-letter.pdf`,
-                    `Lembar Rekomendasi K3 - ${inspection.object_name}`,
-                    `Rekomendasi-K3-${(inspection.serial_number || inspection.id).replace(/[/\s]/g, '-')}.pdf`
-                  )
-                }
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
-              >
-                Buka PDF
-              </button>
-            </div>
-
-            {/* Kartu Stiker Label QR */}
-            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-              <div className="min-w-0 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <QrCode size={18} weight="bold" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    Stiker QR Alat
-                  </p>
-                  <p className="text-[10px] text-slate-500 truncate">
-                    Label Siap Cetak
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  onPreviewPdf(
-                    `/objects/${inspection.object_id}/qr-sticker.pdf`,
-                    `Stiker QR Alat - ${inspection.object_name}`,
-                    `Stiker-QR-${(inspection.serial_number || inspection.object_id).replace(/[/\s]/g, '-')}.pdf`
-                  )
-                }
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
-              >
-                Buka PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Hierarki 3 Level Peralatan + Mode 2 Fase + Indikator 6 Tahap Dokumen */}
-      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-2.5 shadow-2xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-          {/* 3-Level Taxonomy Breadcrumb */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="font-bold uppercase tracking-wider text-slate-400">Klasifikasi:</span>
-            {hierarchyNodes.map((node, i) => (
-              <span key={`${node}-${i}`} className="inline-flex items-center gap-1">
-                {i > 0 && <span className="text-slate-300 dark:text-slate-600">→</span>}
-                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold">
-                  {node}
-                </span>
-              </span>
-            ))}
-            {(inspection.template_name || activeDetail.template?.name) && (
-              <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-[#C81E1E] dark:text-rose-300 font-bold">
-                Checklist: {inspection.template_name || activeDetail.template?.name}
-              </span>
-            )}
-          </div>
-
-          {/* Two-Phase Switcher (Fase 1 Lapangan vs Fase 2 Kantor) */}
-          {isInspector && !isFinal && setWorkPhase && (
-            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 self-start lg:self-auto">
-              <button
-                type="button"
-                onClick={() => setWorkPhase('FIELD')}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                  workPhase === 'FIELD'
-                    ? 'bg-[#C81E1E] text-white shadow-2xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  isFinal
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : inspection.lhpp_status === 'REVISION'
+                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                 }`}
               >
-                Fase 1: Lapangan &amp; BAP
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkPhase('OFFICE')}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                  workPhase === 'OFFICE'
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
-              >
-                Fase 2: Kantor &amp; LHPP
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 6-Stage Independent Workflow Strip */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
-          {stageItems.map((st) => (
-            <div
-              key={st.key}
-              className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center justify-between gap-1 ${
-                st.state === 'DONE'
-                  ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
-                  : st.state === 'REVISION'
-                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
-                  : st.state === 'PROGRESS' || st.state === 'ACTIVE'
-                  ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500'
-              }`}
-            >
-              <span className="truncate">{st.label}</span>
-              <span>
-                {st.state === 'DONE' ? '✓' : st.state === 'REVISION' ? '!' : st.state === 'PROGRESS' || st.state === 'ACTIVE' ? '•' : '○'}
+                {isFinal
+                  ? 'Selesai Lapangan & Terkirim'
+                  : inspection.lhpp_status === 'REVISION'
+                  ? 'Perlu Revisi Lapangan'
+                  : 'Draf Pemeriksaan Lapangan'}
               </span>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Ringkasan PO, Jadwal & Lokasi Pelaksanaan */}
-      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-[#F5F5F7]/70 dark:bg-white/[0.03] p-3 text-xs space-y-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+              <span>
+                <strong className="text-slate-700 dark:text-slate-300">Klien:</strong> {inspection.client_name || '-'}
+              </span>
+              <span>•</span>
+              <span>
+                <strong className="text-slate-700 dark:text-slate-300">No. PO:</strong> {inspection.po_number || inspection.order_no || '-'}
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <MapPin size={13} className="text-slate-400" />
+                {inspection.install_location || inspection.location_name || '-'}
+              </span>
+            </div>
+          </div>
+
+          {/* Sisi Kanan: Tombol Aksi BAP Cepat */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
-              PO: {inspection.po_number || inspection.order_no}
-            </span>
-            <span className="text-slate-300 dark:text-slate-600">·</span>
-            <span className="font-bold text-slate-900 dark:text-white">
-              {inspection.client_name}
-            </span>
-            <span className="text-slate-300 dark:text-slate-600">·</span>
-            <span className="text-slate-500 dark:text-slate-400">
-              Lokasi: {inspection.location_name || inspection.install_location || inspection.client_address || '-'}
-            </span>
-          </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              icon={Eye}
+              onClick={handlePreviewBap}
+              title="Pratinjau dokumen Berita Acara Riksa Uji (BAP)"
+            >
+              Pratinjau BAP
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={DownloadSimple}
+              loading={downloadingBap}
+              disabled={downloadingBap}
+              onClick={handleDownloadBapPdf}
+              title="Unduh Berita Acara Riksa Uji dalam format PDF"
+            >
+              Unduh BAP (PDF)
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={FileText}
+              disabled={downloadingBap}
+              onClick={handleDownloadBapDocx}
+              title="Unduh Berita Acara Riksa Uji dalam format Word (.docx)"
+            >
+              BAP (DOCX)
+            </Button>
 
-          <button
-            type="button"
-            onClick={() => setShowQcCards(!showQcCards)}
-            className="text-xs font-semibold text-[#C81E1E] dark:text-rose-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-          >
-            <span>{showQcCards ? 'Sembunyikan QC' : 'Ringkasan QC & Kelengkapan'}</span>
-            {showQcCards ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
-          </button>
-        </div>
-
-        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">
-          <span>
-            Jadwal: <strong className="text-slate-800 dark:text-slate-200">{inspection.schedule_start_at ? formatDateTime(inspection.schedule_start_at) : 'Sesuai Penugasan'}</strong>
-          </span>
-          {inspection.inspector_name && (
-            <>
-              <span>·</span>
-              <span>Ahli K3: <strong className="text-slate-800 dark:text-slate-200">{inspection.inspector_name}</strong></span>
-            </>
-          )}
-          {inspection.contact_name && (
-            <>
-              <span>·</span>
-              <span>PIC: {inspection.contact_name} ({inspection.contact_phone || '-'})</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Panel Ringkasan Kelengkapan & QC Hasil Inspeksi (Collapsible) */}
-      {showQcCards && (
-        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 shadow-2xs animate-accordion-in">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-            Ringkasan Kelengkapan &amp; Validasi QC Data Teknis
-          </span>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            Klik kartu untuk menuju bagian pemeriksaan terkait
-          </span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {/* 1. Checklist */}
-          <button
-            type="button"
-            onClick={() => setFormStep?.(1)}
-            className="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 transition-colors cursor-pointer space-y-1"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">1. Checklist</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                  missingItems === 0 && nonCompliantCount === 0 && outOfBoundsCount === 0
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : missingItems > 0
-                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                }`}
+            {isFinal && isAdminKantor && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={ArrowUUpLeft}
+                onClick={() => setRevisionModalOpen(true)}
+                className="text-amber-700 border-amber-300 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400"
               >
-                {missingItems === 0 ? 'Lengkap' : `${missingItems} Kosong`}
-              </span>
-            </div>
-            <p className="text-xs font-extrabold text-slate-900 dark:text-white">
-              {evaluatedItems}/{totalItems} Parameter
-            </p>
-            {(nonCompliantCount > 0 || outOfBoundsCount > 0) && (
-              <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-                {nonCompliantCount > 0 ? `${nonCompliantCount} Tidak Sesuai` : ''}
-                {nonCompliantCount > 0 && outOfBoundsCount > 0 ? ' · ' : ''}
-                {outOfBoundsCount > 0 ? `${outOfBoundsCount} Di Luar Ambang` : ''}
-              </p>
+                Minta Revisi
+              </Button>
             )}
-          </button>
-
-          {/* 2. Spesifikasi & Nameplate */}
-          <button
-            type="button"
-            onClick={() => setFormStep?.(1)}
-            className="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 transition-colors cursor-pointer space-y-1"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">2. Spesifikasi</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                  filledAttrsCount > 0
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                }`}
-              >
-                {filledAttrsCount > 0 ? 'Terisi' : 'Perlu Cek'}
-              </span>
-            </div>
-            <p className="text-xs font-extrabold text-slate-900 dark:text-white">
-              {attrSchema.length > 0 ? `${filledAttrsCount}/${attrSchema.length} Atribut` : `${filledAttrsCount} Atribut`}
-            </p>
-            <p className="text-[10px] text-slate-500 truncate">
-              SN: {inspection.serial_number || '-'}
-            </p>
-          </button>
-
-          {/* 3. Dokumentasi Foto */}
-          <button
-            type="button"
-            onClick={() => setFormStep?.(1)}
-            className="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 transition-colors cursor-pointer space-y-1"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">3. Foto Bukti</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                  photosCount >= 2
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                }`}
-              >
-                {photosCount >= 2 ? 'Memenuhi' : 'Kurang (<2)'}
-              </span>
-            </div>
-            <p className="text-xs font-extrabold text-slate-900 dark:text-white">
-              {photosCount} Foto Terunggah
-            </p>
-            <p className="text-[10px] text-slate-500">Kuota wajib min. 2 foto</p>
-          </button>
-
-          {/* 4. Temuan & Rekomendasi */}
-          <button
-            type="button"
-            onClick={() => setFormStep?.(1)}
-            className="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 transition-colors cursor-pointer space-y-1"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">4. Temuan K3</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                  criticalOrMajorFindings > 0
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                    : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                }`}
-              >
-                {findingsList.length === 0 ? 'Nihil' : `${findingsList.length} Catatan`}
-              </span>
-            </div>
-            <p className="text-xs font-extrabold text-slate-900 dark:text-white">
-              {findingsList.length} Temuan Lapangan
-            </p>
-            <p className="text-[10px] text-slate-500">
-              {criticalOrMajorFindings > 0 ? `${criticalOrMajorFindings} Mayor/Kritis` : 'Sesuai pemeriksaan'}
-            </p>
-          </button>
-
-          {/* 5. Kesimpulan & TTD */}
-          <button
-            type="button"
-            onClick={() => setFormStep?.(2)}
-            className="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 transition-colors cursor-pointer space-y-1 col-span-2 sm:col-span-1"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">5. TTD &amp; Hasil</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                  hasBothSignatures && draftConclusion
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                }`}
-              >
-                {hasBothSignatures && draftConclusion ? 'Sah' : 'Belum Lengkap'}
-              </span>
-            </div>
-            <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
-              {draftConclusion ? draftConclusion.replaceAll('_', ' ') : 'Belum Ditetapkan'}
-            </p>
-            <p className="text-[10px] text-slate-500">
-              TTD: {inspectorSig ? 'Ahli K3 ✓' : 'Ahli K3 ✗'} · {clientSig ? 'Klien ✓' : 'Klien ✗'}
-            </p>
-          </button>
+          </div>
         </div>
-      </div>
-      )}
 
-      {/* Modal Permintaan Revisi / Buka Kunci Form */}
+        {/* Notifikasi Revisi jika ada permintaan revisi aktif */}
+        {latestRevision && inspection.lhpp_status === 'REVISION' && (
+          <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 flex items-start gap-3">
+            <WarningCircle size={20} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" weight="bold" />
+            <div className="space-y-1 text-xs">
+              <span className="font-bold text-rose-900 dark:text-rose-200 block">
+                Catatan Revisi dari {latestRevision.actor_name || 'Admin Kantor'} (#{latestRevision.revision_no || 1}):
+              </span>
+              <p className="text-rose-800 dark:text-rose-300">{latestRevision.reason}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL MINTA REVISI DARI ADMIN KANTOR */}
       <Modal
         open={revisionModalOpen}
         onClose={() => setRevisionModalOpen(false)}
-        title={isAdminKantor ? 'Permintaan Revisi Hasil Lapangan (QC)' : 'Buka Kunci Form untuk Revisi'}
+        title={`Minta Revisi: ${inspection.object_name} (${inspection.order_no})`}
         size="md"
       >
-        <form onSubmit={handleConfirmReopen} className="space-y-4 text-xs">
-          <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-            Form pemeriksaan teknis untuk unit <strong>{inspection.object_name}</strong> akan dikembalikan ke status <strong>DRAF</strong> agar Ahli K3 dapat merevisi checklist, mengunggah ulang foto, atau menyesuaikan data teknis di lapangan. Revisi pada unit ini tidak memblokir progres unit lain di PO yang sama.
-          </p>
-
-          <div className="space-y-1.5">
-            <label className="block font-bold text-slate-700 dark:text-slate-300">
-              Bagian yang Memerlukan Perbaikan:
+        <form onSubmit={executeReopen} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Bagian yang Perlu Direvisi
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <select
+              value={revisionSectionInput}
+              onChange={(e) => setRevisionSectionInput(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+            >
               {REVISION_SECTIONS.map((sec) => (
-                <button
-                  key={sec}
-                  type="button"
-                  onClick={() => setRevisionSectionInput(sec)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-colors cursor-pointer ${
-                    revisionSectionInput === sec
-                      ? 'border-[#C81E1E] bg-rose-50 text-[#C81E1E] dark:bg-rose-950/50 dark:text-rose-300'
-                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                  }`}
-                >
+                <option key={sec} value={sec}>
                   {sec}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="block font-bold text-slate-700 dark:text-slate-300">
-              Catatan Revisi / Alasan Pengembalian:
+          <div>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Catatan Instruksi Revisi untuk Inspector *
             </label>
             <textarea
-              rows={3}
               required
+              rows={3}
               value={revisionReasonInput}
               onChange={(e) => setRevisionReasonInput(e.target.value)}
-              placeholder="Contoh: Foto nameplate blur, mohon ambil foto ulang dengan pencahayaan cukup dan nomor seri terbaca jelas."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#C81E1E]/20 focus:border-[#C81E1E]"
+              placeholder="Jelaskan secara spesifik apa yang harus diperbaiki atau dilengkapi..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              Template Catatan Cepat:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_REVISION_TEMPLATES.map((tpl) => (
-                <button
-                  key={tpl}
-                  type="button"
-                  onClick={() => setRevisionReasonInput(tpl)}
-                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] text-slate-700 dark:text-slate-300 transition-colors cursor-pointer text-left"
-                >
-                  {tpl}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={() => setRevisionModalOpen(false)}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 cursor-pointer"
-            >
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setRevisionModalOpen(false)}>
               Batal
-            </button>
-            <button
-              type="submit"
-              disabled={submittingReopen || !revisionReasonInput.trim()}
-              className="px-4 py-2 rounded-xl bg-[#C81E1E] text-white font-bold hover:bg-[#a61717] disabled:opacity-50 cursor-pointer shadow-xs transition-all"
-            >
-              {submittingReopen ? 'Memproses...' : 'Kirim Catatan & Buka Revisi'}
-            </button>
+            </Button>
+            <Button type="submit" variant="primary" size="sm" loading={submittingReopen} disabled={submittingReopen}>
+              Kirim Instruksi Revisi
+            </Button>
           </div>
         </form>
       </Modal>
     </div>
   );
 }
-

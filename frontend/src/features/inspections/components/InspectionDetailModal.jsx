@@ -65,6 +65,7 @@ export function InspectionDetailModal({
     handleChecklistResultChange,
     handleConclusionSelect,
     handleUploadPhoto,
+    handleUploadPhotoDirect,
     handleUpdatePhotoCaption,
     handleDeletePhoto,
     handleUploadItemInlinePhoto,
@@ -122,28 +123,26 @@ export function InspectionDetailModal({
   const isDraftStatus = activeDetail.inspection.status === 'DRAF';
   const submitLabel = submitting
     ? 'Mengirim...'
-    : missingItems > 0
-    ? `Lengkapi ${missingItems} Butir Ceklist`
     : !draftConclusion
     ? 'Pilih Kesimpulan Terlebih Dahulu'
     : !inspectorSig
     ? 'Tanda Tangan Ahli K3 Diperlukan'
     : !clientSig
     ? 'Tanda Tangan Klien Diperlukan'
-    : 'Selesaikan Checklist & Buat Draf LHPP';
+    : 'Selesaikan Pemeriksaan Lapangan & Buat BAP';
 
   const modalFooter = (
     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 w-full">
       <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
-        {formStep === 2 && (
+        {formStep > 1 && (
           <Button
             type="button"
             variant="secondary"
             size="md"
             icon={ArrowLeft}
-            onClick={() => setFormStep(1)}
+            onClick={() => setFormStep(formStep - 1)}
           >
-            Kembali ke Ceklist
+            {formStep === 2 ? 'Kembali ke Data Umum' : 'Kembali ke Foto Lapangan'}
           </Button>
         )}
         {isInspector && isDraftStatus && (
@@ -167,20 +166,7 @@ export function InspectionDetailModal({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-        {isInspector && isDraftStatus && (workPhase === 'FIELD' || formStep === 2) && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            icon={FloppyDisk}
-            disabled={submitting}
-            onClick={handleSaveFieldProgressAndBap}
-            className="w-full sm:w-auto"
-          >
-            Simpan Progres Lapangan &amp; Siapkan BAP
-          </Button>
-        )}
-        {formStep === 1 ? (
+        {formStep === 1 && (
           <Button
             type="button"
             variant="primary"
@@ -189,33 +175,61 @@ export function InspectionDetailModal({
             className="w-full sm:w-auto"
             onClick={() => setFormStep(2)}
           >
-            {workPhase === 'FIELD'
-              ? 'Lanjut: TTD & Siapkan BAP'
-              : 'Lanjut: Simpulan & Draf LHPP'}
+            Lanjut: Dokumentasi Foto (Bagian 8)
           </Button>
-        ) : isInspector && isDraftStatus ? (
+        )}
+        {formStep === 2 && (
           <Button
             type="button"
             variant="primary"
             size="md"
-            icon={PaperPlaneTilt}
-            disabled={submitting || !canSubmit}
-            loading={submitting}
+            icon={ArrowRight}
             className="w-full sm:w-auto"
-            onClick={handleSubmitFinal}
+            onClick={() => setFormStep(3)}
           >
-            {submitLabel}
+            Lanjut: Tanda Tangan &amp; BAP
           </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            className="w-full sm:w-auto"
-            onClick={onClose}
-          >
-            Tutup Formulir
-          </Button>
+        )}
+        {formStep === 3 && (
+          <>
+            {isInspector && isDraftStatus && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                icon={FloppyDisk}
+                disabled={submitting}
+                onClick={handleSaveFieldProgressAndBap}
+                className="w-full sm:w-auto"
+              >
+                Simpan Progres Lapangan &amp; Siapkan BAP
+              </Button>
+            )}
+            {isInspector && isDraftStatus ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                icon={PaperPlaneTilt}
+                disabled={submitting || !canSubmit}
+                loading={submitting}
+                className="w-full sm:w-auto"
+                onClick={handleSubmitFinal}
+              >
+                {submitLabel}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                className="w-full sm:w-auto"
+                onClick={onClose}
+              >
+                Tutup Formulir
+              </Button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -281,14 +295,10 @@ export function InspectionDetailModal({
         <InspectionStepNav
           formStep={formStep}
           setFormStep={setFormStep}
-          workPhase={workPhase}
-          missingItems={missingItems}
-          evaluatedItems={evaluatedItems}
-          totalItems={totalItems}
           photosCount={photosCount}
           inspectorSig={inspectorSig}
           clientSig={clientSig}
-          bapId={activeDetail.inspection.bap_id}
+          bapNo={activeDetail.inspection.bap_no}
         />
 
         {formStep === 1 && (
@@ -316,34 +326,38 @@ export function InspectionDetailModal({
               isInspector={isInspector}
               status={activeDetail.inspection.status}
               photos={activeDetail.photos || []}
-            />
-
-            <StepPhotosFindings
-              photos={activeDetail.photos || []}
-              findings={activeDetail.findings || []}
-              photoFile={photoFile}
-              setPhotoFile={setPhotoFile}
-              photoCaption={photoCaption}
-              setPhotoCaption={setPhotoCaption}
-              findingForm={findingForm}
-              setFindingForm={setFindingForm}
-              workPhase={workPhase}
-              isInspector={isInspector}
-              status={activeDetail.inspection.status}
-              submitting={submitting}
-              onUploadPhoto={handleUploadPhoto}
-              onUpdatePhotoCaption={handleUpdatePhotoCaption}
-              onDeletePhoto={handleDeletePhoto}
-              onAddFinding={handleAddFinding}
-              onSaveDraft={handleSaveDraft}
               onNext={() => setFormStep(2)}
-              hideInlineActions={true}
             />
           </div>
         )}
 
         {formStep === 2 && (
           <div key="step-2" className="space-y-6 animate-section-in">
+            <StepPhotosFindings
+              photos={activeDetail.photos || []}
+              findings={activeDetail.findings || []}
+              findingForm={findingForm}
+              setFindingForm={setFindingForm}
+              workPhase={workPhase}
+              isInspector={isInspector}
+              status={activeDetail.inspection.status}
+              readOnly={!isInspector || activeDetail.inspection.status !== 'DRAF'}
+              submitting={submitting}
+              onUploadPhoto={handleUploadPhoto}
+              onUploadPhotoDirect={handleUploadPhotoDirect}
+              onUpdatePhotoCaption={handleUpdatePhotoCaption}
+              onDeletePhoto={handleDeletePhoto}
+              onAddFinding={handleAddFinding}
+              onSaveDraft={handleSaveDraft}
+              onBack={() => setFormStep(1)}
+              onNext={() => setFormStep(3)}
+              hideInlineActions={true}
+            />
+          </div>
+        )}
+
+        {formStep === 3 && (
+          <div key="step-3" className="space-y-6 animate-section-in">
             <StepConclusion
               draftConclusion={draftConclusion}
               setDraftConclusion={handleConclusionSelect}
@@ -420,7 +434,7 @@ export function InspectionDetailModal({
                 )
               }
               onSubmitFinal={handleSubmitFinal}
-              onBack={() => setFormStep(1)}
+              onBack={() => setFormStep(2)}
               onSaveDraft={handleSaveDraft}
               onCloseModal={onClose}
               onPreviewPdf={onPreviewPdf}

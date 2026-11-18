@@ -40,7 +40,7 @@ export const uploadMiddleware = multer({
 });
 
 export async function saveUploadedFile(
-  { buffer, originalName, mimeType, ownerType, ownerId, caption = null, uploadedBy },
+  { buffer, originalName, mimeType, ownerType, ownerId, caption = null, uploadedBy, docCategory = null },
   dbClient = null
 ) {
   if (!ALLOWED_MIMES.has(mimeType)) {
@@ -58,10 +58,10 @@ export async function saveUploadedFile(
   const safeName = path.basename(originalName || `berkas${ext}`).slice(0, 180);
   const { rows } = await runner.query(
     `INSERT INTO file_attachments
-       (owner_type, owner_id, original_name, mime_type, size_bytes, storage_key, caption, uploaded_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id, owner_type, owner_id, original_name, mime_type, size_bytes, caption, created_at`,
-    [ownerType, ownerId, safeName, mimeType, buffer.length, storageKey, caption, uploadedBy]
+       (owner_type, owner_id, original_name, mime_type, size_bytes, storage_key, caption, uploaded_by, doc_category)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING id, owner_type, owner_id, original_name, mime_type, size_bytes, caption, doc_category AS "docCategory", created_at`,
+    [ownerType, ownerId, safeName, mimeType, buffer.length, storageKey, caption, uploadedBy, docCategory]
   );
   return rows[0];
 }

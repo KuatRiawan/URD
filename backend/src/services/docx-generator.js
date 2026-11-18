@@ -723,26 +723,26 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
       children: [
         createCell('SPESIFIKASI\nPESAWAT', { widthDxa: 2400, rowSpan: 4, bold: true, align: AlignmentType.CENTER }),
         createCell('Perlengkapan / Attachment', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/perlengkapan|attachment/i], isBlank ? ': ....................' : 'Reguler fork'), { widthDxa: 4080 })
+        createCell(getResultVal([/perlengkapan|attachment/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Kecepatan\n/Speed', { widthDxa: 1800, rowSpan: 3 }),
         createCell('Lifting', { widthDxa: 1800 }),
-        createCell(getResultVal([/kecepatan angkat|lifting speed/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/kecepatan angkat|lifting speed/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Lowering', { widthDxa: 1800 }),
-        createCell(getResultVal([/kecepatan turun|lowering speed/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/kecepatan turun|lowering speed/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Travelling', { widthDxa: 1800 }),
-        createCell(getResultVal([/kecepatan jalan|travelling speed/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/kecepatan jalan|travelling speed/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
 
@@ -756,37 +756,37 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     new TableRow({
       children: [
         createCell('Putaran (rpm)', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/putaran.*rpm|rpm/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/putaran.*rpm|rpm/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Merk / Tipe', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/merk.*mesin|tipe.*mesin|penggerak utama/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/merk.*mesin|tipe.*mesin|penggerak utama/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Nomor Seri', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/nomor seri.*mesin/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/nomor seri.*mesin/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Tahun Pembuatan', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/tahun.*mesin/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/tahun.*mesin/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Daya', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/daya.*mesin|daya/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/daya.*mesin|daya/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Jumlah Silinder', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/jumlah silinder/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/jumlah silinder/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
@@ -797,25 +797,25 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     new TableRow({
       children: [
         createCell('Type', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/type dc motor/i], '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/type dc motor/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Power of hydraulic motor', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/power.*hydraulic/i], '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/power.*hydraulic/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Power of drive motor', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/power.*drive/i], '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/power.*drive/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Battery Capacity', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/battery/i], '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/battery/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
 
@@ -824,25 +824,25 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
       children: [
         createCell('DIMENSI', { widthDxa: 2400, rowSpan: 4, bold: true, align: AlignmentType.CENTER }),
         createCell('Panjang', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/dimensi panjang|panjang unit/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/dimensi panjang|panjang unit/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Lebar', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/dimensi lebar|lebar unit/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/dimensi lebar|lebar unit/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Tinggi', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/dimensi tinggi|tinggi unit/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/dimensi tinggi|tinggi unit/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Tinggi angkat garpu / attachment', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/tinggi angkat/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/tinggi angkat/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
 
@@ -851,13 +851,13 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
       children: [
         createCell('TEKANAN RODA', { widthDxa: 2400, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
         createCell('Roda depan', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/tekanan roda depan/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/tekanan roda depan/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Roda belakang', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/tekanan roda belakang/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/tekanan roda belakang/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
 
@@ -866,13 +866,13 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
       children: [
         createCell('RODA DEPAN', { widthDxa: 2400, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
         createCell('Ukuran', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/ukuran roda depan/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/ukuran roda depan/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Type', { widthDxa: 3600, columnSpan: 2, italics: true }),
-        createCell(getResultVal([/tipe roda depan/i], isBlank ? ': ....................' : 'Pneumatic'), { widthDxa: 4080 })
+        createCell(getResultVal([/tipe roda depan/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
 
@@ -881,13 +881,13 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
       children: [
         createCell('RODA BELAKANG', { widthDxa: 2400, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
         createCell('Ukuran', { widthDxa: 3600, columnSpan: 2 }),
-        createCell(getResultVal([/ukuran roda belakang/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+        createCell(getResultVal([/ukuran roda belakang/i], ': ....................'), { widthDxa: 4080 })
       ]
     }),
     new TableRow({
       children: [
         createCell('Type', { widthDxa: 3600, columnSpan: 2, italics: true }),
-        createCell(getResultVal([/tipe roda belakang/i], isBlank ? ': ....................' : 'Pneumatic'), { widthDxa: 4080 })
+        createCell(getResultVal([/tipe roda belakang/i], ': ....................'), { widthDxa: 4080 })
       ]
     })
   ];
@@ -1685,11 +1685,32 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     LAINNYA: 'Dokumentasi teknis'
   };
 
+  const categorizeDocPhoto = (p) => {
+    const rawCat = String(p.doc_category || p.docCategory || p.category || '').toUpperCase();
+    const cap = String(p.caption || '').toLowerCase();
+    if (rawCat === 'FOTO_UNIT' || rawCat.includes('UNIT') || /8\.1|foto unit|tampak depan|tampak samping|tampak belakang|keseluruhan/i.test(cap)) {
+      return '8.1 Foto Unit';
+    }
+    if (rawCat === 'FOTO_VISUAL' || rawCat.includes('VISUAL') || /8\.2|visual|komponen|chasis|mast|garpu|fork|rangka|ban|mesin/i.test(cap)) {
+      return '8.2 Foto Pemeriksaan Visual';
+    }
+    if (rawCat === 'FOTO_FUNGSI' || rawCat.includes('FUNGSI') || /8\.3|uji fungsi|fungsi|operasional|indikator|lampu|klakson/i.test(cap)) {
+      return '8.3 Foto Uji Fungsi';
+    }
+    if (rawCat === 'FOTO_BEBAN' || rawCat.includes('BEBAN') || /8\.4|uji beban|beban|defleksi|load test/i.test(cap)) {
+      return '8.4 Foto Uji Beban';
+    }
+    if (rawCat === 'FOTO_STIKER' || rawCat.includes('STIKER') || /8\.5|stiker|sticker|nameplate|plat nama/i.test(cap)) {
+      return '8.5 Foto Stiker';
+    }
+    return '8.1 Foto Unit';
+  };
+
   const validInspectionPhotos = [];
   for (const p of photos) {
     const buf = resolveAttachmentBuffer(p);
     if (buf) {
-      const rawCat = String(p.doc_category || p.category || '').toUpperCase();
+      const rawCat = String(p.doc_category || p.docCategory || p.category || '').toUpperCase();
       const catLabel = CATEGORY_DOC_TITLES[rawCat] || '';
       let caption = p.caption;
       if (!caption || !caption.trim()) {
@@ -1706,47 +1727,107 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     .map((cf) => getTemplateAsset(cf))
     .filter((cp) => cp && fs.existsSync(cp));
 
-  if (validInspectionPhotos.length > 0) {
-    for (let i = 0; i < validInspectionPhotos.length; i += 2) {
-      const leftP = validInspectionPhotos[i];
-      const rightP = validInspectionPhotos[i + 1] || null;
+  const DOC_CATEGORY_GROUPS = [
+    { key: '8.1 Foto Unit', label: '8.1 Foto Unit (Tampak Depan / Samping / Keseluruhan)', defaultSlots: ['Tampak depan unit', 'Tampak samping unit'] },
+    { key: '8.2 Foto Pemeriksaan Visual', label: '8.2 Foto Pemeriksaan Visual (Komponen Fisik & Mast)', defaultSlots: ['Kondisi garpu & mast', 'Kondisi sasis & roda'] },
+    { key: '8.3 Foto Uji Fungsi', label: '8.3 Foto Uji Fungsi (Pengujian Operasional & Indikator)', defaultSlots: ['Uji fungsi kemudi & tuas', 'Uji fungsi instrumen & lampu'] },
+    { key: '8.4 Foto Uji Beban', label: '8.4 Foto Uji Beban (Beban Kerja Aman & Defleksi)', defaultSlots: ['Uji beban efektif', 'Pengukuran defleksi garpu'] },
+    { key: '8.5 Foto Stiker', label: '8.5 Foto Stiker (Nameplate & Stiker Riksa Uji K3)', defaultSlots: ['Nameplate spesifikasi', 'Stiker riksa uji K3'] }
+  ];
 
-      const leftCell = createPhotoCell(leftP.buffer, `Foto ${i + 1}. ${leftP.caption}`, 5040);
-      const rightCell = rightP
-        ? createPhotoCell(rightP.buffer, `Foto ${i + 2}. ${rightP.caption}`, 5040)
-        : new TableCell({
-            width: { size: 5040, type: WidthType.DXA },
-            borders: TABLE_BORDERS_BLACK,
-            children: [new Paragraph({ text: '' })]
-          });
+  if (validInspectionPhotos.length > 0) {
+    let globalPhotoIndex = 1;
+    DOC_CATEGORY_GROUPS.forEach((group, groupIdx) => {
+      const groupPhotos = validInspectionPhotos.filter((p) => categorizeDocPhoto(p) === group.key);
 
       contentChildren.push(
-        new Table({
-          width: { size: 10080, type: WidthType.DXA },
-          columnWidths: [5040, 5040],
-          borders: TABLE_BORDERS_BLACK,
-          rows: [
-            new TableRow({
-              cantSplit: true,
-              children: [leftCell, rightCell]
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: group.label,
+              bold: true,
+              size: 21,
+              font: 'Times New Roman'
             })
-          ]
+          ],
+          spacing: { before: 160, after: 100 }
         })
       );
 
-      // Page break every 4 photos (2 rows) if there are more
-      if ((i + 2) % 4 === 0 && i + 2 < validInspectionPhotos.length) {
+      if (groupPhotos.length > 0) {
+        for (let i = 0; i < groupPhotos.length; i += 2) {
+          const leftP = groupPhotos[i];
+          const rightP = groupPhotos[i + 1] || null;
+
+          const leftCell = createPhotoCell(leftP.buffer, `Foto ${globalPhotoIndex++}. ${leftP.caption}`, 5040);
+          const rightCell = rightP
+            ? createPhotoCell(rightP.buffer, `Foto ${globalPhotoIndex++}. ${rightP.caption}`, 5040)
+            : new TableCell({
+                width: { size: 5040, type: WidthType.DXA },
+                borders: TABLE_BORDERS_BLACK,
+                children: [new Paragraph({ text: '' })]
+              });
+
+          contentChildren.push(
+            new Table({
+              width: { size: 10080, type: WidthType.DXA },
+              columnWidths: [5040, 5040],
+              borders: TABLE_BORDERS_BLACK,
+              rows: [
+                new TableRow({
+                  cantSplit: true,
+                  children: [leftCell, rightCell]
+                })
+              ]
+            })
+          );
+        }
+      } else {
+        const leftCell = createPhotoPlaceholderCell(group.defaultSlots[0] || 'Foto Lapangan', 5040);
+        const rightCell = createPhotoPlaceholderCell(group.defaultSlots[1] || 'Foto Lapangan', 5040);
+
+        contentChildren.push(
+          new Table({
+            width: { size: 10080, type: WidthType.DXA },
+            columnWidths: [5040, 5040],
+            borders: TABLE_BORDERS_BLACK,
+            rows: [
+              new TableRow({
+                cantSplit: true,
+                children: [leftCell, rightCell]
+              })
+            ]
+          })
+        );
+      }
+
+      if (groupIdx < DOC_CATEGORY_GROUPS.length - 1 && (groupIdx === 1 || groupIdx === 3)) {
         contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
       }
-    }
+    });
+
     if (existingCertPaths.length > 0) {
       contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
     }
   } else {
-    // Mode Blangko Kosong: sediakan slot kotak rapi untuk penempelan foto manual
-    docPhotoSlots.forEach((slot, slotIdx) => {
-      const leftCell = createPhotoPlaceholderCell(slot.leftCaption, 5040);
-      const rightCell = createPhotoPlaceholderCell(slot.rightCaption, 5040);
+    // Mode Blangko Kosong: sediakan slot kotak rapi untuk penempelan foto manual per kategori
+    DOC_CATEGORY_GROUPS.forEach((group, groupIdx) => {
+      contentChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: group.label,
+              bold: true,
+              size: 21,
+              font: 'Times New Roman'
+            })
+          ],
+          spacing: { before: 160, after: 100 }
+        })
+      );
+
+      const leftCell = createPhotoPlaceholderCell(group.defaultSlots[0] || 'Foto Lapangan 1', 5040);
+      const rightCell = createPhotoPlaceholderCell(group.defaultSlots[1] || 'Foto Lapangan 2', 5040);
 
       contentChildren.push(
         new Table({
@@ -1762,11 +1843,13 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
         })
       );
 
-      const isLastSlot = slotIdx === docPhotoSlots.length - 1;
-      if (slot.pageBreakAfter && (!isLastSlot || existingCertPaths.length > 0)) {
+      if (groupIdx < DOC_CATEGORY_GROUPS.length - 1 && (groupIdx === 1 || groupIdx === 3)) {
         contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
       }
     });
+    if (existingCertPaths.length > 0) {
+      contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    }
   }
 
   // ===========================================================================

@@ -557,6 +557,46 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }
   };
 
+  const handleUploadPhotoDirect = async (file, caption, docCategory) => {
+    if (!activeDetail?.inspection || !file) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const prepared = await compressImage(file);
+      if (!online) {
+        await enqueueOfflinePhoto({
+          inspectionId: activeDetail.inspection.id,
+          file: prepared,
+          caption: (caption || '').trim(),
+          docCategory: docCategory || null
+        });
+        setFeedback('Foto disimpan offline. Akan disinkronkan saat tersambung internet.');
+        await refreshQueuedCount();
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('photo', prepared);
+      if (caption) fd.append('caption', caption.trim());
+      if (docCategory) fd.append('docCategory', docCategory);
+
+      await api.post(`/inspections/${activeDetail.inspection.id}/photos`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFeedback('Foto dokumentasi berhasil diunggah.');
+      await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal mengunggah foto dokumentasi.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDeletePhoto = async (photoId) => {
     if (!activeDetail?.inspection) return;
     const ok = await confirm({
@@ -738,11 +778,13 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       const payloadResults = buildInspectionResultPayload(activeDetail.items || [], draftResults);
 
       const res = await api.post(`/inspections/${activeDetail.inspection.id}/submit`, {
-        conclusion: draftConclusion,
+        conclusion: draftConclusion || 'MEMENUHI_SYARAT',
         conclusionNotes: draftConclusionNotes,
         results: payloadResults,
         scopeItems: draftScopes,
-        objectAttributes: draftObjectAttributes
+        objectAttributes: draftObjectAttributes,
+        handoffToWord: true,
+        workPhase: 'FIELD'
       });
 
       clearLocalDraft(activeDetail.inspection.id);
@@ -808,10 +850,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   );
 
   const canSubmit =
-    missingItems === 0 &&
-    Boolean(draftConclusion) &&
     Boolean(inspectorSig) &&
-    Boolean(clientSig) &&
     !submitting;
 
   return {
@@ -854,6 +893,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     handleChecklistResultChange,
     handleConclusionSelect,
     handleUploadPhoto,
+    handleUploadPhotoDirect,
     handleUpdatePhotoCaption,
     handleDeletePhoto,
     handleUploadItemInlinePhoto,

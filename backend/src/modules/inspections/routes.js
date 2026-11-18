@@ -6,12 +6,15 @@ import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
 import { createNotification } from '../../services/notify.js';
-import { generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
+import { generateBapPdfBuffer, generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
+import { generateBapDocxBuffer, generateLhppDocxBuffer } from '../../services/docx-generator.js';
 import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
 import { recordActivityHistory } from '../../services/inspection-activities.js';
 import { saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
+import { fetchFullBapContext } from '../bap/routes.js';
+import { fetchFullLhppContext } from '../lhpp/routes.js';
 
 const router = Router();
 router.use(authenticate);
@@ -1247,7 +1250,7 @@ router.get('/:id', async (req, res, next) => {
         [id]
       ),
       query(
-        `SELECT id, original_name AS "originalName", caption, mime_type AS "mimeType", created_at AS "createdAt"
+        `SELECT id, original_name AS "originalName", caption, doc_category AS "docCategory", mime_type AS "mimeType", created_at AS "createdAt"
          FROM file_attachments
          WHERE owner_type = 'INSPECTION_FINDING' AND owner_id = $1 AND deleted_at IS NULL
          ORDER BY created_at DESC`,
@@ -1472,12 +1475,33 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
       }
 
       if (req.body?.objectAttributes && typeof req.body.objectAttributes === 'object') {
+        const oa = req.body.objectAttributes;
+        const yearVal = oa.manufacture_year || oa.year ? parseInt(oa.manufacture_year || oa.year, 10) : null;
         await db.query(
           `UPDATE test_objects
            SET attributes = COALESCE(attributes, '{}'::jsonb) || $1::jsonb,
+               serial_number = COALESCE(NULLIF($2, ''), serial_number),
+               brand = COALESCE(NULLIF($3, ''), brand),
+               model = COALESCE(NULLIF($4, ''), model),
+               manufacture_year = COALESCE($5, manufacture_year),
+               capacity = COALESCE(NULLIF($6, ''), capacity),
+               capacity_unit = COALESCE(NULLIF($7, ''), capacity_unit),
+               install_location = COALESCE(NULLIF($8, ''), install_location),
+               previous_permit_no = COALESCE(NULLIF($9, ''), previous_permit_no),
                updated_at = now()
-           WHERE id = $2`,
-          [JSON.stringify(req.body.objectAttributes), insp.object_id]
+           WHERE id = $10`,
+          [
+            JSON.stringify(oa),
+            oa.serial_number || oa.serialNumber || null,
+            oa.brand || null,
+            oa.model || null,
+            yearVal && !Number.isNaN(yearVal) ? yearVal : null,
+            oa.capacity ? String(oa.capacity) : null,
+            oa.capacity_unit || oa.capacityUnit || null,
+            oa.install_location || oa.location || null,
+            oa.previous_permit_no || oa.permit_number || null,
+            insp.object_id
+          ]
         );
       }
 
@@ -1719,6 +1743,22 @@ router.post(
         resolvedCaption = sec ? `[${sec}] Foto Dokumentasi Riksa Uji` : 'Foto Dokumentasi Riksa Uji';
       }
 
+      const rawCat = (req.body?.docCategory || req.body?.category || '').trim().toUpperCase();
+      let docCategory = rawCat;
+      if (!docCategory) {
+        if (/8\.1|foto unit|tampak depan|tampak samping|tampak belakang/i.test(resolvedCaption)) {
+          docCategory = 'FOTO_UNIT';
+        } else if (/8\.2|visual|komponen|chasis|mast|garpu|temuan/i.test(resolvedCaption)) {
+          docCategory = 'FOTO_VISUAL';
+        } else if (/8\.3|uji fungsi|fungsi|operasional|indikator|lampu|klakson/i.test(resolvedCaption)) {
+          docCategory = 'FOTO_FUNGSI';
+        } else if (/8\.4|uji beban|beban|defleksi|load test/i.test(resolvedCaption)) {
+          docCategory = 'FOTO_BEBAN';
+        } else if (/8\.5|stiker|sticker|nameplate|plat nama/i.test(resolvedCaption)) {
+          docCategory = 'FOTO_STIKER';
+        }
+      }
+
       const saved = await saveUploadedFile({
         buffer: req.file.buffer,
         originalName: req.file.originalname,
@@ -1726,7 +1766,8 @@ router.post(
         ownerType: 'INSPECTION_FINDING',
         ownerId: id,
         caption: resolvedCaption,
-        uploadedBy: req.user.id
+        uploadedBy: req.user.id,
+        docCategory: docCategory || null
       });
 
       if (matchedItem && PHOTO_INPUT_TYPES.has(String(matchedItem.input_type || '').toUpperCase())) {
@@ -1754,22 +1795,33 @@ router.patch(
   async (req, res, next) => {
     try {
       const { id, photoId } = req.params;
-      const caption = String(req.body?.caption || '').trim();
-      if (caption.length < 2 || caption.length > 300) {
+      const caption = req.body?.caption !== undefined ? String(req.body.caption).trim() : null;
+      const rawCategory = (req.body?.docCategory || req.body?.category || '').trim().toUpperCase();
+      let docCategory = rawCategory || null;
+      if (caption && (caption.length < 2 || caption.length > 300)) {
         throw new AppError(400, 'INVALID_CAPTION', 'Keterangan foto harus antara 2 sampai 300 karakter.');
       }
-      const { rows } = await query('SELECT * FROM inspections WHERE id = $1', [id]);
-      if (!rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
-      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
-        await assertEditableInspection({ query }, id, req.user);
+      if (!docCategory && caption) {
+        if (/8\.1|foto unit|tampak depan|tampak samping|tampak belakang/i.test(caption)) {
+          docCategory = 'FOTO_UNIT';
+        } else if (/8\.2|visual|komponen|chasis|mast|garpu|temuan/i.test(caption)) {
+          docCategory = 'FOTO_VISUAL';
+        } else if (/8\.3|uji fungsi|fungsi|operasional|indikator|lampu|klakson/i.test(caption)) {
+          docCategory = 'FOTO_FUNGSI';
+        } else if (/8\.4|uji beban|beban|defleksi|load test/i.test(caption)) {
+          docCategory = 'FOTO_BEBAN';
+        } else if (/8\.5|stiker|sticker|nameplate|plat nama/i.test(caption)) {
+          docCategory = 'FOTO_STIKER';
+        }
       }
 
       const { rows: updated } = await query(
         `UPDATE file_attachments
-         SET caption = $1
-         WHERE id = $2 AND owner_id = $3 AND owner_type = 'INSPECTION_FINDING' AND deleted_at IS NULL
-         RETURNING id, original_name AS "originalName", caption, mime_type AS "mimeType", created_at AS "createdAt"`,
-        [caption, photoId, id]
+         SET caption = COALESCE($1, caption),
+             doc_category = COALESCE($2, doc_category)
+         WHERE id = $3 AND owner_id = $4 AND owner_type = 'INSPECTION_FINDING' AND deleted_at IS NULL
+         RETURNING id, original_name AS "originalName", caption, doc_category AS "docCategory", mime_type AS "mimeType", created_at AS "createdAt"`,
+        [caption, docCategory, photoId, id]
       );
       if (!updated[0]) {
         throw new AppError(404, 'PHOTO_NOT_FOUND', 'Foto tidak ditemukan.');
@@ -1917,12 +1969,33 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
 
       // Simpan pembaruan parameter spesifikasi teknis objek uji (Bab II LHPP)
       if (req.body?.objectAttributes && typeof req.body.objectAttributes === 'object') {
+        const oa = req.body.objectAttributes;
+        const yearVal = oa.manufacture_year || oa.year ? parseInt(oa.manufacture_year || oa.year, 10) : null;
         await db.query(
           `UPDATE test_objects
            SET attributes = COALESCE(attributes, '{}'::jsonb) || $1::jsonb,
+               serial_number = COALESCE(NULLIF($2, ''), serial_number),
+               brand = COALESCE(NULLIF($3, ''), brand),
+               model = COALESCE(NULLIF($4, ''), model),
+               manufacture_year = COALESCE($5, manufacture_year),
+               capacity = COALESCE(NULLIF($6, ''), capacity),
+               capacity_unit = COALESCE(NULLIF($7, ''), capacity_unit),
+               install_location = COALESCE(NULLIF($8, ''), install_location),
+               previous_permit_no = COALESCE(NULLIF($9, ''), previous_permit_no),
                updated_at = now()
-           WHERE id = $2`,
-          [JSON.stringify(req.body.objectAttributes), insp.object_id]
+           WHERE id = $10`,
+          [
+            JSON.stringify(oa),
+            oa.serial_number || oa.serialNumber || null,
+            oa.brand || null,
+            oa.model || null,
+            yearVal && !Number.isNaN(yearVal) ? yearVal : null,
+            oa.capacity ? String(oa.capacity) : null,
+            oa.capacity_unit || oa.capacityUnit || null,
+            oa.install_location || oa.location || null,
+            oa.previous_permit_no || oa.permit_number || null,
+            insp.object_id
+          ]
         );
       }
 
@@ -1990,24 +2063,27 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
       ]);
       const resMap = new Map(curResults.map((r) => [r.item_id, r]));
 
-      for (const reqItem of tplItems.filter((it) => it.is_required)) {
-        if (!isConditionalItemActive(reqItem, itemsBySeq, resMap)) continue;
-        const val = resMap.get(reqItem.id);
-        let filled = isResultFilled(reqItem, val);
-        if (!filled && PHOTO_INPUT_TYPES.has(String(reqItem.input_type || '').toUpperCase())) {
-          const cleanLabel = String(reqItem.label || '').toLowerCase();
-          const numToken = cleanLabel.match(/^(\d+\.\d+)/)?.[1];
-          filled = curPhotos.some((p) => {
-            const cap = String(p.caption || '').toLowerCase();
-            return (cleanLabel && cap.includes(cleanLabel)) || (numToken && cap.includes(numToken));
-          });
-        }
-        if (!filled) {
-          throw new AppError(
-            400,
-            'INCOMPLETE_FORM',
-            `Butir wajib "${reqItem.label}" belum diisi.`
-          );
+      const isWordHandoff = Boolean(req.body?.handoffToWord || req.body?.workPhase === 'FIELD');
+      if (!isWordHandoff) {
+        for (const reqItem of tplItems.filter((it) => it.is_required)) {
+          if (!isConditionalItemActive(reqItem, itemsBySeq, resMap)) continue;
+          const val = resMap.get(reqItem.id);
+          let filled = isResultFilled(reqItem, val);
+          if (!filled && PHOTO_INPUT_TYPES.has(String(reqItem.input_type || '').toUpperCase())) {
+            const cleanLabel = String(reqItem.label || '').toLowerCase();
+            const numToken = cleanLabel.match(/^(\d+\.\d+)/)?.[1];
+            filled = curPhotos.some((p) => {
+              const cap = String(p.caption || '').toLowerCase();
+              return (cleanLabel && cap.includes(cleanLabel)) || (numToken && cap.includes(numToken));
+            });
+          }
+          if (!filled) {
+            throw new AppError(
+              400,
+              'INCOMPLETE_FORM',
+              `Butir wajib "${reqItem.label}" belum diisi.`
+            );
+          }
         }
       }
 
@@ -2357,5 +2433,166 @@ router.post(
     }
   }
 );
+
+async function resolveOrCreateInspectionBapContext(db, inspectionId, _currentUser) {
+  const { rows: curBap } = await db.query(
+    'SELECT id FROM bap_documents WHERE inspection_id = $1 ORDER BY created_at DESC LIMIT 1',
+    [inspectionId]
+  );
+  if (curBap[0]) {
+    return await fetchFullBapContext(db, curBap[0].id);
+  }
+
+  const { rows: inspRows } = await db.query(
+    `SELECT i.*, o.client_id, o.location_id, t.category_id,
+            oc.code AS category_code, oc.default_bap_scopes,
+            oo.scope_items AS unit_scope_items
+     FROM inspections i
+     JOIN orders o ON o.id = i.order_id
+     JOIN test_objects t ON t.id = i.object_id
+     JOIN object_categories oc ON oc.id = t.category_id
+     LEFT JOIN order_objects oo ON oo.order_id = i.order_id AND oo.object_id = i.object_id
+     WHERE i.id = $1`,
+    [inspectionId]
+  );
+  if (!inspRows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
+  const insp = inspRows[0];
+
+  const unitScopes =
+    Array.isArray(insp.unit_scope_items) && insp.unit_scope_items.length
+      ? insp.unit_scope_items
+      : Array.isArray(insp.default_bap_scopes) && insp.default_bap_scopes.length
+      ? insp.default_bap_scopes
+      : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
+
+  const { rows: seqRows } = await db.query("SELECT nextval('bap_no_seq') AS seq");
+  const bapNo = await formatDocumentNumber('bap', {
+    seq: seqRows[0].seq,
+    categoryCode: insp.category_code || 'K3',
+    date: new Date()
+  });
+
+  const { rows: newBap } = await db.query(
+    `INSERT INTO bap_documents
+       (bap_no, inspection_id, order_id, object_id, status, inspection_date, scope_items, notes)
+     VALUES ($1, $2, $3, $4, 'DRAF', COALESCE($5, CURRENT_DATE), $6, $7)
+     RETURNING id`,
+    [
+      bapNo,
+      inspectionId,
+      insp.order_id,
+      insp.object_id,
+      insp.inspected_at || null,
+      JSON.stringify(unitScopes),
+      insp.conclusion_notes || 'Draf BAP disiapkan untuk penandatanganan di lokasi riksa uji.'
+    ]
+  );
+
+  return await fetchFullBapContext(db, newBap[0].id);
+}
+
+// M3-15: Unduh Pratinjau / File BAP PDF langsung dari form inspeksi
+router.get('/:id/bap/pdf', async (req, res, next) => {
+  try {
+    const bap = await resolveOrCreateInspectionBapContext({ query }, req.params.id, req.user);
+    if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
+    const pdfBuf = await generateBapPdfBuffer(bap);
+    const filename = `${(bap.bap_no || 'BAP-DRAF').replace(/\//g, '-')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.send(pdfBuf);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// M3-16: Unduh File BAP DOCX langsung dari form inspeksi
+router.get('/:id/bap/docx', async (req, res, next) => {
+  try {
+    const bap = await resolveOrCreateInspectionBapContext({ query }, req.params.id, req.user);
+    if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
+    const docxBuf = await generateBapDocxBuffer(bap);
+    const filename = `${(bap.bap_no || 'BAP-DRAF').replace(/\//g, '-')}.docx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(docxBuf);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// M3-17: Unduh Blangko Tabel Kerja LHPP DOCX untuk penyusunan teknis di kantor
+router.get('/:id/lhpp/docx', async (req, res, next) => {
+  try {
+    const { rows: lhppRows } = await query(
+      'SELECT id FROM lhpp_documents WHERE inspection_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [req.params.id]
+    );
+    let lhppContext = null;
+    if (lhppRows[0]) {
+      lhppContext = await fetchFullLhppContext({ query }, lhppRows[0].id);
+    }
+    if (!lhppContext) {
+      const detailRes = await query(
+        `SELECT i.*, o.order_no, o.po_number, o.service_type,
+                c.name AS client_name, c.address AS client_address,
+                cl.name AS location_name, cl.address AS location_address,
+                t.name AS object_name, t.brand, t.model, t.serial_number,
+                t.manufacture_year, t.capacity, t.capacity_unit, t.install_location,
+                t.previous_permit_no, t.attributes AS object_attributes,
+                oc.name AS category_name, oc.code AS category_code,
+                u.full_name AS inspector_name, u.skp_no AS inspector_skp_no
+         FROM inspections i
+         JOIN orders o ON o.id = i.order_id
+         JOIN clients c ON c.id = o.client_id
+         LEFT JOIN client_locations cl ON cl.id = o.location_id
+         JOIN test_objects t ON t.id = i.object_id
+         JOIN object_categories oc ON oc.id = t.category_id
+         LEFT JOIN users u ON u.id = i.inspector_id
+         WHERE i.id = $1`,
+        [req.params.id]
+      );
+      if (!detailRes.rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Inspeksi tidak ditemukan.');
+      const insp = detailRes.rows[0];
+      const [{ rows: resRows }, { rows: photoRows }] = await Promise.all([
+        query(
+          `SELECT r.*, it.label, it.section
+           FROM inspection_results r
+           JOIN inspection_template_items it ON it.id = r.item_id
+           WHERE r.inspection_id = $1`,
+          [req.params.id]
+        ),
+        query(
+          `SELECT * FROM file_attachments
+           WHERE owner_type = 'INSPECTION_FINDING' AND owner_id = $1 AND deleted_at IS NULL
+           ORDER BY created_at ASC`,
+          [req.params.id]
+        )
+      ]);
+      lhppContext = {
+        ...insp,
+        results: resRows,
+        photos: photoRows,
+        technical_data: insp.object_attributes || {},
+        conclusion: insp.conclusion || null,
+        report_date: new Date()
+      };
+    }
+
+    const docxBuf = await generateLhppDocxBuffer(lhppContext);
+    const filename = `Template-LHPP-${(lhppContext.object_name || 'Alat').replace(/\s+/g, '-')}-${(lhppContext.serial_number || 'Unit').replace(/\//g, '-')}.docx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(docxBuf);
+  } catch (err) {
+    return next(err);
+  }
+});
 
 export default router;
