@@ -44,11 +44,11 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByRole('heading', { name: /Riksa Uji, URD Pasti!|PT Upaya Riksa Daya/i })[0]).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /PT Upaya Riksa Daya/i })).toBeInTheDocument();
     });
 
     expect(
-      screen.getAllByText(/Beter Safety Partner|Masuk ke Portal Resmi PT Upaya Riksa Daya/i)[0]
+      screen.getByText(/Masuk ke Portal Resmi PT Upaya Riksa Daya/i)
     ).toBeInTheDocument();
     expect(screen.getByAltText(/Logo Resmi PT Upaya Riksa Daya/i)).toBeInTheDocument();
 

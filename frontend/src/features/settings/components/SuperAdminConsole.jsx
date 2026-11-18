@@ -1,21 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import {
-  Alarm,
-  Bell,
-  Buildings,
-  Cube,
-  Database,
-  FileText,
-  HardDrives,
-  ListChecks,
-  ShieldCheck,
-  FloppyDisk
-} from '@phosphor-icons/react';
+import { FloppyDisk } from '@phosphor-icons/react';
 import { api } from '../../../lib/api/axios.js';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
-import { Notice } from '../../../components/ui/Notice.jsx';
 import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { CompanyProfileSection } from './CompanyProfileSection.jsx';
 import { ChecklistBuilderSection } from './ChecklistBuilderSection.jsx';

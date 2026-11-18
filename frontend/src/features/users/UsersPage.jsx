@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import {
-  Certificate,
-  Plus,
-  ShieldCheck,
-  Users
-} from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react';
 import { EmptyState, ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';

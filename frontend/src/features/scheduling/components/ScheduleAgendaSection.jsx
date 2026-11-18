@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   CalendarCheck,
   CheckCircle,
@@ -22,8 +23,14 @@ import {
 } from '../../../lib/utils/format.js';
 
 export function ScheduleAgendaSection({ schedules }) {
-  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [searchParams] = useSearchParams();
+  const urlStatus = (searchParams.get('status') || 'ALL').toUpperCase();
+  const [filterStatus, setFilterStatus] = useState(urlStatus);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    setFilterStatus(urlStatus);
+  }, [urlStatus]);
 
   // Hitung metrik pengawasan jadwal
   const stats = useMemo(() => {
@@ -144,29 +151,6 @@ export function ScheduleAgendaSection({ schedules }) {
             <div className="text-base font-bold text-rose-700 dark:text-rose-400">{stats.rejected} Order</div>
           </div>
         </div>
-      </div>
-
-      {/* Segmented Filter Pills */}
-      <div className="px-5 py-2.5 border-b border-black/[0.05] dark:border-white/[0.06] bg-white dark:bg-[#151821] flex items-center gap-1.5 overflow-x-auto">
-        {[
-          { key: 'ALL', label: `Semua Agenda (${schedules.length})` },
-          { key: 'CONFIRMED', label: `Terkonfirmasi (${stats.confirmed})` },
-          { key: 'PENDING', label: `Menunggu Respon (${stats.pending})` },
-          { key: 'REJECTED', label: `Ditolak / Butuh Re-alokasi (${stats.rejected})` }
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setFilterStatus(tab.key)}
-            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
-              filterStatus === tab.key
-                ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] shadow-2xs'
-                : 'text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
       </div>
 
       {/* Konten Daftar / Tabel */}

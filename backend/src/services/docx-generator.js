@@ -251,6 +251,9 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
   const hasResults = results.length > 0;
   const isBlank = !hasResults && !data.client_name;
 
+  const td = data.technical_data && typeof data.technical_data === 'object' ? data.technical_data : {};
+  const objAttrs = data.object_attributes && typeof data.object_attributes === 'object' ? data.object_attributes : {};
+
   // 1. Result resolver helpers:
   const findResult = (patterns) => {
     const list = Array.isArray(patterns) ? patterns : [patterns];
@@ -262,15 +265,29 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
 
   const getResultVal = (patterns, fallback = '') => {
     const match = findResult(patterns);
-    if (!match) return fallback;
-    if (match.text_value !== undefined && match.text_value !== null && String(match.text_value).trim() !== '') {
-      return String(match.text_value).trim();
+    if (match) {
+      if (match.text_value !== undefined && match.text_value !== null && String(match.text_value).trim() !== '') {
+        return String(match.text_value).trim();
+      }
+      if (match.number_value !== undefined && match.number_value !== null && String(match.number_value).trim() !== '') {
+        return `${match.number_value} ${match.unit || ''}`.trim();
+      }
+      if (match.choice_value) return match.choice_value;
+      if (match.date_value) return formatDateIndo(match.date_value);
     }
-    if (match.number_value !== undefined && match.number_value !== null && String(match.number_value).trim() !== '') {
-      return `${match.number_value} ${match.unit || ''}`.trim();
+    const list = Array.isArray(patterns) ? patterns : [patterns];
+    for (const src of [td, objAttrs]) {
+      for (const [k, v] of Object.entries(src)) {
+        if (
+          v !== undefined &&
+          v !== null &&
+          String(v).trim() !== '' &&
+          list.some((pat) => (typeof pat === 'string' ? k.toLowerCase().includes(pat.toLowerCase()) : pat.test(k)))
+        ) {
+          return String(v).trim();
+        }
+      }
     }
-    if (match.choice_value) return match.choice_value;
-    if (match.date_value) return formatDateIndo(match.date_value);
     return fallback;
   };
 
@@ -402,7 +419,12 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
   const serialNo = data.serial_number || data.no_seri || '';
   const brandModel = data.brand_model || (data.brand && data.model ? `${data.brand} / ${data.model}` : (data.brand || data.model || ''));
   const yearStr = data.manufacture_year || data.manufacturing_year || data.year || '';
-  const capacityStr = data.capacity ? `${data.capacity} ${data.capacity_unit || 'kg'}` : '';
+  const rawCapacity = String(data.capacity || '').trim();
+  const capacityStr = rawCapacity
+    ? /[a-zA-Z]/.test(rawCapacity)
+      ? rawCapacity
+      : `${rawCapacity} ${data.capacity_unit || 'kg'}`
+    : '';
   const inspDateStr = formatDateIndo(data.inspected_at || data.inspection_date) || '';
   const reInspDateStr = addYear(data.inspected_at || data.inspection_date, 1) || '';
   const permitNo = data.previous_permit_no || data.permit_number || data.license_no || '';
@@ -1351,9 +1373,37 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     );
   }
 
-  const deflL = getResultVal([/panjang garpu|L garpu/i], isBlank ? '' : '1070');
-  const deflH = getResultVal([/tinggi garpu|H garpu/i], isBlank ? '' : '500');
-  const deflX = getResultVal([/defleksi aktual|X aktual/i], isBlank ? '' : '1.0');
+  const deflL = getResultVal([/panjang garpu|L garpu|fork_length/i], '');
+  const deflH = getResultVal([/tinggi garpu|H garpu|fork_height/i], '');
+  const deflX = getResultVal([/defleksi aktual|X aktual|actual_deflection/i], '');
+  const parsedL = parseFloat(String(deflL || '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+  const parsedDefl = parseFloat(String(deflX || '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+  const maxPermittedDefl = !Number.isNaN(parsedL) && parsedL > 0 ? (parsedL / 33).toFixed(1) : null;
+  const loadTestChoice = getResultVal([/uji beban|defleksi garpu/i], '');
+
+  const deflVerdictText = isBlank
+    ? '    [   ] MEMENUHI PERSYARATAN K3 (X aktual ≤ X ijin)\n    [   ] TIDAK MEMENUHI PERSYARATAN K3'
+    : !Number.isNaN(parsedDefl) && maxPermittedDefl
+    ? parsedDefl <= Number(maxPermittedDefl)
+      ? `    Berdasarkan hasil pengukuran, defleksi garpu (${parsedDefl} mm) ≤ batas izin (${maxPermittedDefl} mm) dinyatakan MEMENUHI PERSYARATAN K3.`
+      : `    Berdasarkan hasil pengukuran, defleksi garpu (${parsedDefl} mm) > batas izin (${maxPermittedDefl} mm) dinyatakan TIDAK MEMENUHI PERSYARATAN K3.`
+    : loadTestChoice
+    ? `    Status Pengujian Beban & Defleksi Garpu: ${loadTestChoice}.`
+    : '    Pengukuran defleksi garpu belum tercatat.';
+
+  const verdictPhrase =
+    data.conclusion === 'TIDAK_MEMENUHI_SYARAT'
+      ? 'TIDAK MEMENUHI PERSYARATAN K3'
+      : data.conclusion === 'MEMENUHI_SYARAT_DENGAN_CATATAN'
+      ? 'MEMENUHI PERSYARATAN K3 DENGAN CATATAN'
+      : data.conclusion === 'MEMENUHI_SYARAT'
+      ? 'MEMENUHI PERSYARATAN K3'
+      : 'BELUM DITETAPKAN (MENUNGGU EVALUASI AKHIR)';
+
+  const recText =
+    report.recommendations && report.recommendations !== '-' && report.recommendations !== 'Belum diisi.'
+      ? `\n4.   ${report.recommendations}`
+      : '';
 
   contentChildren.push(
     new Paragraph({
@@ -1365,14 +1415,12 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
           font: 'Times New Roman'
         }),
         new TextRun({
-          text: '    • Panjang Garpu (L)           : ' + (deflL ? `${deflL} mm` : '.................... mm') + '\n' +
-                '    • Tinggi Garpu (H)            : ' + (deflH ? `${deflH} mm` : '.................... mm') + '\n' +
-                '    • Defleksi Maksimum Ijin (X)  : 3% × L = ' + (deflL ? `${(parseFloat(deflL) * 0.03).toFixed(1)} mm` : '.................... mm') + '\n' +
-                '    • Defleksi Aktual Hasil Uji   : ' + (deflX ? `${deflX} mm` : '.................... mm') + '\n\n' +
+          text: '    • Panjang Garpu (L)           : ' + (deflL ? `${deflL}` : '.................... mm') + '\n' +
+                '    • Tinggi Garpu (H)            : ' + (deflH ? `${deflH}` : '.................... mm') + '\n' +
+                '    • Defleksi Maksimum Ijin (X)  : 1/33 × L = ' + (maxPermittedDefl ? `${maxPermittedDefl} mm` : '.................... mm') + '\n' +
+                '    • Defleksi Aktual Hasil Uji   : ' + (deflX ? `${deflX}` : '.................... mm') + '\n\n' +
                 'Kesimpulan Pengujian Beban & Defleksi:\n' +
-                (isBlank
-                  ? '    [   ] MEMENUHI PERSYARATAN K3 (X aktual ≤ X ijin)\n    [   ] TIDAK MEMENUHI PERSYARATAN K3'
-                  : '    Berdasarkan hasil pengukuran, defleksi kelenturan garpu dinyatakan MEMENUHI PERSYARATAN K3 (X aktual < X maksimum yang diijinkan).'),
+                deflVerdictText,
           size: 21,
           font: 'Times New Roman'
         })
@@ -1402,14 +1450,37 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
       children: [
         new TextRun({
           text: isBlank
-            ? '        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa Forklift, dengan Nomor Seri : ...................., Tahun : ...................., Kapasitas : ...................., dinyatakan MEMENUHI PERSYARATAN K3. Unit dapat digunakan dengan mengikuti rekomendasi dan syarat-syarat keselamatan kerja yang berlaku.'
-            : `        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa Forklift, dengan Nomor Seri : ${serialNo || '-'}, Tahun : ${yearStr || '-'}, Kapasitas : ${capacityStr || '-'}, dinyatakan MEMENUHI PERSYARATAN K3. Unit Dapat digunakan di ${location || '-'}, ${clientName || '-'} dengan mengikuti rekomendasi yang telah kami berikan, antara lain:`,
+            ? '        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa Forklift, dengan Nomor Seri : ...................., Tahun : ...................., Kapasitas : ...................., dinyatakan ......................................... Unit dapat digunakan dengan mengikuti rekomendasi dan syarat-syarat keselamatan kerja yang berlaku.'
+            : `        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa ${data.object_name || 'Forklift'}, dengan Nomor Seri : ${serialNo || '-'}, Tahun : ${yearStr || '-'}, Kapasitas : ${capacityStr || '-'}, dinyatakan ${verdictPhrase}. Unit berada pada lokasi ${location || '-'}, ${clientName || '-'} dengan wajib mengikuti rekomendasi dan syarat-syarat keselamatan kerja berikut:`,
           size: 22,
           font: 'Times New Roman'
         })
       ],
       spacing: { after: 220 }
     }),
+    ...(report.findings && report.findings.length > 0
+      ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'TEMUAN LAPANGAN:\n',
+                bold: true,
+                size: 22,
+                font: 'Times New Roman'
+              }),
+              ...report.findings.map(
+                (fd, idx) =>
+                  new TextRun({
+                    text: `${idx + 1}. [${fd.severity || 'TEMUAN'}] ${fd.description || '-'} — Rekomendasi: ${fd.recommendation || '-'}\n`,
+                    size: 20,
+                    font: 'Times New Roman'
+                  })
+              )
+            ],
+            spacing: { after: 180 }
+          })
+        ]
+      : []),
     new Paragraph({
       children: [
         new TextRun({
@@ -1426,7 +1497,8 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
         new TextRun({
           text: '1.   Operator yang mengoperasikan unit harus memiliki Lisensi Operator dari Kemnaker RI\n2.   Lakukan perawatan dan pembersihan rutin secara berkala pada unit.\n3.   Lakukan pemeriksaan dan pengujian berkala pada unit paling lambat tanggal ' +
             (reInspDateStr || '........................................') +
-            ' sesuai dengan PER.08/MEN/2020 Tentang Keselamatan Dan Kesehatan Kerja Pesawat Angkat dan Pesawat Angkut',
+            ' sesuai dengan PER.08/MEN/2020 Tentang Keselamatan Dan Kesehatan Kerja Pesawat Angkat dan Pesawat Angkut' +
+            recText,
           size: 22,
           font: 'Times New Roman'
         })
@@ -1436,7 +1508,7 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     // Signature block right aligned
     (() => {
       const inspectorSigBuf = resolveAttachmentBuffer(
-        data.inspector_signature || data.signature_data_url || data.signature_file_id || data.inspector_sig_file_id
+        data.inspector_signature_path || data.inspector_signature || data.signature_data_url || data.signature_file_id || data.inspector_signature_file_id || data.inspector_sig_file_id
       );
       const inspectorSigParagraphs = [
         new Paragraph({
@@ -1630,6 +1702,10 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     }
   }
 
+  const existingCertPaths = ['cert_skp_pjk3_1.jpg', 'cert_skp_pjk3_2.jpg']
+    .map((cf) => getTemplateAsset(cf))
+    .filter((cp) => cp && fs.existsSync(cp));
+
   if (validInspectionPhotos.length > 0) {
     for (let i = 0; i < validInspectionPhotos.length; i += 2) {
       const leftP = validInspectionPhotos[i];
@@ -1651,6 +1727,7 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
           borders: TABLE_BORDERS_BLACK,
           rows: [
             new TableRow({
+              cantSplit: true,
               children: [leftCell, rightCell]
             })
           ]
@@ -1662,7 +1739,9 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
         contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
       }
     }
-    contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    if (existingCertPaths.length > 0) {
+      contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    }
   } else {
     // Mode Blangko Kosong: sediakan slot kotak rapi untuk penempelan foto manual
     docPhotoSlots.forEach((slot, slotIdx) => {
@@ -1676,13 +1755,15 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
           borders: TABLE_BORDERS_BLACK,
           rows: [
             new TableRow({
+              cantSplit: true,
               children: [leftCell, rightCell]
             })
           ]
         })
       );
 
-      if (slot.pageBreakAfter) {
+      const isLastSlot = slotIdx === docPhotoSlots.length - 1;
+      if (slot.pageBreakAfter && (!isLastSlot || existingCertPaths.length > 0)) {
         contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
       }
     });
@@ -1691,24 +1772,20 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
   // ===========================================================================
   // PAGES 16 TO 18: LAMPIRAN SKP KEMNAKER RI (FULL PAGE CERTIFICATE SCANS)
   // ===========================================================================
-  const certFiles = ['cert_skp_pjk3_1.jpg', 'cert_skp_pjk3_2.jpg'];
-  certFiles.forEach((cf, idx) => {
-    const cp = getTemplateAsset(cf);
-    if (cp && fs.existsSync(cp)) {
-      contentChildren.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [
-            new ImageRun({
-              data: fs.readFileSync(cp),
-              transformation: { width: 500, height: 750 }
-            })
-          ]
-        })
-      );
-      if (idx < certFiles.length - 1) {
-        contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
-      }
+  existingCertPaths.forEach((cp, idx) => {
+    contentChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(cp),
+            transformation: { width: 500, height: 750 }
+          })
+        ]
+      })
+    );
+    if (idx < existingCertPaths.length - 1) {
+      contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
     }
   });
 
@@ -1846,9 +1923,19 @@ function buildGenericDocxDocument(data, report, companyProfile) {
   );
 
   const identityTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 10080, type: WidthType.DXA },
+    columnWidths: [4032, 6048],
     borders: TABLE_BORDERS_BLACK,
-    rows: identityRows
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          createCell('Parameter Identitas', { widthDxa: 4032, isHeader: true, size: 17 }),
+          createCell('Keterangan', { widthDxa: 6048, isHeader: true, size: 17 })
+        ]
+      }),
+      ...identityRows
+    ]
   });
 
   const section2Title = new Paragraph({
@@ -1867,21 +1954,31 @@ function buildGenericDocxDocument(data, report, companyProfile) {
   );
 
   const technicalTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 10080, type: WidthType.DXA },
+    columnWidths: [4032, 6048],
     borders: TABLE_BORDERS_BLACK,
-    rows:
-      technicalRows.length > 0
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          createCell('Spesifikasi Teknis', { widthDxa: 4032, isHeader: true, size: 17 }),
+          createCell('Nilai / Keterangan', { widthDxa: 6048, isHeader: true, size: 17 })
+        ]
+      }),
+      ...(technicalRows.length > 0
         ? technicalRows
         : [
             new TableRow({
               children: [
                 createCell('Data teknis terverifikasi sesuai spesifikasi nameplate pabrikan.', {
-                  widthPercent: 100,
+                  widthDxa: 10080,
+                  columnSpan: 2,
                   size: 17
                 })
               ]
             })
-          ]
+          ])
+    ]
   });
 
   const section3Title = new Paragraph({
@@ -1900,21 +1997,31 @@ function buildGenericDocxDocument(data, report, companyProfile) {
   );
 
   const resultTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 10080, type: WidthType.DXA },
+    columnWidths: [5040, 5040],
     borders: TABLE_BORDERS_BLACK,
-    rows:
-      resultRows.length > 0
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          createCell('Butir Pemeriksaan & Pengujian', { widthDxa: 5040, isHeader: true, size: 17 }),
+          createCell('Hasil & Catatan', { widthDxa: 5040, isHeader: true, size: 17 })
+        ]
+      }),
+      ...(resultRows.length > 0
         ? resultRows
         : [
             new TableRow({
               children: [
                 createCell('Hasil checklist riksa uji tercatat lengkap pada formulir pengujian.', {
-                  widthPercent: 100,
+                  widthDxa: 10080,
+                  columnSpan: 2,
                   size: 17
                 })
               ]
             })
-          ]
+          ])
+    ]
   });
 
   const section4Title = new Paragraph({
@@ -2100,7 +2207,7 @@ function buildGenericDocxDocument(data, report, companyProfile) {
   });
 
   const inspectorSigBuf = resolveAttachmentBuffer(
-    data.inspector_signature || data.signature_data_url || data.signature_file_id || data.inspector_sig_file_id
+    data.inspector_signature_path || data.inspector_signature || data.signature_data_url || data.signature_file_id || data.inspector_signature_file_id || data.inspector_sig_file_id
   );
 
   const inspectorSigParas = [
@@ -2151,19 +2258,21 @@ function buildGenericDocxDocument(data, report, companyProfile) {
   ];
 
   const signatureTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 10080, type: WidthType.DXA },
+    columnWidths: [3360, 3360, 3360],
     borders: TABLE_BORDERS_BLACK,
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
-            width: { size: 33.3, type: WidthType.PERCENTAGE },
+            width: { size: 3360, type: WidthType.DXA },
             borders: TABLE_BORDERS_BLACK,
             margins: { top: 100, bottom: 100, left: 80, right: 80 },
             children: inspectorSigParas
           }),
           new TableCell({
-            width: { size: 33.3, type: WidthType.PERCENTAGE },
+            width: { size: 3360, type: WidthType.DXA },
             borders: TABLE_BORDERS_BLACK,
             margins: { top: 100, bottom: 100, left: 80, right: 80 },
             children: [
@@ -2193,7 +2302,7 @@ function buildGenericDocxDocument(data, report, companyProfile) {
             ]
           }),
           new TableCell({
-            width: { size: 33.4, type: WidthType.PERCENTAGE },
+            width: { size: 3360, type: WidthType.DXA },
             borders: TABLE_BORDERS_BLACK,
             margins: { top: 100, bottom: 100, left: 80, right: 80 },
             children: [
@@ -2285,6 +2394,17 @@ export async function generateBapDocxBuffer(bap) {
   const companyProfile = await getCompanyProfile().catch(() => null);
   const companyName = companyProfile?.company_name || 'PT UPAYA RIKSA DAYA';
   const tagline = companyProfile?.tagline || 'JASA PEMERIKSAAN & PENGUJIAN KESELAMATAN DAN KESEHATAN KERJA (PJK3)';
+  const equipmentTitle = String(
+    bap.equipment_subtype_name ||
+      bap.equipment_type_name ||
+      bap.object_name ||
+      bap.equipment_name ||
+      bap.equipment_type ||
+      bap.category_name ||
+      'ALAT K3'
+  )
+    .trim()
+    .toUpperCase();
 
   const logoPath = getOfficialLogoPath();
   const logoParagraph =
@@ -2297,14 +2417,19 @@ export async function generateBapDocxBuffer(bap) {
             })
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 120 }
+          spacing: { after: 100 }
         })
       : null;
 
+  const hasConclusion = Boolean(bap.conclusion);
   const isNotCompliant = bap.conclusion === 'TIDAK_MEMENUHI_SYARAT';
-  const statusColor = isNotCompliant ? '991B1B' : '107038';
-  const statusText = isNotCompliant
+  const statusColor = !hasConclusion ? '334155' : isNotCompliant ? '991B1B' : '107038';
+  const statusText = !hasConclusion
+    ? 'MEMENUHI / TIDAK MEMENUHI *) (Kesimpulan teknis menunggu penyelesaian checklist & LHPP)'
+    : isNotCompliant
     ? 'TIDAK MEMENUHI PERSYARATAN K3'
+    : bap.conclusion === 'MEMENUHI_SYARAT_DENGAN_CATATAN'
+    ? 'MEMENUHI PERSYARATAN K3 DENGAN CATATAN'
     : 'MEMENUHI PERSYARATAN KESELAMATAN DAN KESEHATAN KERJA';
 
   const companyHeader = new Paragraph({
@@ -2317,7 +2442,7 @@ export async function generateBapDocxBuffer(bap) {
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 60 }
+    spacing: { after: 40 }
   });
 
   const subHeader = new Paragraph({
@@ -2329,47 +2454,72 @@ export async function generateBapDocxBuffer(bap) {
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 200 }
+    spacing: { after: 160 }
   });
 
   const titleParagraph = new Paragraph({
-    text: 'BERITA ACARA PEMERIKSAAN DAN PENGUJIAN (BAP)',
-    heading: HeadingLevel.HEADING_1,
+    children: [
+      new TextRun({
+        text: 'BERITA ACARA RIKSA UJI',
+        bold: true,
+        size: 28,
+        color: '0F172A'
+      })
+    ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 100 }
+    spacing: { after: 40 }
+  });
+
+  const equipmentTitleParagraph = new Paragraph({
+    children: [
+      new TextRun({
+        text: equipmentTitle,
+        bold: true,
+        size: 24,
+        color: 'C81E1E'
+      })
+    ],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 60 }
   });
 
   const docNoParagraph = new Paragraph({
     children: [
       new TextRun({
-        text: `Nomor: ${bap.bap_no || 'DRAF'}`,
+        text: `No: ${bap.bap_no || 'DRAF'}`,
         bold: true,
         size: 20
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 240 }
+    spacing: { after: 200 }
   });
+
+  const dateFormatted = formatDateIndo(bap.inspection_date) || bap.date_formatted || formatDateIndo(new Date());
+  const openingVerb = hasConclusion
+    ? 'telah dilaksanakan pekerjaan pemeriksaan dan pengujian (riksa uji)'
+    : 'dilaksanakan pekerjaan / berita acara pemeriksaan dan pengujian (riksa uji)';
 
   const introParagraph = new Paragraph({
     children: [
       new TextRun({
-        text: `Pada hari ini, tanggal ${bap.date_formatted || '________'}, telah dilakukan pemeriksaan dan pengujian Keselamatan dan Kesehatan Kerja (K3) terhadap peralatan kerja dengan rincian sebagai berikut:`,
+        text: `Pada hari ini, tanggal ${dateFormatted}, ${openingVerb} Keselamatan dan Kesehatan Kerja (K3) oleh ${companyName} terhadap peralatan kerja dengan rincian sebagai berikut:`,
         size: 18
       })
     ],
-    spacing: { after: 160 }
+    spacing: { after: 140 }
   });
 
+  const capText = [bap.capacity || '-', bap.capacity_unit || ''].filter(Boolean).join(' ').trim();
   const identityRows = [
+    ['Objek Periksa', `${bap.object_name || equipmentTitle} (${bap.category_code || '-'})`],
     ['Nama Perusahaan / Klien', bap.client_name || '-'],
-    ['Alamat Lokasi Uji', bap.client_address || '-'],
-    ['Jenis Objek K3', bap.equipment_name || bap.equipment_type || '-'],
-    ['Nomor Seri / Tag Unit', bap.serial_number || '-'],
-    ['Kapasitas Kerja Aman (SWL)', bap.capacity || '-'],
-    ['Lokasi Instalasi', bap.install_location || '-'],
-    ['Jenis Riksa Uji', bap.inspection_type || 'Berkala'],
-    ['Inspector / Ahli K3', bap.inspector_name || '-']
+    ['Alamat Perusahaan', bap.client_address || bap.location_address || '-'],
+    ['Pabrik Pembuat / Tahun', `${bap.manufacturer || bap.brand || '-'} / ${bap.manufacture_year || '-'}`],
+    ['Nomor Seri / Kapasitas', `${bap.serial_number || '-'} / ${capText}`],
+    ['Lokasi Pemeriksaan', `${bap.install_location || bap.location_name || '-'}${bap.po_number ? ` (PO: ${bap.po_number})` : ''}`],
+    ['Jenis Riksa Uji', bap.inspection_type || bap.service_type || 'Berkala'],
+    ['Ahli K3 / Inspector', bap.inspector_signer_name || bap.inspector_name || '-']
   ].map(
     ([label, val]) =>
       new TableRow({
@@ -2387,64 +2537,76 @@ export async function generateBapDocxBuffer(bap) {
   });
 
   const scopeTitle = new Paragraph({
-    children: [new TextRun({ text: 'RUANG LINGKUP PEMERIKSAAN & PENGUJIAN', bold: true, size: 20 })],
-    spacing: { before: 240, after: 80 }
+    children: [new TextRun({ text: 'RUANG LINGKUP RIKSA UJI YANG DILAKSANAKAN', bold: true, size: 20 })],
+    spacing: { before: 200, after: 80 }
   });
 
-  const scopes = [
-    '1. Pemeriksaan Dokumen Teknis dan Riwayat Perawatan Unit',
-    '2. Pemeriksaan Visual dan Pengukuran Komponen Mekanis / Elektrik',
-    '3. Pengujian Fungsi Sistem Keselamatan, Rem, dan Pengendali',
-    '4. Pengujian Beban Kerja Aman (Load Testing & Defleksi Garpu)'
-  ];
+  const rawScopes = Array.isArray(bap.scope_items) && bap.scope_items.length > 0
+    ? bap.scope_items
+    : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
 
-  const scopeParagraphs = scopes.map(
-    (s) =>
+  const scopeParagraphs = rawScopes.map(
+    (s, idx) =>
       new Paragraph({
-        children: [new TextRun({ text: s, size: 17 })],
-        spacing: { after: 40 }
+        children: [new TextRun({ text: `${idx + 1}. [✓] ${s}`, size: 17 })],
+        spacing: { after: 35 }
       })
   );
 
   const resultTitle = new Paragraph({
-    children: [new TextRun({ text: 'HASIL DAN KESIMPULAN AKHIR', bold: true, size: 20 })],
-    spacing: { before: 200, after: 80 }
+    children: [new TextRun({ text: 'HASIL RIKSA UJI', bold: true, size: 20 })],
+    spacing: { before: 180, after: 80 }
   });
 
   const conclusionParagraph = new Paragraph({
     children: [
-      new TextRun({ text: 'Berdasarkan hasil riksa uji lapangan, unit dinyatakan: ', size: 18 }),
+      new TextRun({ text: 'Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut dinyatakan: ', size: 18 }),
       new TextRun({ text: statusText, bold: true, size: 18, color: statusColor })
     ],
-    spacing: { after: 120 }
+    spacing: { after: 100 }
   });
+
+  const defaultHonestNote = hasConclusion
+    ? 'Pemeriksaan dan pengujian telah dilaksanakan sesuai standar K3.'
+    : 'Berita acara disiapkan/ditandatangani di lapangan. Rincian teknis dan kesimpulan definitif dituangkan pada dokumen LHPP setelah checklist selesai dievaluasi.';
 
   const notesParagraph = new Paragraph({
     children: [
-      new TextRun({ text: 'Catatan Khusus: ', bold: true, size: 17 }),
+      new TextRun({ text: 'Catatan: ', bold: true, size: 17 }),
       new TextRun({
-        text:
-          bap.notes ||
-          'Peralatan memenuhi standar K3 Kemnaker R.I. dan dapat dioperasikan dengan mematuhi SOP keselamatan kerja.',
+        text: bap.notes || bap.conclusion_notes || defaultHonestNote,
         size: 17
       })
     ],
-    spacing: { after: 260 }
+    spacing: { after: 220 }
   });
 
   const inspectorSigBuf = resolveAttachmentBuffer(
-    bap.inspector_signature || bap.inspector_sig_file_id || bap.signature_data_url || bap.signature_file_id
+    bap.inspector_signature_path || bap.inspector_sig_storage_key || bap.inspector_signature || bap.inspector_signature_file_id || bap.inspector_sig_file_id
   );
   const clientSigBuf = resolveAttachmentBuffer(
-    bap.client_signature || bap.client_sig_file_id || bap.representative_signature
+    bap.client_signature_path || bap.client_sig_storage_key || bap.client_signature || bap.client_signature_file_id || bap.client_sig_file_id
   );
+
+  const fmtSigTimestamp = (ts) => {
+    if (!ts) return '';
+    try {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
+      return `Ditandatangani: ${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
+    } catch {
+      return '';
+    }
+  };
+  const inspSignedTime = fmtSigTimestamp(bap.inspector_signed_at);
+  const clientSignedTime = fmtSigTimestamp(bap.client_signed_at);
 
   const inspectorSigCellParas = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [
         new TextRun({
-          text: 'Pihak Penguji / Pelaksana\nPT UPAYA RIKSA DAYA',
+          text: 'Inspector / Penguji\nPT UPAYA RIKSA DAYA',
           bold: true,
           size: 17,
           font: 'Times New Roman'
@@ -2461,7 +2623,7 @@ export async function generateBapDocxBuffer(bap) {
               transformation: { width: 120, height: 60 }
             })
           ],
-          spacing: { before: 60, after: 60 }
+          spacing: { before: 40, after: 40 }
         })
       : new Paragraph({
           alignment: AlignmentType.CENTER,
@@ -2471,17 +2633,27 @@ export async function generateBapDocxBuffer(bap) {
       alignment: AlignmentType.CENTER,
       children: [
         new TextRun({
-          text: `( ${bap.inspector_name || 'Ahli K3 Spesialis'} )\n`,
+          text: `( ${bap.inspector_signer_name || bap.inspector_name || 'Ahli K3 Spesialis'} )\n`,
           bold: true,
           size: 17,
           font: 'Times New Roman'
         }),
         new TextRun({
-          text: bap.inspector_skp_no || bap.skp_no ? `No. SKP: ${bap.inspector_skp_no || bap.skp_no}` : 'Ahli K3 Spesialis Kemnaker RI',
+          text: bap.inspector_signer_title || 'Ahli K3 Pemeriksa',
           size: 15,
           font: 'Times New Roman',
           color: '555555'
-        })
+        }),
+        ...(inspSignedTime
+          ? [
+              new TextRun({
+                text: `\n${inspSignedTime}`,
+                size: 13,
+                font: 'Times New Roman',
+                color: '64748B'
+              })
+            ]
+          : [])
       ]
     })
   ];
@@ -2491,7 +2663,7 @@ export async function generateBapDocxBuffer(bap) {
       alignment: AlignmentType.CENTER,
       children: [
         new TextRun({
-          text: `Pihak Pemakai / Klien\n${bap.client_name || 'Perusahaan Klien'}`,
+          text: `Pemilik Alat / Unit\n${bap.client_name || 'Perusahaan Klien'}`,
           bold: true,
           size: 17,
           font: 'Times New Roman'
@@ -2508,7 +2680,7 @@ export async function generateBapDocxBuffer(bap) {
               transformation: { width: 120, height: 60 }
             })
           ],
-          spacing: { before: 60, after: 60 }
+          spacing: { before: 40, after: 40 }
         })
       : new Paragraph({
           alignment: AlignmentType.CENTER,
@@ -2518,17 +2690,27 @@ export async function generateBapDocxBuffer(bap) {
       alignment: AlignmentType.CENTER,
       children: [
         new TextRun({
-          text: `( ${bap.representative_name || bap.pic_name || 'Penanggung Jawab Lapangan'} )\n`,
+          text: `( ${bap.client_signer_name || '........................................'} )\n`,
           bold: true,
           size: 17,
           font: 'Times New Roman'
         }),
         new TextRun({
-          text: bap.representative_title || bap.pic_title || 'Penanggung Jawab / PIC Klien',
+          text: bap.client_signer_title || 'Pemilik Alat / Perwakilan Klien',
           size: 15,
           font: 'Times New Roman',
           color: '555555'
-        })
+        }),
+        ...(clientSignedTime
+          ? [
+              new TextRun({
+                text: `\n${clientSignedTime}`,
+                size: 13,
+                font: 'Times New Roman',
+                color: '64748B'
+              })
+            ]
+          : [])
       ]
     })
   ];
@@ -2562,7 +2744,7 @@ export async function generateBapDocxBuffer(bap) {
         alignment: AlignmentType.CENTER,
         children: [
           new TextRun({
-            text: '✓ DITANDATANGANI SECARA ELEKTRONIK & SAH OLEH KEDUA PIHAK',
+            text: '✓ DITANDATANGANI SECARA ELEKTRONIK OLEH KEDUA BELAH PIHAK',
             bold: true,
             size: 15,
             color: '107038',
@@ -2576,14 +2758,14 @@ export async function generateBapDocxBuffer(bap) {
   const closingText = new Paragraph({
     children: [
       new TextRun({
-        text: 'Demikian Berita Acara Pemeriksaan dan Pengujian ini dibuat dengan sebenarnya sesuai kondisi teknis di lapangan untuk dipergunakan sebagaimana mestinya.',
+        text: 'Hasil pemeriksaan ini dilakukan sesuai dengan kenyataan yang ada pada saat pemeriksaan dan pengujian unit di lapangan tanpa ada pengaruh dari pihak manapun. Demikian berita acara pemeriksaan ini dibuat dan ditandatangani oleh kedua belah pihak untuk dipergunakan sebagaimana mestinya.',
         italics: true,
         size: 15,
         color: '64748B'
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { before: 200, after: 100 }
+    spacing: { before: 180, after: 80 }
   });
 
   const doc = new Document({
@@ -2595,6 +2777,7 @@ export async function generateBapDocxBuffer(bap) {
           companyHeader,
           subHeader,
           titleParagraph,
+          equipmentTitleParagraph,
           docNoParagraph,
           introParagraph,
           identityTable,

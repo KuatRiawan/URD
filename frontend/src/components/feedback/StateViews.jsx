@@ -7,21 +7,30 @@ import {
 } from '@phosphor-icons/react';
 import { Button } from '../ui/Button.jsx';
 
-export function LoadingState({ message, label }) {
+export function LoadingState({ message, label, compact = false }) {
   const text = label || message || 'Memuat data operasional...';
   return (
     <div
       role="status"
       aria-live="polite"
-      className="flex flex-col items-center justify-center rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)]"
+      className={`flex flex-col items-center justify-center rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] ${
+        compact ? 'p-6 sm:p-8' : 'p-8 sm:p-10'
+      } text-center shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] animate-fade-in`}
     >
       <div className="relative flex items-center justify-center">
         <div
-          className="h-9 w-9 animate-spin rounded-full border-2 border-black/[0.08] dark:border-white/[0.10] border-t-[#C81E1E]"
+          className="h-8 w-8 animate-spin rounded-full border-2 border-black/[0.08] dark:border-white/[0.10] border-t-[#C81E1E]"
           aria-hidden="true"
         />
       </div>
-      <p className="mt-3.5 text-sm font-medium text-[#6E6E73] dark:text-[#98989D]">{text}</p>
+      <p className="mt-3 text-sm font-medium text-[#6E6E73] dark:text-[#98989D]">{text}</p>
+      {!compact && (
+        <div className="mt-5 w-full max-w-md space-y-2.5 text-left" aria-hidden="true">
+          <div className="urd-skeleton h-3.5 w-3/4 mx-auto" />
+          <div className="urd-skeleton h-3 w-full" />
+          <div className="urd-skeleton h-3 w-5/6 mx-auto" />
+        </div>
+      )}
     </div>
   );
 }
@@ -34,7 +43,7 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="flex flex-col items-center justify-center rounded-2xl border border-[#C81E1E]/20 bg-rose-50/70 dark:bg-rose-950/25 p-8 sm:p-10 text-center"
+      className="flex flex-col items-center justify-center rounded-2xl border border-[#C81E1E]/20 bg-rose-50/70 dark:bg-rose-950/25 p-8 sm:p-10 text-center animate-fade-in"
     >
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400">
         <WarningCircle size={24} weight="fill" aria-hidden="true" />
@@ -69,7 +78,7 @@ export function EmptyState({
 }) {
   const CustomIcon = icon || FolderOpen;
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-10 sm:p-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#151821] p-10 sm:p-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] animate-fade-in">
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F5F5F7] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D] border border-black/[0.05] dark:border-white/[0.06]">
         <CustomIcon size={22} weight="duotone" aria-hidden="true" />
       </div>
@@ -113,12 +122,12 @@ export function PaginationBar({
         <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{endItem}</span> dari{' '}
         <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums">{total}</span> {itemLabel}
       </div>
-      <div className="flex items-center gap-1.5 self-end sm:self-auto">
+      <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
         <button
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="inline-flex h-8 items-center gap-1 rounded-[9px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1F2B] px-2.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 transition-colors cursor-pointer"
+          className="inline-flex min-h-[36px] sm:min-h-[32px] items-center gap-1 rounded-[9px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1F2B] px-3 sm:px-2.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 transition-colors cursor-pointer"
         >
           <CaretLeft size={13} weight="bold" aria-hidden="true" />
           <span>Sebelumnya</span>
@@ -130,9 +139,9 @@ export function PaginationBar({
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="inline-flex h-8 items-center gap-1 rounded-[9px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1F2B] px-2.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 transition-colors cursor-pointer"
+          className="inline-flex min-h-[36px] sm:min-h-[32px] items-center gap-1 rounded-[9px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1F2B] px-3 sm:px-2.5 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 transition-colors cursor-pointer"
         >
-          <span> Berikutnya</span>
+          <span>Berikutnya</span>
           <CaretRight size={13} weight="bold" aria-hidden="true" />
         </button>
       </div>

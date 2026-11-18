@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { AuditLogPage } from './AuditLogPage.jsx';
 import { api } from '../../lib/api/axios.js';
 
@@ -25,7 +26,11 @@ describe('AuditLogPage', () => {
       }
     });
 
-    render(<AuditLogPage />);
+    render(
+      <MemoryRouter>
+        <AuditLogPage />
+      </MemoryRouter>
+    );
 
     expect(await screen.findAllByText(/Pimpinan \/ Manager/)).toHaveLength(2);
     expect(screen.getAllByText('Pengguna masuk')).toHaveLength(2);

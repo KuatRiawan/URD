@@ -53,7 +53,11 @@ export function Modal({
   // membuat position: fixed terpotong dan backdrop tidak menutup seluruh layar.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto overscroll-contain"
+      className={`fixed inset-0 z-50 flex justify-center overflow-y-auto overscroll-contain ${
+        isMobileFull
+          ? 'items-end sm:items-center p-0 sm:p-5 md:p-6'
+          : 'items-center p-3 sm:p-5 md:p-6'
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label={title || 'Dialog'}
@@ -75,18 +79,18 @@ export function Modal({
         tabIndex={-1}
         className={`relative w-full ${widthClass} my-auto text-left bg-white dark:bg-[#161922] border border-slate-200/90 dark:border-slate-800 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col ${
           isMobileFull
-            ? 'h-[92dvh] sm:h-auto sm:max-h-[88vh] rounded-2xl'
-            : 'max-h-[90dvh] sm:max-h-[86vh] rounded-2xl'
-        } overflow-hidden z-10 animate-pop-in focus:outline-none`}
+            ? 'h-[94dvh] sm:h-auto sm:max-h-[88vh] rounded-t-2xl sm:rounded-2xl animate-sheet-up sm:animate-pop-in'
+            : 'max-h-[90dvh] sm:max-h-[86vh] rounded-2xl animate-pop-in'
+        } overflow-hidden z-10 focus:outline-none`}
       >
         {/* Header Modal */}
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 px-6 py-4.5 shrink-0 bg-white dark:bg-[#161922]">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 px-4 py-3.5 sm:px-6 sm:py-4 shrink-0 bg-white dark:bg-[#161922]">
           <div className="min-w-0 pr-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-[-0.015em] leading-snug truncate">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-[-0.015em] leading-snug line-clamp-2 sm:truncate break-words">
               {title}
             </h2>
             {subtitle && (
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-1 sm:truncate">{subtitle}</p>
             )}
           </div>
           <button
@@ -94,20 +98,20 @@ export function Modal({
             onClick={onClose}
             aria-label={closeAriaLabel}
             style={{ outline: 'none' }}
-            className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer !outline-none focus:!outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600"
+            className="h-9 w-9 sm:h-8 sm:w-8 shrink-0 inline-flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer !outline-none focus:!outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600"
           >
             <X size={16} weight="bold" aria-hidden="true" />
           </button>
         </div>
 
         {/* Konten Scrollable */}
-        <div className="px-6 py-5 overflow-y-auto flex-1 overscroll-contain touch-pan-y min-h-0 bg-white dark:bg-[#161922]">
+        <div className="px-4 py-4 sm:px-6 sm:py-5 overflow-y-auto flex-1 overscroll-contain touch-pan-y min-h-0 bg-white dark:bg-[#161922]">
           {children}
         </div>
 
         {/* Footer Modal (Sticky di bawah, tidak menutupi konten) */}
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/75 dark:bg-[#12151D]/80 px-6 py-4 rounded-b-2xl shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/75 dark:bg-[#12151D]/80 px-4 py-3.5 sm:px-6 sm:py-4 rounded-b-2xl shrink-0">
             {footer}
           </div>
         )}

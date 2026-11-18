@@ -15,6 +15,8 @@ export function BapPage() {
   const toast = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlStatus = searchParams.get('status') || '';
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const canFinalize = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
 
@@ -22,8 +24,12 @@ export function BapPage() {
   const [scopeCatalog, setScopeCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    setStatusFilter(urlStatus);
+  }, [urlStatus]);
 
   const [selectedBap, setSelectedBap] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -79,7 +85,6 @@ export function BapPage() {
     fetchBapList();
   }, [fetchBapList]);
 
-  const [searchParams] = useSearchParams();
   const searchParam = searchParams.get('search') || searchParams.get('bapId') || searchParams.get('id');
   const openedBapRef = useRef(null);
 
@@ -93,7 +98,8 @@ export function BapPage() {
       setDraftForm({
         inspectionDate: b.inspection_date ? String(b.inspection_date).slice(0, 10) : '',
         scopeItems: Array.isArray(b.scope_items) ? b.scope_items : [],
-        isCompliant: b.is_compliant !== false,
+        isCompliant:
+          b.is_compliant === true ? true : b.is_compliant === false ? false : null,
         inspectionNotes: b.inspection_notes || ''
       });
       setSigForm({
@@ -152,10 +158,17 @@ export function BapPage() {
     setSubmitting(true);
     setFeedback(null);
     try {
+      const resolvedConclusion =
+        draftForm.isCompliant === true
+          ? 'MEMENUHI_SYARAT'
+          : draftForm.isCompliant === false
+          ? 'TIDAK_MEMENUHI_SYARAT'
+          : null;
       await api.put(`/bap/${selectedBap.id}/draft`, {
         inspectionDate: draftForm.inspectionDate || null,
         scopeItems: draftForm.scopeItems,
         isCompliant: draftForm.isCompliant,
+        conclusion: resolvedConclusion,
         inspectionNotes: draftForm.inspectionNotes
       });
       await openBapDetail(selectedBap.id);
@@ -397,27 +410,7 @@ export function BapPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex flex-wrap gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
-          {[
-            { value: '', label: 'Semua BAP' },
-            { value: 'DRAF', label: 'Draf BAP' },
-            { value: 'FINAL', label: 'BAP Final' }
-          ].map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setStatusFilter(f.value)}
-              className={`h-8 px-3 text-xs font-semibold rounded-[9px] transition-all cursor-pointer ${statusFilter === f.value
-                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-                }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
+      <div className="bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -425,7 +418,7 @@ export function BapPage() {
           }}
           className="flex items-center gap-2"
         >
-          <div className="relative flex-1 sm:w-64">
+          <div className="relative flex-1">
             <MagnifyingGlass
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"

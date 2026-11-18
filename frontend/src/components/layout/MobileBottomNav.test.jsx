@@ -3,7 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { MobileBottomNav } from './MobileBottomNav.jsx';
-import { getMobileNavConfig } from './navConfig.js';
+import { SidebarNav } from './SidebarNav.jsx';
+import { getMobileNavConfig, getVisibleNav } from './navConfig.js';
+import { GlobalSearchDialog } from '../search/GlobalSearchDialog.jsx';
 
 // Mock useAuth
 vi.mock('../../app/providers/AuthProvider.jsx', () => ({
@@ -71,6 +73,46 @@ describe('MobileBottomNav and MobileNavDrawer Integration', () => {
       expect(new Set(routes).size).toBe(routes.length);
       expect(routes.every((route) => knownRoutes.has(route.split('?')[0]))).toBe(true);
     }
+  });
+
+  it('expands nested Konfigurasi Sistem PJK3 sub-bab in SidebarNav and toggles it cleanly', () => {
+    const items = getVisibleNav('ADMIN_SISTEM');
+
+    render(
+      <MemoryRouter initialEntries={['/app/settings?tab=role_specific&subtab=checklists']}>
+        <SidebarNav items={items} />
+      </MemoryRouter>
+    );
+
+    const checklistItem = screen.getByRole('menuitem', { name: 'Checklist Pemeriksaan' });
+    expect(checklistItem).toBeInTheDocument();
+    expect(checklistItem).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('menuitem', { name: 'Profil Lembaga PJK3' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Katalog Klasifikasi Alat' })).toBeInTheDocument();
+
+    const subToggle = screen.getByRole('button', { name: /Tampilkan sub-bab Konfigurasi Sistem PJK3/i });
+    expect(subToggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(subToggle);
+    expect(subToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('menuitem', { name: 'Checklist Pemeriksaan' })).not.toBeInTheDocument();
+
+    fireEvent.click(subToggle);
+    expect(subToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('menuitem', { name: 'Checklist Pemeriksaan' })).toBeInTheDocument();
+  });
+
+  it('renders GlobalSearchDialog without ESC badge or footer helper text', () => {
+    render(
+      <MemoryRouter>
+        <GlobalSearchDialog isOpen={true} onClose={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByText('ESC')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pencarian Cepat Antar-Modul/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tekan ESC untuk menutup/i)).not.toBeInTheDocument();
   });
 });
 

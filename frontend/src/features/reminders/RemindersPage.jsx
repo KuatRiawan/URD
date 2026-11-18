@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { BellRinging, CalendarCheck, Clock, ShieldCheck, WarningOctagon } from '@phosphor-icons/react';
+import { BellRinging } from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { ErrorBanner, LoadingState } from '../../components/feedback/StateViews.jsx';

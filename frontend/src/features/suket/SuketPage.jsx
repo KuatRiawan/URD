@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   CalendarCheck,
   CheckCircle,
@@ -37,8 +38,27 @@ export function SuketPage() {
       setFeedback('');
     }
   }, [feedback, toast]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlStatus = searchParams.get('status') || '';
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
+
+  useEffect(() => {
+    setStatusFilter(urlStatus);
+  }, [urlStatus]);
+
+  const handleStatusChange = (nextStatus) => {
+    setStatusFilter(nextStatus);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (nextStatus) next.set('status', nextStatus);
+        else next.delete('status');
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -309,30 +329,6 @@ export function SuketPage() {
         </div>
       </div>
 
-      {/* Segmented Filter Bar: Status Penerbitan Suket */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto">
-        {[
-          { key: '', label: `Semua Suket (${stats.total})` },
-          { key: 'BERKAS_DISIAPKAN', label: 'Proses Berkas' },
-          { key: 'DIAJUKAN', label: `Di Disnaker (${stats.inDisnaker})` },
-          { key: 'TERBIT', label: `Suket Terbit (${stats.activeSuket})` },
-          { key: 'EXPIRING_SOON', label: `Segera Habis \u2264 30 Hari (${stats.expiringSuket})` }
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setStatusFilter(tab.key)}
-            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
-              statusFilter === tab.key
-                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <div className="flex flex-col sm:flex-row gap-2.5 bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <div className="relative flex-1">
           <MagnifyingGlass
@@ -350,7 +346,7 @@ export function SuketPage() {
         <select
           aria-label="Filter Status Suket"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="h-9 px-3 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:border-[#C81E1E] transition-colors cursor-pointer"
         >
           <option value="">Semua Status Pengajuan</option>

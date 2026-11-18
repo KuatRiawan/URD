@@ -573,7 +573,7 @@ export function InspectorDashboardView({
             </div>
 
             {/* Kolom Pencarian Cepat & Tab Navigasi Lapangan Desktop */}
-            <div className="flex flex-col md:flex-row gap-3 pt-1">
+            <div className="flex flex-col xl:flex-row xl:items-center gap-3 pt-1">
               <div className="relative flex-1">
                 <MagnifyingGlass
                   size={16}

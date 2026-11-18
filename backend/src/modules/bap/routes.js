@@ -58,13 +58,17 @@ export async function fetchFullBapContext(db, id) {
   }
   const { rows } = await db.query(
     `SELECT b.*,
-            i.inspector_id, i.conclusion_notes, i.inspected_at, i.submitted_at,
+            i.inspector_id, i.status AS inspection_status, i.conclusion AS inspection_conclusion,
+            i.conclusion_notes, i.inspected_at, i.submitted_at,
             o.order_no, o.po_number, o.po_date, o.service_type,
             c.name AS client_name, c.address AS client_address, c.phone AS client_phone,
             cl.name AS location_name, cl.address AS location_address, cl.city AS location_city,
             t.name AS object_name, t.brand, t.model, t.manufacturer,
             t.serial_number, t.manufacture_year, t.capacity, t.capacity_unit,
             t.install_location, t.previous_permit_no, t.attributes,
+            COALESCE(eq.domain_code, oc.code) AS domain_code,
+            eq.name AS equipment_type_name,
+            sub.name AS equipment_subtype_name,
             oc.code AS category_code, oc.name AS category_name,
             oc.default_bap_scopes, oc.lhpp_schema,
             u_insp.full_name AS inspector_name,
@@ -78,6 +82,8 @@ export async function fetchFullBapContext(db, id) {
      LEFT JOIN client_locations cl ON cl.id = o.location_id
      JOIN test_objects t ON t.id = b.object_id
      JOIN object_categories oc ON oc.id = t.category_id
+     LEFT JOIN equipment_types eq ON eq.id = COALESCE(t.equipment_name_id, t.equipment_type_id)
+     LEFT JOIN equipment_types sub ON sub.id = t.equipment_subtype_id
      JOIN users u_insp ON u_insp.id = i.inspector_id
      LEFT JOIN file_attachments f_insp ON f_insp.id = b.inspector_signature_file_id
      LEFT JOIN file_attachments f_cli ON f_cli.id = b.client_signature_file_id
@@ -97,7 +103,12 @@ export async function fetchFullBapContext(db, id) {
   );
   return {
     ...bap,
-    is_compliant: bap.conclusion !== 'TIDAK_MEMENUHI_SYARAT',
+    is_compliant:
+      bap.conclusion === 'TIDAK_MEMENUHI_SYARAT'
+        ? false
+        : bap.conclusion
+        ? true
+        : null,
     inspection_notes: bap.notes || '',
     inspector_sig_file_id: bap.inspector_signature_file_id,
     client_sig_file_id: bap.client_signature_file_id,
@@ -429,7 +440,8 @@ router.put(
       const { id } = req.params;
       const { inspectionDate, scopeItems, conclusion, isCompliant, notes, inspectionNotes } = req.body;
       const resolvedConclusion =
-        conclusion || (isCompliant === false ? 'TIDAK_MEMENUHI_SYARAT' : 'MEMENUHI_SYARAT');
+        conclusion ||
+        (isCompliant === false ? 'TIDAK_MEMENUHI_SYARAT' : isCompliant === true ? 'MEMENUHI_SYARAT' : null);
       const resolvedNotes = notes !== undefined ? notes : inspectionNotes;
 
       const updated = await withTransaction(async (db) => {

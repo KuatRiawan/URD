@@ -60,9 +60,14 @@ export function IssuesPage() {
       setFeedback('');
     }
   }, [feedback, toast]);
+  const urlTab = (searchParams.get('tab') || 'ALL').toUpperCase();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [quickTab, setQuickTab] = useState('ALL');
+  const [quickTab, setQuickTab] = useState(urlTab);
+
+  useEffect(() => {
+    setQuickTab(urlTab);
+  }, [urlTab]);
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -270,29 +275,6 @@ export function IssuesPage() {
             <div className="text-lg font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{stats.resolved} Selesai</div>
           </div>
         </div>
-      </div>
-
-      {/* Segmented Filter Bar Cepat */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-xl overflow-x-auto">
-        {[
-          { key: 'ALL', label: `Semua Kendala (${items.length})` },
-          { key: 'ACTION_NEEDED', label: `Perlu Tindak Lanjut (${stats.inProgress})` },
-          { key: 'HIGH_PRIORITY', label: `Prioritas Tinggi (${stats.highPriority})` },
-          { key: 'RESOLVED', label: `Selesai (${stats.resolved})` }
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setQuickTab(tab.key)}
-            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
-              quickTab === tab.key
-                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
       </div>
 
       <div className="flex flex-col gap-2.5 rounded-2xl border border-black/[0.06] bg-white p-3.5 dark:border-white/[0.08] dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:flex-row items-stretch sm:items-end">

@@ -279,7 +279,7 @@ export function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center font-semibold rounded-full border shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none whitespace-nowrap select-none tracking-tight transition-colors ${sizeClass} ${toneClass} ${className}`}
+      className={`inline-flex items-center font-semibold rounded-full border shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none whitespace-nowrap select-none tracking-tight transition-colors duration-150 ${sizeClass} ${toneClass} ${className}`}
     >
       {Icon ? (
         <Icon size={size === 'xs' ? 11 : size === 'sm' ? 12 : 13} className="shrink-0" aria-hidden="true" />

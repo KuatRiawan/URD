@@ -9,6 +9,12 @@ import {
   setupAutoSyncListener
 } from '../../../lib/utils/offline-sync.js';
 import { useInspectionSignatures } from './useInspectionSignatures.js';
+import {
+  buildItemsBySeqMap,
+  buildInspectionResultPayload,
+  isChecklistItemFilled,
+  isConditionalItemVisible
+} from '../utils/checklistUtils.js';
 
 export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }) {
   const [activeDetail, setActiveDetail] = useState(null);
@@ -24,6 +30,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   const [draftScopes, setDraftScopes] = useState([]);
   const [draftObjectAttributes, setDraftObjectAttributes] = useState({});
   const [formStep, setFormStep] = useState(1);
+  const [workPhase, setWorkPhase] = useState('FIELD');
   const [lastSavedAt, setLastSavedAt] = useState(null);
 
   // Foto & Temuan
@@ -51,6 +58,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   draftObjectAttributesRef.current = draftObjectAttributes;
   const formStepRef = useRef(formStep);
   formStepRef.current = formStep;
+  const workPhaseRef = useRef(workPhase);
+  workPhaseRef.current = workPhase;
   const activeDetailRef = useRef(activeDetail);
   activeDetailRef.current = activeDetail;
 
@@ -108,6 +117,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
               ? String(existing.number_value)
               : '',
           textValue: existing?.text_value || '',
+          dateValue: existing?.date_value ? String(existing.date_value).slice(0, 10) : '',
           note: existing?.note || ''
         };
       }
@@ -185,6 +195,12 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       if (local?.formStep && local.formStep > 1) {
         isRestoredFromLocal = true;
       }
+      const defaultPhase =
+        local?.workPhase === 'FIELD' || local?.workPhase === 'OFFICE'
+          ? local.workPhase
+          : data.inspection?.work_phase === 'OFFICE' || data.inspection?.status !== 'DRAF'
+            ? 'OFFICE'
+            : 'FIELD';
 
       // Pasang semua state
       setDraftResults(mergedResults);
@@ -193,6 +209,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       setDraftConclusionNotes(mergedConclusionNotes);
       setDraftScopes(mergedScopes);
       setFormStep(mergedStep);
+      setWorkPhase(defaultPhase);
 
       const savedTime = local?.savedAt
         ? new Date(local.savedAt)
@@ -267,6 +284,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       scopeItems: draftScopes,
       objectAttributes: draftObjectAttributes,
       formStep,
+      workPhase,
       savedAt: Date.now()
     });
   }, [
@@ -277,7 +295,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     draftConclusionNotes,
     draftScopes,
     draftObjectAttributes,
-    formStep
+    formStep,
+    workPhase
   ]);
 
   // 2. Simpan seketika saat form ditutup, navigasi berpindah, atau browser di-refresh
@@ -295,6 +314,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           scopeItems: draftScopesRef.current,
           objectAttributes: draftObjectAttributesRef.current,
           formStep: formStepRef.current,
+          workPhase: workPhaseRef.current,
           savedAt: Date.now()
         });
       }
@@ -312,19 +332,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     if (!isInitializedRef.current) return;
     if (!activeDetail?.inspection || activeDetail.inspection.status !== 'DRAF') return;
     const timeout = setTimeout(async () => {
-      const payloadResults = (activeDetail.items || []).map((item) => {
-        const row = draftResults[item.id] || {};
-        return {
-          itemId: item.id,
-          choiceValue: item.input_type === 'CHOICE' ? row.choiceValue || null : null,
-          numberValue:
-            item.input_type === 'NUMBER' && row.numberValue !== '' && row.numberValue !== null && row.numberValue !== undefined
-              ? Number(row.numberValue)
-              : null,
-          textValue: item.input_type === 'TEXT' ? row.textValue || null : null,
-          note: row.note || ''
-        };
-      });
+      const payloadResults = buildInspectionResultPayload(activeDetail.items || [], draftResults);
 
       if (!navigator.onLine) {
         await enqueueOfflineDraft(activeDetail.inspection.id, {
@@ -344,7 +352,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           conclusionNotes: draftConclusionNotes,
           results: payloadResults,
           scopeItems: draftScopes,
-          objectAttributes: draftObjectAttributes
+          objectAttributes: draftObjectAttributes,
+          workPhase
         });
         setLastSavedAt(new Date());
       } catch {
@@ -359,6 +368,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     draftConclusionNotes,
     draftScopes,
     draftObjectAttributes,
+    workPhase,
     activeDetail?.inspection,
     activeDetail?.items
   ]);
@@ -368,19 +378,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     setSubmitting(true);
     setError('');
     try {
-      const payloadResults = (activeDetail.items || []).map((item) => {
-        const row = draftResults[item.id] || {};
-        return {
-          itemId: item.id,
-          choiceValue: item.input_type === 'CHOICE' ? row.choiceValue || null : null,
-          numberValue:
-            item.input_type === 'NUMBER' && row.numberValue !== '' && row.numberValue !== null && row.numberValue !== undefined
-              ? Number(row.numberValue)
-              : null,
-          textValue: item.input_type === 'TEXT' ? row.textValue || null : null,
-          note: row.note || ''
-        };
-      });
+      const payloadResults = buildInspectionResultPayload(activeDetail.items || [], draftResults);
 
       saveLocalDraft(activeDetail.inspection.id, {
         results: draftResults,
@@ -389,6 +387,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         scopeItems: draftScopes,
         objectAttributes: draftObjectAttributes,
         formStep,
+        workPhase,
         savedAt: Date.now()
       });
 
@@ -398,7 +397,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           conclusionNotes: draftConclusionNotes,
           results: payloadResults,
           scopeItems: draftScopes,
-          objectAttributes: draftObjectAttributes
+          objectAttributes: draftObjectAttributes,
+          workPhase
         });
         setFeedback('Tersimpan di perangkat (offline mode).');
         setLastSavedAt(new Date());
@@ -410,7 +410,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         conclusionNotes: draftConclusionNotes,
         results: payloadResults,
         scopeItems: draftScopes,
-        objectAttributes: draftObjectAttributes
+        objectAttributes: draftObjectAttributes,
+        workPhase
       });
 
       setFeedback('Draf riksa uji dan lingkup pemeriksaan berhasil disimpan.');
@@ -419,6 +420,62 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       if (onSaved) onSaved();
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal menyimpan draf inspeksi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSaveFieldProgressAndBap = async () => {
+    if (!activeDetail?.inspection) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const payloadResults = buildInspectionResultPayload(activeDetail.items || [], draftResults);
+
+      saveLocalDraft(activeDetail.inspection.id, {
+        results: draftResults,
+        conclusion: draftConclusion,
+        conclusionNotes: draftConclusionNotes,
+        scopeItems: draftScopes,
+        objectAttributes: draftObjectAttributes,
+        formStep,
+        workPhase: 'FIELD',
+        savedAt: Date.now()
+      });
+
+      if (!navigator.onLine) {
+        await enqueueOfflineDraft(activeDetail.inspection.id, {
+          conclusion: draftConclusion,
+          conclusionNotes: draftConclusionNotes,
+          results: payloadResults,
+          scopeItems: draftScopes,
+          objectAttributes: draftObjectAttributes,
+          workPhase: 'FIELD'
+        });
+        setFeedback('Progres lapangan disimpan di perangkat. Penyiapan draf BAP akan disinkronkan saat online.');
+        setLastSavedAt(new Date());
+        return;
+      }
+
+      const res = await api.put(`/inspections/${activeDetail.inspection.id}/draft`, {
+        conclusion: draftConclusion || null,
+        conclusionNotes: draftConclusionNotes,
+        results: payloadResults,
+        scopeItems: draftScopes,
+        objectAttributes: draftObjectAttributes,
+        workPhase: 'FIELD',
+        prepareBapDraft: true
+      });
+
+      const bapNo = res.data?.bap?.bapNo ? ` Draf BAP (${res.data.bap.bapNo}) siap ditandatangani.` : '';
+      setFeedback(
+        `Progres lapangan tersimpan dan checklist tetap terbuka untuk dilanjutkan di kantor.${bapNo}`
+      );
+      setLastSavedAt(new Date());
+      await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyimpan progres lapangan dan menyiapkan draf BAP.');
     } finally {
       setSubmitting(false);
     }
@@ -528,22 +585,60 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }
   };
 
-  const handleUploadItemInlinePhoto = async (itemOrLabel, file) => {
+  const handleUpdatePhotoCaption = async (photoId, caption) => {
+    if (!activeDetail?.inspection?.id || !photoId) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.patch(`/inspections/${activeDetail.inspection.id}/photos/${photoId}`, {
+        caption: String(caption || '').trim()
+      });
+      setFeedback('Keterangan foto dokumentasi berhasil diperbarui.');
+      await openDetail(activeDetail.inspection.id);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal memperbarui keterangan foto.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUploadItemInlinePhoto = async (itemOrLabel, file, customCaption = '') => {
     if (!activeDetail?.inspection || !file) return;
     setSubmitting(true);
     setError('');
     try {
       const prepared = await compressImage(file);
       const isObj = typeof itemOrLabel === 'object' && itemOrLabel !== null;
-      const label = isObj ? itemOrLabel.label : String(itemOrLabel);
-      const sectionPrefix = isObj && itemOrLabel.section ? `[${itemOrLabel.section}] ` : '';
-      const caption = `${sectionPrefix}${label}`.trim();
+      const itemId = isObj ? itemOrLabel.id : '';
+      const section = isObj ? itemOrLabel.section || '' : '';
+      const label = isObj ? itemOrLabel.label || itemOrLabel.item_label || '' : String(itemOrLabel);
+      const sectionPrefix = section ? `[${section}] ` : '';
+      const caption = customCaption?.trim()
+        ? `${sectionPrefix}${customCaption.trim()}`
+        : `${sectionPrefix}${label}`.trim();
       const fd = new FormData();
       fd.append('photo', prepared);
+      if (itemId) fd.append('itemId', String(itemId));
+      if (section) fd.append('section', String(section));
       fd.append('caption', caption);
       await api.post(`/inspections/${activeDetail.inspection.id}/photos`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      if (itemId) {
+        setDraftResults((prev) => ({
+          ...prev,
+          [itemId]: {
+            ...(prev[itemId] || {}),
+            itemId,
+            textValue: caption
+          }
+        }));
+      }
       setFeedback(`Foto untuk butir "${label}" berhasil dilampirkan.`);
       await openDetail(activeDetail.inspection.id);
       if (onSaved) onSaved();
@@ -595,24 +690,52 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }
   };
 
+  const handleChecklistResultChange = (item, patch) => {
+    if (!item?.id) return;
+    setDraftResults((prev) => ({
+      ...prev,
+      [item.id]: {
+        ...(prev[item.id] || { itemId: item.id }),
+        ...patch
+      }
+    }));
+
+    const labelLower = String(item.item_label || '').toLowerCase();
+    if (labelLower.includes('kesimpulan kelayakan teknis') && patch?.choiceValue) {
+      if (patch.choiceValue === 'SESUAI') {
+        setDraftConclusion((prevConc) =>
+          !prevConc || prevConc === 'TIDAK_MEMENUHI_SYARAT' ? 'MEMENUHI_SYARAT' : prevConc
+        );
+      } else if (patch.choiceValue === 'TIDAK_SESUAI') {
+        setDraftConclusion('TIDAK_MEMENUHI_SYARAT');
+      }
+    }
+  };
+
+  const handleConclusionSelect = (nextConclusion) => {
+    setDraftConclusion(nextConclusion);
+    const conclItem = (activeDetail?.items || []).find((it) =>
+      String(it.item_label || '').toLowerCase().includes('kesimpulan kelayakan teknis')
+    );
+    if (conclItem && nextConclusion) {
+      const mappedChoice =
+        nextConclusion === 'TIDAK_MEMENUHI_SYARAT' ? 'TIDAK_SESUAI' : 'SESUAI';
+      setDraftResults((prev) => ({
+        ...prev,
+        [conclItem.id]: {
+          ...(prev[conclItem.id] || { itemId: conclItem.id }),
+          choiceValue: mappedChoice
+        }
+      }));
+    }
+  };
+
   const handleSubmitFinal = async () => {
     if (!activeDetail?.inspection || !canSubmit) return;
     setSubmitting(true);
     setError('');
     try {
-      const payloadResults = (activeDetail.items || []).map((item) => {
-        const row = draftResults[item.id] || {};
-        return {
-          itemId: item.id,
-          choiceValue: item.input_type === 'CHOICE' ? row.choiceValue || null : null,
-          numberValue:
-            item.input_type === 'NUMBER' && row.numberValue !== '' && row.numberValue !== null && row.numberValue !== undefined
-              ? Number(row.numberValue)
-              : null,
-          textValue: item.input_type === 'TEXT' ? row.textValue || null : null,
-          note: row.note || ''
-        };
-      });
+      const payloadResults = buildInspectionResultPayload(activeDetail.items || [], draftResults);
 
       const res = await api.post(`/inspections/${activeDetail.inspection.id}/submit`, {
         conclusion: draftConclusion,
@@ -666,17 +789,15 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   };
 
   // Metrics
-  const totalItems = (activeDetail?.items || []).length;
-  const evaluatedItems = (activeDetail?.items || []).filter((item) => {
-    const res = draftResults[item.id];
-    if (!res) return false;
-    if (item.input_type === 'CHOICE') return !!res.choiceValue;
-    if (item.input_type === 'NUMBER')
-      return res.numberValue !== '' && res.numberValue !== null && res.numberValue !== undefined;
-    if (item.input_type === 'TEXT') return !!res.textValue;
-    return true;
-  }).length;
-  const missingItems = totalItems - evaluatedItems;
+  const itemsBySeq = buildItemsBySeqMap(activeDetail?.items || []);
+  const visibleItems = (activeDetail?.items || []).filter((item) =>
+    isConditionalItemVisible(item, itemsBySeq, draftResults)
+  );
+  const totalItems = visibleItems.length;
+  const evaluatedItems = visibleItems.filter((item) =>
+    isChecklistItemFilled(item, draftResults[item.id], activeDetail?.photos || [])
+  ).length;
+  const missingItems = Math.max(0, totalItems - evaluatedItems);
   const photosCount = (activeDetail?.photos || []).length;
 
   const inspectorSig = (activeDetail?.signatures || []).find((s) =>
@@ -711,6 +832,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     setDraftScopes,
     draftObjectAttributes,
     setDraftObjectAttributes,
+    workPhase,
+    setWorkPhase,
     formStep,
     setFormStep,
     lastSavedAt,
@@ -725,14 +848,19 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     signatures,
     openDetail,
     handleSaveDraft,
+    handleSaveFieldProgressAndBap,
     handleDiscardDraft,
     handleAddFinding,
+    handleChecklistResultChange,
+    handleConclusionSelect,
     handleUploadPhoto,
+    handleUpdatePhotoCaption,
     handleDeletePhoto,
     handleUploadItemInlinePhoto,
     handleUploadNameplatePhoto,
     handleSubmitFinal,
     handleReopenInspection,
+    itemsBySeq,
     totalItems,
     evaluatedItems,
     missingItems,

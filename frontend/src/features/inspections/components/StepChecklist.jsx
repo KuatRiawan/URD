@@ -3,29 +3,45 @@ import {
   ArrowRight,
   Camera,
   CaretDown,
-  CaretUp,
   Check,
   CheckCircle,
   IdentificationBadge,
   MagnifyingGlass,
   NotePencil,
   SlidersHorizontal,
+  Trash,
   WarningCircle,
   X
 } from '@phosphor-icons/react';
+import {
+  buildItemsBySeqMap,
+  computeSectionProgress,
+  doesPhotoMatchItem,
+  isChecklistItemFilled,
+  isConditionalItemVisible,
+  isFieldRelevantItem,
+  normalizeInputType,
+  parseMultiSelectValue,
+  parseSelectOptions,
+  serializeMultiSelectValue
+} from '../utils/checklistUtils.js';
 
 export function StepChecklist({
   inspection = {},
   items = [],
   draftResults = {},
   setDraftResults,
+  onResultChange,
   draftObjectAttributes = {},
   setDraftObjectAttributes,
   attributeSchema = [],
   categoryCode = '',
   _categoryName = '',
+  workPhase = 'FIELD',
   onUploadInlinePhoto,
+  onDeletePhoto,
   onUploadNameplatePhoto,
+  onAddFindingFromItem,
   readOnly,
   missingItems,
   evaluatedItems,
@@ -35,35 +51,56 @@ export function StepChecklist({
   photos = [],
   onNext
 }) {
-  const [showTechSpecs, setShowTechSpecs] = useState(true);
-  const [collapsedSections, setCollapsedSections] = useState({});
+  const [showTechSpecs, setShowTechSpecs] = useState(false);
+  const [activeSection, setActiveSection] = useState(null);
+  const [expandAllSections, setExpandAllSections] = useState(false);
   const [checklistSearch, setChecklistSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'UNFILLED' | 'NON_COMPLIANT'
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'FIELD_FOCUS' | 'UNFILLED' | 'NON_COMPLIANT'
   const [expandedNotes, setExpandedNotes] = useState({});
 
-  const toggleSection = (secName) => {
-    setCollapsedSections((prev) => ({
+  const updateItemResult = (item, patch) => {
+    if (onResultChange) {
+      onResultChange(item, patch);
+      return;
+    }
+    setDraftResults((prev) => ({
       ...prev,
-      [secName]: !prev[secName]
+      [item.id]: {
+        ...(prev[item.id] || {}),
+        itemId: item.id,
+        ...patch
+      }
     }));
   };
 
-  const expandAll = () => setCollapsedSections({});
+  const expandAll = () => setExpandAllSections(true);
   const collapseAll = () => {
-    const next = {};
-    for (const item of items) {
-      next[item.section || 'UMUM'] = true;
-    }
-    setCollapsedSections(next);
+    setExpandAllSections(false);
+    setActiveSection('__NONE__');
   };
 
   const nameplatePhotoAttached = photos.some((p) =>
     (p.caption || '').toLowerCase().includes('nameplate')
   );
 
+  const itemsBySeq = useMemo(() => buildItemsBySeqMap(items), [items]);
+
   const nonCompliantCount = useMemo(() => {
-    return items.filter((it) => draftResults[it.id]?.choiceValue === 'TIDAK_SESUAI').length;
-  }, [items, draftResults]);
+    return items.filter((it) => {
+      if (!isConditionalItemVisible(it, itemsBySeq, draftResults)) return false;
+      const r = draftResults[it.id];
+      return (
+        r?.choiceValue === 'TIDAK_SESUAI' ||
+        (normalizeInputType(it) === 'YES_NO' && String(r?.textValue || '').toUpperCase() === 'TIDAK')
+      );
+    }).length;
+  }, [items, itemsBySeq, draftResults]);
+
+  const fieldFocusCount = useMemo(() => {
+    return items.filter(
+      (it) => isConditionalItemVisible(it, itemsBySeq, draftResults) && isFieldRelevantItem(it)
+    ).length;
+  }, [items, itemsBySeq, draftResults]);
 
   const sections = useMemo(() => {
     const secs = [];
@@ -90,31 +127,42 @@ export function StepChecklist({
     return map;
   }, [items]);
 
-  // Seksi dan butir yang telah disaring berdasarkan pencarian dan status filter
+  const sectionProgressMap = useMemo(() => {
+    const map = new Map();
+    for (const sec of sections) {
+      map.set(
+        sec,
+        computeSectionProgress(sectionMap.get(sec) || [], itemsBySeq, draftResults, photos)
+      );
+    }
+    return map;
+  }, [sections, sectionMap, itemsBySeq, draftResults, photos]);
+
+  // Seksi dan butir yang telah disaring berdasarkan kondisi, fase, pencarian, dan status filter
   const { filteredSections, filteredSectionMap } = useMemo(() => {
     const fSecs = [];
     const fMap = new Map();
-    let totalF = 0;
     const q = checklistSearch.trim().toLowerCase();
 
     for (const sec of sections) {
       const secItems = sectionMap.get(sec) || [];
       const matching = secItems.filter((it) => {
+        if (!isConditionalItemVisible(it, itemsBySeq, draftResults)) return false;
         const r = draftResults[it.id];
-        const isFilled =
-          it.input_type === 'CHOICE'
-            ? !!r?.choiceValue
-            : it.input_type === 'NUMBER'
-            ? r?.numberValue !== '' && r?.numberValue !== null && r?.numberValue !== undefined
-            : it.input_type === 'TEXT'
-            ? !!r?.textValue
-            : true;
+        const isFilled = isChecklistItemFilled(it, r, photos);
 
+        if (statusFilter === 'FIELD_FOCUS' && !isFieldRelevantItem(it)) return false;
         if (statusFilter === 'UNFILLED' && isFilled) return false;
-        if (statusFilter === 'NON_COMPLIANT' && r?.choiceValue !== 'TIDAK_SESUAI') return false;
+        if (
+          statusFilter === 'NON_COMPLIANT' &&
+          r?.choiceValue !== 'TIDAK_SESUAI' &&
+          !(normalizeInputType(it) === 'YES_NO' && String(r?.textValue || '').toUpperCase() === 'TIDAK')
+        ) {
+          return false;
+        }
 
         if (q) {
-          const matchLabel = (it.label || '').toLowerCase().includes(q);
+          const matchLabel = (it.label || it.item_label || '').toLowerCase().includes(q);
           const matchSec = (it.section || '').toLowerCase().includes(q);
           const matchUnit = (it.unit || '').toLowerCase().includes(q);
           const matchNote = (r?.note || '').toLowerCase().includes(q);
@@ -127,12 +175,32 @@ export function StepChecklist({
       if (matching.length > 0) {
         fSecs.push(sec);
         fMap.set(sec, matching);
-        totalF += matching.length;
       }
     }
 
-    return { filteredSections: fSecs, filteredSectionMap: fMap, totalFilteredItems: totalF };
-  }, [sections, sectionMap, draftResults, statusFilter, checklistSearch]);
+    return { filteredSections: fSecs, filteredSectionMap: fMap };
+  }, [sections, sectionMap, itemsBySeq, draftResults, photos, statusFilter, checklistSearch]);
+
+  const resolvedActiveSection = useMemo(() => {
+    if (activeSection === '__NONE__') return '__NONE__';
+    if (activeSection && filteredSections.includes(activeSection)) return activeSection;
+    const firstIncomplete = filteredSections.find(
+      (sec) => (sectionProgressMap.get(sec)?.missing || 0) > 0
+    );
+    return firstIncomplete || filteredSections[0] || null;
+  }, [activeSection, filteredSections, sectionProgressMap]);
+
+  const toggleSection = (secName) => {
+    if (expandAllSections) {
+      setExpandAllSections(false);
+      setActiveSection(secName);
+      return;
+    }
+    setActiveSection((prev) => {
+      const current = prev || resolvedActiveSection;
+      return current === secName ? '__NONE__' : secName;
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -280,12 +348,16 @@ export function StepChecklist({
               className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer px-2 py-1 rounded"
             >
               <span>{showTechSpecs ? 'Tutup' : 'Buka Parameter'}</span>
-              {showTechSpecs ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
+              <CaretDown
+                size={12}
+                weight="bold"
+                className={`transition-transform duration-200 ${showTechSpecs ? 'rotate-180' : 'rotate-0'}`}
+              />
             </button>
           </div>
 
           {showTechSpecs && (
-            <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 animate-accordion-in">
               {attributeSchema.map((attr) => (
                 <div key={attr.key} className="space-y-1">
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate" title={attr.label}>
@@ -337,7 +409,11 @@ export function StepChecklist({
               <button
                 type="button"
                 onClick={expandAll}
-                className="px-2 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                  expandAllSections
+                    ? 'bg-[#C81E1E] text-white'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
               >
                 Buka Semua
               </button>
@@ -353,7 +429,9 @@ export function StepChecklist({
           )}
           {isInspector && status === 'DRAF' && missingItems > 0 && (
             <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 hidden sm:inline">
-              Setiap item harus diisi sesuai pengujian fisik.
+              {workPhase === 'FIELD'
+                ? 'Mode Lapangan: simpan progres & BAP dulu, lengkapi sisanya di kantor.'
+                : 'Lengkapi seluruh butir wajib sebelum membuat draf LHPP.'}
             </span>
           )}
         </div>
@@ -367,7 +445,7 @@ export function StepChecklist({
             type="search"
             value={checklistSearch}
             onChange={(e) => setChecklistSearch(e.target.value)}
-            placeholder="Cari butir atau seksi (misal: rem, baut, sling, limit switch)..."
+            placeholder="Cari butir atau seksi (misal: rem, baut, sling, garpu, foto)..."
             className="w-full min-h-[40px] pl-8 pr-8 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C81E1E]"
           />
           {checklistSearch && (
@@ -395,6 +473,20 @@ export function StepChecklist({
           </button>
           <button
             type="button"
+            onClick={() => setStatusFilter('FIELD_FOCUS')}
+            className={`min-h-[38px] px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              statusFilter === 'FIELD_FOCUS'
+                ? 'bg-[#C81E1E] text-white shadow-xs'
+                : 'bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 text-[#C81E1E] dark:text-rose-300'
+            }`}
+          >
+            <span>Fokus Lapangan</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/15 text-[10px]">
+              {fieldFocusCount}
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setStatusFilter('UNFILLED')}
             className={`min-h-[38px] px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               statusFilter === 'UNFILLED'
@@ -412,7 +504,7 @@ export function StepChecklist({
             onClick={() => setStatusFilter('NON_COMPLIANT')}
             className={`min-h-[38px] px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               statusFilter === 'NON_COMPLIANT'
-                ? 'bg-rose-600 text-white shadow-xs'
+                ? 'bg-rose-700 text-white shadow-xs'
                 : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900 text-rose-800 dark:text-rose-300'
             }`}
           >
@@ -423,6 +515,51 @@ export function StepChecklist({
           </button>
         </div>
       </div>
+
+      {/* Section Pill Navigator (Horizontal Quick Switcher) */}
+      {filteredSections.length > 1 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {filteredSections.map((secName, idx) => {
+            const prog = sectionProgressMap.get(secName) || { filled: 0, total: 0, missing: 0 };
+            const isActive =
+              expandAllSections || Boolean(checklistSearch.trim()) || statusFilter !== 'ALL'
+                ? false
+                : resolvedActiveSection === secName;
+            const isDone = prog.total > 0 && prog.missing === 0;
+            return (
+              <button
+                key={secName}
+                type="button"
+                onClick={() => {
+                  setExpandAllSections(false);
+                  setActiveSection(secName);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                    : isDone
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100/70'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                }`}
+              >
+                <span className="w-4 h-4 rounded-md bg-[#C81E1E] text-white text-[10px] flex items-center justify-center shrink-0">
+                  {idx + 1}
+                </span>
+                <span className="max-w-[160px] truncate">{secName}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    isActive
+                      ? 'bg-white/20 dark:bg-slate-900/15'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {prog.filled}/{prog.total}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Render Checklist Berkelompok per Seksi Teknis */}
       <div className="space-y-4">
@@ -445,19 +582,19 @@ export function StepChecklist({
         ) : (
           filteredSections.map((secName, secIdx) => {
             const secItems = filteredSectionMap.get(secName) || [];
-            const originalSecItems = sectionMap.get(secName) || [];
-            const secFilled = originalSecItems.filter((it) => {
-              const r = draftResults[it.id];
-              if (!r) return false;
-              if (it.input_type === 'CHOICE') return !!r.choiceValue;
-              if (it.input_type === 'NUMBER')
-                return r.numberValue !== '' && r.numberValue !== null && r.numberValue !== undefined;
-              if (it.input_type === 'TEXT') return !!r.textValue;
-              return true;
-            }).length;
-
-            const isCollapsed =
-              !!collapsedSections[secName] && !checklistSearch && statusFilter === 'ALL';
+            const secProg = sectionProgressMap.get(secName) || {
+              filled: 0,
+              total: secItems.length,
+              missing: 0
+            };
+            const isSectionOpen =
+              expandAllSections ||
+              Boolean(checklistSearch.trim()) ||
+              statusFilter !== 'ALL' ||
+              resolvedActiveSection === secName;
+            const isCollapsed = !isSectionOpen;
+            const nextSecName =
+              secIdx < filteredSections.length - 1 ? filteredSections[secIdx + 1] : null;
 
             return (
               <div
@@ -480,50 +617,62 @@ export function StepChecklist({
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                        secFilled === originalSecItems.length
+                        secProg.total > 0 && secProg.filled === secProg.total
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                           : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      {secFilled} / {originalSecItems.length} Selesai
+                      {secProg.filled} / {secProg.total} Selesai
                     </span>
-                    {isCollapsed ? (
-                      <CaretDown size={14} weight="bold" className="text-slate-400" />
-                    ) : (
-                      <CaretUp size={14} weight="bold" className="text-slate-400" />
-                    )}
+                    <CaretDown
+                      size={14}
+                      weight="bold"
+                      className={`text-slate-400 transition-transform duration-200 ${
+                        isCollapsed ? 'rotate-0' : 'rotate-180'
+                      }`}
+                    />
                   </div>
                 </div>
 
                 {/* Daftar Butir Pemeriksaan dalam Seksi */}
                 {!isCollapsed && (
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800 animate-accordion-in">
                     {secItems.map((item) => {
                       const row = draftResults[item.id] || {
                         choiceValue: null,
                         numberValue: '',
                         textValue: '',
+                        dateValue: '',
                         note: ''
                       };
-
-                      const itemPhotos = photos.filter(
-                        (p) => p.caption && p.caption.includes(item.label)
-                      );
+                      const inputType = normalizeInputType(item);
+                      const isChoiceType = inputType === 'CHOICE' || inputType === 'CONFORMITY';
+                      const isNumberType = inputType === 'NUMBER' || inputType === 'MEASUREMENT';
+                      const isPhotoType = inputType === 'PHOTO' || inputType === 'FILE';
+                      const selectOptions = parseSelectOptions(item);
+                      const itemPhotos = photos.filter((p) => doesPhotoMatchItem(p, item));
 
                       const showNoteInput =
-                        row.choiceValue === 'TIDAK_SESUAI' || Boolean(row.note) || Boolean(expandedNotes[item.id]);
+                        row.choiceValue === 'TIDAK_SESUAI' ||
+                        (inputType === 'YES_NO' && String(row.textValue || '').toUpperCase() === 'TIDAK') ||
+                        Boolean(row.note) ||
+                        Boolean(expandedNotes[item.id]);
+
+                      const isNonConformingItem =
+                        row.choiceValue === 'TIDAK_SESUAI' ||
+                        (inputType === 'YES_NO' && String(row.textValue || '').toUpperCase() === 'TIDAK');
 
                       return (
                         <div
                           key={item.id}
                           className="p-3.5 flex flex-col gap-2.5 text-xs hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
                         >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                             {/* Info Butir & Standar */}
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                                  {item.label}
+                                  {item.label || item.item_label}
                                 </span>
                                 {item.is_required && (
                                   <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400">
@@ -533,44 +682,58 @@ export function StepChecklist({
                                 {item.unit && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                                     {item.unit}
-                                    {item.min_value !== null ? ` · Min: ${item.min_value}` : ''}
-                                    {item.max_value !== null ? ` · Maks: ${item.max_value}` : ''}
+                                    {item.min_value !== null && item.min_value !== undefined
+                                      ? ` · Min: ${item.min_value}`
+                                      : ''}
+                                    {item.max_value !== null && item.max_value !== undefined
+                                      ? ` · Maks: ${item.max_value}`
+                                      : ''}
                                   </span>
                                 )}
                               </div>
 
-                              {/* Indikator Foto Terlampir */}
-                              {itemPhotos.length > 0 && (
-                                <div className="flex items-center gap-1.5 pt-0.5">
+                              {/* Preview Thumbnail Foto Butir Non-PHOTO (mis. foto tambahan ke item CHOICE/NUMBER) */}
+                              {!isPhotoType && itemPhotos.length > 0 && (
+                                <div className="flex items-center gap-2 flex-wrap pt-1 animate-fade-in">
                                   {itemPhotos.map((ip) => (
-                                    <span
+                                    <div
                                       key={ip.id}
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/60 text-[10px] font-semibold text-[#C81E1E] dark:text-rose-300"
+                                      className="inline-flex items-center gap-1.5 pr-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/60 overflow-hidden animate-pop-in"
                                     >
-                                      <Camera size={11} weight="bold" />
-                                      <span>Foto Terlampir</span>
-                                    </span>
+                                      <img
+                                        src={`/api/v1/dashboard/files/${ip.id}`}
+                                        alt={ip.caption || item.label}
+                                        className="w-7 h-7 object-cover"
+                                        loading="lazy"
+                                      />
+                                      <span className="text-[10px] font-semibold text-[#C81E1E] dark:text-rose-300">
+                                        Foto Terlampir
+                                      </span>
+                                      {!readOnly && onDeletePhoto && (
+                                        <button
+                                          type="button"
+                                          onClick={() => onDeletePhoto(ip.id)}
+                                          title="Hapus foto ini"
+                                          className="text-rose-600 hover:text-rose-800 dark:text-rose-400 p-0.5 cursor-pointer"
+                                        >
+                                          <Trash size={12} weight="bold" />
+                                        </button>
+                                      )}
+                                    </div>
                                   ))}
                                 </div>
                               )}
                             </div>
 
-                            {/* Kontrol Input Lapangan */}
-                            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
-                              {item.input_type === 'CHOICE' && (
+                            {/* Kontrol Input Lapangan sesuai input_type */}
+                            <div className="flex items-start gap-2 shrink-0 w-full md:w-auto">
+                              {isChoiceType && (
                                 <div className="w-full md:w-auto grid grid-cols-3 md:inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
                                   <button
                                     type="button"
                                     disabled={readOnly}
                                     onClick={() =>
-                                      setDraftResults((prev) => ({
-                                        ...prev,
-                                        [item.id]: {
-                                          ...(prev[item.id] || {}),
-                                          itemId: item.id,
-                                          choiceValue: 'SESUAI'
-                                        }
-                                      }))
+                                      updateItemResult(item, { choiceValue: 'SESUAI' })
                                     }
                                     className={`min-h-[44px] md:min-h-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                                       row.choiceValue === 'SESUAI'
@@ -585,14 +748,7 @@ export function StepChecklist({
                                     type="button"
                                     disabled={readOnly}
                                     onClick={() =>
-                                      setDraftResults((prev) => ({
-                                        ...prev,
-                                        [item.id]: {
-                                          ...(prev[item.id] || {}),
-                                          itemId: item.id,
-                                          choiceValue: 'TIDAK_SESUAI'
-                                        }
-                                      }))
+                                      updateItemResult(item, { choiceValue: 'TIDAK_SESUAI' })
                                     }
                                     className={`min-h-[44px] md:min-h-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                                       row.choiceValue === 'TIDAK_SESUAI'
@@ -607,14 +763,7 @@ export function StepChecklist({
                                     type="button"
                                     disabled={readOnly}
                                     onClick={() =>
-                                      setDraftResults((prev) => ({
-                                        ...prev,
-                                        [item.id]: {
-                                          ...(prev[item.id] || {}),
-                                          itemId: item.id,
-                                          choiceValue: 'TIDAK_BERLAKU'
-                                        }
-                                      }))
+                                      updateItemResult(item, { choiceValue: 'TIDAK_BERLAKU' })
                                     }
                                     className={`min-h-[44px] md:min-h-0 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
                                       row.choiceValue === 'TIDAK_BERLAKU'
@@ -627,7 +776,90 @@ export function StepChecklist({
                                 </div>
                               )}
 
-                              {item.input_type === 'NUMBER' && (() => {
+                              {inputType === 'YES_NO' && (
+                                <div className="w-full md:w-auto grid grid-cols-2 md:inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+                                  <button
+                                    type="button"
+                                    disabled={readOnly}
+                                    onClick={() => updateItemResult(item, { textValue: 'YA' })}
+                                    className={`min-h-[44px] md:min-h-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                      String(row.textValue || '').toUpperCase() === 'YA'
+                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                  >
+                                    <Check size={14} weight="bold" />
+                                    <span>Ya</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={readOnly}
+                                    onClick={() => updateItemResult(item, { textValue: 'TIDAK' })}
+                                    className={`min-h-[44px] md:min-h-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                      String(row.textValue || '').toUpperCase() === 'TIDAK'
+                                        ? 'bg-rose-600 text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                  >
+                                    <X size={14} weight="bold" />
+                                    <span>Tidak</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {inputType === 'SINGLE_SELECT' && (
+                                <select
+                                  disabled={readOnly}
+                                  value={row.textValue ?? ''}
+                                  onChange={(e) =>
+                                    updateItemResult(item, { textValue: e.target.value })
+                                  }
+                                  className="w-full md:w-64 min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100"
+                                >
+                                  <option value="">-- Pilih Opsi --</option>
+                                  {selectOptions.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+
+                              {inputType === 'MULTI_SELECT' && (() => {
+                                const selectedList = parseMultiSelectValue(row.textValue);
+                                return (
+                                  <div className="w-full md:w-72 flex flex-wrap gap-1.5">
+                                    {selectOptions.map((opt) => {
+                                      const active = selectedList.includes(opt.value);
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() => {
+                                            const nextList = active
+                                              ? selectedList.filter((v) => v !== opt.value)
+                                              : [...selectedList, opt.value];
+                                            updateItemResult(item, {
+                                              textValue: serializeMultiSelectValue(nextList)
+                                            });
+                                          }}
+                                          className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                                            active
+                                              ? 'bg-[#C81E1E] border-[#C81E1E] text-white'
+                                              : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                          }`}
+                                        >
+                                          {active && <Check size={11} weight="bold" />}
+                                          <span>{opt.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+
+                              {isNumberType && (() => {
                                 const numVal = parseFloat(row.numberValue);
                                 const hasVal =
                                   !isNaN(numVal) &&
@@ -636,12 +868,17 @@ export function StepChecklist({
                                   row.numberValue !== undefined;
                                 const isOutOfRange =
                                   hasVal &&
-                                  ((item.min_value !== null && numVal < item.min_value) ||
-                                    (item.max_value !== null && numVal > item.max_value));
+                                  ((item.min_value !== null &&
+                                    item.min_value !== undefined &&
+                                    numVal < item.min_value) ||
+                                    (item.max_value !== null &&
+                                      item.max_value !== undefined &&
+                                      numVal > item.max_value));
                                 const isInRange =
                                   hasVal &&
                                   !isOutOfRange &&
-                                  (item.min_value !== null || item.max_value !== null);
+                                  ((item.min_value !== null && item.min_value !== undefined) ||
+                                    (item.max_value !== null && item.max_value !== undefined));
 
                                 return (
                                   <div className="w-full md:w-auto flex flex-col items-start gap-1">
@@ -652,14 +889,7 @@ export function StepChecklist({
                                         step="any"
                                         value={row.numberValue ?? ''}
                                         onChange={(e) =>
-                                          setDraftResults((prev) => ({
-                                            ...prev,
-                                            [item.id]: {
-                                              ...(prev[item.id] || {}),
-                                              itemId: item.id,
-                                              numberValue: e.target.value
-                                            }
-                                          }))
+                                          updateItemResult(item, { numberValue: e.target.value })
                                         }
                                         placeholder="Nilai ukur..."
                                         className={`w-full md:w-32 min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-semibold transition-all ${
@@ -677,7 +907,7 @@ export function StepChecklist({
                                       )}
                                     </div>
                                     {isOutOfRange && (
-                                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 animate-fade-in">
                                         <WarningCircle size={12} weight="fill" />
                                         <span>
                                           Di luar batas (Min {item.min_value ?? '-'} · Maks {item.max_value ?? '-'})
@@ -685,7 +915,7 @@ export function StepChecklist({
                                       </span>
                                     )}
                                     {isInRange && (
-                                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-fade-in">
                                         <CheckCircle size={12} weight="fill" />
                                         <span>Sesuai rentang standar</span>
                                       </span>
@@ -694,24 +924,95 @@ export function StepChecklist({
                                 );
                               })()}
 
-                              {item.input_type === 'TEXT' && (
+                              {inputType === 'DATE' && (
+                                <input
+                                  type="date"
+                                  disabled={readOnly}
+                                  value={row.dateValue ? String(row.dateValue).slice(0, 10) : ''}
+                                  onChange={(e) =>
+                                    updateItemResult(item, { dateValue: e.target.value })
+                                  }
+                                  className="w-full md:w-48 min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100"
+                                />
+                              )}
+
+                              {inputType === 'LONG_TEXT' && (
+                                <textarea
+                                  rows={3}
+                                  disabled={readOnly}
+                                  value={row.textValue ?? ''}
+                                  onChange={(e) =>
+                                    updateItemResult(item, { textValue: e.target.value })
+                                  }
+                                  placeholder="Uraikan temuan teknis, catatan kerusakan, atau kesimpulan riksa uji..."
+                                  className="w-full md:w-80 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C81E1E]"
+                                />
+                              )}
+
+                              {inputType === 'TEXT' && (
                                 <input
                                   type="text"
                                   disabled={readOnly}
                                   value={row.textValue ?? ''}
                                   onChange={(e) =>
-                                    setDraftResults((prev) => ({
-                                      ...prev,
-                                      [item.id]: {
-                                        ...(prev[item.id] || {}),
-                                        itemId: item.id,
-                                        textValue: e.target.value
-                                      }
-                                    }))
+                                    updateItemResult(item, { textValue: e.target.value })
                                   }
                                   placeholder="Keterangan pengamatan..."
                                   className="w-full md:w-64 min-h-[44px] md:min-h-9 rounded-xl md:rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
                                 />
+                              )}
+
+                              {isPhotoType && (
+                                <div className="w-full md:w-72 space-y-2">
+                                  {itemPhotos.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {itemPhotos.map((ip) => (
+                                        <div
+                                          key={ip.id}
+                                          className="relative group w-20 h-16 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800 shadow-2xs"
+                                        >
+                                          <img
+                                            src={`/api/v1/dashboard/files/${ip.id}`}
+                                            alt={ip.caption || item.label}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                          />
+                                          {!readOnly && onDeletePhoto && (
+                                            <button
+                                              type="button"
+                                              onClick={() => onDeletePhoto(ip.id)}
+                                              title="Hapus & ganti foto"
+                                              className="absolute top-1 right-1 p-1 rounded bg-rose-600/90 text-white hover:bg-rose-700 shadow-xs cursor-pointer"
+                                            >
+                                              <Trash size={11} weight="bold" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {isInspector && status === 'DRAF' && (
+                                    <div className="relative flex items-center justify-center gap-2 min-h-[42px] px-3 py-2 rounded-xl border border-dashed border-[#C81E1E]/50 dark:border-rose-500/40 bg-rose-50/40 dark:bg-rose-950/20 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[#C81E1E] dark:text-rose-300 text-xs font-bold cursor-pointer transition-colors">
+                                      <Camera size={15} weight="bold" />
+                                      <span>
+                                        {itemPhotos.length > 0 ? 'Tambah / Ganti Foto' : 'Ambil / Unggah Foto'}
+                                      </span>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        disabled={readOnly}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        onChange={(e) => {
+                                          const f = e.target.files?.[0];
+                                          if (f) {
+                                            onUploadInlinePhoto(item, f);
+                                          }
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               )}
 
                               {/* Tombol Catatan Butir */}
@@ -735,8 +1036,8 @@ export function StepChecklist({
                                 </button>
                               )}
 
-                              {/* Tombol Kamera Lapangan Cepat */}
-                              {isInspector && status === 'DRAF' && (
+                              {/* Tombol Kamera Lapangan Cepat untuk item non-PHOTO */}
+                              {isInspector && status === 'DRAF' && !isPhotoType && (
                                 <div
                                   title="Ambil Foto dari Kamera atau Pilih dari Galeri"
                                   className="relative min-h-[44px] md:min-h-9 px-3 rounded-xl md:rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-center transition-colors shadow-2xs shrink-0 select-none overflow-hidden"
@@ -760,9 +1061,9 @@ export function StepChecklist({
                             </div>
                           </div>
 
-                          {/* Field Catatan Teknis Butir (Khusus temuan atau keterangan lapangan) */}
+                          {/* Field Catatan Teknis Butir & Quick-Add Temuan K3 */}
                           {showNoteInput && (
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center gap-2 animate-accordion-in">
                               <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-400 shrink-0">
                                 <NotePencil size={13} weight="bold" className="text-[#C81E1E]" />
                                 <span>Catatan Teknis Butir:</span>
@@ -772,23 +1073,42 @@ export function StepChecklist({
                                 disabled={readOnly}
                                 value={row.note || ''}
                                 onChange={(e) =>
-                                  setDraftResults((prev) => ({
-                                    ...prev,
-                                    [item.id]: {
-                                      ...(prev[item.id] || {}),
-                                      itemId: item.id,
-                                      note: e.target.value
-                                    }
-                                  }))
+                                  updateItemResult(item, { note: e.target.value })
                                 }
                                 placeholder="Catatan temuan khusus, dimensi aus, lokasi kerusakan, atau klausul K3..."
                                 className="flex-1 min-h-[38px] px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C81E1E]"
                               />
+                              {isNonConformingItem && onAddFindingFromItem && !readOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => onAddFindingFromItem(item, row.note)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold whitespace-nowrap cursor-pointer transition-colors"
+                                >
+                                  + Catat ke Temuan K3
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
                       );
                     })}
+
+                    {/* Footer Navigasi Seksi Berikutnya (Mode Akordeon) */}
+                    {nextSecName && !expandAllSections && !checklistSearch.trim() && statusFilter === 'ALL' && (
+                      <div className="px-4 py-2.5 bg-slate-50/80 dark:bg-slate-800/40 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                          Seksi berikutnya: <strong className="text-slate-700 dark:text-slate-200">{nextSecName}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSection(nextSecName)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[11px] font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                        >
+                          <span>Seksi Berikutnya</span>
+                          <ArrowRight size={13} weight="bold" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

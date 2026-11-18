@@ -3,14 +3,17 @@ import { CheckCircle } from '@phosphor-icons/react';
 export function InspectionStepNav({
   formStep,
   setFormStep,
+  workPhase = 'FIELD',
   missingItems,
   evaluatedItems,
   totalItems,
   photosCount,
-  inspectorSig
+  inspectorSig,
+  clientSig,
+  bapId
 }) {
   const isStep1Done = missingItems === 0;
-  const isStep2Done = Boolean(inspectorSig);
+  const isStep2Done = Boolean(inspectorSig && clientSig);
 
   return (
     <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80">
@@ -37,7 +40,9 @@ export function InspectionStepNav({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs sm:text-sm leading-tight truncate">
-            1. Ceklist + Temuan Foto
+            {workPhase === 'FIELD'
+              ? '1. Inspeksi Lapangan & Foto'
+              : '1. Ceklist Teknis Lengkap & Foto'}
           </p>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5 truncate">
             {evaluatedItems}/{totalItems} Uji · {photosCount} Foto
@@ -68,10 +73,18 @@ export function InspectionStepNav({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs sm:text-sm leading-tight truncate">
-            2. Kesimpulan &amp; Tanda Tangan
+            {workPhase === 'FIELD'
+              ? '2. Tanda Tangan & Siapkan BAP'
+              : '2. Simpulan, TTD & Draf LHPP'}
           </p>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5 truncate">
-            {isStep2Done ? 'Sudah TTD · Siap Terbit' : 'Belum Lengkap'}
+            {isStep2Done
+              ? bapId
+                ? 'TTD Lengkap · BAP Siap'
+                : 'TTD Lengkap'
+              : inspectorSig
+              ? 'Ahli K3 TTD · Tunggu Klien'
+              : 'TTD Situasional'}
           </p>
         </div>
       </button>

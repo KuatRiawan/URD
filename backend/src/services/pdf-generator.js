@@ -150,19 +150,31 @@ const TEMPLATE_BAP_COLUMNS = [
 
 function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
   const companyName = companyProfile?.company_name || 'PT. UPAYA RIKSA DAYA';
+  const equipmentTitle = String(
+    bap.equipment_subtype_name ||
+      bap.equipment_type_name ||
+      bap.object_name ||
+      bap.equipment_name ||
+      bap.equipment_type ||
+      bap.category_name ||
+      'ALAT K3'
+  )
+    .trim()
+    .toUpperCase();
+
   // 1. Kop sesuai template resmi Berita Acara Riksa Uji PT. UPAYA RIKSA DAYA
   // Bar merah marun di sisi kiri + Nama PT. UPAYA RIKSA DAYA + Logo resmi di kanan atas
-  doc.rect(45, 42, 260, 16).fillColor('#8B262B').fill();
+  doc.rect(45, 40, 260, 16).fillColor('#8B262B').fill();
 
   doc
     .font('Times-Roman')
     .fontSize(12.5)
     .fillColor('#1D1414')
-    .text(companyName.toUpperCase(), 315, 43, { width: 145, align: 'left' });
+    .text(companyName.toUpperCase(), 315, 41, { width: 145, align: 'left' });
 
   doc
-    .moveTo(315, 58)
-    .lineTo(453, 58)
+    .moveTo(315, 56)
+    .lineTo(453, 56)
     .lineWidth(0.8)
     .strokeColor('#1D1414')
     .stroke();
@@ -171,12 +183,18 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     doc.image(officialLogoPath, 475, 22, { width: 70 });
   }
 
-  // Judul utama & nomor BAP di atas garis titik-titik
+  // Judul utama, nama jenis/alat langsung di bawah judul (menggantikan garis titik-titik), & nomor BAP
   doc
     .font('Times-Bold')
     .fontSize(14)
     .fillColor('#1D1414')
-    .text('BERITA ACARA RIKSA UJI', 45, 76, { align: 'center', width: 450 });
+    .text('BERITA ACARA RIKSA UJI', 45, 70, { align: 'center', width: 450 });
+
+  doc
+    .font('Times-Bold')
+    .fontSize(11.5)
+    .fillColor('#8B262B')
+    .text(equipmentTitle, 45, 87, { align: 'center', width: 450 });
 
   doc
     .font('Times-Roman')
@@ -185,14 +203,14 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     .text(
       `No: ${bap.bap_no || '...................................................'}`,
       45,
-      95,
+      102,
       { align: 'center', width: 450 }
     );
 
   if (qrBuffer) {
-    doc.image(qrBuffer, 505, 74, { width: 38, height: 38 });
+    doc.image(qrBuffer, 505, 72, { width: 38, height: 38 });
     doc.font('Times-Roman').fontSize(6).fillColor('#475569')
-      .text('Verifikasi', 499, 114, { align: 'center', width: 50 });
+      .text('Verifikasi', 499, 112, { align: 'center', width: 50 });
   }
 
   // 2. Kalimat Pembuka (Hari, Tanggal, Bulan, Tahun)
@@ -202,21 +220,25 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
   const dayNum = String(validDate.getDate()).padStart(2, '0');
   const monthName = INDONESIAN_MONTHS[validDate.getMonth()];
   const yearFull = String(validDate.getFullYear());
+  const hasConclusion = Boolean(bap.conclusion);
+  const openingVerb = hasConclusion
+    ? 'telah dilaksanakan pekerjaan pemeriksaan dan pengujian (riksa uji)'
+    : 'dilaksanakan pekerjaan / berita acara pemeriksaan dan pengujian (riksa uji)';
 
   doc
     .font('Times-Roman')
     .fontSize(10)
     .fillColor('#1D1414')
     .text(
-      `Pada hari ini ${dayName}, Tanggal ${dayNum} Bulan ${monthName} Tahun ${yearFull} telah dilaksanakan pekerjaan pemeriksaan dan pengujian (riksa uji) oleh ${companyName} pada :`,
+      `Pada hari ini ${dayName}, Tanggal ${dayNum} Bulan ${monthName} Tahun ${yearFull} ${openingVerb} oleh ${companyName} pada :`,
       45,
-      118,
+      122,
       { width: 505, lineGap: 2 }
     );
 
   // 3. Identitas Objek & Perusahaan (dengan garis titik-titik sesuai form asli)
   const identityRows = [
-    ['Objek Periksa', `${bap.object_name || '-'} (${bap.category_code || '-'})`],
+    ['Objek Periksa', `${bap.object_name || equipmentTitle} (${bap.category_code || '-'})`],
     ['Nama Perusahaan', bap.client_name || '-'],
     ['Alamat Perusahaan', bap.client_address || bap.location_address || '-'],
     [
@@ -233,7 +255,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     ]
   ];
 
-  let rowY = 154;
+  let rowY = 156;
   for (const [label, value] of identityRows) {
     doc
       .font('Times-Roman')
@@ -260,11 +282,11 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
       .fillColor('#1D1414')
       .text(String(value ?? '-'), 174, rowY - 0.5, { width: 374, lineBreak: false });
 
-    rowY += 16;
+    rowY += 15.5;
   }
 
   // 4. Lingkup Riksa Uji (3 Kolom Checkbox persis sesuai template)
-  const scopeTop = rowY + 2;
+  const scopeTop = rowY + 3;
   doc
     .font('Times-Roman')
     .fontSize(10)
@@ -294,7 +316,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     const colW = colWidths[cIdx];
     for (let rIdx = 0; rIdx < colItems.length; rIdx += 1) {
       const label = colItems[rIdx];
-      const y = scopeTop + rIdx * 13.2;
+      const y = scopeTop + rIdx * 13.0;
       const isCustomPlaceholder = label.startsWith('....');
       const isChecked =
         !isCustomPlaceholder &&
@@ -324,8 +346,8 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     }
   }
 
-  // 5. Hasil Riksa Uji
-  const resultTop = scopeTop + 138;
+  // 5. Hasil Riksa Uji (jujur terhadap status penandatanganan situasional)
+  const resultTop = scopeTop + 134;
   doc
     .font('Times-Roman')
     .fontSize(10.5)
@@ -333,34 +355,63 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     .text('Hasil Riksa Uji', 45, resultTop);
 
   const resultBoxTop = resultTop + 14;
-  doc.rect(45, resultBoxTop, 505, 34).lineWidth(0.9).strokeColor('#1D1414').stroke();
-
   const isNotCompliant = bap.conclusion === 'TIDAK_MEMENUHI_SYARAT';
-  doc
-    .font('Times-Roman')
-    .fontSize(9.5)
-    .fillColor('#1D1414')
-    .text(
-      'Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut ',
-      53,
-      resultBoxTop + 6,
-      { continued: true, width: 490 }
-    )
-    .font(isNotCompliant ? 'Times-Roman' : 'Times-Bold')
-    .fillColor(isNotCompliant ? '#94A3B8' : '#065F46')
-    .text('MEMENUHI', { continued: true, strike: isNotCompliant })
-    .font('Times-Roman')
-    .fillColor('#1D1414')
-    .text(' / ', { continued: true, strike: false })
-    .font(isNotCompliant ? 'Times-Bold' : 'Times-Roman')
-    .fillColor(isNotCompliant ? '#991B1B' : '#94A3B8')
-    .text('TIDAK MEMENUHI', { continued: true, strike: !isNotCompliant })
-    .font('Times-Roman')
-    .fillColor('#1D1414')
-    .text(' Persyaratan Keselamatan dan Kesehatan Kerja.', { strike: false });
+  let resultBoxHeight = 36;
+
+  if (!hasConclusion) {
+    const stmtText =
+      'Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut MEMENUHI / TIDAK MEMENUHI *) Persyaratan Keselamatan dan Kesehatan Kerja.';
+    const noteText =
+      '*) Kesimpulan teknis definitif sedang menunggu penyelesaian evaluasi checklist & laporan LHPP.';
+    doc.font('Times-Roman').fontSize(9.5);
+    const stmtH = doc.heightOfString(stmtText, { width: 486 });
+    doc.font('Times-Italic').fontSize(8);
+    const noteH = doc.heightOfString(noteText, { width: 486 });
+    resultBoxHeight = Math.max(46, Math.ceil(stmtH + noteH + 16));
+
+    doc.rect(45, resultBoxTop, 505, resultBoxHeight).lineWidth(0.9).strokeColor('#1D1414').stroke();
+    doc
+      .font('Times-Roman')
+      .fontSize(9.5)
+      .fillColor('#1D1414')
+      .text(stmtText, 53, resultBoxTop + 6, { width: 486 })
+      .font('Times-Italic')
+      .fontSize(8)
+      .fillColor('#475569')
+      .text(noteText, 53, resultBoxTop + 6 + stmtH + 4, { width: 486 });
+  } else {
+    doc.rect(45, resultBoxTop, 505, resultBoxHeight).lineWidth(0.9).strokeColor('#1D1414').stroke();
+    doc
+      .font('Times-Roman')
+      .fontSize(9.5)
+      .fillColor('#1D1414')
+      .text(
+        'Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut ',
+        53,
+        resultBoxTop + 7,
+        { continued: true, width: 486 }
+      )
+      .font(isNotCompliant ? 'Times-Roman' : 'Times-Bold')
+      .fillColor(isNotCompliant ? '#94A3B8' : '#065F46')
+      .text('MEMENUHI', { continued: true, strike: isNotCompliant })
+      .font('Times-Roman')
+      .fillColor('#1D1414')
+      .text(' / ', { continued: true, strike: false })
+      .font(isNotCompliant ? 'Times-Bold' : 'Times-Roman')
+      .fillColor(isNotCompliant ? '#991B1B' : '#94A3B8')
+      .text('TIDAK MEMENUHI', { continued: true, strike: !isNotCompliant })
+      .font('Times-Roman')
+      .fillColor('#1D1414')
+      .text(
+        bap.conclusion === 'MEMENUHI_SYARAT_DENGAN_CATATAN'
+          ? ' (Dengan Catatan) Persyaratan Keselamatan dan Kesehatan Kerja.'
+          : ' Persyaratan Keselamatan dan Kesehatan Kerja.',
+        { strike: false }
+      );
+  }
 
   // 6. Catatan (Kotak dengan baris titik-titik seperti pada template asli)
-  const notesTop = resultBoxTop + 42;
+  const notesTop = resultBoxTop + resultBoxHeight + 6;
   doc
     .font('Times-Roman')
     .fontSize(10.5)
@@ -368,11 +419,11 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     .text('Catatan', 45, notesTop);
 
   const notesBoxTop = notesTop + 14;
-  const notesBoxHeight = 106;
+  const notesBoxHeight = resultBoxHeight > 40 ? 84 : 94;
   doc.rect(45, notesBoxTop, 505, notesBoxHeight).lineWidth(0.9).strokeColor('#1D1414').stroke();
 
-  for (let lineIdx = 0; lineIdx < 6; lineIdx += 1) {
-    const dotY = notesBoxTop + 14 + lineIdx * 15;
+  for (let lineIdx = 0; lineIdx < 5; lineIdx += 1) {
+    const dotY = notesBoxTop + 14 + lineIdx * 16;
     doc
       .font('Times-Roman')
       .fontSize(8.5)
@@ -385,42 +436,44 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
       );
   }
 
+  const defaultHonestNote = hasConclusion
+    ? 'Pemeriksaan dan pengujian telah dilaksanakan sesuai standar K3.'
+    : 'Berita acara disiapkan/ditandatangani di lapangan. Rincian teknis & kesimpulan akhir dituangkan pada dokumen LHPP setelah checklist selesai dievaluasi.';
+
   doc
     .font('Times-Roman')
     .fontSize(9.2)
     .fillColor('#1D1414')
     .text(
-      bap.notes ||
-        bap.conclusion_notes ||
-        'Pemeriksaan dan pengujian telah dilaksanakan sesuai standar K3.',
+      bap.notes || bap.conclusion_notes || defaultHonestNote,
       55,
-      notesBoxTop + 9,
-      { width: 485, height: notesBoxHeight - 16, lineGap: 4.5 }
+      notesBoxTop + 8,
+      { width: 485, height: notesBoxHeight - 14, lineGap: 4 }
     );
 
   // 7. Kotak Tanda Tangan Terpadu (Inspector di kiri & Pemilik Alat / Unit di kanan)
   const sigTop = notesBoxTop + notesBoxHeight + 8;
-  const sigHeight = 96;
+  const sigHeight = 102;
   doc.rect(45, sigTop, 505, sigHeight).lineWidth(0.9).strokeColor('#1D1414').stroke();
 
   doc
     .font('Times-Roman')
     .fontSize(10)
     .fillColor('#1D1414')
-    .text('Inspector', 55, sigTop + 6, { align: 'center', width: 220 })
-    .text('Pemilik Alat / Unit', 315, sigTop + 6, { align: 'center', width: 220 });
+    .text('Inspector', 55, sigTop + 5, { align: 'center', width: 220 })
+    .text('Pemilik Alat / Unit', 315, sigTop + 5, { align: 'center', width: 220 });
 
   // Cap / Watermark Logo PT. UPAYA RIKSA DAYA pada area Inspector sesuai template
   if (fs.existsSync(officialLogoPath)) {
     doc.save();
     doc.opacity(0.22);
-    doc.image(officialLogoPath, 132, sigTop + 24, { width: 66 });
+    doc.image(officialLogoPath, 132, sigTop + 22, { width: 66 });
     doc.restore();
   }
 
   if (bap.inspector_signature_path && fs.existsSync(bap.inspector_signature_path)) {
     try {
-      doc.image(bap.inspector_signature_path, 125, sigTop + 24, { width: 80, height: 42 });
+      doc.image(bap.inspector_signature_path, 125, sigTop + 21, { width: 80, height: 40 });
     } catch {
       // Abaikan jika berkas tanda tangan gagal dimuat
     }
@@ -428,7 +481,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
 
   if (bap.client_signature_path && fs.existsSync(bap.client_signature_path)) {
     try {
-      doc.image(bap.client_signature_path, 385, sigTop + 24, { width: 80, height: 42 });
+      doc.image(bap.client_signature_path, 385, sigTop + 21, { width: 80, height: 40 });
     } catch {
       // Abaikan jika berkas tanda tangan gagal dimuat
     }
@@ -443,8 +496,30 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
     .font('Times-Roman')
     .fontSize(9.5)
     .fillColor('#1D1414')
-    .text(`(   ${inspDisplayName}   )`, 55, sigTop + 75, { align: 'center', width: 220 })
-    .text(`(   ${clientDisplayName}   )`, 315, sigTop + 75, { align: 'center', width: 220 });
+    .text(`(   ${inspDisplayName}   )`, 55, sigTop + 69, { align: 'center', width: 220 })
+    .text(`(   ${clientDisplayName}   )`, 315, sigTop + 69, { align: 'center', width: 220 });
+
+  const fmtSigTime = (ts) => {
+    if (!ts) return '';
+    try {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
+      return `TTD: ${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
+    } catch {
+      return '';
+    }
+  };
+  const inspSignedLabel = fmtSigTime(bap.inspector_signed_at);
+  const clientSignedLabel = fmtSigTime(bap.client_signed_at);
+  if (inspSignedLabel || clientSignedLabel) {
+    doc.font('Times-Roman').fontSize(7).fillColor('#475569');
+    if (inspSignedLabel) {
+      doc.text(inspSignedLabel, 55, sigTop + 83, { align: 'center', width: 220 });
+    }
+    if (clientSignedLabel) {
+      doc.text(clientSignedLabel, 315, sigTop + 83, { align: 'center', width: 220 });
+    }
+  }
 
   // 8. Kalimat Penutup & Alamat Kantor Resmi Sesuai Template
   const closingTop = sigTop + sigHeight + 7;
@@ -459,13 +534,13 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
       { width: 505 }
     )
     .text(
-      'Demikian berita acara pemeriksaan ini dibuat dan ditandatangani oleh kedua bela pihak untuk dipergunakan sebagaimana mestinya.',
+      'Demikian berita acara pemeriksaan ini dibuat dan ditandatangani oleh kedua belah pihak untuk dipergunakan sebagaimana mestinya.',
       45,
-      closingTop + 22,
+      closingTop + 21,
       { width: 505 }
     );
 
-  const footerAddrTop = closingTop + 48;
+  const footerAddrTop = closingTop + 44;
   const addrText = companyProfile?.address || 'Jl. Pondasi No. 50B Kel. Kayu Putih Kec. Pulo Gadung Jakarta Timur 13210';
   const phoneText = companyProfile?.phone ? `ph. ${companyProfile.phone}` : 'ph. 021.4891409, 4715699, 47861912 Fax. 021.47865925';
   const emailText = companyProfile?.email ? `Email. ${companyProfile.email}` : 'Email. urd@upayariksadaya.com, upayariksadaya@gmail.com';
@@ -859,7 +934,18 @@ export function buildLhppReportContent(inputData) {
     }
   }
 
-  const categoryCode = (data.domain_code || data.category_code || 'PAA').toUpperCase();
+  const rawDomain = (data.domain_code || data.category_code || 'PAA').toUpperCase();
+  const rawLegacyCat = (data.category_code || '').toUpperCase();
+  const categoryCode =
+    rawDomain === 'PAPA' || rawDomain === 'ANCHOR_LIFELINE' || rawDomain === 'ANCHOR'
+      ? 'PAA'
+      : rawDomain === 'ELEVATOR_ESKALATOR' || rawDomain === 'LIFT' || rawDomain === 'ELEVATOR'
+      ? 'LE'
+      : rawDomain === 'ILPP'
+      ? rawLegacyCat === 'IPP'
+        ? 'IPP'
+        : 'LIS'
+      : rawDomain;
   const category = LHPP_CATEGORY_CONFIG[categoryCode] || LHPP_CATEGORY_CONFIG.PAA;
   const technicalData =
     data.technical_data &&
@@ -970,7 +1056,7 @@ export function buildLhppReportContent(inputData) {
       ['Lokasi Unit', v(/lokasi/i, readField('install_location'))],
       ['Nama Operator', v(/operator/i, readField('operator_name'))],
       ['Jenis Pesawat', v(/jenis pesawat/i, 'Forklift')],
-      ['Merk / Type', v(/merk|type/i, [data.brand, data.model].filter(Boolean).join(' / ') || 'TCM / FG30C3')],
+      ['Merk / Type', v(/merk|type/i, [data.brand, data.model].filter(Boolean).join(' / ') || '-')],
       ['Pabrik Pembuat', v(/pabrik/i, readField('manufacturer'))],
       ['Negara & Tahun Pembuatan', v(/negara|tahun/i, readField('manufacture_year'))],
       ['Nomor Seri / No. Unit', v(/nomor seri|no\.?\s*unit/i, readField('serial_number'))],
@@ -1070,7 +1156,7 @@ export function buildLhppReportContent(inputData) {
       ['Jenis', `${categoryCode} / ${data.object_name || category.fullName}`],
       ['SN', readField('serial_number')],
       ['Lokasi', readField('install_location', 'client_address')],
-      ['Inspected', readDateField('inspection_date')],
+      ['Inspected', readDateField('inspected_at', 'inspection_date', 'submitted_at', 'created_at')],
       ['Re-Inspection', hasReportValue(data.recommended_valid_until) ? formatIndoDate(data.recommended_valid_until) : '-']
     ],
     identityRows: (isForklift ? templateIdentityRows.FORKLIFT : null) || templateIdentityRows[categoryCode] || [
@@ -1803,8 +1889,19 @@ function drawPhotoGrid(c, photos, spec) {
       const capY = captionBelow ? rowTop + g.rowPitch - capH : rowTop;
       const imgY = captionBelow ? rowTop + g.imgDY - capH + 2 : rowTop + g.imgDY;
       if (photo) {
-        c.txt(caption, cx0, capY + (g.captionTop ?? 2.1), {
-          size: g.captionSize ?? 11, bold: true, width: cx1 - cx0, align: 'center'
+        const capW = cx1 - cx0;
+        const capSize = Math.min(g.captionSize ?? 9.5, 9.5);
+        const capLines = c.wrap(caption, capW - 12, capSize, { bold: true });
+        const boundedCap = capLines.slice(0, 2).join('\n');
+        c.cell(cx0, capY + 2, capW, Math.max(18, capH - 2), boundedCap, {
+          border: false,
+          size: capSize,
+          pitch: capSize * 1.12,
+          bold: true,
+          padX: 6,
+          padTop: 2,
+          align: 'center',
+          vAlign: 'middle'
         });
         if (captionBelow) c.hline(cx0, cx1, capY);
         const p = photo.storageKey ? resolveAttachmentPath(photo.storageKey) : null;
@@ -1961,7 +2058,9 @@ function buildCoverRows(report, data) {
   const f = (...k) => fieldOf(data, ...k);
   const company = f('client_name');
   const itemNo = f('item_no');
-  const inspected = formatIndoDate(data.inspection_date);
+  const inspected = formatIndoDate(
+    data.inspected_at || data.inspection_date || data.submitted_at || data.created_at
+  );
   const reinsp = hasReportValue(data.recommended_valid_until) ? formatIndoDate(data.recommended_valid_until) : '-';
   const objectName = data.object_name || report.categoryName;
   const loc = f('install_location', 'client_address');
@@ -2082,7 +2181,15 @@ function drawConclusionSection(c, report, data, o = {}) {
   c.newPage();
   c.txt(heading, c.left, c.y + 2.0, { size: 14, bold: true });
   c.y += o.afterHeading ?? 25;
-  const verdict = report.conclusion;
+  const verdict = String(report.conclusion || '');
+  const verdictUpper = verdict.toUpperCase();
+  const verdictText = !data.conclusion
+    ? 'BELUM DITETAPKAN (DALAM EVALUASI)'
+    : verdictUpper.includes('TIDAK')
+    ? 'TIDAK MEMENUHI PERSYARATAN K3'
+    : verdictUpper.includes('CATATAN')
+    ? 'MEMENUHI PERSYARATAN K3 DENGAN CATATAN'
+    : 'MEMENUHI PERSYARATAN K3';
   const parts = [
     { t: o.lead ?? 'Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa ' },
     { t: `${data.object_name || report.categoryName}`, b: true },
@@ -2091,10 +2198,10 @@ function drawConclusionSection(c, report, data, o = {}) {
     { t: `, kapasitas: ` },
     { t: fieldOf(data, 'capacity', 'swl', 'kapasitas_daya', 'kapasitas_volume'), b: true },
     { t: ', dinyatakan ' },
-    { t: verdict.toUpperCase().includes('TIDAK') ? 'TIDAK MEMENUHI PERSYARATAN K3' : 'MEMENUHI PERSYARATAN K3', b: true },
-    { t: '. Unit dapat digunakan di ' },
+    { t: verdictText, b: true },
+    { t: '. Unit berada pada lokasi ' },
     { t: `${fieldOf(data, 'install_location')} ${data.client_name || ''}`.trim(), b: true },
-    { t: ' dengan mengikuti rekomendasi yang telah kami berikan, antara lain:' }
+    { t: ' dengan wajib memenuhi rekomendasi serta syarat-syarat K3 sebagai berikut:' }
   ];
   drawRichParagraph(c, o.parts || parts, { indent: 28.3, pitch: 20.7 });
   if (hasReportValue(report.conclusionNotes) && report.conclusionNotes !== '-') {
@@ -2202,6 +2309,12 @@ function renderPaa(c, report, data, ctx) {
   // ---- V. PENGUJIAN -------------------------------------------------------
   drawPaaTests(c, report, data, td);
 
+  // ---- TEMUAN LAPANGAN (JIKA ADA) ----------------------------------------
+  if (!report.noFindings) {
+    c.newPage();
+    drawFindings(c, report);
+  }
+
   // ---- VI/VII. KESIMPULAN & SYARAT ---------------------------------------
   drawConclusionSection(c, report, data, { no: 'VI', rulesNo: 'VII', qrBuffer: ctx.qrBuffer });
 
@@ -2212,21 +2325,42 @@ function renderPaa(c, report, data, ctx) {
   drawPhotoGrid(c, report.photos, { grid: LHPP_PROFILES.PAA.grid, captionPosition: ctx.captionPosition });
 }
 
+function sortPhotosForForkliftSection(photos) {
+  const slotPatterns = [
+    /3\.1|tampak unit|tampak depan|tampak samping|unit/i,
+    /3\.2|visual|nameplate/i,
+    /3\.3|uji fungsi|fungsi/i,
+    /3\.4|uji beban|defleksi|load/i,
+    /3\.5|stiker|riksa uji/i,
+    /temuan|finding|ndt/i
+  ];
+  const score = (p) => {
+    const cap = String(p.caption || p.originalName || '').toLowerCase();
+    const idx = slotPatterns.findIndex((rx) => rx.test(cap));
+    return idx === -1 ? 99 : idx;
+  };
+  return [...(photos || [])].sort((a, b) => score(a) - score(b));
+}
+
 function renderForklift(c, report, data, ctx) {
   const f = (...k) => fieldOf(data, ...k);
-  const v = (regex, fallback) => {
+  const td = asObject(data.technical_data);
+  const v = (regex, fallback = '-') => {
     if (Array.isArray(data.results)) {
       const match = data.results.find((r) => regex.test(r.label || ''));
       if (match) {
-        if (match.text_value) return String(match.text_value).trim();
-        if (match.number_value !== null && match.number_value !== undefined && match.number_value !== '') {
-          return `${match.number_value} ${match.unit || ''}`.trim();
+        if (hasRecordedReportValue(match.text_value)) return String(match.text_value).trim();
+        if (hasRecordedReportValue(match.number_value)) {
+          return `${match.number_value}${match.unit ? ` ${match.unit}` : ''}`.trim();
         }
-        if (match.choice_value) return match.choice_value;
-        if (match.date_value) return formatIndoDate(match.date_value);
+        if (hasRecordedReportValue(match.choice_value)) return match.choice_value;
+        if (hasRecordedReportValue(match.date_value)) return formatIndoDate(match.date_value);
       }
     }
-    return fallback || '-';
+    for (const [k, val] of Object.entries(td)) {
+      if (regex.test(k) && hasRecordedReportValue(val)) return String(val).trim();
+    }
+    return hasReportValue(fallback) ? fallback : '-';
   };
 
   // ---- Halaman: I. DATA UMUM ---------------------------------------------
@@ -2234,30 +2368,34 @@ function renderForklift(c, report, data, ctx) {
   drawTitleBlock(c, [
     'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN',
     'PESAWAT ANGKAT DAN PESAWAT ANGKUT',
-    '(FORKLIFT)',
+    `(${String(data.object_name || 'FORKLIFT').toUpperCase()})`,
     `NO. ${data.lhpp_no || data.po_number || '-'}`
   ], { box: true, x0: 63.9, x1: 545.9, y0: 56.8, y1: 131.3, firstTop: 59.3, pitch: 18.5 });
   drawSectionRow(c, 'I. DATA UMUM', { h: 25.5, reserve: 60 });
   c.y += 0.5;
 
+  const capDisplay = data.capacity
+    ? `${data.capacity}${data.capacity_unit ? ` ${data.capacity_unit}` : ''}`
+    : '-';
+
   const bab1Rows = [
     ['Pemilik', v(/pemilik/i, data.client_name)],
-    ['Alamat', v(/^alamat/i, data.client_address)],
+    ['Alamat', v(/^alamat$/i, data.client_address)],
     ['Pemakai', v(/pemakai/i, data.client_name)],
     ['Alamat', v(/alamat.*pemakai/i, data.client_address)],
-    ['Pengurus / Penanggung Jawab', v(/pengurus|penanggung/i, data.contact_name || 'Kuat riawan')],
-    ['Lokasi Unit', v(/lokasi/i, data.install_location || 'Workshop')],
-    ['Jenis Pesawat', v(/jenis pesawat/i, 'Forklift')],
-    ['Nomor Seri Unit', v(/nomor seri/i, data.serial_number || '2B830551')],
-    ['Merk / Model', v(/merk|model/i, [data.brand, data.model].filter(Boolean).join(' / ') || 'TCM / FG30C3')],
-    ['Tahun', v(/tahun/i, String(data.manufacture_year || '2026'))],
-    ['Kapasitas Angkat', v(/kapasitas/i, `${data.capacity || '3000'} kg`)],
+    ['Pengurus / Penanggung Jawab', v(/pengurus|penanggung/i, data.contact_name || '-')],
+    ['Lokasi Unit', v(/lokasi/i, data.install_location || '-')],
+    ['Jenis Pesawat', v(/jenis pesawat/i, data.object_name || 'Forklift')],
+    ['Nomor Seri Unit', v(/nomor seri/i, data.serial_number || '-')],
+    ['Merk / Model', v(/merk|model/i, [data.brand, data.model].filter(Boolean).join(' / ') || '-')],
+    ['Tahun', v(/^tahun$|tahun pembuatan/i, data.manufacture_year ? String(data.manufacture_year) : '-')],
+    ['Kapasitas Angkat', v(/kapasitas/i, capDisplay)],
     ['Standar Yang Dipakai', v(/standar/i, 'Permenaker No. 8 Tahun 2020')],
-    ['Digunakan Untuk', v(/digunakan/i, 'Handling & Stacking Material Pabrik')],
+    ['Digunakan Untuk', v(/digunakan/i, f('digunakan_untuk'))],
     ['Tanggal Diperiksa', v(/tanggal/i, data.inspected_at ? formatIndoDate(data.inspected_at) : formatIndoDate(new Date()))],
-    ['Jenis Pemeriksaan', v(/jenis pemeriksaan/i, data.inspection_type_code || 'Berkala')],
+    ['Jenis Pemeriksaan', v(/jenis pemeriksaan/i, data.inspection_type_code || 'BERKALA')],
     ['Nomor Ijin Pemakai', v(/nomor ijin|izin/i, data.previous_permit_no || '-')],
-    ['Diperiksa Oleh', v(/diperiksa oleh/i, data.inspector_name || 'Ahli K3 Spesialis PAA')]
+    ['Diperiksa Oleh', v(/diperiksa oleh/i, data.inspector_name || 'PT UPAYA RIKSA DAYA')]
   ];
 
   drawKeyValueTable(c, bab1Rows, {
@@ -2279,6 +2417,12 @@ function renderForklift(c, report, data, ctx) {
   drawSectionRow(c, 'III. PEMERIKSAAN VISUAL & PENGUJIAN', { h: 20.4 });
   drawForkliftTestsAndDeflection(c, v, f, data);
 
+  // ---- TEMUAN LAPANGAN & REKOMENDASI (JIKA ADA) ---------------------------
+  if (!report.noFindings) {
+    c.newPage();
+    drawFindings(c, report);
+  }
+
   // ---- IV/V. KESIMPULAN & SYARAT K3 ---------------------------------------
   drawConclusionSection(c, report, data, { no: 'IV', rulesNo: 'V', qrBuffer: ctx.qrBuffer });
 
@@ -2286,7 +2430,7 @@ function renderForklift(c, report, data, ctx) {
   c.newPage();
   c.txt('VI. DOKUMENTASI FOTO', c.left, c.y + 2.0, { size: 14, bold: true });
   c.y += 25.5;
-  drawPhotoGrid(c, report.photos, {
+  drawPhotoGrid(c, sortPhotosForForkliftSection(report.photos), {
     grid: LHPP_PROFILES.PAA.grid,
     captionPosition: ctx.captionPosition,
     placeholderCaptions: [
@@ -2302,144 +2446,187 @@ function renderForklift(c, report, data, ctx) {
 function drawForkliftTechnicalGroups(c, v, f, data) {
   const x = [63.9, 91.8, 220.0, 360.0, 545.6];
   const H = 20.4;
-  const size = 11;
+  const size = 10;
 
   const drawSubTable = (no, title, rows) => {
-    const totalH = rows.length * H;
+    const labelW = x[3] - x[2] - 8;
+    const valW = x[4] - x[3] - 8;
+    const rowHeights = rows.map(([label, val]) => {
+      const lLines = c.wrap(String(label ?? ''), labelW, size);
+      const vLines = c.wrap(String(val ?? '-'), valW, size);
+      const maxL = Math.max(lLines.length, vLines.length, 1);
+      return Math.max(H, maxL * 12 + 8);
+    });
+    const totalH = rowHeights.reduce((sum, rh) => sum + rh, 0);
     c.ensure(totalH + 25);
     const y0 = c.y;
     c.cell(x[0], y0, x[1] - x[0], totalH, String(no), { size, align: 'center', vAlign: 'middle' });
     c.cell(x[1], y0, x[2] - x[1], totalH, title, { size, align: 'center', vAlign: 'middle', bold: true });
 
     let curY = y0;
-    rows.forEach(([label, val]) => {
-      c.cell(x[2], curY, x[3] - x[2], H, label, { size, padX: 4, vAlign: 'middle' });
-      c.cell(x[3], curY, x[4] - x[3], H, String(val ?? '-'), { size, padX: 4, vAlign: 'middle' });
-      curY += H;
+    rows.forEach(([label, val], idx) => {
+      const rh = rowHeights[idx];
+      c.cell(x[2], curY, x[3] - x[2], rh, label, { size, padX: 4, vAlign: 'middle' });
+      c.cell(x[3], curY, x[4] - x[3], rh, String(val ?? '-'), { size, padX: 4, vAlign: 'middle' });
+      curY += rh;
     });
     c.y = y0 + totalH + 6;
   };
 
+  const rawCap = String(data.capacity || '').trim();
+  const capDisplay = rawCap
+    ? /[a-zA-Z]/.test(rawCap)
+      ? rawCap
+      : `${rawCap}${data.capacity_unit ? ` ${data.capacity_unit}` : ''}`
+    : '-';
+
   // 1. Spesifikasi Pesawat
   drawSubTable(1, 'Spesifikasi\nPesawat', [
-    ['Perlengkapan / Attachment', v(/perlengkapan|attachment/i, 'Reguler fork')],
-    ['Kapasitas Angkat (SWL)', v(/kapasitas/i, `${data.capacity || '3000'} kg`)],
-    ['Tinggi Angkat Garpu Maksimal', v(/tinggi angkat/i, '3000 mm')],
-    ['Kecepatan Angkat (Lifting Speed)', v(/kecepatan angkat/i, '0,49 m/s')],
-    ['Kecepatan Turun (Lowering Speed)', v(/kecepatan turun/i, '0,49 m/s')],
-    ['Kecepatan Jalan (Travelling Speed)', v(/kecepatan jalan/i, '19,5 km/h')],
-    ['Beban Pusat (Load Center)', v(/load center|beban pusat/i, '500 mm')],
-    ['Panjang Garpu (Fork)', v(/panjang garpu/i, '1070 mm')]
+    ['Perlengkapan / Attachment', v(/perlengkapan|attachment/i, f('perlengkapan', 'attachment'))],
+    ['Kapasitas Angkat (SWL)', v(/kapasitas/i, capDisplay)],
+    ['Tinggi Angkat Garpu Maksimal', v(/tinggi angkat/i, f('lifting_height', 'tinggi_angkat'))],
+    ['Kecepatan Angkat (Lifting Speed)', v(/kecepatan angkat/i, f('lifting_speed', 'hoist_speed'))],
+    ['Kecepatan Turun (Lowering Speed)', v(/kecepatan turun/i, f('lowering_speed'))],
+    ['Kecepatan Jalan (Travelling Speed)', v(/kecepatan jalan/i, f('travelling_speed', 'travel_speed'))],
+    ['Beban Pusat (Load Center)', v(/load center|beban pusat/i, f('load_center', 'beban_pusat'))],
+    ['Panjang Garpu (Fork)', v(/panjang garpu/i, f('fork_length', 'panjang_garpu'))]
   ]);
 
   // 2. Penggerak Utama Motor Bakar / Listrik
   drawSubTable(2, 'Penggerak Utama\n(Engine / Motor)', [
-    ['Jenis Penggerak Utama', v(/jenis penggerak/i, 'Motor Bakar Diesel')],
-    ['Merk / Tipe Mesin Penggerak', v(/merk.*mesin|tipe.*mesin|mesin penggerak/i, 'ISUZU C240')],
-    ['Nomor Seri Mesin / Engine', v(/nomor seri.*mesin/i, '-')],
-    ['Daya Mesin', v(/daya mesin/i, '34,6 kW')],
-    ['Putaran Mesin (Rpm)', v(/putaran mesin/i, '2250 rpm')],
-    ['Jumlah Silinder', v(/jumlah silinder/i, '4 Silinder')]
+    ['Jenis Penggerak Utama', v(/jenis penggerak/i, f('drive_type', 'jenis_penggerak'))],
+    ['Merk / Tipe Mesin Penggerak', v(/merk.*mesin|tipe.*mesin|mesin penggerak/i, f('engine_model', 'merk_mesin'))],
+    ['Nomor Seri Mesin / Engine', v(/nomor seri.*mesin/i, f('engine_serial'))],
+    ['Daya Mesin', v(/daya mesin/i, f('engine_power', 'daya_mesin'))],
+    ['Putaran Mesin (Rpm)', v(/putaran mesin/i, f('engine_rpm', 'putaran_mesin'))],
+    ['Jumlah Silinder', v(/jumlah silinder/i, f('cylinder_count', 'jumlah_silinder'))]
   ]);
 
   // 3. Dimensi Pokok
   drawSubTable(3, 'Dimensi Pokok', [
-    ['Dimensi Panjang Unit', v(/dimensi panjang|panjang unit/i, '2840 mm')],
-    ['Dimensi Lebar Unit', v(/dimensi lebar|lebar unit/i, '1255 mm')],
-    ['Dimensi Tinggi Unit', v(/dimensi tinggi|tinggi unit/i, '2090 mm')],
-    ['Sudut Kemiringan Mast (Tilt)', v(/kemiringan|tilt/i, '6° Maju / 12° Mundur')]
+    ['Dimensi Panjang Unit', v(/dimensi panjang|panjang unit/i, f('unit_length', 'dimensi_panjang'))],
+    ['Dimensi Lebar Unit', v(/dimensi lebar|lebar unit/i, f('unit_width', 'dimensi_lebar'))],
+    ['Dimensi Tinggi Unit', v(/dimensi tinggi|tinggi unit/i, f('unit_height', 'dimensi_tinggi'))],
+    ['Sudut Kemiringan Mast (Tilt)', v(/kemiringan|tilt/i, f('mast_tilt'))]
   ]);
 
   // 4. Roda & Tekanan
   drawSubTable(4, 'Roda & Tekanan', [
-    ['Tekanan Roda Depan', v(/tekanan.*roda depan/i, '7.00 bar')],
-    ['Tekanan Roda Belakang', v(/tekanan.*roda belakang/i, '7.00 bar')],
-    ['Ukuran & Tipe Roda Depan', v(/ukuran.*roda depan/i, '28x9-15-12PR')],
-    ['Ukuran & Tipe Roda Belakang', v(/ukuran.*roda belakang/i, '6.50-10-10PR')]
+    ['Tekanan Roda Depan', v(/tekanan.*roda depan/i, f('front_tire_pressure'))],
+    ['Tekanan Roda Belakang', v(/tekanan.*roda belakang/i, f('rear_tire_pressure'))],
+    ['Ukuran & Tipe Roda Depan', v(/ukuran.*roda depan/i, f('front_tire_size'))],
+    ['Ukuran & Tipe Roda Belakang', v(/ukuran.*roda belakang/i, f('rear_tire_size'))]
   ]);
 }
 
 function drawForkliftTestsAndDeflection(c, v, f, data) {
-  const x = [63.9, 95.0, 260.0, 390.0, 545.6];
+  const x = [63.9, 95.0, 295.0, 415.0, 545.6];
   const H = 20.4;
   const size = 10;
+  const results = Array.isArray(data.results) ? data.results : [];
 
-  // III.1 Uji Tanpa Beban
-  c.txt('III.1. PENGUJIAN TANPA BEBAN (NO-LOAD TEST)', c.left, c.y + 2.0, { size: 11, bold: true });
-  c.y += 18;
+  const lookupChecklistStatus = (regex, fallbackNote = '-') => {
+    const m = results.find((r) => regex.test(r.label || '') || regex.test(r.section || ''));
+    if (!m) return { resultText: 'Belum diisi', noteText: fallbackNote };
+    const cv = m.choice_value ? String(m.choice_value).toUpperCase() : '';
+    const tv = hasRecordedReportValue(m.text_value) ? String(m.text_value).trim() : '';
+    const nv = hasRecordedReportValue(m.number_value) ? `${m.number_value}${m.unit ? ` ${m.unit}` : ''}` : '';
+    const resultText = cv || tv || nv || 'Belum diisi';
+    const noteText = hasRecordedReportValue(m.note) ? String(m.note).trim() : fallbackNote;
+    return { resultText, noteText };
+  };
 
-  const noLoadItems = [
-    ['1', 'Uji Jalan Maju & Mundur', 'SESUAI / BAIK', 'Transmisi dan putaran roda halus'],
-    ['2', 'Uji Angkat & Turun Garpu (Lift & Lower)', 'SESUAI / BAIK', 'Silinder hidrolik bergerak lancar'],
-    ['3', 'Uji Tilt Mast (Maju & Mundur)', 'SESUAI / BAIK', 'Gerakan tiang stabil tanpa getaran abnormal'],
-    ['4', 'Sistem Kemudi (Power Steering)', 'SESUAI / BAIK', 'Putaran kemudi ringan dan presisi'],
-    ['5', 'Sistem Pengereman (Service & Parking Brake)', 'SESUAI / BAIK', 'Rem kaki dan rem tangan pakem'],
-    ['6', 'Lampu Kerja, Lampu Sein & Stop', 'SESUAI / BAIK', 'Semua indikator menyala terang'],
-    ['7', 'Klakson, Sirine & Back Alarm', 'SESUAI / BAIK', 'Berbunyi jelas dan nyaring'],
-    ['8', 'Sabuk Pengaman (Safety Belt) & Kursi', 'SESUAI / BAIK', 'Mengunci kokoh, sensor kursi aktif']
-  ];
+  // III.1 Checklist Hasil Pemeriksaan & Pengujian Teknis dari Formulir
+  const technicalResults = results.filter(
+    (r) =>
+      !/data umum|identitas/i.test(r.section || '') &&
+      String(r.input_type || '').toUpperCase() !== 'PHOTO'
+  );
 
-  c.cell(x[0], c.y, x[1] - x[0], H, 'No', { size, bold: true, align: 'center', vAlign: 'middle' });
-  c.cell(x[1], c.y, x[2] - x[1], H, 'Parameter Pengujian', { size, bold: true, align: 'center', vAlign: 'middle' });
-  c.cell(x[2], c.y, x[3] - x[2], H, 'Hasil Uji', { size, bold: true, align: 'center', vAlign: 'middle' });
-  c.cell(x[3], c.y, x[4] - x[3], H, 'Keterangan', { size, bold: true, align: 'center', vAlign: 'middle' });
-  c.y += H;
+  if (technicalResults.length > 0) {
+    c.txt('III.1. HASIL PEMERIKSAAN VISUAL, PENGUKURAN & PENGUJIAN', c.left, c.y + 2.0, { size: 11, bold: true });
+    c.y += 18;
 
-  noLoadItems.forEach(([no, param, res, note]) => {
-    c.cell(x[0], c.y, x[1] - x[0], H, no, { size, align: 'center', vAlign: 'middle' });
-    c.cell(x[1], c.y, x[2] - x[1], H, param, { size, padX: 4, vAlign: 'middle' });
-    c.cell(x[2], c.y, x[3] - x[2], H, res, { size, align: 'center', vAlign: 'middle', bold: true });
-    c.cell(x[3], c.y, x[4] - x[3], H, note, { size, padX: 4, vAlign: 'middle' });
-    c.y += H;
-  });
+    const drawHeader = () => {
+      c.cell(x[0], c.y, x[1] - x[0], H, 'No', { size, bold: true, align: 'center', vAlign: 'middle' });
+      c.cell(x[1], c.y, x[2] - x[1], H, 'Parameter Pemeriksaan / Pengujian', { size, bold: true, align: 'center', vAlign: 'middle' });
+      c.cell(x[2], c.y, x[3] - x[2], H, 'Hasil Uji / Nilai', { size, bold: true, align: 'center', vAlign: 'middle' });
+      c.cell(x[3], c.y, x[4] - x[3], H, 'Keterangan / Catatan', { size, bold: true, align: 'center', vAlign: 'middle' });
+      c.y += H;
+    };
+    drawHeader();
 
-  c.y += 14;
+    technicalResults.forEach((r, idx) => {
+      const valStr = getInspectionResultValue({ ...r, note: null });
+      const noteStr = hasRecordedReportValue(r.note) ? String(r.note).trim() : '-';
+      const labelLines = c.wrap(`[${r.section || '-'}] ${r.label}`, x[2] - x[1] - 8, size);
+      const valLines = c.wrap(valStr, x[3] - x[2] - 8, size, { bold: true });
+      const noteLines = c.wrap(noteStr, x[4] - x[3] - 8, size);
+      const maxLines = Math.max(labelLines.length, valLines.length, noteLines.length, 1);
+      const rowH = Math.max(H, maxLines * 12 + 6);
+      c.ensure(rowH, drawHeader);
+
+      c.cell(x[0], c.y, x[1] - x[0], rowH, String(idx + 1), { size, align: 'center', vAlign: 'middle' });
+      c.cell(x[1], c.y, x[2] - x[1], rowH, `[${r.section || '-'}] ${r.label}`, { size, padX: 4, vAlign: 'middle' });
+      c.cell(x[2], c.y, x[3] - x[2], rowH, valStr, { size, align: 'center', vAlign: 'middle', bold: true });
+      c.cell(x[3], c.y, x[4] - x[3], rowH, noteStr, { size, padX: 4, vAlign: 'middle' });
+      c.y += rowH;
+    });
+    c.y += 14;
+  }
+
   c.ensure(130);
 
-  // III.2 Uji Dengan Beban
-  c.txt('III.2. PENGUJIAN DENGAN BEBAN (LOAD TEST 100% SWL)', c.left, c.y + 2.0, { size: 11, bold: true });
+  // III.2 Uji Beban & Defleksi Garpu
+  c.txt('III.2. PENGUJIAN DENGAN BEBAN & DEFLEKSI GARPU (PERMENAKER NO. 8 TAHUN 2020 PASAL 77)', c.left, c.y + 2.0, { size: 11, bold: true });
   c.y += 18;
 
-  const loadCap = data.capacity ? `${data.capacity} kg` : '3000 kg';
-  const loadItems = [
-    ['1', 'Uji Angkat Beban Penuh (100% SWL)', loadCap, 'MEMENUHI SYARAT', 'Mampu mengangkat beban aman'],
-    ['2', 'Uji Tahan Beban (Drift Test 10 Menit)', loadCap, 'MEMENUHI SYARAT', 'Penurunan silinder lift < 1 mm'],
-    ['3', 'Uji Kemiringan Mast Berbeban', loadCap, 'MEMENUHI SYARAT', 'Silinder tilt menahan beban stabil'],
-    ['4', 'Uji Pengereman Berbeban', loadCap, 'MEMENUHI SYARAT', 'Jarak pengereman aman dan pakem']
-  ];
-
+  const loadCap = data.capacity ? `${data.capacity}${data.capacity_unit ? ` ${data.capacity_unit}` : ''}` : '-';
+  const loadMatch = lookupChecklistStatus(/uji beban|defleksi garpu|load test/i, '-');
   c.cell(x[0], c.y, x[1] - x[0], H, 'No', { size, bold: true, align: 'center', vAlign: 'middle' });
   c.cell(x[1], c.y, x[2] - x[1], H, 'Parameter Uji Beban', { size, bold: true, align: 'center', vAlign: 'middle' });
-  c.cell(x[2], c.y, x[3] - x[2], H, 'Beban Uji', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[2], c.y, x[3] - x[2], H, 'Beban Uji / Nilai', { size, bold: true, align: 'center', vAlign: 'middle' });
   c.cell(x[3], c.y, x[4] - x[3], H, 'Hasil & Keterangan', { size, bold: true, align: 'center', vAlign: 'middle' });
   c.y += H;
 
-  loadItems.forEach(([no, param, load, res, note]) => {
-    c.cell(x[0], c.y, x[1] - x[0], H, no, { size, align: 'center', vAlign: 'middle' });
-    c.cell(x[1], c.y, x[2] - x[1], H, param, { size, padX: 4, vAlign: 'middle' });
-    c.cell(x[2], c.y, x[3] - x[2], H, load, { size, align: 'center', vAlign: 'middle' });
-    c.cell(x[3], c.y, x[4] - x[3], H, `${res} (${note})`, { size, padX: 4, vAlign: 'middle' });
-    c.y += H;
-  });
+  const loadNote = loadMatch.noteText && loadMatch.noteText !== '-'
+    ? `${loadMatch.resultText} (${loadMatch.noteText})`
+    : loadMatch.resultText;
+  const loadNoteLines = c.wrap(loadNote, x[4] - x[3] - 8, size);
+  const loadRowH = Math.max(H, loadNoteLines.length * 12 + 6);
+  c.cell(x[0], c.y, x[1] - x[0], loadRowH, '1', { size, align: 'center', vAlign: 'middle' });
+  c.cell(x[1], c.y, x[2] - x[1], loadRowH, 'Uji Beban & Defleksi Garpu (Permenaker 08/2020)', { size, padX: 4, vAlign: 'middle' });
+  c.cell(x[2], c.y, x[3] - x[2], loadRowH, loadCap, { size, align: 'center', vAlign: 'middle' });
+  c.cell(x[3], c.y, x[4] - x[3], loadRowH, loadNote, { size, padX: 4, vAlign: 'middle' });
+  c.y += loadRowH + 12;
 
-  c.y += 14;
-  c.ensure(120);
-
-  // III.3 Pengukuran Defleksi Garpu Forklift
-  c.txt('III.3. PENGUKURAN DEFLEKSI GARPU FORKLIFT (PERMENAKER NO. 8 TAHUN 2020 PASAL 77)', c.left, c.y + 2.0, { size: 11, bold: true });
-  c.y += 18;
+  c.ensure(105);
+  const forkLenRaw = v(/panjang garpu|fork_length|panjang_garpu/i, f('fork_length', 'panjang_garpu'));
+  const forkHeightRaw = v(/tinggi garpu|fork_height|tinggi_garpu/i, f('fork_height', 'tinggi_garpu'));
+  const deflActualRaw = v(/defleksi aktual|actual_deflection|defleksi_aktual/i, f('actual_deflection', 'defleksi_aktual'));
+  const L = parseFloat(String(forkLenRaw || '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+  const Hfork = parseFloat(String(forkHeightRaw || '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+  const deflVal = parseFloat(String(deflActualRaw || '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+  const tolMax = !Number.isNaN(L) && L > 0 ? (L / 33).toFixed(1) : null;
+  const xTeori = !Number.isNaN(L) && !Number.isNaN(Hfork) ? Math.sqrt(Hfork * Hfork + L * L).toFixed(1) : null;
 
   const deflBoxW = x[4] - x[0];
-  const deflBoxH = 75;
+  const deflBoxH = 74;
   c.cell(x[0], c.y, deflBoxW, deflBoxH, '', { box: true });
 
   const innerY = c.y + 6;
-  c.txt('Rumus Resmi:  X_hitung = √(H² + L²)  |  Defleksi = X_aktual - X_hitung  |  Toleransi Maksimal = 1/33 x L', x[0] + 8, innerY, { size: 9.5, bold: true });
-  c.txt('Data Pengukuran Garpu:', x[0] + 8, innerY + 15, { size: 9.5, bold: true });
-  c.txt('• Tinggi Garpu (H) = 495 mm      • Panjang Garpu (L) = 1070 mm      • Diagonal Aktual (X_aktual) = 1180 mm', x[0] + 16, innerY + 28, { size: 9.5 });
-  c.txt('• Diagonal Teoretis (X_hitung) = √(495² + 1070²) = 1179 mm', x[0] + 16, innerY + 41, { size: 9.5 });
-  c.txt('• Defleksi Terjadi = 1180 mm - 1179 mm = 1.0 mm  (Toleransi Maksimal 1/33 x 1070 mm = 32.4 mm)', x[0] + 16, innerY + 54, { size: 9.5, bold: true });
-  c.txt('KESIMPULAN:  MEMENUHI SYARAT K3 (Defleksi 1.0 mm ≤ 32.4 mm)', x[0] + 16, innerY + 66, { size: 9.5, bold: true });
+  c.txt('Rumus Resmi:  X_hitung = akar(H² + L²)  |  Defleksi = X_aktual - X_hitung  |  Toleransi Maksimal = 1/33 x L', x[0] + 8, innerY, { size: 9, bold: true });
+  c.txt(`• Panjang Garpu (L): ${forkLenRaw !== '-' ? forkLenRaw : 'Belum diukur'}    • Tinggi Garpu (H): ${forkHeightRaw !== '-' ? forkHeightRaw : 'Belum diukur'}`, x[0] + 12, innerY + 16, { size: 9.5 });
+  c.txt(`• Diagonal Teoretis (X_hitung): ${xTeori ? `${xTeori} mm` : '-'}    • Toleransi Maksimal (1/33 x L): ${tolMax ? `${tolMax} mm` : '-'}`, x[0] + 12, innerY + 30, { size: 9.5 });
+  c.txt(`• Defleksi Aktual: ${deflActualRaw !== '-' ? deflActualRaw : 'Belum diukur'}`, x[0] + 12, innerY + 44, { size: 9.5, bold: true });
+
+  const deflConclusion =
+    !Number.isNaN(deflVal) && tolMax
+      ? deflVal <= Number(tolMax)
+        ? `MEMENUHI SYARAT K3 (${deflVal} mm <= ${tolMax} mm)`
+        : `TIDAK MEMENUHI SYARAT K3 (${deflVal} mm > ${tolMax} mm)`
+      : `STATUS UJI BEBAN: ${loadMatch.resultText}`;
+  c.txt(`KESIMPULAN PENGUKURAN: ${deflConclusion}`, x[0] + 12, innerY + 58, { size: 9.5, bold: true });
 
   c.y += deflBoxH + 10;
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowsClockwise,
   CheckCircle,
@@ -29,8 +30,15 @@ import {
   removeOfflinePhoto
 } from '../../../lib/utils/offline-sync.js';
 import { formatDateTime } from '../../../lib/utils/format.js';
+import { useConfirm } from '../../../components/ui/FeedbackProvider.jsx';
+import { useDialogFocus } from '../../../components/ui/useDialogFocus.js';
 
-export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
+export function OfflineSyncDrawer({ isOpen, open, onClose, onSyncComplete, onSyncSuccess }) {
+  const drawerOpen = Boolean(isOpen ?? open);
+  const confirm = useConfirm();
+  const drawerPanelRef = useRef(null);
+  useDialogFocus(drawerOpen, drawerPanelRef, onClose, true);
+
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'history' | 'drafts'
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [summary, setSummary] = useState({
@@ -68,14 +76,23 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
+    if (drawerOpen) {
       refreshSummary();
       setSyncResult(null);
       setErrorMsg('');
       setInspectDraft(null);
       setCopyFeedback('');
     }
-  }, [isOpen, refreshSummary]);
+  }, [drawerOpen, refreshSummary]);
+
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerOpen]);
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -101,6 +118,7 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
       setSyncResult(res);
       await refreshSummary();
       if (onSyncComplete) onSyncComplete(res);
+      if (onSyncSuccess) onSyncSuccess(res);
     } catch (err) {
       setErrorMsg(err.message || 'Sinkronisasi gagal. Coba beberapa saat lagi.');
     } finally {
@@ -109,7 +127,13 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
   };
 
   const handleRemoveDraft = async (inspectionId) => {
-    if (window.confirm('Hapus draf lokal ini? Data yang belum tersinkron ke server akan hilang.')) {
+    const approved = await confirm({
+      title: 'Hapus Draf Lokal',
+      message: 'Hapus draf lokal ini? Data yang belum tersinkron ke server akan hilang.',
+      confirmLabel: 'Hapus Draf',
+      tone: 'danger'
+    });
+    if (approved) {
       await removeOfflineDraft(inspectionId);
       if (inspectDraft?.inspectionId === inspectionId) setInspectDraft(null);
       await refreshSummary();
@@ -117,14 +141,26 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
   };
 
   const handleRemovePhoto = async (photoId) => {
-    if (window.confirm('Hapus antrean foto ini dari penyimpanan lokal?')) {
+    const approved = await confirm({
+      title: 'Hapus Antrean Foto',
+      message: 'Hapus antrean foto ini dari penyimpanan lokal perangkat?',
+      confirmLabel: 'Hapus Foto',
+      tone: 'danger'
+    });
+    if (approved) {
       await removeOfflinePhoto(photoId);
       await refreshSummary();
     }
   };
 
   const handleClearLogs = async () => {
-    if (window.confirm('Bersihkan seluruh riwayat sinkronisasi?')) {
+    const approved = await confirm({
+      title: 'Bersihkan Riwayat Sinkronisasi',
+      message: 'Bersihkan seluruh log riwayat sinkronisasi lokal pada perangkat ini?',
+      confirmLabel: 'Bersihkan Riwayat',
+      tone: 'danger'
+    });
+    if (approved) {
       await clearSyncLogs();
       setSyncLogs([]);
     }
@@ -164,15 +200,24 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
     }
   };
 
-  if (!isOpen) return null;
+  if (!drawerOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 dark:bg-black/55 backdrop-blur-[1.5px] transition-opacity duration-200 animate-fade-in">
+  const drawerNode = (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 dark:bg-black/55 backdrop-blur-[1.5px] transition-opacity duration-200 animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Penyimpanan Offline & Antrean Sinkronisasi"
+    >
       {/* Backdrop */}
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
       {/* Drawer Container */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 overflow-hidden border-l border-slate-200 dark:border-slate-800">
+      <div
+        ref={drawerPanelRef}
+        tabIndex={-1}
+        className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 overflow-hidden border-l border-slate-200 dark:border-slate-800 animate-drawer-right focus:outline-none"
+      >
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -622,7 +667,7 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+            className="min-h-[36px] px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
           >
             Tutup
           </button>
@@ -630,4 +675,8 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' && document.body
+    ? createPortal(drawerNode, document.body)
+    : drawerNode;
 }

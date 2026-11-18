@@ -40,19 +40,33 @@ export function MobileNavDrawer({
     };
   }, [open]);
 
-  // Buka otomatis grup submenu yang memuat halaman aktif.
+  // Buka otomatis grup submenu (dan sub-bab bersarang) yang memuat halaman aktif.
   useEffect(() => {
     if (!open) return;
-    moreGroups.forEach((group) => {
-      group.items.forEach((item) => {
-        if (item.submenus && location.pathname.startsWith(item.to)) {
-          setMobileExpandedKeys((prev) =>
-            prev[item.to] ? prev : { ...prev, [item.to]: true }
-          );
-        }
+    const currentLocation = { pathname: location.pathname, search: location.search };
+    setMobileExpandedKeys((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      moreGroups.forEach((group) => {
+        group.items.forEach((item) => {
+          if (item.submenus && currentLocation.pathname.startsWith(item.to)) {
+            if (!prev[item.to]) {
+              next[item.to] = true;
+              changed = true;
+            }
+            const activeSubTo = resolveActiveSubmenu(item.submenus, currentLocation);
+            item.submenus.forEach((sub) => {
+              if (sub.submenus?.length && activeSubTo === sub.to && !prev[sub.to]) {
+                next[sub.to] = true;
+                changed = true;
+              }
+            });
+          }
+        });
       });
+      return changed ? next : prev;
     });
-  }, [open, location.pathname, moreGroups]);
+  }, [open, location.pathname, location.search, moreGroups]);
 
   // Daftar submenu bisa panjang: gulirkan drawer ke submenu yang sedang aktif.
   useEffect(() => {
@@ -89,7 +103,7 @@ export function MobileNavDrawer({
       {/* Sheet Panel */}
       <div
         ref={drawerRef}
-        className="relative z-10 w-full max-h-[88dvh] flex flex-col rounded-t-[28px] bg-[#F5F5F7] dark:bg-[#151821] border-t border-black/[0.08] dark:border-white/[0.08] shadow-pop overflow-hidden"
+        className="relative z-10 w-full max-h-[88dvh] flex flex-col rounded-t-[28px] bg-[#F5F5F7] dark:bg-[#151821] border-t border-black/[0.08] dark:border-white/[0.08] shadow-pop overflow-hidden animate-sheet-up"
       >
         {/* Handle Bar */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
@@ -200,7 +214,7 @@ export function MobileNavDrawer({
                         </button>
 
                         {isExpanded && (
-                          <div className="bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/[0.04] dark:border-white/[0.04] pl-11 pr-3 py-1 space-y-0.5">
+                          <div className="bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/[0.04] dark:border-white/[0.04] pl-11 pr-3 py-1 space-y-0.5 animate-submenu-in">
                             {item.submenus.map((sub, subIdx) => {
                               if (sub.header) {
                                 return (
@@ -214,6 +228,90 @@ export function MobileNavDrawer({
                               }
 
                               const isSubActive = activeSubmenuTo === sub.to;
+                              const hasNestedSubmenus = Array.isArray(sub.submenus) && sub.submenus.length > 0;
+
+                              if (hasNestedSubmenus) {
+                                const isNestedExpanded = Boolean(mobileExpandedKeys[sub.to]);
+                                const activeNestedTo = resolveActiveSubmenu(sub.submenus, location);
+                                const hasActiveNestedChild = Boolean(activeNestedTo);
+
+                                return (
+                                  <div key={sub.to} className="space-y-0.5">
+                                    <div
+                                      className={`flex items-center justify-between rounded-[8px] transition-all ${
+                                        isSubActive && !hasActiveNestedChild
+                                          ? 'bg-[#C81E1E] text-white font-semibold shadow-xs'
+                                          : isSubActive && hasActiveNestedChild
+                                          ? 'bg-[#C81E1E]/12 dark:bg-rose-500/20 text-[#C81E1E] dark:text-rose-300 font-semibold'
+                                          : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-white font-medium'
+                                      }`}
+                                    >
+                                      <Link
+                                        to={sub.to}
+                                        onClick={onClose}
+                                        data-submenu-active={isSubActive ? 'true' : undefined}
+                                        aria-current={isSubActive && !activeNestedTo ? 'page' : undefined}
+                                        className="flex-1 min-w-0 py-2 px-2.5 text-[12px] truncate cursor-pointer"
+                                      >
+                                        {sub.label}
+                                      </Link>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setMobileExpandedKeys((prev) => ({
+                                            ...prev,
+                                            [sub.to]: !prev[sub.to]
+                                          }))
+                                        }
+                                        aria-expanded={isNestedExpanded}
+                                        aria-label={`Tampilkan sub-bab ${sub.label}`}
+                                        className={`shrink-0 mr-1 p-1.5 rounded-[6px] cursor-pointer ${
+                                          isSubActive && !hasActiveNestedChild
+                                            ? 'text-white/90 hover:bg-white/15'
+                                            : isSubActive && hasActiveNestedChild
+                                            ? 'text-[#C81E1E] dark:text-rose-300 hover:bg-[#C81E1E]/10'
+                                            : 'text-[#86868B] hover:text-[#1D1D1F] dark:hover:text-white'
+                                        }`}
+                                      >
+                                        <CaretDown
+                                          size={13}
+                                          weight="bold"
+                                          className={`transition-transform duration-200 ${
+                                            isNestedExpanded ? 'rotate-180' : 'rotate-0'
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
+
+                                    {isNestedExpanded && (
+                                      <div className="ml-3 pl-2.5 border-l border-black/[0.08] dark:border-white/[0.10] space-y-0.5 py-0.5 animate-submenu-in">
+                                        {sub.submenus.map((nested) => {
+                                          const isNestedActive = activeNestedTo === nested.to;
+                                          return (
+                                            <Link
+                                              key={nested.to}
+                                              to={nested.to}
+                                              onClick={onClose}
+                                              data-submenu-active={isNestedActive ? 'true' : undefined}
+                                              aria-current={isNestedActive ? 'page' : undefined}
+                                              className={`flex items-center justify-between py-1.5 px-2.5 rounded-[7px] text-[11.5px] transition-all cursor-pointer ${
+                                                isNestedActive
+                                                  ? 'bg-[#C81E1E] text-white font-semibold shadow-xs'
+                                                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-white font-medium'
+                                              }`}
+                                            >
+                                              <span className="truncate">{nested.label}</span>
+                                              {isNestedActive && (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0 ml-1.5" />
+                                              )}
+                                            </Link>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <Link

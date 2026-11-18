@@ -541,12 +541,19 @@ describe('URD Phase 1: End-to-End Operational UAT Test Suite', () => {
       expect(detailRes.status).toBe(200);
       const items = detailRes.body.items;
 
-      const results = items.map(item => ({
-        itemId: item.id,
-        choiceValue: 'SESUAI',
-        textValue: 'Kondisi baik dan terawat',
-        note: 'Pemeriksaan visual & fungsi normal'
-      }));
+      const results = items.map(item => {
+        const t = String(item.input_type || 'CHOICE').toUpperCase();
+        const isNum = t === 'NUMBER' || t === 'MEASUREMENT';
+        const isChoice = t === 'CHOICE' || t === 'CONFORMITY';
+        return {
+          itemId: item.id,
+          choiceValue: isChoice ? 'SESUAI' : null,
+          numberValue: isNum ? Number(item.min_value ?? 10) : null,
+          textValue: !isChoice && !isNum ? 'Kondisi baik dan terawat' : null,
+          dateValue: t === 'DATE' ? '2026-11-15' : null,
+          note: 'Pemeriksaan visual & fungsi normal'
+        };
+      });
 
       // Simpan draft
       const draftRes = await request(app)
@@ -598,12 +605,24 @@ describe('URD Phase 1: End-to-End Operational UAT Test Suite', () => {
         .set('Authorization', `Bearer ${tokens.INSPECTOR_B}`);
       const items = detailRes.body.items;
 
-      const results = items.map((item, idx) => ({
-        itemId: item.id,
-        choiceValue: idx === 0 ? 'TIDAK_SESUAI' : 'SESUAI',
-        textValue: idx === 0 ? 'Safety valve belum dikalibrasi ulang' : 'Visual shell baik',
-        note: idx === 0 ? 'Masa berlaku kalibrasi safety valve habis' : null
-      }));
+      const results = items.map((item, idx) => {
+        const t = String(item.input_type || 'CHOICE').toUpperCase();
+        const isNum = t === 'NUMBER' || t === 'MEASUREMENT';
+        const isChoice = t === 'CHOICE' || t === 'CONFORMITY';
+        return {
+          itemId: item.id,
+          choiceValue: isChoice ? (idx === 0 ? 'TIDAK_SESUAI' : 'SESUAI') : null,
+          numberValue: isNum ? Number(item.min_value ?? 10) : null,
+          textValue:
+            !isChoice && !isNum
+              ? idx === 0
+                ? 'Safety valve belum dikalibrasi ulang'
+                : 'Visual shell baik'
+              : null,
+          dateValue: t === 'DATE' ? '2026-11-15' : null,
+          note: idx === 0 ? 'Masa berlaku kalibrasi safety valve habis' : null
+        };
+      });
 
       await request(app)
         .put(`/api/v1/inspections/${inspectionBId}/draft`)

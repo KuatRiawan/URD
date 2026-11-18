@@ -170,7 +170,15 @@ export function BapDetailModal({
                 <span className="inline-block px-3 py-1 rounded bg-slate-900 dark:bg-slate-800 text-white text-xs font-extrabold tracking-wider uppercase">
                   BERITA ACARA RIKSA UJI
                 </span>
-                <div className="mt-1 text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
+                <div className="mt-1.5 text-sm font-extrabold tracking-wider uppercase text-[#C81E1E] dark:text-rose-400">
+                  {(
+                    selectedBap.equipment_subtype_name ||
+                    selectedBap.equipment_type_name ||
+                    selectedBap.object_name ||
+                    ''
+                  ).toUpperCase()}
+                </div>
+                <div className="mt-0.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
                   Nomor: {selectedBap.bap_no}
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -270,11 +278,11 @@ export function BapDetailModal({
 
             {/* Hasil Riksa Uji & Catatan Pemeriksaan */}
             <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-wrap">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Hasil Riksa Uji (Pernyataan Resmi BAP)
                 </label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <label className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-400 cursor-pointer">
                     <input
                       type="radio"
@@ -295,15 +303,43 @@ export function BapDetailModal({
                     />
                     TIDAK MEMENUHI PERSYARATAN K3
                   </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isCompliant"
+                      disabled={!isEditable}
+                      checked={draftForm.isCompliant === null}
+                      onChange={() => setDraftForm({ ...draftForm, isCompliant: null })}
+                    />
+                    BELUM DITETAPKAN (TTD Situasional)
+                  </label>
                 </div>
               </div>
 
-              <div className="p-3 rounded bg-slate-100 dark:bg-slate-750 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-slate-100 border-l-4 border-[#C81E1E]">
-                &quot;Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut{' '}
-                <span className={draftForm.isCompliant ? 'text-emerald-700 dark:text-emerald-400 underline' : 'text-red-700 dark:text-red-400 underline'}>
-                  {draftForm.isCompliant ? 'MEMENUHI' : 'TIDAK MEMENUHI'}
-                </span>{' '}
-                Persyaratan Keselamatan dan Kesehatan Kerja.&quot;
+              <div className="p-3 rounded bg-slate-100 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-slate-100 border-l-4 border-[#C81E1E]">
+                {draftForm.isCompliant === null ? (
+                  <span>
+                    &quot;Kesimpulan kelayakan K3{' '}
+                    <span className="text-amber-700 dark:text-amber-400 underline">
+                      BELUM DITETAPKAN
+                    </span>{' '}
+                    (BAP ditandatangani secara situasional; kesimpulan akhir menunggu hasil pengujian &amp; perhitungan teknis selesai).&quot;
+                  </span>
+                ) : (
+                  <span>
+                    &quot;Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut{' '}
+                    <span
+                      className={
+                        draftForm.isCompliant
+                          ? 'text-emerald-700 dark:text-emerald-400 underline'
+                          : 'text-red-700 dark:text-red-400 underline'
+                      }
+                    >
+                      {draftForm.isCompliant ? 'MEMENUHI' : 'TIDAK MEMENUHI'}
+                    </span>{' '}
+                    Persyaratan Keselamatan dan Kesehatan Kerja.&quot;
+                  </span>
+                )}
               </div>
 
               <div>

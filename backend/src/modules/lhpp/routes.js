@@ -145,8 +145,37 @@ async function fetchFullLhppContext(db, id) {
     [id, base.inspection_id]
   );
 
+  const signaturesRes = await runner(
+    `SELECT s.*, fa.storage_key AS sig_storage_key
+     FROM inspection_signatures s
+     LEFT JOIN file_attachments fa ON fa.id = s.file_id
+     WHERE s.inspection_id = $1`,
+    [base.inspection_id]
+  );
+  const inspSigRow = signaturesRes.rows.find((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
+  const clientSigRow = signaturesRes.rows.find((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
+
+  const compRes = await runner(
+    `SELECT certificate_no
+     FROM inspector_competencies
+     WHERE inspector_id = $1
+     ORDER BY (CASE WHEN category_id = (SELECT category_id FROM test_objects WHERE id = $2) THEN 0 ELSE 1 END), valid_until DESC
+     LIMIT 1`,
+    [base.inspector_id, base.object_id]
+  );
+
   return {
     ...base,
+    inspector_skp_no: compRes.rows[0]?.certificate_no || null,
+    inspector_signer_name: inspSigRow?.signer_name || base.inspector_name,
+    inspector_signature_file_id: inspSigRow?.file_id || null,
+    inspector_sig_file_id: inspSigRow?.file_id || null,
+    inspector_signature_path: inspSigRow?.sig_storage_key ? resolveAttachmentPath(inspSigRow.sig_storage_key) : null,
+    inspector_signed_at: inspSigRow?.signed_at || null,
+    client_signer_name: clientSigRow?.signer_name || null,
+    client_signature_file_id: clientSigRow?.file_id || null,
+    client_signature_path: clientSigRow?.sig_storage_key ? resolveAttachmentPath(clientSigRow.sig_storage_key) : null,
+    client_signed_at: clientSigRow?.signed_at || null,
     technical_data: {
       ...(typeof base.object_attributes === 'object' && base.object_attributes !== null ? base.object_attributes : {}),
       ...(typeof base.technical_data === 'object' && base.technical_data !== null ? base.technical_data : {})
@@ -454,6 +483,50 @@ router.delete(
         [photoId, id, cur.inspection_id]
       );
       return res.json({ success: true, message: 'Foto dokumentasi berhasil dihapus.' });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Perbarui keterangan / pemetaan bab foto dokumentasi dari ruang kerja LHPP
+router.patch(
+  '/:id/photos/:photoId',
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  async (req, res, next) => {
+    try {
+      const { id, photoId } = req.params;
+      const caption = String(req.body?.caption || '').trim();
+      if (caption.length < 2 || caption.length > 300) {
+        throw new AppError(400, 'INVALID_CAPTION', 'Keterangan foto harus antara 2 sampai 300 karakter.');
+      }
+      const cur = await fetchFullLhppContext(query, id);
+      if (!cur) throw new AppError(404, 'LHPP_NOT_FOUND', 'LHPP tidak ditemukan.');
+      const hasAccess = await canAccessLhpp(query, cur, req.user);
+      if (!hasAccess) {
+        throw new AppError(403, 'FORBIDDEN', 'Anda hanya dapat mengelola foto LHPP milik sendiri.');
+      }
+      if (['FINAL', 'TERBIT'].includes(cur.status)) {
+        throw new AppError(409, 'LHPP_LOCKED', 'LHPP yang sudah final/terbit terkunci dan keterangannya tidak dapat diubah.');
+      }
+      const { rows: updated } = await query(
+        `UPDATE file_attachments
+         SET caption = $1
+         WHERE id = $2
+           AND deleted_at IS NULL
+           AND ((owner_type = 'LHPP_PHOTO' AND owner_id = $3)
+             OR (owner_type = 'INSPECTION_FINDING' AND (
+               owner_id = $4
+               OR owner_id IN (SELECT id FROM inspection_findings WHERE inspection_id = $4)
+             )))
+         RETURNING id, original_name AS "originalName", caption, mime_type AS "mimeType",
+                   size_bytes AS "sizeBytes", storage_key AS "storageKey", created_at AS "createdAt"`,
+        [caption, photoId, id, cur.inspection_id]
+      );
+      if (!updated[0]) {
+        throw new AppError(404, 'PHOTO_NOT_FOUND', 'Foto tidak ditemukan.');
+      }
+      return res.json({ photo: updated[0] });
     } catch (err) {
       return next(err);
     }

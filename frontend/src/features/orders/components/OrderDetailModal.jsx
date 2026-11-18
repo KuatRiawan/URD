@@ -307,7 +307,7 @@ export function OrderDetailModal({
           {/* TAB 1: UNIT & DOKUMEN (Default & Ringkas Tanpa Slop)      */}
           {/* ======================================================== */}
           {activeTab === 'UNITS' && (
-            <div className="space-y-4">
+            <div key="tab-units" className="space-y-4 animate-section-in">
               {/* Kartu Hero Informasi PO */}
               <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3">
                 <div className="flex items-start justify-between gap-2">
@@ -381,7 +381,7 @@ export function OrderDetailModal({
               {editingPo && (
                 <form
                   onSubmit={handlePoFormSubmit}
-                  className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-4 space-y-3.5"
+                  className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-4 space-y-3.5 animate-accordion-in"
                 >
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -1000,21 +1000,23 @@ export function OrderDetailModal({
           {/* TAB: AKTIVITAS PEMERIKSAAN PER UNIT                      */}
           {/* ======================================================== */}
           {activeTab === 'ACTIVITIES' && (
-            <InspectionActivitiesSection
-              order={activeOrder}
-              units={detailData?.objects || []}
-              activities={detailData?.activities || []}
-              inspectors={inspectors}
-              user={user}
-              onReload={() => openOrderDetail?.(activeOrder.id)}
-            />
+            <div key="tab-activities" className="animate-section-in">
+              <InspectionActivitiesSection
+                order={activeOrder}
+                units={detailData?.objects || []}
+                activities={detailData?.activities || []}
+                inspectors={inspectors}
+                user={user}
+                onReload={() => openOrderDetail?.(activeOrder.id)}
+              />
+            </div>
           )}
 
           {/* ======================================================== */}
           {/* TAB 2: JADWAL & TIM K3                                   */}
           {/* ======================================================== */}
           {activeTab === 'SCHEDULE' && (
-            <div className="space-y-4">
+            <div key="tab-schedule" className="space-y-4 animate-section-in">
               {canManageSchedule && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Formulir Pengaturan Jadwal */}
@@ -1236,7 +1238,7 @@ export function OrderDetailModal({
           {/* TAB 3: STATUS PO & WORKFLOW                              */}
           {/* ======================================================== */}
           {activeTab === 'STATUS' && (
-            <div className="space-y-4">
+            <div key="tab-status" className="space-y-4 animate-section-in">
               {/* Konfirmasi Penugasan oleh Ahli K3 */}
               {user?.role === 'AHLI_K3' && (detailData?.assignments || []).length > 0 && (
                 <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3 bg-slate-50 dark:bg-slate-800/40">

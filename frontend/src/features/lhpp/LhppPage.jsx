@@ -19,13 +19,31 @@ export function LhppPage() {
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
   const canDeliver = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlStatus = searchParams.get('status') || '';
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
+
+  useEffect(() => {
+    setStatusFilter(urlStatus);
+  }, [urlStatus]);
+
+  const handleStatusChange = (nextStatus) => {
+    setStatusFilter(nextStatus);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (nextStatus) next.set('status', nextStatus);
+        else next.delete('status');
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const [detailLhpp, setDetailLhpp] = useState(null);
 
@@ -418,7 +436,7 @@ export function LhppPage() {
           <select
             aria-label="Filter Status LHPP"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusChange(e.target.value)}
             className="h-9 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#151821] px-3 text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:border-[#C81E1E] transition-colors"
           >
             <option value="">Semua Status LHPP</option>
@@ -472,30 +490,6 @@ export function LhppPage() {
             <div className="text-lg font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{stats.published} Terbit</div>
           </div>
         </div>
-      </div>
-
-      {/* Segmented Filter Bar: Status Alur Kerja LHPP */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] rounded-xl w-full max-w-2xl overflow-x-auto">
-        {[
-          { key: '', label: 'Semua Dokumen' },
-          { key: 'SIAP_PREVIEW', label: 'Menunggu QC (Siap Final)' },
-          { key: 'DIKEMBALIKAN', label: 'Dalam Revisi' },
-          { key: 'DRAF', label: 'Draf' },
-          { key: 'FINAL', label: 'Final / Terbit' }
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setStatusFilter(tab.key)}
-            className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
-              statusFilter === tab.key
-                ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
       </div>
 
       {loading ? (

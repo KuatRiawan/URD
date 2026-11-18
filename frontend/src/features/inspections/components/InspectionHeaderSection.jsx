@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import {
   ArrowSquareOut,
@@ -13,22 +13,24 @@ import {
   WarningCircle,
   WarningOctagon
 } from '@phosphor-icons/react';
-import { useToast } from '../../../components/ui/FeedbackProvider.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
 export function InspectionHeaderSection({
   activeDetail,
   lastSavedAt,
-  error,
-  setError,
-  feedback,
-  setFeedback,
+  error: _error,
+  setError: _setError,
+  feedback: _feedback,
+  setFeedback: _setFeedback,
   isInspector,
   user,
   online,
   queuedPhotoCount,
+  workPhase = 'FIELD',
+  setWorkPhase,
   onPreviewPdf,
+  onDownloadDocx,
   onReopenInspection,
   totalItems = 0,
   evaluatedItems = 0,
@@ -41,10 +43,72 @@ export function InspectionHeaderSection({
   draftConclusion = '',
   setFormStep
 }) {
-  const toast = useToast();
   const inspection = activeDetail.inspection;
   const isFinal = inspection.status === 'TERKIRIM';
+  const hasAnyDocument = isFinal || Boolean(inspection.bap_id) || Boolean(inspection.lhpp_id);
   const isAdminKantor = ['ADMIN_KANTOR', 'ADMIN_SISTEM', 'PIMPINAN'].includes(user?.role);
+
+  const hierarchyNodes = [
+    inspection.domain_name || inspection.domain_code || inspection.category_name,
+    inspection.equipment_group_name,
+    inspection.equipment_type_name || inspection.object_name,
+    inspection.equipment_subtype_name
+  ].filter(Boolean);
+
+  const stageItems = [
+    {
+      key: 'field',
+      label: '1. Lapangan',
+      state:
+        isFinal || photosCount > 0 || evaluatedItems > 0 || Boolean(inspectorSig)
+          ? 'DONE'
+          : 'ACTIVE'
+    },
+    {
+      key: 'checklist',
+      label: '2. Checklist',
+      state:
+        isFinal || (totalItems > 0 && missingItems === 0)
+          ? 'DONE'
+          : evaluatedItems > 0
+          ? 'PROGRESS'
+          : 'PENDING'
+    },
+    {
+      key: 'bap',
+      label: '3. BAP & TTD',
+      state:
+        inspection.bap_status === 'FINAL' || (inspection.bap_id && inspectorSig && clientSig)
+          ? 'DONE'
+          : inspection.bap_id || inspectorSig || clientSig
+          ? 'PROGRESS'
+          : 'PENDING'
+    },
+    {
+      key: 'lhpp',
+      label: '4. Draf LHPP',
+      state: inspection.lhpp_id ? 'DONE' : 'PENDING'
+    },
+    {
+      key: 'qc',
+      label: '5. QC Kantor',
+      state: ['APPROVED', 'FINAL'].includes(inspection.lhpp_status)
+        ? 'DONE'
+        : inspection.lhpp_status === 'REVISION'
+        ? 'REVISION'
+        : inspection.lhpp_id
+        ? 'PROGRESS'
+        : 'PENDING'
+    },
+    {
+      key: 'final',
+      label: '6. Final',
+      state:
+        ['FINAL', 'SENT'].includes(inspection.lhpp_status) || inspection.bap_status === 'FINAL'
+          ? 'DONE'
+          : 'PENDING'
+    }
+  ];
 
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
   const [revisionReasonInput, setRevisionReasonInput] = useState('');
@@ -123,7 +187,7 @@ export function InspectionHeaderSection({
         <span className="font-bold text-slate-700 dark:text-slate-300">
           Lembar Pemeriksaan Teknis Lapangan
         </span>
-        <div className="flex items-center gap-1.5 text-[11px] font-medium bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl shrink-0 whitespace-nowrap">
           {isFinal ? (
             <>
               <LockKey size={13} weight="bold" className="text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -186,7 +250,7 @@ export function InspectionHeaderSection({
               </button>
 
               {showFullRevisionHistory && (
-                <div className="mt-2 space-y-2 pl-3 border-l-2 border-rose-300 dark:border-rose-800">
+                <div className="mt-2 space-y-2 pl-3 border-l-2 border-rose-300 dark:border-rose-800 animate-accordion-in">
                   {activeDetail.revisions.slice(1).map((rev) => (
                     <div key={rev.id || rev.revision_no} className="text-[11px] text-slate-700 dark:text-slate-300 space-y-0.5">
                       <div className="flex items-center justify-between font-semibold text-rose-800 dark:text-rose-300">
@@ -238,22 +302,34 @@ export function InspectionHeaderSection({
         </div>
       )}
 
-      {/* Dokumen Resmi Riksa Uji (React-Native-UI-Templates Clean Document Bar) */}
-      {isFinal && (
+      {/* Dokumen Resmi & Draf Lapangan (BAP & LHPP PDF/DOCX) */}
+      {hasAnyDocument && (
         <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 p-3.5 space-y-2.5 shadow-2xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle size={18} weight="fill" className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <CheckCircle
+                size={18}
+                weight="fill"
+                className={`${
+                  isFinal ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'
+                } shrink-0`}
+              />
               <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                Dokumen Resmi Riksa Uji
+                {isFinal ? 'Dokumen Riksa Uji Tersedia' : 'Draf Dokumen Lapangan Aktif'}
               </span>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              Terverifikasi
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                isFinal
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+              }`}
+            >
+              {isFinal ? 'Siap Review & Cetak' : 'BAP Lapangan Aktif'}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* Kartu Dokumen BAP */}
             <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
               <div className="min-w-0 flex items-center gap-2.5">
@@ -265,26 +341,42 @@ export function InspectionHeaderSection({
                     Berita Acara (BAP)
                   </p>
                   <p className="text-[10px] font-mono text-slate-500 truncate">
-                    {inspection.bap_no || 'Telah Terbit'}
+                    {inspection.bap_no || (inspection.bap_id ? 'Draf BAP' : 'Belum Dibuat')}
                   </p>
                 </div>
               </div>
               {inspection.bap_id ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onPreviewPdf(
-                      `/bap/${inspection.bap_id}/pdf`,
-                      `Pratinjau BAP - ${inspection.bap_no || 'BAP'}`,
-                      `${(inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.pdf`
-                    )
-                  }
-                  className="px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-2xs"
-                >
-                  Buka PDF
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onPreviewPdf(
+                        `/bap/${inspection.bap_id}/pdf`,
+                        `Pratinjau BAP - ${inspection.bap_no || 'BAP'}`,
+                        `${(inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.pdf`
+                      )
+                    }
+                    className="px-2.5 py-1.5 rounded-lg bg-[#C81E1E] text-white text-[11px] font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
+                  >
+                    PDF
+                  </button>
+                  {onDownloadDocx && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onDownloadDocx(
+                          `/bap/${inspection.bap_id}/docx`,
+                          `${(inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.docx`
+                        )
+                      }
+                      className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
+                    >
+                      DOCX
+                    </button>
+                  )}
+                </div>
               ) : (
-                <span className="text-[11px] text-slate-400">Siap Cetak</span>
+                <span className="text-[11px] text-slate-400">Draf</span>
               )}
             </div>
 
@@ -299,12 +391,12 @@ export function InspectionHeaderSection({
                     Laporan Hasil (LHPP)
                   </p>
                   <p className="text-[10px] font-mono text-slate-500 truncate">
-                    {inspection.lhpp_no || 'Telah Terbit'}
+                    {inspection.lhpp_no || (inspection.lhpp_id ? 'Draf LHPP' : 'Menunggu Fase 2')}
                   </p>
                 </div>
               </div>
               {inspection.lhpp_id ? (
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() =>
@@ -314,23 +406,37 @@ export function InspectionHeaderSection({
                         `${(inspection.lhpp_no || 'LHPP').replace(/[/\s]/g, '-')}.pdf`
                       )
                     }
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
                   >
-                    Buka PDF
+                    PDF
                   </button>
-                  {isAdminKantor && (
+                  {onDownloadDocx && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onDownloadDocx(
+                          `/lhpp/${inspection.lhpp_id}/docx`,
+                          `${(inspection.lhpp_no || 'LHPP').replace(/[/\s]/g, '-')}.docx`
+                        )
+                      }
+                      className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
+                    >
+                      DOCX
+                    </button>
+                  )}
+                  {(isInspector || isAdminKantor) && (
                     <Link
                       to={`/app/lhpp?lhppId=${inspection.lhpp_id}`}
-                      className="px-2.5 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-2xs inline-flex items-center gap-1"
-                      title="Buka Ruang Kerja QC LHPP"
+                      className="px-2 py-1.5 rounded-lg bg-[#C81E1E] text-white text-[11px] font-bold hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-2xs inline-flex items-center gap-1"
+                      title="Buka Editor & Pratinjau LHPP"
                     >
-                      <span>QC</span>
-                      <ArrowSquareOut size={13} weight="bold" />
+                      <span>{isAdminKantor ? 'QC' : 'Edit'}</span>
+                      <ArrowSquareOut size={12} weight="bold" />
                     </Link>
                   )}
                 </div>
               ) : (
-                <span className="text-[11px] text-slate-400">Siap Cetak</span>
+                <span className="text-[11px] text-slate-400">Fase 2</span>
               )}
             </div>
 
@@ -397,6 +503,80 @@ export function InspectionHeaderSection({
         </div>
       )}
 
+      {/* Hierarki 3 Level Peralatan + Mode 2 Fase + Indikator 6 Tahap Dokumen */}
+      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-2.5 shadow-2xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+          {/* 3-Level Taxonomy Breadcrumb */}
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="font-bold uppercase tracking-wider text-slate-400">Klasifikasi:</span>
+            {hierarchyNodes.map((node, i) => (
+              <span key={`${node}-${i}`} className="inline-flex items-center gap-1">
+                {i > 0 && <span className="text-slate-300 dark:text-slate-600">→</span>}
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold">
+                  {node}
+                </span>
+              </span>
+            ))}
+            {(inspection.template_name || activeDetail.template?.name) && (
+              <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-[#C81E1E] dark:text-rose-300 font-bold">
+                Checklist: {inspection.template_name || activeDetail.template?.name}
+              </span>
+            )}
+          </div>
+
+          {/* Two-Phase Switcher (Fase 1 Lapangan vs Fase 2 Kantor) */}
+          {isInspector && !isFinal && setWorkPhase && (
+            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 self-start lg:self-auto">
+              <button
+                type="button"
+                onClick={() => setWorkPhase('FIELD')}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  workPhase === 'FIELD'
+                    ? 'bg-[#C81E1E] text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                Fase 1: Lapangan &amp; BAP
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkPhase('OFFICE')}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  workPhase === 'OFFICE'
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                Fase 2: Kantor &amp; LHPP
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 6-Stage Independent Workflow Strip */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+          {stageItems.map((st) => (
+            <div
+              key={st.key}
+              className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center justify-between gap-1 ${
+                st.state === 'DONE'
+                  ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
+                  : st.state === 'REVISION'
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
+                  : st.state === 'PROGRESS' || st.state === 'ACTIVE'
+                  ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300'
+                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500'
+              }`}
+            >
+              <span className="truncate">{st.label}</span>
+              <span>
+                {st.state === 'DONE' ? '✓' : st.state === 'REVISION' ? '!' : st.state === 'PROGRESS' || st.state === 'ACTIVE' ? '•' : '○'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Ringkasan PO, Jadwal & Lokasi Pelaksanaan */}
       <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-[#F5F5F7]/70 dark:bg-white/[0.03] p-3 text-xs space-y-1.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -445,7 +625,7 @@ export function InspectionHeaderSection({
 
       {/* Panel Ringkasan Kelengkapan & QC Hasil Inspeksi (Collapsible) */}
       {showQcCards && (
-        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 shadow-2xs animate-fade-in">
+        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 shadow-2xs animate-accordion-in">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-xs font-extrabold text-slate-900 dark:text-white">
             Ringkasan Kelengkapan &amp; Validasi QC Data Teknis

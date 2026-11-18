@@ -6,7 +6,6 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
-  CheckCircle,
   Checks,
   Gear,
   MagnifyingGlass,
@@ -254,15 +253,15 @@ export function TopHeader({
 
         {/* Breadcrumb Navigation */}
         <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs text-[#6E6E73] dark:text-[#98989D] font-medium min-w-0">
-          <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">URD</span>
-          <span className="text-black/20 dark:text-white/20">/</span>
-          <span className="text-[#6E6E73] dark:text-[#98989D]">{currentNav?.group || 'Menu'}</span>
-          <span className="text-black/20 dark:text-white/20">/</span>
-          <span className="font-semibold text-[#C81E1E] dark:text-rose-400 truncate">{currentNav?.label || 'Dasbor'}</span>
+          <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] shrink-0 whitespace-nowrap">URD</span>
+          <span className="hidden xl:inline text-black/20 dark:text-white/20 shrink-0">/</span>
+          <span className="hidden xl:inline text-[#6E6E73] dark:text-[#98989D] whitespace-nowrap">{currentNav?.group || 'Menu'}</span>
+          <span className="text-black/20 dark:text-white/20 shrink-0">/</span>
+          <span className="font-semibold text-[#C81E1E] dark:text-rose-400 truncate whitespace-nowrap">{currentNav?.label || 'Dasbor'}</span>
         </nav>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
         {/* Quick Search Button (Mobile Compact Icon) */}
         <button
           type="button"
@@ -273,18 +272,16 @@ export function TopHeader({
           <MagnifyingGlass size={16} aria-hidden="true" />
         </button>
 
-        {/* Quick Search Button (Cmd+K) - Desktop Spotlight-style */}
+        {/* Quick Search Button - Desktop Spotlight-style */}
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          aria-label="Pencarian Cepat Data (Tekan Cmd+K)"
-          className="hidden sm:inline-flex h-8.5 px-3 items-center gap-2 rounded-[10px] border border-black/[0.07] dark:border-white/[0.08] bg-black/[0.035] dark:bg-white/[0.05] hover:bg-black/[0.06] dark:hover:bg-white/[0.09] text-xs font-medium text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7] transition-all cursor-pointer"
+          aria-label="Pencarian Cepat Data"
+          className="hidden sm:inline-flex h-8.5 px-3 items-center gap-2 rounded-[10px] border border-black/[0.07] dark:border-white/[0.08] bg-black/[0.035] dark:bg-white/[0.05] hover:bg-black/[0.06] dark:hover:bg-white/[0.09] text-xs font-medium text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7] transition-all cursor-pointer whitespace-nowrap shrink-0"
         >
-          <MagnifyingGlass size={14} className="text-[#6E6E73] dark:text-[#98989D]" aria-hidden="true" />
-          <span className="hidden md:inline">Cari nomor PO, klien, alat...</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-[6px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1E222D] px-1.5 py-0.5 text-[10px] font-semibold text-[#6E6E73] dark:text-[#98989D] shadow-[0_1px_1px_rgba(0,0,0,0.04)]">
-            ⌘K
-          </kbd>
+          <MagnifyingGlass size={14} className="text-[#6E6E73] dark:text-[#98989D] shrink-0" aria-hidden="true" />
+          <span className="hidden md:inline xl:hidden">Cari...</span>
+          <span className="hidden xl:inline">Cari nomor PO, klien, alat...</span>
         </button>
 
         {/* Status Offline & Sinkronisasi Khusus Inspector */}
@@ -292,7 +289,7 @@ export function TopHeader({
           <button
             type="button"
             onClick={() => setOfflineDrawerOpen(true)}
-            className={`inline-flex h-8.5 items-center gap-1.5 px-2.5 rounded-[10px] border text-xs font-semibold transition-all cursor-pointer ${
+            className={`inline-flex h-8.5 items-center gap-1.5 px-2.5 rounded-[10px] border text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               !isOnline
                 ? 'bg-amber-500/15 text-amber-900 border-amber-500/30 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800'
                 : pendingSyncCount > 0
@@ -333,7 +330,7 @@ export function TopHeader({
             aria-expanded={notifMenuOpen}
             aria-haspopup="true"
             aria-label="Pusat Notifikasi"
-            className="relative h-8.5 w-8.5 sm:w-auto px-0 sm:px-3 inline-flex items-center justify-center gap-1.5 rounded-full sm:rounded-[10px] border border-black/[0.08] dark:border-white/[0.09] bg-white/80 dark:bg-white/[0.05] text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.04] dark:hover:bg-white/[0.10] transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)] cursor-pointer"
+            className="relative h-8.5 w-8.5 sm:w-auto px-0 sm:px-3 inline-flex items-center justify-center gap-1.5 rounded-full sm:rounded-[10px] border border-black/[0.08] dark:border-white/[0.09] bg-white/80 dark:bg-white/[0.05] text-xs font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.04] dark:hover:bg-white/[0.10] transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)] cursor-pointer whitespace-nowrap shrink-0"
           >
             <Bell size={16} aria-hidden="true" className="text-[#6E6E73] dark:text-[#98989D]" />
             <span className="hidden md:inline">Notifikasi</span>
@@ -345,7 +342,7 @@ export function TopHeader({
           </button>
 
           {notifMenuOpen && (
-            <div className="fixed sm:absolute right-2 sm:right-0 inset-x-2 sm:inset-x-auto mt-2 sm:w-88 md:w-96 rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl shadow-[0_20px_48px_-12px_rgba(0,0,0,0.18)] z-50 animate-pop-in overflow-hidden">
+            <div className="fixed sm:absolute right-2 sm:right-0 inset-x-2 sm:inset-x-auto mt-2 sm:w-88 md:w-96 rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl shadow-[0_20px_48px_-12px_rgba(0,0,0,0.18)] z-50 origin-top-right animate-menu-in overflow-hidden">
               {/* Header Popover */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.07] bg-[#F5F5F7]/70 dark:bg-[#11141C]">
                 <div className="flex items-center gap-2">
@@ -472,7 +469,7 @@ export function TopHeader({
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-60 rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl p-2 shadow-[0_20px_48px_-12px_rgba(0,0,0,0.18)] z-50 animate-pop-in">
+            <div className="absolute right-0 mt-2 w-60 rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl p-2 shadow-[0_20px_48px_-12px_rgba(0,0,0,0.18)] z-50 origin-top-right animate-menu-in">
               <div className="px-3 py-2.5 border-b border-black/[0.06] dark:border-white/[0.07] flex items-center gap-2.5">
                 <span className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-[#C81E1E] text-xs font-bold text-white overflow-hidden shadow-xs">
                   {user?.avatarUrl ? (
@@ -509,10 +506,6 @@ export function TopHeader({
                   <Gear size={15} className="text-[#6E6E73] dark:text-[#98989D]" />
                   <span>Pengaturan Akun</span>
                 </NavLink>
-                <div className="px-3 py-1.5 text-[11px] text-[#6E6E73] dark:text-[#98989D] flex items-center gap-2">
-                  <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" weight="fill" />
-                  <span>Sesi K3 Terverifikasi</span>
-                </div>
               </div>
 
               <div className="pt-1 border-t border-black/[0.06] dark:border-white/[0.07]">

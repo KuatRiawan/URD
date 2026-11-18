@@ -125,10 +125,10 @@ export function UserDetailDrawer({
       closeAriaLabel="Tutup panel detail"
       footer={modalFooter}
     >
-      <div className="p-5 sm:p-6 space-y-6 text-xs">
+      <div className="space-y-6 text-xs">
         {/* User Profile Card */}
-        <div className="flex items-center gap-4 p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02]">
-          <span className="h-14 w-14 rounded-full bg-[#C81E1E] text-white flex items-center justify-center font-extrabold text-lg shrink-0 shadow-sm ring-2 ring-white dark:ring-slate-800">
+        <div className="flex items-center gap-3.5 sm:gap-4 p-3.5 sm:p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02]">
+          <span className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-[#C81E1E] text-white flex items-center justify-center font-extrabold text-base sm:text-lg shrink-0 shadow-sm ring-2 ring-white dark:ring-slate-800">
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover rounded-full" />
             ) : (
@@ -142,7 +142,7 @@ export function UserDetailDrawer({
             <p className="text-xs font-mono text-[#6E6E73] dark:text-[#98989D] truncate mt-0.5">
               {user.email}
             </p>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-black/[0.06] dark:bg-white/[0.10] text-[#1D1D1F] dark:text-[#F5F5F7]">
                 {ROLE_LABELS[user.role] || user.role}
               </span>

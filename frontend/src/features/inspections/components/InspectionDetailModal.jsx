@@ -11,6 +11,7 @@ import { StepSignatures } from './StepSignatures.jsx';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, ArrowRight, FloppyDisk, PaperPlaneTilt, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/Button.jsx';
+import { api } from '../../../lib/api/axios.js';
 
 export function InspectionDetailModal({
   inspectionId,
@@ -37,13 +38,14 @@ export function InspectionDetailModal({
     draftResults,
     setDraftResults,
     draftConclusion,
-    setDraftConclusion,
     draftConclusionNotes,
     setDraftConclusionNotes,
     draftScopes,
     setDraftScopes,
     draftObjectAttributes,
     setDraftObjectAttributes,
+    workPhase,
+    setWorkPhase,
     formStep,
     setFormStep,
     lastSavedAt,
@@ -57,9 +59,13 @@ export function InspectionDetailModal({
     setFindingForm,
     signatures,
     handleSaveDraft,
+    handleSaveFieldProgressAndBap,
     handleDiscardDraft,
     handleAddFinding,
+    handleChecklistResultChange,
+    handleConclusionSelect,
     handleUploadPhoto,
+    handleUpdatePhotoCaption,
     handleDeletePhoto,
     handleUploadItemInlinePhoto,
     handleUploadNameplatePhoto,
@@ -83,9 +89,52 @@ export function InspectionDetailModal({
 
   if (!inspectionId || !activeDetail?.inspection) return null;
 
+  const handleDownloadDocx = async (endpointPath, filename) => {
+    try {
+      const response = await api.get(endpointPath, { responseType: 'blob' });
+      const blob = new Blob([response.data]);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengunduh file DOCX.');
+    }
+  };
+
+  const handleAddFindingFromItem = (item, noteText) => {
+    const itemLabel = item?.label || item?.item_label || 'Parameter Inspeksi';
+    const desc = `[${item?.section || 'Teknis'}] ${itemLabel}${noteText ? `: ${noteText}` : ' — Tidak sesuai standar K3'}`;
+    setFindingForm((prev) => ({
+      ...(prev || { severity: 'MAYOR', recommendation: '' }),
+      description: desc
+    }));
+    toast('Temuan disiapkan di bagian Daftar Temuan Lapangan — lengkapi & klik Tambah.', 'success');
+    setTimeout(() => {
+      document.getElementById('inspection-findings-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
+  };
+
+  const isDraftStatus = activeDetail.inspection.status === 'DRAF';
+  const submitLabel = submitting
+    ? 'Mengirim...'
+    : missingItems > 0
+    ? `Lengkapi ${missingItems} Butir Ceklist`
+    : !draftConclusion
+    ? 'Pilih Kesimpulan Terlebih Dahulu'
+    : !inspectorSig
+    ? 'Tanda Tangan Ahli K3 Diperlukan'
+    : !clientSig
+    ? 'Tanda Tangan Klien Diperlukan'
+    : 'Selesaikan Checklist & Buat Draf LHPP';
+
   const modalFooter = (
-    <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 w-full">
+      <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
         {formStep === 2 && (
           <Button
             type="button"
@@ -97,7 +146,7 @@ export function InspectionDetailModal({
             Kembali ke Ceklist
           </Button>
         )}
-        {isInspector && activeDetail.inspection.status === 'DRAF' && (
+        {isInspector && isDraftStatus && (
           <Button
             type="button"
             variant="ghost"
@@ -117,32 +166,56 @@ export function InspectionDetailModal({
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+        {isInspector && isDraftStatus && (workPhase === 'FIELD' || formStep === 2) && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            icon={FloppyDisk}
+            disabled={submitting}
+            onClick={handleSaveFieldProgressAndBap}
+            className="w-full sm:w-auto"
+          >
+            Simpan Progres Lapangan &amp; Siapkan BAP
+          </Button>
+        )}
         {formStep === 1 ? (
           <Button
             type="button"
             variant="primary"
             size="md"
             icon={ArrowRight}
+            className="w-full sm:w-auto"
             onClick={() => setFormStep(2)}
           >
-            Lanjut: Simpulan &amp; Tanda Tangan
+            {workPhase === 'FIELD'
+              ? 'Lanjut: TTD & Siapkan BAP'
+              : 'Lanjut: Simpulan & Draf LHPP'}
+          </Button>
+        ) : isInspector && isDraftStatus ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            icon={PaperPlaneTilt}
+            disabled={submitting || !canSubmit}
+            loading={submitting}
+            className="w-full sm:w-auto"
+            onClick={handleSubmitFinal}
+          >
+            {submitLabel}
           </Button>
         ) : (
-          isInspector &&
-          activeDetail.inspection.status === 'DRAF' && (
-            <Button
-              type="button"
-              variant="primary"
-              size="md"
-              icon={PaperPlaneTilt}
-              disabled={submitting || !canSubmit}
-              loading={submitting}
-              onClick={handleSubmitFinal}
-            >
-              {submitting ? 'Mengirim...' : 'Kirim & Terbitkan BAP/LHPP'}
-            </Button>
-          )
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            className="w-full sm:w-auto"
+            onClick={onClose}
+          >
+            Tutup Formulir
+          </Button>
         )}
       </div>
     </div>
@@ -187,7 +260,10 @@ export function InspectionDetailModal({
           user={user}
           online={online}
           queuedPhotoCount={queuedPhotoCount}
+          workPhase={workPhase}
+          setWorkPhase={setWorkPhase}
           onPreviewPdf={onPreviewPdf}
+          onDownloadDocx={handleDownloadDocx}
           onDiscardDraft={handleDiscardDraft}
           onReopenInspection={handleReopenInspection}
           totalItems={totalItems}
@@ -205,27 +281,34 @@ export function InspectionDetailModal({
         <InspectionStepNav
           formStep={formStep}
           setFormStep={setFormStep}
+          workPhase={workPhase}
           missingItems={missingItems}
           evaluatedItems={evaluatedItems}
           totalItems={totalItems}
           photosCount={photosCount}
           inspectorSig={inspectorSig}
+          clientSig={clientSig}
+          bapId={activeDetail.inspection.bap_id}
         />
 
         {formStep === 1 && (
-          <div className="space-y-6">
+          <div key="step-1" className="space-y-6 animate-section-in">
             <StepChecklist
               inspection={activeDetail.inspection}
               items={activeDetail.items || []}
               draftResults={draftResults}
               setDraftResults={setDraftResults}
+              onResultChange={handleChecklistResultChange}
               draftObjectAttributes={draftObjectAttributes}
               setDraftObjectAttributes={setDraftObjectAttributes}
               attributeSchema={activeDetail.inspection?.attribute_schema || []}
               categoryCode={activeDetail.inspection?.category_code || ''}
               categoryName={activeDetail.inspection?.category_name || ''}
+              workPhase={workPhase}
               onUploadInlinePhoto={handleUploadItemInlinePhoto}
+              onDeletePhoto={handleDeletePhoto}
               onUploadNameplatePhoto={handleUploadNameplatePhoto}
+              onAddFindingFromItem={handleAddFindingFromItem}
               readOnly={!isInspector || activeDetail.inspection.status !== 'DRAF'}
               missingItems={missingItems}
               evaluatedItems={evaluatedItems}
@@ -244,28 +327,32 @@ export function InspectionDetailModal({
               setPhotoCaption={setPhotoCaption}
               findingForm={findingForm}
               setFindingForm={setFindingForm}
+              workPhase={workPhase}
               isInspector={isInspector}
               status={activeDetail.inspection.status}
               submitting={submitting}
               onUploadPhoto={handleUploadPhoto}
+              onUpdatePhotoCaption={handleUpdatePhotoCaption}
               onDeletePhoto={handleDeletePhoto}
               onAddFinding={handleAddFinding}
               onSaveDraft={handleSaveDraft}
               onNext={() => setFormStep(2)}
+              hideInlineActions={true}
             />
           </div>
         )}
 
         {formStep === 2 && (
-          <div className="space-y-6">
+          <div key="step-2" className="space-y-6 animate-section-in">
             <StepConclusion
               draftConclusion={draftConclusion}
-              setDraftConclusion={setDraftConclusion}
+              setDraftConclusion={handleConclusionSelect}
               draftConclusionNotes={draftConclusionNotes}
               setDraftConclusionNotes={setDraftConclusionNotes}
               draftScopes={draftScopes}
               setDraftScopes={setDraftScopes}
               scopeCatalog={activeDetail.scopeCatalog || []}
+              workPhase={workPhase}
               isInspector={isInspector}
               status={activeDetail.inspection.status}
               submitting={submitting}
@@ -314,15 +401,30 @@ export function InspectionDetailModal({
               totalItems={totalItems}
               photosCount={photosCount}
               draftConclusion={draftConclusion}
+              bapId={activeDetail.inspection.bap_id}
+              bapNo={activeDetail.inspection.bap_no}
+              lhppId={activeDetail.inspection.lhpp_id}
+              lhppNo={activeDetail.inspection.lhpp_no}
+              onPrepareBapDraft={handleSaveFieldProgressAndBap}
+              onPreviewBapPdf={(id) =>
+                onPreviewPdf(
+                  `/bap/${id}/pdf`,
+                  `Pratinjau BAP - ${activeDetail.inspection.bap_no || 'BAP'}`,
+                  `${(activeDetail.inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.pdf`
+                )
+              }
+              onPreviewBapDocx={(id) =>
+                handleDownloadDocx(
+                  `/bap/${id}/docx`,
+                  `${(activeDetail.inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.docx`
+                )
+              }
               onSubmitFinal={handleSubmitFinal}
               onBack={() => setFormStep(1)}
               onSaveDraft={handleSaveDraft}
               onCloseModal={onClose}
               onPreviewPdf={onPreviewPdf}
-              bapId={activeDetail.inspection.bap_id}
-              bapNo={activeDetail.inspection.bap_no}
-              lhppId={activeDetail.inspection.lhpp_id}
-              lhppNo={activeDetail.inspection.lhpp_no}
+              hideInlineActions={true}
             />
           </div>
         )}

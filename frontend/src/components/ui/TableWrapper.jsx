@@ -1,6 +1,6 @@
 export function TableWrapper({ children, className = '', containerClassName = '' }) {
   return (
-    <div className={`w-full overflow-hidden rounded-2xl border border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] transition-colors ${containerClassName}`}>
+    <div className={`w-full overflow-hidden rounded-2xl border border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[#151821] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] transition-colors animate-fade-in ${containerClassName}`}>
       <div className="w-full overflow-x-auto scrollbar-thin">
         <table className={`w-full text-left border-collapse text-xs ${className}`}>
           {children}
@@ -29,7 +29,7 @@ export function TableBody({ children, className = '' }) {
 export function TableRow({ children, className = '', isClickable = false, ...props }) {
   return (
     <tr
-      className={`transition-colors ${
+      className={`transition-colors duration-150 ${
         isClickable
           ? 'hover:bg-[#F5F5F7]/80 dark:hover:bg-white/[0.04] cursor-pointer'
           : 'hover:bg-[#F5F5F7]/50 dark:hover:bg-white/[0.025]'

@@ -17,8 +17,9 @@ import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 export function DocumentDistributionPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const [searchParams] = useSearchParams();
-  const initialStatusParam = searchParams.get('status');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawUrlStatus = searchParams.get('status');
+  const urlStatus = rawUrlStatus === 'MENUNGGU_PENGIRIMAN' ? 'SIAP_DIKIRIM' : (rawUrlStatus || '');
 
   const isMarketingOrAdmin = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'MARKETING'].includes(user?.role);
   const isReadOnly = ['PIMPINAN', 'MANAGER'].includes(user?.role);
@@ -47,9 +48,24 @@ export function DocumentDistributionPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [targetFilter, setTargetFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState(
-    initialStatusParam === 'MENUNGGU_PENGIRIMAN' ? 'SIAP_DIKIRIM' : (initialStatusParam || '')
-  );
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
+
+  useEffect(() => {
+    setStatusFilter(urlStatus);
+  }, [urlStatus]);
+
+  const handleStatusChange = (nextStatus) => {
+    setStatusFilter(nextStatus);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (nextStatus) next.set('status', nextStatus);
+        else next.delete('status');
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   // Update Status Modal
   const [selectedItem, setSelectedItem] = useState(null);
@@ -215,7 +231,7 @@ export function DocumentDistributionPage() {
         summary={summary}
         statusFilter={statusFilter}
         targetFilter={targetFilter}
-        onSelectStatus={setStatusFilter}
+        onSelectStatus={handleStatusChange}
         onSelectTarget={setTargetFilter}
       />
 
@@ -225,7 +241,7 @@ export function DocumentDistributionPage() {
         targetFilter={targetFilter}
         setTargetFilter={setTargetFilter}
         statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
+        setStatusFilter={handleStatusChange}
       />
 
       {loading ? (

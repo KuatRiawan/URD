@@ -175,61 +175,63 @@ export function CreatePoWizardModal({
 
         {error && <ErrorBanner message={error} onRetry={() => setError('')} />}
 
-        {poWizardStep === 1 && (
-          <StepPoIdentity
-            createForm={createForm}
-            setCreateForm={setCreateForm}
-          />
-        )}
+        <div key={`po-step-${poWizardStep}`} className="animate-section-in">
+          {poWizardStep === 1 && (
+            <StepPoIdentity
+              createForm={createForm}
+              setCreateForm={setCreateForm}
+            />
+          )}
 
-        {poWizardStep === 2 && (
-          <StepPoClient
-            createForm={createForm}
-            setCreateForm={setCreateForm}
-            clientMode={clientMode}
-            setClientMode={setClientMode}
-            clients={clients}
-            clientLocations={clientLocations}
-            clientContacts={clientContacts}
-            handleClientChange={handleClientChange}
-            setError={setError}
-          />
-        )}
+          {poWizardStep === 2 && (
+            <StepPoClient
+              createForm={createForm}
+              setCreateForm={setCreateForm}
+              clientMode={clientMode}
+              setClientMode={setClientMode}
+              clients={clients}
+              clientLocations={clientLocations}
+              clientContacts={clientContacts}
+              handleClientChange={handleClientChange}
+              setError={setError}
+            />
+          )}
 
-        {poWizardStep === 3 && (
-          <StepPoUnits
-            clientMode={clientMode}
-            createForm={createForm}
-            setCreateForm={setCreateForm}
-            clientObjects={clientObjects}
-            toggleObjectSelection={toggleObjectSelection}
-            newUnitRow={newUnitRow}
-            setNewUnitRow={setNewUnitRow}
-            categories={categories}
-            handleAddInlineUnit={handleAddInlineUnit}
-            removeInlineUnit={removeInlineUnit}
-            handleOpenCsvImport={handleOpenCsvImport}
-          />
-        )}
+          {poWizardStep === 3 && (
+            <StepPoUnits
+              clientMode={clientMode}
+              createForm={createForm}
+              setCreateForm={setCreateForm}
+              clientObjects={clientObjects}
+              toggleObjectSelection={toggleObjectSelection}
+              newUnitRow={newUnitRow}
+              setNewUnitRow={setNewUnitRow}
+              categories={categories}
+              handleAddInlineUnit={handleAddInlineUnit}
+              removeInlineUnit={removeInlineUnit}
+              handleOpenCsvImport={handleOpenCsvImport}
+            />
+          )}
 
-        {poWizardStep === 4 && (
-          <StepPoSchedule
-            createForm={createForm}
-            setCreateForm={setCreateForm}
-            inspectors={inspectors}
-            user={currentUser}
-          />
-        )}
+          {poWizardStep === 4 && (
+            <StepPoSchedule
+              createForm={createForm}
+              setCreateForm={setCreateForm}
+              inspectors={inspectors}
+              user={currentUser}
+            />
+          )}
 
-        {poWizardStep === 5 && (
-          <StepPoReview
-            createForm={createForm}
-            clientMode={clientMode}
-            clients={clients}
-            inspectors={inspectors}
-            user={currentUser}
-          />
-        )}
+          {poWizardStep === 5 && (
+            <StepPoReview
+              createForm={createForm}
+              clientMode={clientMode}
+              clients={clients}
+              inspectors={inspectors}
+              user={currentUser}
+            />
+          )}
+        </div>
       </div>
     </Modal>
   );

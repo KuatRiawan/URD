@@ -12,7 +12,7 @@ export function Card({ children, className = '', accent: _accent = null, ...prop
 export function CardHeader({ children, className = '', ...props }) {
   return (
     <div
-      className={`border-b border-black/[0.05] dark:border-white/[0.06] px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${className}`}
+      className={`border-b border-black/[0.05] dark:border-white/[0.06] px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${className}`}
       {...props}
     >
       {children}
@@ -28,13 +28,21 @@ export function CardTitle({ children, className = '', ...props }) {
   );
 }
 
-export function CardDescription() {
-  return null;
+export function CardDescription({ className = '', children, ...props }) {
+  if (!children) return null;
+  return (
+    <p
+      className={`mt-1 text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed ${className}`}
+      {...props}
+    >
+      {children}
+    </p>
+  );
 }
 
 export function CardContent({ children, className = '', ...props }) {
   return (
-    <div className={`p-5 ${className}`} {...props}>
+    <div className={`p-4 sm:p-5 ${className}`} {...props}>
       {children}
     </div>
   );
@@ -43,7 +51,7 @@ export function CardContent({ children, className = '', ...props }) {
 export function CardFooter({ children, className = '', ...props }) {
   return (
     <div
-      className={`border-t border-black/[0.05] dark:border-white/[0.06] bg-[#FAFAFC] dark:bg-[#1B1F2A]/60 px-5 py-3.5 flex items-center justify-between gap-3 text-xs text-[#6E6E73] dark:text-[#98989D] ${className}`}
+      className={`border-t border-black/[0.05] dark:border-white/[0.06] bg-[#FAFAFC] dark:bg-[#1B1F2A]/60 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-[#6E6E73] dark:text-[#98989D] ${className}`}
       {...props}
     >
       {children}

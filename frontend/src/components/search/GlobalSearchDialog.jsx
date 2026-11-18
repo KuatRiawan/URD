@@ -130,9 +130,6 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
               <X size={15} weight="bold" />
             </button>
           )}
-          <kbd className="hidden sm:inline-flex items-center rounded-[7px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D]">
-            ESC
-          </kbd>
         </div>
 
         {/* Results Area */}
@@ -207,12 +204,6 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
               })}
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-black/[0.06] dark:border-white/[0.07] bg-[#F5F5F7]/70 dark:bg-[#11141C]/80 px-4 py-2.5 text-[11px] font-medium text-[#6E6E73] dark:text-[#98989D]">
-          <span>Pencarian Cepat Antar-Modul</span>
-          <span>Tekan ESC untuk menutup</span>
         </div>
       </div>
     </div>

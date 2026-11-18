@@ -26,7 +26,7 @@ export const ROLE_ALIASES = {
 };
 
 export const PO_SUBMENUS = [
-  { to: '/app/orders', label: 'Semua PO', statusKey: '' },
+  { to: '/app/orders', label: 'Semua PO', statusKey: '', isDefault: true },
   { to: '/app/orders?status=ORDER_BARU', label: 'PO Baru', statusKey: 'ORDER_BARU' },
   { to: '/app/orders?status=TERJADWAL', label: 'Terjadwal', statusKey: 'TERJADWAL' },
   { to: '/app/orders?status=SEDANG_DIPERIKSA', label: 'Diperiksa', statusKey: 'SEDANG_DIPERIKSA' },
@@ -35,11 +35,18 @@ export const PO_SUBMENUS = [
 ];
 
 export const EXECUTIVE_DASHBOARD_SUBMENUS = [
-  { to: '/app/dashboard?tab=overview', label: 'Ringkasan Eksekutif' },
+  { to: '/app/dashboard?tab=overview', label: 'Ringkasan Eksekutif', isDefault: true },
   { to: '/app/dashboard?tab=orders', label: 'Monitoring PO & Unit' },
   { to: '/app/dashboard?tab=workload', label: 'Beban Kerja Tim K3' },
   { to: '/app/dashboard?tab=documents', label: 'Dokumen & Kepatuhan' },
   { to: '/app/dashboard?tab=activities', label: 'Jejak Aktivitas' }
+];
+
+export const SCHEDULE_SUBMENUS = [
+  { to: '/app/schedule', label: 'Semua Agenda', isDefault: true },
+  { to: '/app/schedule?status=CONFIRMED', label: 'Terkonfirmasi' },
+  { to: '/app/schedule?status=PENDING', label: 'Menunggu Respon' },
+  { to: '/app/schedule?status=REJECTED', label: 'Perlu Re-alokasi' }
 ];
 
 export const INSPECTION_SUBMENUS = [
@@ -47,10 +54,55 @@ export const INSPECTION_SUBMENUS = [
   { to: '/app/inspections?tab=templates', label: 'Master Template' }
 ];
 
+export const LHPP_SUBMENUS = [
+  { to: '/app/lhpp', label: 'Semua Dokumen', isDefault: true },
+  { to: '/app/lhpp?status=SIAP_PREVIEW', label: 'Menunggu QC' },
+  { to: '/app/lhpp?status=DIKEMBALIKAN', label: 'Dalam Revisi' },
+  { to: '/app/lhpp?status=DRAF', label: 'Draf' },
+  { to: '/app/lhpp?status=FINAL', label: 'Final / Terbit' }
+];
+
+export const BAP_SUBMENUS = [
+  { to: '/app/bap', label: 'Semua BAP', isDefault: true },
+  { to: '/app/bap?status=DRAF', label: 'Draf BAP' },
+  { to: '/app/bap?status=FINAL', label: 'BAP Final' }
+];
+
+export const DISTRIBUTION_SUBMENUS = [
+  { to: '/app/distributions', label: 'Semua Distribusi', isDefault: true },
+  { to: '/app/distributions?status=SIAP_DIKIRIM', label: 'Siap Dikirim', aliases: ['menunggu_pengiriman'] },
+  { to: '/app/distributions?status=DIKIRIM', label: 'Dalam Pengiriman' },
+  { to: '/app/distributions?status=DITERIMA', label: 'Diterima' }
+];
+
+export const SUKET_SUBMENUS = [
+  { to: '/app/suket', label: 'Semua Suket', isDefault: true },
+  { to: '/app/suket?status=BERKAS_DISIAPKAN', label: 'Proses Berkas' },
+  { to: '/app/suket?status=DIAJUKAN', label: 'Di Disnaker' },
+  { to: '/app/suket?status=TERBIT', label: 'Suket Terbit' },
+  { to: '/app/suket?status=EXPIRING_SOON', label: 'Segera Habis' }
+];
+
+export const ISSUE_SUBMENUS = [
+  { to: '/app/issues', label: 'Semua Kendala', isDefault: true },
+  { to: '/app/issues?tab=ACTION_NEEDED', label: 'Perlu Tindak Lanjut' },
+  { to: '/app/issues?tab=HIGH_PRIORITY', label: 'Prioritas Tinggi' },
+  { to: '/app/issues?tab=RESOLVED', label: 'Selesai' }
+];
+
 export const USERS_SUBMENUS = [
-  { to: '/app/users?tab=users', label: 'Daftar Akun Pengguna' },
-  { to: '/app/users?tab=rbac_matrix', label: 'Matriks Peran & Hak Akses' },
-  { to: '/app/users?tab=competencies', label: 'Kredensial Ahli K3 & SKP' }
+  { to: '/app/users?tab=users', label: 'Daftar Akun Pengguna', isDefault: true },
+  { to: '/app/users?tab=rbac_matrix', label: 'Matriks Peran & Hak Akses', aliases: ['rbac'] },
+  { to: '/app/users?tab=competencies', label: 'Kredensial Ahli K3 & SKP', aliases: ['competency'] }
+];
+
+export const AUDIT_SUBMENUS = [
+  { to: '/app/audit-logs', label: 'Semua Aktivitas', isDefault: true },
+  { to: '/app/audit-logs?category=AUTH', label: 'Autentikasi & Akun' },
+  { to: '/app/audit-logs?category=ORDER', label: 'PO & Order Riksa' },
+  { to: '/app/audit-logs?category=INSP', label: 'Inspeksi & QC' },
+  { to: '/app/audit-logs?category=LHPP', label: 'LHPP & Suket K3' },
+  { to: '/app/audit-logs?category=SYSTEM', label: 'Konfigurasi & Master' }
 ];
 
 export const REMINDER_SUBMENUS = [
@@ -72,30 +124,72 @@ const ROLE_TAB_TITLES = {
 };
 
 export const SYSTEM_CONFIG_SUBMENUS = [
-  { to: '/app/settings?tab=role_specific&subtab=company_profile', label: 'Profil Lembaga PJK3' },
-  { to: '/app/settings?tab=role_specific&subtab=checklists', label: 'Checklist Pemeriksaan' },
-  { to: '/app/settings?tab=role_specific&subtab=equipment_master', label: 'Katalog Klasifikasi Alat' },
-  { to: '/app/settings?tab=role_specific&subtab=lhpp_templates', label: 'Template Dokumen LHPP' },
-  { to: '/app/settings?tab=role_specific&subtab=numbering', label: 'Format Nomor Dokumen' },
-  { to: '/app/settings?tab=role_specific&subtab=gateways', label: 'Gateway WA & SMTP' },
-  { to: '/app/settings?tab=role_specific&subtab=reminders', label: 'Template Pengingat' },
-  { to: '/app/settings?tab=role_specific&subtab=backups', label: 'Cadangan Database' },
-  { to: '/app/settings?tab=role_specific&subtab=system_info', label: 'Integritas Sistem' }
+  {
+    to: '/app/settings?tab=role_specific&subtab=company_profile',
+    label: 'Profil Lembaga PJK3',
+    aliases: ['company', 'company_profile', 'role_specific'],
+    isDefault: true
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=checklists',
+    label: 'Checklist Pemeriksaan',
+    aliases: ['checklists']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=equipment_master',
+    label: 'Katalog Klasifikasi Alat',
+    aliases: ['equipment', 'equipment_master']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=lhpp_templates',
+    label: 'Template Dokumen LHPP',
+    aliases: ['lhpp', 'lhpp_templates']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=numbering',
+    label: 'Format Nomor Dokumen',
+    aliases: ['numbering']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=gateways',
+    label: 'Gateway WA & SMTP',
+    aliases: ['gateways']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=reminders',
+    label: 'Template Pengingat',
+    aliases: ['reminders']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=backups',
+    label: 'Cadangan Database',
+    aliases: ['backups']
+  },
+  {
+    to: '/app/settings?tab=role_specific&subtab=system_info',
+    label: 'Integritas Sistem',
+    aliases: ['system', 'system_info']
+  }
 ];
 
 export function getSettingsSubmenus(role) {
-  const items = [
-    { to: '/app/settings?tab=profile', label: 'Profil Saya' },
-    { to: '/app/settings?tab=security', label: 'Keamanan & Sandi' },
-    { to: '/app/settings?tab=appearance', label: 'Tampilan & Tema' },
-    { to: '/app/settings?tab=role_specific', label: ROLE_TAB_TITLES[role] || 'Konfigurasi Peran' }
-  ];
+  const isAdmin = role === 'ADMIN_SISTEM';
+  const roleConfigItem = {
+    to: '/app/settings?tab=role_specific',
+    label: ROLE_TAB_TITLES[role] || 'Konfigurasi Peran',
+    isDefault: isAdmin
+  };
 
-  if (role === 'ADMIN_SISTEM') {
-    items.push({ header: 'Sistem & Master Data' }, ...SYSTEM_CONFIG_SUBMENUS);
+  if (isAdmin) {
+    roleConfigItem.submenus = SYSTEM_CONFIG_SUBMENUS;
   }
 
-  return items;
+  return [
+    { to: '/app/settings?tab=profile', label: 'Profil Saya', isDefault: !isAdmin },
+    { to: '/app/settings?tab=security', label: 'Keamanan & Sandi' },
+    { to: '/app/settings?tab=appearance', label: 'Tampilan & Tema' },
+    roleConfigItem
+  ];
 }
 
 /**
@@ -106,9 +200,16 @@ export function attachSubmenus(item, role) {
   const byPath = {
     '/app/dashboard': ['PIMPINAN', 'MANAGER'].includes(role) ? EXECUTIVE_DASHBOARD_SUBMENUS : null,
     '/app/orders': PO_SUBMENUS,
+    '/app/schedule': SCHEDULE_SUBMENUS,
     '/app/inspections': INSPECTION_SUBMENUS,
+    '/app/lhpp': LHPP_SUBMENUS,
+    '/app/bap': BAP_SUBMENUS,
+    '/app/distributions': DISTRIBUTION_SUBMENUS,
+    '/app/suket': SUKET_SUBMENUS,
     '/app/reminders': REMINDER_SUBMENUS,
+    '/app/issues': ISSUE_SUBMENUS,
     '/app/users': USERS_SUBMENUS,
+    '/app/audit-logs': AUDIT_SUBMENUS,
     '/app/settings': getSettingsSubmenus(role)
   };
 
@@ -123,35 +224,58 @@ export function attachSubmenus(item, role) {
  * (sub-halaman yang otomatis tampil) yang disorot agar navigasi tidak buta.
  */
 export function resolveActiveSubmenu(submenus = [], location) {
+  const current = new URLSearchParams(location.search);
+  const rawTab = (current.get('tab') || '').toLowerCase();
+  const rawSubtab = (current.get('subtab') || '').toLowerCase();
+  const rawStatus = (current.get('status') || '').toLowerCase();
+  const isPersonalSettingsTab =
+    location.pathname === '/app/settings' && ['profile', 'security', 'appearance'].includes(rawTab);
+
   let bestTo = null;
   let bestScore = -1;
 
   for (const sub of submenus) {
     if (!sub?.to || sub.header) continue;
 
+    if (Array.isArray(sub.submenus) && sub.submenus.length > 0 && !isPersonalSettingsTab) {
+      const nestedMatch = resolveActiveSubmenu(sub.submenus, location);
+      if (nestedMatch && 1 > bestScore) {
+        bestScore = 1;
+        bestTo = sub.to;
+      }
+    }
+
     const [pathname, search = ''] = sub.to.split('?');
     if (location.pathname !== pathname) continue;
 
     const params = new URLSearchParams(search);
-    const current = new URLSearchParams(location.search);
     let matched = true;
     for (const [key, value] of params.entries()) {
-      if ((current.get(key) || '') !== value) {
+      if ((current.get(key) || '').toLowerCase() !== value.toLowerCase()) {
         matched = false;
         break;
       }
     }
 
+    let score = matched ? [...params.keys()].length : -1;
+
+    if (!matched && Array.isArray(sub.aliases)) {
+      const candidate = rawSubtab || (isPersonalSettingsTab ? '' : rawTab) || rawStatus;
+      if (candidate && sub.aliases.includes(candidate)) {
+        matched = true;
+        score = Math.max([...params.keys()].length, 1);
+      }
+    }
+
     if (!matched) continue;
 
-    const score = [...params.keys()].length;
     if (score > bestScore) {
       bestScore = score;
       bestTo = sub.to;
     }
   }
 
-  if (!bestTo) {
+  if (!bestTo && !isPersonalSettingsTab) {
     const fallback = submenus.find(
       (sub) => sub?.isDefault && sub.to && sub.to.split('?')[0] === location.pathname
     );

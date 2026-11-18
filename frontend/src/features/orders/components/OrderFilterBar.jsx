@@ -4,38 +4,8 @@ import { ORDER_STATUS_LABELS } from '../../../lib/utils/format.js';
 export function OrderFilterBar({ q, setQ, statusFilter, setStatusFilter }) {
   const hasFilter = Boolean(q || statusFilter);
 
-  const QUICK_TABS = [
-    { key: '', label: 'Semua PO' },
-    { key: 'ORDER_BARU', label: 'PO Baru' },
-    { key: 'TERJADWAL', label: 'Terjadwal' },
-    { key: 'SEDANG_DIPERIKSA', label: 'Diperiksa' },
-    { key: 'MENUNGGU_DOKUMEN', label: 'Tunggu Dokumen' },
-    { key: 'SELESAI', label: 'Selesai' }
-  ];
-
   return (
     <div className="space-y-3">
-      {/* Quick Status Filter Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl w-full max-w-2xl overflow-x-auto border border-black/[0.06] dark:border-white/[0.08]">
-        {QUICK_TABS.map((tab) => {
-          const isActive = statusFilter === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setStatusFilter(tab.key)}
-              className={`py-1.5 px-3 text-xs font-semibold rounded-[9px] whitespace-nowrap transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-white dark:bg-[#1C1F2B] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                  : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Search Input & Detailed Dropdown */}
       <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] items-stretch sm:items-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <div className="relative flex-1">

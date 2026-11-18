@@ -75,21 +75,148 @@ const saveDraftSchema = Joi.object({
   conclusion: Joi.string()
     .valid('MEMENUHI_SYARAT', 'MEMENUHI_SYARAT_DENGAN_CATATAN', 'TIDAK_MEMENUHI_SYARAT')
     .allow('', null),
-  conclusionNotes: Joi.string().max(2000).allow('', null),
+  conclusionNotes: Joi.string().max(4000).allow('', null),
+  scopeItems: Joi.array().items(Joi.string().max(160)).optional(),
+  inspectionDate: Joi.date().iso().allow('', null).optional(),
+  prepareBapDraft: Joi.boolean().optional(),
+  workPhase: Joi.string().valid('FIELD', 'OFFICE').optional(),
   results: Joi.array()
     .items(
       Joi.object({
         itemId: Joi.string().uuid().required(),
         choiceValue: Joi.string().valid('SESUAI', 'TIDAK_SESUAI', 'TIDAK_BERLAKU').allow('', null),
         numberValue: Joi.number().allow(null),
-        textValue: Joi.string().max(1000).allow('', null),
+        textValue: Joi.string().max(4000).allow('', null),
         dateValue: Joi.date().iso().allow('', null),
-        note: Joi.string().max(1000).allow('', null)
+        note: Joi.string().max(1500).allow('', null)
       })
     )
     .default([]),
   objectAttributes: Joi.object().unknown(true).optional()
 });
+
+const PHOTO_INPUT_TYPES = new Set(['PHOTO', 'FILE']);
+const NUMERIC_INPUT_TYPES = new Set(['NUMBER', 'MEASUREMENT']);
+const CONFORMITY_INPUT_TYPES = new Set(['CHOICE', 'CONFORMITY']);
+
+const DOMAIN_STANDARD_MAP = {
+  PAA: 'Permenaker No. 8 Tahun 2020',
+  PAPA: 'Permenaker No. 8 Tahun 2020',
+  PUBT: 'Permenaker No. 37 Tahun 2016',
+  PTP: 'Permenaker No. 38 Tahun 2016',
+  ILPP: 'Permenaker No. 12 Tahun 2015 & Permenaker No. 02/MEN/1989',
+  LIS: 'Permenaker No. 12 Tahun 2015',
+  IPP: 'Permenaker No. 02/MEN/1989',
+  IPK: 'Permenaker No. 02/MEN/1983',
+  LE: 'Permenaker No. 06 Tahun 2017',
+  ELEVATOR_ESKALATOR: 'Permenaker No. 06 Tahun 2017'
+};
+
+function isResultFilled(item, result) {
+  if (!result) return false;
+  const t = String(item?.input_type || 'CHOICE').toUpperCase();
+  if (CONFORMITY_INPUT_TYPES.has(t)) {
+    return Boolean(result.choice_value || result.choiceValue || result.text_value || result.textValue);
+  }
+  if (NUMERIC_INPUT_TYPES.has(t)) {
+    const nv = result.number_value !== undefined ? result.number_value : result.numberValue;
+    return nv !== null && nv !== undefined && String(nv) !== '';
+  }
+  if (t === 'DATE') {
+    return Boolean(result.date_value || result.dateValue || result.text_value || result.textValue);
+  }
+  return Boolean(result.text_value || result.textValue || result.choice_value || result.choiceValue);
+}
+
+function isConditionalItemActive(item, itemsBySeq, resultByItemId) {
+  if (!item?.condition_parent_seq) return true;
+  const parentItem = itemsBySeq.get(Number(item.condition_parent_seq));
+  if (!parentItem) return true;
+  const parentResult = resultByItemId.get(parentItem.id);
+  if (!parentResult) return false;
+  const expected = String(item.condition_expected_value || '').trim().toLowerCase();
+  const actual = String(
+    parentResult.choice_value ||
+      parentResult.choiceValue ||
+      parentResult.text_value ||
+      parentResult.textValue ||
+      (parentResult.number_value !== null && parentResult.number_value !== undefined ? parentResult.number_value : '') ||
+      ''
+  )
+    .trim()
+    .toLowerCase();
+  if (!expected) return Boolean(actual);
+  return actual === expected;
+}
+
+function resolveFactualIdentityPrefill(item, ctx, seenAddressRef) {
+  const section = String(item.section || '').toLowerCase();
+  if (!section.includes('data umum') && !section.includes('identitas')) {
+    return null;
+  }
+  const t = String(item.input_type || 'TEXT').toUpperCase();
+  if (!['TEXT', 'LONG_TEXT', 'NUMBER', 'MEASUREMENT', 'DATE'].includes(t)) {
+    return null;
+  }
+
+  const label = String(item.label || '').toLowerCase();
+  let textVal = null;
+  let numVal = null;
+  let dateVal = null;
+
+  if (label === 'pemilik' || label.includes('perusahaan pemilik') || label.includes('nama perusahaan')) {
+    textVal = ctx.client_name || null;
+  } else if (label === 'pemakai' || label.includes('perusahaan pemakai')) {
+    textVal = ctx.client_name || null;
+  } else if (label === 'alamat' || label.includes('alamat')) {
+    if (seenAddressRef.count === 0 && !label.includes('pemakai')) {
+      seenAddressRef.count += 1;
+      textVal = ctx.client_address || ctx.location_address || null;
+    } else {
+      seenAddressRef.count += 1;
+      textVal = ctx.location_address || ctx.client_address || null;
+    }
+  } else if (label.includes('pengurus') || label.includes('penanggung')) {
+    textVal = ctx.contact_name || null;
+  } else if (label.includes('lokasi unit') || label === 'lokasi') {
+    textVal = ctx.install_location || ctx.location_name || null;
+  } else if (label.includes('jenis pesawat') || label.includes('jenis bejana') || label.includes('jenis unit')) {
+    textVal = ctx.object_name || ctx.equipment_type_name || null;
+  } else if (label.includes('nomor seri') || label.includes('no. seri')) {
+    textVal = ctx.serial_number || null;
+  } else if (label.includes('merk') || label.includes('model')) {
+    const bm = [ctx.brand, ctx.model].filter(Boolean).join(' / ');
+    textVal = bm || null;
+  } else if (label === 'tahun' || label.includes('tahun pembuatan')) {
+    textVal = ctx.manufacture_year ? String(ctx.manufacture_year) : null;
+  } else if (label.includes('kapasitas') || label.includes('swl')) {
+    if (NUMERIC_INPUT_TYPES.has(t)) {
+      const parsed = parseFloat(String(ctx.capacity || '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+      if (!Number.isNaN(parsed)) numVal = parsed;
+    } else {
+      const cap = [ctx.capacity, ctx.capacity_unit].filter(Boolean).join(' ');
+      textVal = cap || null;
+    }
+  } else if (label.includes('standar')) {
+    textVal = DOMAIN_STANDARD_MAP[(ctx.domain_code || ctx.category_code || '').toUpperCase()] || null;
+  } else if (label.includes('tanggal diperiksa') || label.includes('tanggal pemeriksaan')) {
+    const dt = ctx.planned_start_at || ctx.inspected_at || new Date();
+    if (t === 'DATE') {
+      dateVal = new Date(dt).toISOString().slice(0, 10);
+    } else {
+      textVal = new Date(dt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+  } else if (label.includes('jenis pemeriksaan') || label.includes('status riksa')) {
+    textVal = ctx.inspection_type_name || ctx.inspection_type_code || null;
+  } else if (label.includes('ijin pemakai') || label.includes('izin pemakai')) {
+    textVal = ctx.previous_permit_no || null;
+  } else if (label.includes('diperiksa oleh')) {
+    textVal = 'PT UPAYA RIKSA DAYA';
+  }
+
+  if (textVal === null && numVal === null && dateVal === null) return null;
+  return { textVal, numVal, dateVal };
+}
 
 const findingSchema = Joi.object({
   itemId: Joi.string().uuid().allow('', null),
@@ -745,6 +872,57 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+async function seedIdentityPrefillIfEmpty(db, inspectionId, templateVersionId, orderId, objectId, activity) {
+  const { rows: existingRes } = await db.query(
+    'SELECT count(*)::int AS cnt FROM inspection_results WHERE inspection_id = $1',
+    [inspectionId]
+  );
+  if ((existingRes[0]?.cnt || 0) > 0) return;
+
+  const { rows: ctxRows } = await db.query(
+    `SELECT c.name AS client_name, c.address AS client_address,
+            cl.name AS location_name, cl.address AS location_address,
+            cc.name AS contact_name,
+            t.name AS object_name, t.brand, t.model, t.manufacturer, t.serial_number,
+            t.manufacture_year, t.capacity, t.capacity_unit, t.install_location, t.previous_permit_no,
+            oc.code AS category_code,
+            COALESCE(eq.domain_code, oc.code) AS domain_code,
+            eq.name AS equipment_type_name,
+            COALESCE(act.inspection_type_code, t.inspection_type_code) AS inspection_type_code,
+            itype.name AS inspection_type_name,
+            act.planned_start_at
+     FROM orders o
+     JOIN clients c ON c.id = o.client_id
+     LEFT JOIN client_locations cl ON cl.id = o.location_id
+     LEFT JOIN client_contacts cc ON cc.id = o.contact_id
+     JOIN test_objects t ON t.id = $2
+     JOIN object_categories oc ON oc.id = t.category_id
+     LEFT JOIN equipment_types eq ON eq.id = COALESCE(t.equipment_name_id, t.equipment_type_id)
+     LEFT JOIN inspection_activities act ON act.id = $3
+     LEFT JOIN inspection_types itype ON itype.code = COALESCE(act.inspection_type_code, t.inspection_type_code)
+     WHERE o.id = $1`,
+    [orderId, objectId, activity?.id || null]
+  );
+  const ctx = ctxRows[0];
+  if (!ctx) return;
+
+  const { rows: items } = await db.query(
+    'SELECT * FROM inspection_template_items WHERE version_id = $1 ORDER BY seq ASC',
+    [templateVersionId]
+  );
+  const seenAddressRef = { count: 0 };
+  for (const item of items) {
+    const pre = resolveFactualIdentityPrefill(item, ctx, seenAddressRef);
+    if (!pre) continue;
+    await db.query(
+      `INSERT INTO inspection_results (inspection_id, item_id, number_value, text_value, date_value)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (inspection_id, item_id) DO NOTHING`,
+      [inspectionId, item.id, pre.numVal, pre.textVal, pre.dateVal]
+    );
+  }
+}
+
 // Mulai atau ambil form inspeksi untuk order & objek tertentu
 router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectionSchema), async (req, res, next) => {
   try {
@@ -825,6 +1003,7 @@ router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectio
             [orderId, objectId]
           );
       if (existing[0]) {
+        await seedIdentityPrefillIfEmpty(db, existing[0].id, existing[0].template_version_id, orderId, objectId, activity);
         // Pemeriksaan mungkin sudah dibuat lebih awal saat BAP disiapkan.
         // Memulai pemeriksaan tetap harus menandai aktivitas sedang diperiksa.
         if (activity) {
@@ -855,7 +1034,8 @@ router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectio
 
       let verId = templateVersionId;
       if (!verId) {
-        // Dynamic Resolution: Subtype -> Equipment Type -> Category
+        // Dynamic Resolution: Subtype -> Equipment Name/Type -> Equipment Group -> Name Match -> Category
+        const resolvedEqId = obj.equipment_name_id || obj.equipment_type_id || null;
         const { rows: verRows } = await db.query(
           `SELECT tv.id
            FROM inspection_templates t
@@ -863,18 +1043,30 @@ router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectio
            WHERE tv.status = 'AKTIF'
              AND (
                (t.subtype_id IS NOT NULL AND t.subtype_id = $1)
+               OR (t.equipment_name_id IS NOT NULL AND t.equipment_name_id = $2)
                OR (t.equipment_type_id IS NOT NULL AND t.equipment_type_id = $2)
-               OR (t.category_id = $3)
+               OR (t.equipment_group_id IS NOT NULL AND t.equipment_group_id = $3)
+               OR (lower(t.name) LIKE '%' || lower($4) || '%')
+               OR (t.category_id = $5)
              )
            ORDER BY
              CASE
                WHEN t.subtype_id IS NOT NULL AND t.subtype_id = $1 THEN 1
-               WHEN t.equipment_type_id IS NOT NULL AND t.equipment_type_id = $2 THEN 2
-               ELSE 3
+               WHEN t.equipment_name_id IS NOT NULL AND t.equipment_name_id = $2 THEN 2
+               WHEN t.equipment_type_id IS NOT NULL AND t.equipment_type_id = $2 THEN 3
+               WHEN t.equipment_group_id IS NOT NULL AND t.equipment_group_id = $3 THEN 4
+               WHEN lower(t.name) LIKE '%' || lower($4) || '%' THEN 5
+               ELSE 6
              END ASC,
              tv.version DESC
            LIMIT 1`,
-          [obj.equipment_subtype_id || null, obj.equipment_type_id || null, obj.category_id]
+          [
+            obj.equipment_subtype_id || null,
+            resolvedEqId,
+            obj.equipment_group_id || null,
+            String(obj.name || '').trim() || '__NONE__',
+            obj.category_id
+          ]
         );
         if (!verRows[0]) {
           throw new AppError(
@@ -892,6 +1084,8 @@ router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectio
          RETURNING *`,
         [orderId, objectId, activityId || null, verId, req.user.id]
       );
+
+      await seedIdentityPrefillIfEmpty(db, created[0].id, verId, orderId, objectId, activity);
 
       if (activity) {
         await db.query(
@@ -962,16 +1156,35 @@ router.get('/:id', async (req, res, next) => {
               act.inspection_type_code, itype.name AS inspection_type_name,
               act.planned_start_at AS activity_start_at, act.planned_end_at AS activity_end_at,
               act.schedule_status AS activity_schedule_status,
-              t.name AS object_name, t.serial_number, t.brand, t.manufacturer, t.model, t.capacity, t.install_location,
+              t.name AS object_name, t.serial_number, t.brand, t.manufacturer, t.model, t.capacity, t.capacity_unit,
+              t.manufacture_year, t.install_location, t.previous_permit_no,
+              t.equipment_group_id, t.equipment_type_id, t.equipment_name_id, t.equipment_subtype_id,
               t.attributes AS object_attributes,
-              oc.code AS category_code, oc.name AS category_name, oc.attribute_schema, oc.default_bap_scopes,
-              oo.scope_items AS unit_scope_items,
+              COALESCE(eq.domain_code, oc.code) AS domain_code,
+              dm.name AS domain_name,
+              COALESCE(eg.name, oc.name) AS equipment_group_name,
+              COALESCE(eq.name, t.name) AS equipment_type_name,
+              eq.code AS equipment_type_code,
+              sub.name AS equipment_subtype_name,
+              oc.code AS category_code, oc.name AS category_name,
+              COALESCE(eq.attribute_schema, oc.attribute_schema, '[]'::jsonb) AS attribute_schema,
+              oc.default_bap_scopes,
+              oo.scope_items AS unit_scope_items, oo.unit_status,
               u.full_name AS inspector_name,
               tv.version AS template_version, tv.is_validated AS template_is_validated,
               it.name AS template_name,
               b.id AS bap_id, b.bap_no, b.status AS bap_status, b.finalized_at AS bap_finalized_at,
-              b.scope_items AS bap_scope_items,
-              l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status
+              b.scope_items AS bap_scope_items, b.conclusion AS bap_conclusion, b.notes AS bap_notes,
+              b.inspection_date AS bap_inspection_date,
+              b.inspector_signer_name AS bap_inspector_signer_name,
+              b.inspector_signed_at AS bap_inspector_signed_at,
+              b.inspector_signature_file_id AS bap_inspector_sig_file_id,
+              b.client_signer_name AS bap_client_signer_name,
+              b.client_signed_at AS bap_client_signed_at,
+              b.client_signature_file_id AS bap_client_sig_file_id,
+              l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status,
+              l.reviewed_by AS lhpp_reviewed_by, l.reviewed_at AS lhpp_reviewed_at,
+              l.review_notes AS lhpp_review_notes, l.finalized_at AS lhpp_finalized_at
        FROM inspections i
        JOIN orders o ON o.id = i.order_id
        JOIN clients c ON c.id = o.client_id
@@ -982,6 +1195,10 @@ router.get('/:id', async (req, res, next) => {
        LEFT JOIN inspection_types itype ON itype.code = act.inspection_type_code
        JOIN test_objects t ON t.id = i.object_id
        JOIN object_categories oc ON oc.id = t.category_id
+       LEFT JOIN equipment_types eq ON eq.id = COALESCE(t.equipment_name_id, t.equipment_type_id)
+       LEFT JOIN equipment_types sub ON sub.id = t.equipment_subtype_id
+       LEFT JOIN equipment_groups eg ON eg.id = COALESCE(t.equipment_group_id, eq.group_id)
+       LEFT JOIN inspection_domains dm ON dm.code = COALESCE(eq.domain_code, oc.code)
        LEFT JOIN order_objects oo ON oo.order_id = i.order_id AND oo.object_id = i.object_id
        JOIN users u ON u.id = i.inspector_id
        JOIN inspection_template_versions tv ON tv.id = i.template_version_id
@@ -1184,13 +1401,20 @@ async function assertInspectionOwnership(db, insp, user) {
   );
 }
 
-// M3-03, M3-04, M3-06: Simpan draf otomatis & validasi rentang nilai
+// M3-03, M3-04, M3-06: Simpan draf otomatis, progres fase lapangan, & persiapan BAP situasional
 router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), validate(saveDraftSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { conclusion, conclusionNotes, results } = req.body;
+    const {
+      conclusion,
+      conclusionNotes,
+      results,
+      scopeItems,
+      inspectionDate,
+      prepareBapDraft
+    } = req.body;
 
-    const updated = await withTransaction(async (db) => {
+    const updatedResult = await withTransaction(async (db) => {
       const insp = await assertEditableInspection(db, id, req.user);
 
       const { rows: tplItems } = await db.query(
@@ -1202,8 +1426,9 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
       for (const r of results) {
         const meta = itemMap.get(r.itemId);
         if (!meta) continue;
+        const inputType = String(meta.input_type || 'CHOICE').toUpperCase();
         let outOfRange = false;
-        if (meta.input_type === 'NUMBER' && r.numberValue !== null && r.numberValue !== undefined) {
+        if (NUMERIC_INPUT_TYPES.has(inputType) && r.numberValue !== null && r.numberValue !== undefined) {
           if (meta.min_value !== null && Number(r.numberValue) < Number(meta.min_value)) {
             outOfRange = true;
           }
@@ -1211,6 +1436,15 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
             outOfRange = true;
           }
         }
+
+        const safeChoice =
+          CONFORMITY_INPUT_TYPES.has(inputType) && ['SESUAI', 'TIDAK_SESUAI', 'TIDAK_BERLAKU'].includes(r.choiceValue)
+            ? r.choiceValue
+            : null;
+        const safeText =
+          r.textValue !== undefined && r.textValue !== null && String(r.textValue) !== ''
+            ? String(r.textValue)
+            : (!safeChoice && r.choiceValue ? String(r.choiceValue) : null);
 
         await db.query(
           `INSERT INTO inspection_results
@@ -1227,9 +1461,9 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
           [
             id,
             r.itemId,
-            r.choiceValue || null,
+            safeChoice,
             r.numberValue ?? null,
-            r.textValue || null,
+            safeText,
             r.dateValue || null,
             r.note || null,
             outOfRange
@@ -1247,19 +1481,150 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
         );
       }
 
+      if (Array.isArray(scopeItems) && scopeItems.length > 0) {
+        await db.query(
+          `UPDATE order_objects
+           SET scope_items = $1::jsonb, updated_at = now()
+           WHERE order_id = $2 AND object_id = $3`,
+          [JSON.stringify(scopeItems), insp.order_id, insp.object_id]
+        );
+        await db.query(
+          `UPDATE bap_documents
+           SET scope_items = $1::jsonb, updated_at = now()
+           WHERE inspection_id = $2 AND status <> 'FINAL'`,
+          [JSON.stringify(scopeItems), id]
+        );
+      }
+
       const { rows: upd } = await db.query(
         `UPDATE inspections
-         SET conclusion = COALESCE($1, conclusion),
+         SET conclusion = COALESCE(NULLIF($1, ''), conclusion),
              conclusion_notes = COALESCE($2, conclusion_notes),
              updated_at = now()
          WHERE id = $3
          RETURNING *`,
         [conclusion || null, conclusionNotes !== undefined ? conclusionNotes : null, id]
       );
-      return upd[0];
+
+      let preparedBap = null;
+      if (prepareBapDraft) {
+        const { rows: curBapRows } = await db.query(
+          'SELECT * FROM bap_documents WHERE inspection_id = $1',
+          [id]
+        );
+        const { rows: sigRows } = await db.query(
+          'SELECT * FROM inspection_signatures WHERE inspection_id = $1',
+          [id]
+        );
+        const inspSig = sigRows.find((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
+        const clientSig = sigRows.find((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
+
+        const { rows: unitMetaRows } = await db.query(
+          `SELECT oc.code AS category_code, oo.scope_items, oc.default_bap_scopes
+           FROM order_objects oo
+           JOIN test_objects t ON t.id = oo.object_id
+           JOIN object_categories oc ON oc.id = t.category_id
+           WHERE oo.order_id = $1 AND oo.object_id = $2`,
+          [insp.order_id, insp.object_id]
+        );
+        const unitMeta = unitMetaRows[0] || {};
+        const finalScopes =
+          Array.isArray(scopeItems) && scopeItems.length
+            ? scopeItems
+            : Array.isArray(unitMeta.scope_items) && unitMeta.scope_items.length
+            ? unitMeta.scope_items
+            : Array.isArray(unitMeta.default_bap_scopes) && unitMeta.default_bap_scopes.length
+            ? unitMeta.default_bap_scopes
+            : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
+
+        const effectiveConclusion = conclusion || upd[0].conclusion || null;
+
+        if (!curBapRows[0]) {
+          const { rows: seqRows } = await db.query("SELECT nextval('bap_no_seq') AS seq");
+          const bapNo = await formatDocumentNumber('bap', {
+            counter: seqRows[0].seq,
+            categoryCode: unitMeta.category_code,
+            date: new Date()
+          }).catch(() => `BAP/URD/${new Date().getFullYear()}/${String(seqRows[0].seq).padStart(4, '0')}`);
+
+          const { rows: createdBap } = await db.query(
+            `INSERT INTO bap_documents
+               (bap_no, inspection_id, order_id, object_id, status, inspection_date, scope_items, conclusion, notes,
+                inspector_signer_name, inspector_signer_title, inspector_signature_file_id, inspector_signed_at,
+                client_signer_name, client_signer_title, client_signature_file_id, client_signed_at, created_by)
+             VALUES ($1,$2,$3,$4,'DRAF',COALESCE($5::date, CURRENT_DATE),$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+             RETURNING *`,
+            [
+              bapNo,
+              id,
+              insp.order_id,
+              insp.object_id,
+              inspectionDate || null,
+              JSON.stringify(finalScopes),
+              effectiveConclusion,
+              conclusionNotes || null,
+              inspSig?.signer_name || null,
+              inspSig?.signer_title || 'Ahli K3 Pemeriksa',
+              inspSig?.file_id || null,
+              inspSig?.signed_at || null,
+              clientSig?.signer_name || null,
+              clientSig?.signer_title || 'Pemilik Alat / Perwakilan Klien',
+              clientSig?.file_id || null,
+              clientSig?.signed_at || null,
+              req.user.id
+            ]
+          );
+          preparedBap = createdBap[0];
+
+          await db.query(
+            `INSERT INTO bap_revisions (bap_id, version, action, reason, snapshot, actor_id)
+             VALUES ($1, 1, 'PREPARED', 'Draf BAP disiapkan dari fase inspeksi lapangan', $2, $3)`,
+            [preparedBap.id, JSON.stringify({ scope_items: finalScopes, conclusion: effectiveConclusion }), req.user.id]
+          );
+        } else if (curBapRows[0].status !== 'FINAL') {
+          const { rows: updatedBap } = await db.query(
+            `UPDATE bap_documents
+             SET inspection_date = COALESCE($1::date, inspection_date),
+                 scope_items = $2::jsonb,
+                 conclusion = COALESCE($3, conclusion),
+                 notes = COALESCE($4, notes),
+                 inspector_signer_name = COALESCE($5, inspector_signer_name),
+                 inspector_signer_title = COALESCE($6, inspector_signer_title),
+                 inspector_signature_file_id = COALESCE($7, inspector_signature_file_id),
+                 inspector_signed_at = COALESCE($8, inspector_signed_at),
+                 client_signer_name = COALESCE($9, client_signer_name),
+                 client_signer_title = COALESCE($10, client_signer_title),
+                 client_signature_file_id = COALESCE($11, client_signature_file_id),
+                 client_signed_at = COALESCE($12, client_signed_at),
+                 updated_at = now()
+             WHERE id = $13
+             RETURNING *`,
+            [
+              inspectionDate || null,
+              JSON.stringify(finalScopes),
+              effectiveConclusion,
+              conclusionNotes !== undefined && conclusionNotes !== '' ? conclusionNotes : null,
+              inspSig?.signer_name || null,
+              inspSig?.signer_title || null,
+              inspSig?.file_id || null,
+              inspSig?.signed_at || null,
+              clientSig?.signer_name || null,
+              clientSig?.signer_title || null,
+              clientSig?.file_id || null,
+              clientSig?.signed_at || null,
+              curBapRows[0].id
+            ]
+          );
+          preparedBap = updatedBap[0];
+        } else {
+          preparedBap = curBapRows[0];
+        }
+      }
+
+      return { inspection: upd[0], bap: preparedBap };
     });
 
-    return res.json({ inspection: updated });
+    return res.json(updatedResult);
   } catch (err) {
     return next(err);
   }
@@ -1324,7 +1689,7 @@ router.post(
 // M3-05b: Unggah foto dokumentasi hasil riksa uji langsung pada lembar kerja inspeksi
 router.post(
   '/:id/photos',
-  authorize('AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
   uploadMiddleware.single('photo'),
   async (req, res, next) => {
     try {
@@ -1336,16 +1701,80 @@ router.post(
         await assertEditableInspection({ query }, id, req.user);
       }
 
+      const itemId = req.body?.itemId || null;
+      let resolvedCaption = (req.body?.caption || '').trim();
+      let matchedItem = null;
+      if (itemId && /^[0-9a-f-]{36}$/i.test(itemId)) {
+        const { rows: itemRows } = await query(
+          'SELECT * FROM inspection_template_items WHERE id = $1 AND version_id = $2',
+          [itemId, rows[0].template_version_id]
+        );
+        matchedItem = itemRows[0] || null;
+      }
+
+      if (!resolvedCaption && matchedItem) {
+        resolvedCaption = `[${matchedItem.section || 'Dokumentasi'}] ${matchedItem.label}`;
+      } else if (!resolvedCaption) {
+        const sec = (req.body?.section || '').trim();
+        resolvedCaption = sec ? `[${sec}] Foto Dokumentasi Riksa Uji` : 'Foto Dokumentasi Riksa Uji';
+      }
+
       const saved = await saveUploadedFile({
         buffer: req.file.buffer,
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         ownerType: 'INSPECTION_FINDING',
         ownerId: id,
-        caption: req.body?.caption || 'Foto Dokumentasi Riksa Uji',
+        caption: resolvedCaption,
         uploadedBy: req.user.id
       });
+
+      if (matchedItem && PHOTO_INPUT_TYPES.has(String(matchedItem.input_type || '').toUpperCase())) {
+        await query(
+          `INSERT INTO inspection_results (inspection_id, item_id, text_value, updated_at)
+           VALUES ($1, $2, $3, now())
+           ON CONFLICT (inspection_id, item_id) DO UPDATE SET
+             text_value = COALESCE(NULLIF(inspection_results.text_value, ''), EXCLUDED.text_value),
+             updated_at = now()`,
+          [id, matchedItem.id, resolvedCaption || 'Foto Terlampir']
+        );
+      }
+
       return res.status(201).json({ photo: saved });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// M3-05d: Perbarui keterangan/bagian foto dokumentasi hasil riksa uji
+router.patch(
+  '/:id/photos/:photoId',
+  authorize('INSPECTOR', 'AHLI_K3', 'ADMIN_KANTOR', 'ADMIN_SISTEM'),
+  async (req, res, next) => {
+    try {
+      const { id, photoId } = req.params;
+      const caption = String(req.body?.caption || '').trim();
+      if (caption.length < 2 || caption.length > 300) {
+        throw new AppError(400, 'INVALID_CAPTION', 'Keterangan foto harus antara 2 sampai 300 karakter.');
+      }
+      const { rows } = await query('SELECT * FROM inspections WHERE id = $1', [id]);
+      if (!rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Form inspeksi tidak ditemukan.');
+      if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role)) {
+        await assertEditableInspection({ query }, id, req.user);
+      }
+
+      const { rows: updated } = await query(
+        `UPDATE file_attachments
+         SET caption = $1
+         WHERE id = $2 AND owner_id = $3 AND owner_type = 'INSPECTION_FINDING' AND deleted_at IS NULL
+         RETURNING id, original_name AS "originalName", caption, mime_type AS "mimeType", created_at AS "createdAt"`,
+        [caption, photoId, id]
+      );
+      if (!updated[0]) {
+        throw new AppError(404, 'PHOTO_NOT_FOUND', 'Foto tidak ditemukan.');
+      }
+      return res.json({ photo: updated[0] });
     } catch (err) {
       return next(err);
     }
@@ -1497,10 +1926,28 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         );
       }
 
+      const { rows: tplItems } = await db.query(
+        'SELECT * FROM inspection_template_items WHERE version_id = $1 ORDER BY seq ASC',
+        [insp.template_version_id]
+      );
+      const itemMap = new Map(tplItems.map((i) => [i.id, i]));
+      const itemsBySeq = new Map(tplItems.map((i) => [Number(i.seq), i]));
+
       // Simpan hasil butir checklist jika disertakan langsung pada payload kirim
       if (Array.isArray(req.body?.results) && req.body.results.length > 0) {
         for (const r of req.body.results) {
           if (!r.itemId) continue;
+          const meta = itemMap.get(r.itemId);
+          const inputType = String(meta?.input_type || 'CHOICE').toUpperCase();
+          const safeChoice =
+            CONFORMITY_INPUT_TYPES.has(inputType) && ['SESUAI', 'TIDAK_SESUAI', 'TIDAK_BERLAKU'].includes(r.choiceValue)
+              ? r.choiceValue
+              : null;
+          const safeText =
+            r.textValue !== undefined && r.textValue !== null && String(r.textValue) !== ''
+              ? String(r.textValue)
+              : (!safeChoice && r.choiceValue ? String(r.choiceValue) : null);
+
           await db.query(
             `INSERT INTO inspection_results
                (inspection_id, item_id, choice_value, number_value, text_value, date_value, note)
@@ -1515,9 +1962,9 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
             [
               id,
               r.itemId,
-              r.choiceValue || null,
+              safeChoice,
               r.numberValue !== null && r.numberValue !== undefined && r.numberValue !== '' ? Number(r.numberValue) : null,
-              r.textValue || null,
+              safeText,
               r.dateValue || null,
               r.note || null
             ]
@@ -1533,24 +1980,28 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         );
       }
 
-      const { rows: reqItems } = await db.query(
-        'SELECT id, label FROM inspection_template_items WHERE version_id = $1 AND is_required = true',
-        [insp.template_version_id]
-      );
-      const { rows: curResults } = await db.query(
-        'SELECT * FROM inspection_results WHERE inspection_id = $1',
-        [id]
-      );
+      const [{ rows: curResults }, { rows: curPhotos }] = await Promise.all([
+        db.query('SELECT * FROM inspection_results WHERE inspection_id = $1', [id]),
+        db.query(
+          `SELECT id, caption, original_name FROM file_attachments
+           WHERE owner_type = 'INSPECTION_FINDING' AND owner_id = $1 AND deleted_at IS NULL`,
+          [id]
+        )
+      ]);
       const resMap = new Map(curResults.map((r) => [r.item_id, r]));
 
-      for (const reqItem of reqItems) {
+      for (const reqItem of tplItems.filter((it) => it.is_required)) {
+        if (!isConditionalItemActive(reqItem, itemsBySeq, resMap)) continue;
         const val = resMap.get(reqItem.id);
-        const filled =
-          val &&
-          (val.choice_value ||
-            (val.number_value !== null && val.number_value !== undefined) ||
-            val.text_value ||
-            val.date_value);
+        let filled = isResultFilled(reqItem, val);
+        if (!filled && PHOTO_INPUT_TYPES.has(String(reqItem.input_type || '').toUpperCase())) {
+          const cleanLabel = String(reqItem.label || '').toLowerCase();
+          const numToken = cleanLabel.match(/^(\d+\.\d+)/)?.[1];
+          filled = curPhotos.some((p) => {
+            const cap = String(p.caption || '').toLowerCase();
+            return (cleanLabel && cap.includes(cleanLabel)) || (numToken && cap.includes(numToken));
+          });
+        }
         if (!filled) {
           throw new AppError(
             400,
@@ -1602,13 +2053,22 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         ? scopeRows[0].default_bap_scopes
         : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
 
+      const checklistFindingNotes = tplItems
+        .filter((it) => /temuan|finding/i.test(`${it.section || ''} ${it.label || ''}`) && it.input_type === 'LONG_TEXT')
+        .map((it) => resMap.get(it.id)?.text_value)
+        .filter(Boolean);
+      const checklistRecNotes = tplItems
+        .filter((it) => /rekomendasi/i.test(it.label || '') && ['TEXT', 'LONG_TEXT'].includes(String(it.input_type || '').toUpperCase()))
+        .map((it) => resMap.get(it.id)?.text_value)
+        .filter(Boolean);
+
       const { rows: findings } = await db.query(
         'SELECT severity, description, recommendation FROM inspection_findings WHERE inspection_id = $1',
         [id]
       );
       const findingsSummary = findings.length
         ? findings.map((f, idx) => `${idx + 1}. [${f.severity}] ${f.description} (Rekomendasi: ${f.recommendation})`).join('\n')
-        : '';
+        : checklistFindingNotes.join('\n');
       const bapNotes = [lockedRows[0].conclusion_notes, findingsSummary].filter(Boolean).join('\n\n') ||
         'Pemeriksaan dan pengujian di lapangan telah dilaksanakan sesuai prosedur K3.';
 
@@ -1621,7 +2081,11 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
       // Setelah LHPP selesai/difinalisasi, barulah BAP diterbitkan.
       const autoRecommendations = findings.length
         ? findings.map((f, idx) => `${idx + 1}. [${f.severity}] ${f.recommendation}`).join('\n')
-        : 'Pertahankan pemeliharaan berkala sesuai standar K3 yang berlaku.';
+        : checklistRecNotes.join('\n') || 'Pertahankan pemeliharaan berkala sesuai standar K3 yang berlaku.';
+      const autoTechnicalNotes =
+        lockedRows[0].conclusion_notes ||
+        checklistFindingNotes.join('\n') ||
+        'Hasil pemeriksaan telah dicatat sesuai form lapangan dan standar K3.';
       const oneYearLater = new Date(Date.now() + 365 * 86400 * 1000).toISOString().slice(0, 10);
       const validUntilDate = req.body?.recommendedValidUntil || oneYearLater;
 
@@ -1631,14 +2095,15 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
          VALUES ($1, 'SIAP_PREVIEW', $2, $3, $4, $5, $6)
          ON CONFLICT (inspection_id) DO UPDATE SET
            status = CASE WHEN lhpp_documents.status IN ('FINAL', 'TERBIT') THEN lhpp_documents.status ELSE 'SIAP_PREVIEW' END,
-           recommendations = COALESCE(lhpp_documents.recommendations, EXCLUDED.recommendations),
+           technical_notes = COALESCE(NULLIF(lhpp_documents.technical_notes, ''), EXCLUDED.technical_notes),
+           recommendations = COALESCE(NULLIF(lhpp_documents.recommendations, ''), EXCLUDED.recommendations),
            recommended_valid_until = COALESCE(lhpp_documents.recommended_valid_until, EXCLUDED.recommended_valid_until),
            updated_at = now()
          RETURNING *`,
         [
           id,
           `Ruang lingkup pemeriksaan: ${unitScopes.join(', ')}.`,
-          lockedRows[0].conclusion_notes || 'Hasil pemeriksaan telah dicatat sesuai form lapangan dan standar K3.',
+          autoTechnicalNotes,
           autoRecommendations,
           validUntilDate,
           req.user.id
@@ -1654,9 +2119,23 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
         [validUntilDate, insp.object_id]
       );
 
-      // Jika autoFinalizeBap / autoFinalizeLhpp diminta (misal via testing/shortcut)
+      // Jika BAP sudah disiapkan pada fase lapangan, sinkronkan tautan LHPP dan kesimpulan teknis tanpa menimpa tanda tangan atau statusnya
       let bapResult = null;
       const shouldAutoFinalize = Boolean(req.body?.autoFinalizeBap || req.body?.autoFinalizeLhpp);
+      if (!shouldAutoFinalize) {
+        const { rows: syncedBapRows } = await db.query(
+          `UPDATE bap_documents
+           SET lhpp_id = COALESCE(lhpp_id, $1),
+               scope_items = $2::jsonb,
+               conclusion = $3,
+               notes = COALESCE(NULLIF(notes, ''), $4),
+               updated_at = now()
+           WHERE inspection_id = $5 AND status IN ('DRAF', 'MENUNGGU_TANDA_TANGAN', 'REVISI')
+           RETURNING *`,
+          [lhppRows[0].id, JSON.stringify(unitScopes), lockedRows[0].conclusion, bapNotes, id]
+        );
+        bapResult = syncedBapRows[0] || null;
+      }
       if (shouldAutoFinalize) {
         const seqRes = await db.query("SELECT nextval('bap_no_seq') AS seq");
         const now = new Date();

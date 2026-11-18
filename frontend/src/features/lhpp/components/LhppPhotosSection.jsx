@@ -1,6 +1,25 @@
-import { useState } from 'react';
-import { Camera, Image as ImageIcon, MagnifyingGlassPlus, Plus, Trash, X } from '@phosphor-icons/react';
+import { useEffect, useState } from 'react';
+import {
+  Camera,
+  Check,
+  Image as ImageIcon,
+  MagnifyingGlassPlus,
+  NotePencil,
+  Plus,
+  Trash,
+  X
+} from '@phosphor-icons/react';
 import { formatDateTime } from '../../../lib/utils/format.js';
+
+const LHPP_SECTION_TAGS = [
+  { tag: '[3.1 Foto Unit]', label: '3.1 Foto Unit' },
+  { tag: '[3.2 Foto Pemeriksaan Visual]', label: '3.2 Pemeriksaan Visual' },
+  { tag: '[3.3 Foto Uji Fungsi]', label: '3.3 Uji Fungsi' },
+  { tag: '[3.4 Foto Uji Beban]', label: '3.4 Uji Beban' },
+  { tag: '[3.5 Foto Stiker]', label: '3.5 Foto Stiker' },
+  { tag: '[1. Data Umum]', label: '1. Data Umum' },
+  { tag: '[2. Data Teknis]', label: '2. Data Teknis' }
+];
 
 export function LhppPhotosSection({
   detailLhpp,
@@ -11,9 +30,25 @@ export function LhppPhotosSection({
   setPhotoCaption,
   uploadingPhoto,
   handleUploadPhoto,
+  onUpdatePhotoCaption,
   handleDeletePhoto
 }) {
   const [enlargedPhoto, setEnlargedPhoto] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [editingPhotoId, setEditingPhotoId] = useState(null);
+  const [editingCaptionText, setEditingCaptionText] = useState('');
+
+  useEffect(() => {
+    if (!photoFile) {
+      setPreviewUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
+
+  const editableStatus = ['DRAF', 'DRAFT', 'DIKEMBALIKAN', 'REVISION'].includes(detailLhpp?.status);
 
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-md p-4 space-y-3 bg-white dark:bg-slate-800">
@@ -58,24 +93,72 @@ export function LhppPhotosSection({
                   <MagnifyingGlassPlus size={22} weight="bold" />
                 </div>
               </div>
-              <div className="p-2 flex-1 flex flex-col justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 line-clamp-1">
-                    Foto {idx + 1}: {ph.caption || ph.originalName}
+              <div className="p-2 flex-1 flex flex-col justify-between gap-1.5">
+                {editingPhotoId === ph.id ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={editingCaptionText}
+                      onChange={(e) => setEditingCaptionText(e.target.value)}
+                      placeholder="Keterangan foto..."
+                      className="flex-1 min-w-0 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] text-slate-900 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (onUpdatePhotoCaption) {
+                          await onUpdatePhotoCaption(ph.id, editingCaptionText);
+                        }
+                        setEditingPhotoId(null);
+                      }}
+                      title="Simpan keterangan"
+                      className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                    >
+                      <Check size={12} weight="bold" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPhotoId(null)}
+                      title="Batal"
+                      className="p-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+                    >
+                      <X size={12} weight="bold" />
+                    </button>
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {formatDateTime(ph.createdAt)}
+                ) : (
+                  <div>
+                    <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 line-clamp-2">
+                      Foto {idx + 1}: {ph.caption || ph.originalName}
+                    </div>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {formatDateTime(ph.createdAt)}
+                    </div>
                   </div>
-                </div>
-                {isInspector && ['DRAF', 'DIKEMBALIKAN'].includes(detailLhpp.status) && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeletePhoto(ph.id)}
-                    className="mt-2 text-[10px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash size={12} />
-                    <span>Hapus Foto</span>
-                  </button>
+                )}
+                {isInspector && editableStatus && (
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/70 dark:border-slate-800">
+                    {onUpdatePhotoCaption && editingPhotoId !== ph.id && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPhotoId(ph.id);
+                          setEditingCaptionText(ph.caption || '');
+                        }}
+                        className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 hover:text-[#C81E1E] flex items-center gap-1 cursor-pointer"
+                      >
+                        <NotePencil size={12} />
+                        <span>Edit Label</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePhoto(ph.id)}
+                      className="text-[10px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-1 cursor-pointer ml-auto"
+                    >
+                      <Trash size={12} />
+                      <span>Hapus Foto</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -122,16 +205,53 @@ export function LhppPhotosSection({
       )}
 
       {/* Form Unggah Foto Tambahan */}
-      {isInspector && ['DRAF', 'DIKEMBALIKAN'].includes(detailLhpp.status) && (
+      {isInspector && editableStatus && (
         <form
           onSubmit={handleUploadPhoto}
-          className="mt-3 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md space-y-2"
+          className="mt-3 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md space-y-2.5"
         >
           <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
             <Camera size={15} />
             <span>Tambah Foto Dokumentasi Lapangan</span>
           </div>
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          {previewUrl && (
+            <div className="flex items-center gap-3 p-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+              <img
+                src={previewUrl}
+                alt="Pratinjau foto"
+                className="w-16 h-12 object-cover rounded border border-slate-200 dark:border-slate-700"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100 truncate">
+                  {photoFile?.name}
+                </p>
+                <p className="text-[10px] text-emerald-600 font-semibold">Siap diunggah ke Bab VIII</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPhotoFile(null)}
+                className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
+              >
+                Batal
+              </button>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {LHPP_SECTION_TAGS.map((item) => (
+              <button
+                key={item.tag}
+                type="button"
+                onClick={() => {
+                  const stripped = String(photoCaption || '').replace(/^\[[^\]]+\]\s*/, '');
+                  setPhotoCaption(`${item.tag} ${stripped}`.trim());
+                }}
+                className="text-[10px] px-2 py-0.5 rounded bg-slate-900/5 dark:bg-white/10 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:border-[#C81E1E] cursor-pointer"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {[
               'Tampak Keseluruhan',
               'Papan Nama (Nameplate)',

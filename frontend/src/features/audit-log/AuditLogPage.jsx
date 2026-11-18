@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Article,
   CheckCircle,
@@ -37,15 +38,21 @@ export function getRoleLabel(value) {
 }
 
 export function AuditLogPage() {
+  const [searchParams] = useSearchParams();
+  const urlCategory = (searchParams.get('category') || 'ALL').toUpperCase();
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState(urlCategory);
   const [selectedLog, setSelectedLog] = useState(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setCategoryFilter(urlCategory);
+  }, [urlCategory]);
 
   const categories = [
     { id: 'ALL', label: 'Semua Aktivitas' },
@@ -160,27 +167,6 @@ export function AuditLogPage() {
             <option value="system_settings">Konfigurasi Sistem (system_settings)</option>
             <option value="database_backups">Cadangan Database (database_backups)</option>
           </select>
-        </div>
-
-        {/* Action Category Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 scrollbar-none">
-          <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#98989D] shrink-0 mr-1">
-            Kategori Aksi:
-          </span>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setCategoryFilter(cat.id)}
-              className={`px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                categoryFilter === cat.id
-                  ? 'bg-[#1D1D1F] text-white dark:bg-[#C81E1E]'
-                  : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.08] dark:hover:bg-white/[0.10]'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
         </div>
       </div>
 

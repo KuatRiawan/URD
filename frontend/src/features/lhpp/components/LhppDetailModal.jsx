@@ -85,6 +85,26 @@ export function LhppDetailModal({
     }
   };
 
+  const handleUpdatePhotoCaption = async (photoId, caption) => {
+    if (!detailLhpp?.id || !photoId) return;
+    try {
+      await api.patch(`/lhpp/${detailLhpp.id}/photos/${photoId}`, {
+        caption: String(caption || '').trim()
+      });
+      toast('Keterangan foto LHPP berhasil diperbarui.', 'success');
+      if (handleRefreshDetail) {
+        await handleRefreshDetail(detailLhpp.id);
+      }
+    } catch (err) {
+      toast(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Gagal memperbarui keterangan foto LHPP.',
+        'error'
+      );
+    }
+  };
+
   const uploadSourceDocument = async () => {
     if (!detailLhpp?.id || !sourceDocFile) return;
     setUploadingDoc(true);
@@ -122,7 +142,7 @@ export function LhppDetailModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={detailLhpp ? `Dokumen LHPP ${detailLhpp.lhpp_no}` : 'Detail LHPP'}
+      title={detailLhpp ? `Dokumen LHPP ${detailLhpp.lhpp_no || '(Draf Siap Preview)'}` : 'Detail LHPP'}
       size="xl"
       footer={
         <div className="flex w-full items-center justify-between gap-3">
@@ -566,6 +586,7 @@ export function LhppDetailModal({
             setPhotoCaption={setPhotoCaption}
             uploadingPhoto={uploadingPhoto}
             handleUploadPhoto={handleUploadPhoto}
+            onUpdatePhotoCaption={handleUpdatePhotoCaption}
             handleDeletePhoto={handleDeletePhoto}
           />
 

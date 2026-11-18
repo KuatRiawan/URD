@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
-import {
-  User,
-  ShieldCheck,
-  Palette,
-  Sliders,
-  Gear
-} from '@phosphor-icons/react';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { useTheme } from '../../app/providers/ThemeProvider.jsx';
 import { useToast } from '../../components/ui/FeedbackProvider.jsx';
@@ -27,8 +20,9 @@ export function SettingsPage() {
   // (mis. tautan lama ?tab=BACKUPS) diarahkan ke konfigurasi peran.
   const PERSONAL_TABS = ['profile', 'security', 'appearance'];
   const paramTab = (searchParams.get('tab') || '').toLowerCase();
+  const hasSubTab = Boolean(searchParams.get('subtab'));
   const activeTab =
-    paramTab === 'role_specific' || (!PERSONAL_TABS.includes(paramTab) && paramTab)
+    paramTab === 'role_specific' || (!PERSONAL_TABS.includes(paramTab) && paramTab) || hasSubTab
       ? 'role_specific'
       : PERSONAL_TABS.includes(paramTab)
         ? paramTab

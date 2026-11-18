@@ -126,7 +126,7 @@ function LayoutShell() {
       {/* Sidebar Desktop Bergaya macOS Tahoe / System Settings */}
       <aside
         aria-label="Navigasi utama"
-        className={`hidden lg:flex ${sidebarWidthClass} lg:flex-col lg:fixed lg:inset-y-0 urd-glass-sidebar text-[#1D1D1F] dark:text-[#F5F5F7] z-40 transition-all duration-200`}
+        className={`hidden lg:flex ${sidebarWidthClass} lg:flex-col lg:fixed lg:inset-y-0 urd-glass-sidebar text-[#1D1D1F] dark:text-[#F5F5F7] z-40 urd-sidebar-transition`}
       >
         <div className={`py-4 border-b border-black/[0.06] dark:border-white/[0.07] ${collapsed ? 'px-2.5 flex justify-center' : 'px-4'}`}>
           <BrandBlock compact={collapsed} />
@@ -138,7 +138,7 @@ function LayoutShell() {
       </aside>
 
       {/* Konten Utama */}
-      <div className={`flex-1 flex flex-col ${mainPaddingClass} min-w-0 transition-all duration-200`}>
+      <div className={`flex-1 flex flex-col ${mainPaddingClass} min-w-0 urd-sidebar-transition`}>
         <TopHeader
           collapsed={collapsed}
           toggleSidebar={toggleSidebar}
@@ -154,7 +154,7 @@ function LayoutShell() {
         />
 
         {/* Konten Halaman Utama */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-7 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8 max-w-[92rem] w-full mx-auto">
+        <main className="flex-1 min-w-0 overflow-x-clip p-3.5 sm:p-6 lg:p-7 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8 max-w-[92rem] w-full mx-auto">
           <ErrorBoundary resetKey={location.pathname}>
             <div key={location.pathname} className="urd-page-enter">
               <Outlet />
@@ -164,11 +164,7 @@ function LayoutShell() {
 
         {/* Footer Aplikasi Bergaya Enterprise */}
         <footer className="hidden lg:flex border-t border-black/[0.06] dark:border-white/[0.07] bg-white/60 dark:bg-[#151821]/60 px-6 py-3 text-[11px] text-[#6E6E73] dark:text-[#98989D] items-center justify-between gap-2 transition-colors">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">PT Upaya Riksa Daya</span>
-            <span className="text-black/20 dark:text-white/20">&middot;</span>
-            <span>Sistem Informasi Terpadu Pemeriksaan dan Pengujian K3</span>
-          </div>
+          <span>&copy; 2026 PT Upaya Riksa Daya</span>
         </footer>
 
         <GlobalSearchDialog isOpen={searchOpen} onClose={() => setSearchOpen(false)} />

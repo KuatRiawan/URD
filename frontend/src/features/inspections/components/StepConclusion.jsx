@@ -18,6 +18,7 @@ export function StepConclusion({
   draftScopes = [],
   setDraftScopes,
   scopeCatalog = [],
+  workPhase = 'FIELD',
   isInspector,
   status,
   submitting,
@@ -29,15 +30,40 @@ export function StepConclusion({
 
   return (
     <div className="space-y-5">
+      {/* Catatan Mode Situasional Lapangan */}
+      {status === 'DRAF' && (
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-900 dark:text-blue-200">
+          <div className="space-y-0.5">
+            <p className="font-bold">
+              {workPhase === 'FIELD'
+                ? 'Fase 1 (Lapangan): Kesimpulan akhir boleh dikosongkan sementara jika masih perlu perhitungan kantor.'
+                : 'Fase 2 (Kantor): Tetapkan kesimpulan kelayakan K3 sebelum mengajukan ke QC Admin Kantor.'}
+            </p>
+            <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+              Draf BAP tetap dapat disiapkan dan ditandatangani di lapangan tanpa memaksa status &quot;Memenuhi Syarat&quot; secara prematur.
+            </p>
+          </div>
+          {draftConclusion && !disabled && (
+            <button
+              type="button"
+              onClick={() => setDraftConclusion('')}
+              className="px-2.5 py-1.5 rounded-lg border border-blue-300 dark:border-blue-800 bg-white dark:bg-slate-900 text-[11px] font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-50 whitespace-nowrap cursor-pointer shrink-0"
+            >
+              Kosongkan Sementara
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Pilihan Kartu Visual Kesimpulan Kelayakan K3 */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
             <SealCheck size={16} weight="bold" className="text-[#C81E1E]" />
-            <span>Kesimpulan Kelayakan K3 Lapangan *</span>
+            <span>Kesimpulan Kelayakan K3 {workPhase === 'OFFICE' ? '*' : '(Situasional di Lapangan)'}</span>
           </label>
           <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            Pilih status kelaikan hasil pengujian
+            {draftConclusion ? 'Pilih atau ubah status kelaikan' : 'Belum ditetapkan — isi saat hasil uji lengkap'}
           </span>
         </div>
 

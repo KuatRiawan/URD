@@ -102,7 +102,7 @@ function ToastViewport({ toasts, onDismiss }) {
       <div
         key={item.id}
         role={item.tone === 'error' || item.tone === 'danger' ? 'alert' : 'status'}
-        className={`pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-sm shadow-[0_20px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl animate-pop-in ${t.box}`}
+        className={`pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-sm shadow-[0_20px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl animate-toast-in ${t.box}`}
       >
         <Icon size={20} weight="fill" className={`mt-0.5 shrink-0 ${t.icon}`} aria-hidden="true" />
         <div className="min-w-0 flex-1">

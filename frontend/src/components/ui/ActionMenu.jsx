@@ -141,13 +141,13 @@ export function ActionMenu({
 
   if (visibleItems.length === 0) return null;
 
-  // Resolusi ukuran tombol pemicu agar simetris dengan tombol aksi lainnya
+  // Resolusi ukuran tombol pemicu agar simetris dan nyaman disentuh di mobile
   const sizeClasses = {
-    xs: 'h-8 w-8 rounded-[8px]',
-    sm: 'h-8.5 w-8.5 min-w-[34px] rounded-[9px]',
-    md: 'h-9.5 w-9.5 min-w-[38px] rounded-[10px]',
+    xs: 'h-9 w-9 sm:h-8 sm:w-8 rounded-[8px]',
+    sm: 'h-9 w-9 sm:h-8.5 sm:w-8.5 min-w-[36px] sm:min-w-[34px] rounded-[9px]',
+    md: 'h-10 w-10 sm:h-9.5 sm:w-9.5 min-w-[40px] sm:min-w-[38px] rounded-[10px]',
     touch: 'min-h-[44px] min-w-[44px] rounded-xl'
-  }[size] || 'h-8 w-8 rounded-[8px]';
+  }[size] || 'h-9 w-9 sm:h-8 sm:w-8 rounded-[8px]';
 
   const iconSize = {
     xs: 18,
@@ -171,7 +171,7 @@ export function ActionMenu({
         width: `${position.width}px`,
         zIndex: 9999
       }}
-      className={`min-w-[190px] rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1F2B]/95 backdrop-blur-md p-1 shadow-[0_10px_32px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] animate-in fade-in zoom-in-95 duration-100 ${
+      className={`min-w-[190px] rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1F2B]/95 backdrop-blur-md p-1 shadow-[0_10px_32px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] animate-menu-in ${
         position.placement === 'top' ? 'origin-bottom-right' : 'origin-top-right'
       }`}
     >
@@ -188,7 +188,7 @@ export function ActionMenu({
               setOpen(false);
               item.onClick?.();
             }}
-            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 sm:py-2 min-h-[40px] sm:min-h-[34px] text-left text-xs font-medium transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed ${
               isDanger
                 ? 'text-[#C81E1E] dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
                 : 'text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-[#F5F5F7] dark:hover:bg-white/[0.07]'
