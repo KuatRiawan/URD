@@ -155,12 +155,23 @@ export function LoginPage() {
             </div>
 
             {errorMsg && (
-              <Notice tone="error" className="mb-5">
-                {errorMsg}
+              <Notice
+                id="login-error"
+                tone="error"
+                className="mb-5"
+                role="alert"
+                aria-live="assertive"
+              >
+                {String(errorMsg).replace(/[<>]/g, '')}
               </Notice>
             )}
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <form
+              noValidate
+              className="space-y-4"
+              aria-describedby={errorMsg ? 'login-error' : undefined}
+              onSubmit={handleSubmit}
+            >
               <div>
                 <label
                   htmlFor="login-email"
@@ -176,7 +187,7 @@ export function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@upayariksadaya.com"
+                  placeholder="nama@contoh.com"
                   className="w-full min-h-[44px] rounded-[11px] border border-black/[0.14] dark:border-white/[0.14] bg-white dark:bg-[#1E222D] px-3.5 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] focus:outline-hidden focus:border-[#C81E1E] focus:ring-3 focus:ring-[#C81E1E]/16 transition-all"
                 />
               </div>
