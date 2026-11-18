@@ -250,12 +250,13 @@ describe('Super Admin Workspace Redesign Test Suite', () => {
       fireEvent.click(editBtn);
       expect(onEdit).toHaveBeenCalledWith(mockUser);
 
-      const toggleBtn = screen.getByText(/Nonaktifkan Akun/i);
-      fireEvent.click(toggleBtn);
+      // Aksi berisiko berada di menu "Aksi lainnya", terpisah dari tombol utama
+      fireEvent.click(screen.getByLabelText(/Aksi lainnya/i));
+      fireEvent.click(screen.getByText(/Nonaktifkan Akun/i));
       expect(onToggle).toHaveBeenCalledWith(mockUser);
 
-      const deleteBtn = screen.getByText(/Hapus Pengguna/i);
-      fireEvent.click(deleteBtn);
+      fireEvent.click(screen.getByLabelText(/Aksi lainnya/i));
+      fireEvent.click(screen.getByText(/Hapus Pengguna/i));
       expect(onDelete).toHaveBeenCalledWith(mockUser);
 
       // Trigger close

@@ -12,6 +12,7 @@ import {
   UserCheck,
   UserMinus
 } from '@phosphor-icons/react';
+import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
@@ -56,37 +57,33 @@ export function UserDetailDrawer({
 
   if (!open || !user) return null;
 
+  // Aksi berisiko (ubah status akun & hapus permanen) dipisahkan dari aksi utama
+  // ke dalam menu "Aksi lainnya" agar tidak bersebelahan dengan tombol Ubah Data
+  // dan tidak mudah terpicu saat pengguna berniat menutup dossier.
+  const riskActions = [
+    onToggleActive && {
+      key: 'toggle-active',
+      label: user.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun',
+      icon: user.isActive ? UserMinus : UserCheck,
+      onClick: () => onToggleActive(user),
+      disabled: isCurrentUser
+    },
+    onDelete && {
+      key: 'delete',
+      label: 'Hapus Pengguna',
+      icon: Trash,
+      onClick: () => onDelete(user),
+      disabled: isCurrentUser,
+      variant: 'danger'
+    }
+  ].filter(Boolean);
+
   const modalFooter = (
     <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
-      {/* Tombol Tindakan Berisiko / Status (Kiri) */}
-      <div className="flex flex-wrap items-center gap-2">
-        {onDelete && (
-          <Button
-            type="button"
-            variant="danger"
-            size="sm"
-            icon={Trash}
-            onClick={() => onDelete(user)}
-            disabled={isCurrentUser}
-            title={isCurrentUser ? 'Anda tidak dapat menghapus akun Anda sendiri' : 'Hapus pengguna ini secara permanen'}
-          >
-            Hapus Pengguna
-          </Button>
-        )}
-
-        {onToggleActive && (
-          <Button
-            type="button"
-            variant={user.isActive ? 'outline' : 'secondary'}
-            size="sm"
-            icon={user.isActive ? UserMinus : UserCheck}
-            onClick={() => onToggleActive(user)}
-            disabled={isCurrentUser}
-            title={isCurrentUser ? 'Anda tidak dapat menonaktifkan akun sendiri' : undefined}
-            className={user.isActive ? 'text-[#C81E1E] hover:text-[#A61717] hover:bg-rose-50 dark:hover:bg-rose-950/20' : ''}
-          >
-            {user.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
-          </Button>
+      {/* Aksi berisiko/status: tersembunyi di menu agar tidak berdampingan dengan aksi utama */}
+      <div className="flex items-center justify-start gap-2">
+        {riskActions.length > 0 && (
+          <ActionMenu items={riskActions} label="Aksi lainnya" align="left" size="sm" />
         )}
       </div>
 
