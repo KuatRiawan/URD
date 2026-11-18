@@ -43,7 +43,7 @@ export const EXECUTIVE_DASHBOARD_SUBMENUS = [
 ];
 
 export const INSPECTION_SUBMENUS = [
-  { to: '/app/inspections?tab=worksheets', label: 'Lembar Kerja' },
+  { to: '/app/inspections?tab=worksheets', label: 'Lembar Kerja', isDefault: true },
   { to: '/app/inspections?tab=templates', label: 'Master Template' }
 ];
 
@@ -54,7 +54,7 @@ export const USERS_SUBMENUS = [
 ];
 
 export const REMINDER_SUBMENUS = [
-  { to: '/app/reminders?tab=expiring', label: 'Jatuh Tempo Suket' },
+  { to: '/app/reminders?tab=expiring', label: 'Jatuh Tempo Suket', isDefault: true },
   { to: '/app/reminders?tab=log', label: 'Pengiriman Klien' },
   { to: '/app/reminders?tab=missing', label: 'Tanpa Tanggal Berlaku' },
   { to: '/app/reminders?tab=skp', label: 'SKP Ahli K3' },
@@ -119,6 +119,8 @@ export function attachSubmenus(item, role) {
 /**
  * Menentukan submenu sidebar yang sedang aktif berdasarkan path dan query-nya.
  * Submenu dengan query paling spesifik menang atas submenu tanpa query.
+ * Bila halaman dibuka tanpa parameter sub-halaman, submenu bertanda `isDefault`
+ * (sub-halaman yang otomatis tampil) yang disorot agar navigasi tidak buta.
  */
 export function resolveActiveSubmenu(submenus = [], location) {
   let bestTo = null;
@@ -147,6 +149,13 @@ export function resolveActiveSubmenu(submenus = [], location) {
       bestScore = score;
       bestTo = sub.to;
     }
+  }
+
+  if (!bestTo) {
+    const fallback = submenus.find(
+      (sub) => sub?.isDefault && sub.to && sub.to.split('?')[0] === location.pathname
+    );
+    bestTo = fallback?.to ?? null;
   }
 
   return bestTo;
