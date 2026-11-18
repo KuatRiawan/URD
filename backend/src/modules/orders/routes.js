@@ -49,6 +49,8 @@ const inlineUnitSchema = Joi.object({
   capacityUnit: Joi.string().max(40).allow('', null),
   installLocation: Joi.string().max(200).allow('', null),
   previousPermitNo: Joi.string().max(120).allow('', null),
+  inspectionTypeCode: Joi.string().valid('PERTAMA', 'BERKALA', 'KHUSUS', 'ULANG').allow('', null),
+  serviceType: Joi.string().allow('', null),
   quantity: Joi.number().integer().min(1).max(50).default(1),
   scopeItems: Joi.array().items(Joi.string().max(160)).default([]),
   proposedDate: Joi.date().iso().allow('', null),
@@ -117,6 +119,13 @@ const addUnitsSchema = Joi.object({
 });
 
 const updateUnitSchema = Joi.object({
+  name: Joi.string().min(1).max(160).allow('', null),
+  serialNumber: Joi.string().max(120).allow('', null),
+  brand: Joi.string().max(120).allow('', null),
+  capacity: Joi.string().max(100).allow('', null),
+  installLocation: Joi.string().max(200).allow('', null),
+  categoryId: Joi.number().integer().min(1).max(7).allow(null),
+  inspectionTypeCode: Joi.string().valid('PERTAMA', 'BERKALA', 'KHUSUS', 'ULANG').allow('', null),
   scopeItems: Joi.array().items(Joi.string().max(160)),
   proposedDate: Joi.date().iso().allow('', null),
   unitNotes: Joi.string().max(1000).allow('', null),
@@ -164,7 +173,10 @@ const scheduleSchema = Joi.object({
 
 const assignSchema = Joi.object({
   inspectorIds: Joi.array().items(Joi.string().uuid()).min(1).required(),
-  objectId: Joi.string().uuid().allow('', null)
+  objectId: Joi.string().uuid().allow('', null),
+  startAt: Joi.date().iso().allow('', null),
+  endAt: Joi.date().iso().allow('', null),
+  notes: Joi.string().max(500).allow('', null)
 });
 
 const respondAssignmentSchema = Joi.object({
@@ -307,9 +319,20 @@ async function resolveActivityInspector(db, inspectorId, { categoryId, scheduleD
   return userRows[0];
 }
 
-async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, objectIds = [], units = [], userId }) {
+function normalizeInspectionTypeCode(val, fallback = 'BERKALA') {
+  if (!val) return fallback;
+  const s = String(val).trim().toUpperCase();
+  if (s === 'PERTAMA' || s === 'PEMERIKSAAN_PERTAMA') return 'PERTAMA';
+  if (s === 'BERKALA' || s === 'PEMERIKSAAN_BERKALA' || s === 'PERPANJANGAN') return 'BERKALA';
+  if (s === 'KHUSUS' || s === 'PEMERIKSAAN_KHUSUS') return 'KHUSUS';
+  if (s === 'ULANG' || s === 'PEMERIKSAAN_ULANG') return 'ULANG';
+  return fallback;
+}
+
+async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, objectIds = [], units = [], defaultServiceType, userId }) {
   const { rows: cats } = await db.query('SELECT id, code, default_bap_scopes FROM object_categories');
   const catMap = new Map(cats.map((c) => [Number(c.id), c]));
+  const defaultTypeCode = normalizeInspectionTypeCode(defaultServiceType, 'BERKALA');
 
   const normalizedUnits = [...units];
   for (const objId of objectIds) {
@@ -325,6 +348,8 @@ async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, o
   const insertedObjectIds = [];
 
   for (const unit of normalizedUnits) {
+    const unitTypeCode = normalizeInspectionTypeCode(unit.inspectionTypeCode || unit.serviceType, defaultTypeCode);
+
     if (unit.objectId) {
       const { rows: existingObj } = await db.query(
         'SELECT * FROM test_objects WHERE id = $1 AND client_id = $2',
@@ -343,19 +368,21 @@ async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, o
 
       await db.query(
         `INSERT INTO order_objects
-           (order_id, object_id, unit_status, scope_items, proposed_date, unit_notes)
-         VALUES ($1, $2, 'BELUM_DIJADWALKAN', $3::jsonb, $4, $5)
+           (order_id, object_id, unit_status, scope_items, proposed_date, unit_notes, inspection_type_code)
+         VALUES ($1, $2, 'BELUM_DIJADWALKAN', $3::jsonb, $4, $5, $6)
          ON CONFLICT (order_id, object_id) DO UPDATE SET
            scope_items = EXCLUDED.scope_items,
            proposed_date = COALESCE(EXCLUDED.proposed_date, order_objects.proposed_date),
            unit_notes = COALESCE(EXCLUDED.unit_notes, order_objects.unit_notes),
+           inspection_type_code = COALESCE(EXCLUDED.inspection_type_code, order_objects.inspection_type_code),
            updated_at = now()`,
         [
           orderId,
           existingObj[0].id,
           JSON.stringify(scopeItems),
           unit.proposedDate || null,
-          unit.unitNotes || null
+          unit.unitNotes || null,
+          unitTypeCode
         ]
       );
       insertedObjectIds.push(existingObj[0].id);
@@ -397,8 +424,8 @@ async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, o
         const { rows: createdObj } = await db.query(
           `INSERT INTO test_objects
              (client_id, location_id, category_id, name, brand, manufacturer, model, serial_number,
-              manufacture_year, capacity, capacity_unit, install_location, previous_permit_no, attributes, is_active, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,true,$15)
+              manufacture_year, capacity, capacity_unit, install_location, previous_permit_no, inspection_type_code, attributes, is_active, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,true,$16)
            RETURNING *`,
           [
             clientId,
@@ -414,6 +441,7 @@ async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, o
             unit.capacityUnit || null,
             unit.installLocation || null,
             unit.previousPermitNo || null,
+            unitTypeCode,
             unit.attributes || {},
             userId
           ]
@@ -423,19 +451,21 @@ async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, o
 
       await db.query(
         `INSERT INTO order_objects
-           (order_id, object_id, unit_status, scope_items, proposed_date, unit_notes)
-         VALUES ($1, $2, 'BELUM_DIJADWALKAN', $3::jsonb, $4, $5)
+           (order_id, object_id, unit_status, scope_items, proposed_date, unit_notes, inspection_type_code)
+         VALUES ($1, $2, 'BELUM_DIJADWALKAN', $3::jsonb, $4, $5, $6)
          ON CONFLICT (order_id, object_id) DO UPDATE SET
            scope_items = EXCLUDED.scope_items,
            proposed_date = COALESCE(EXCLUDED.proposed_date, order_objects.proposed_date),
            unit_notes = COALESCE(EXCLUDED.unit_notes, order_objects.unit_notes),
+           inspection_type_code = COALESCE(EXCLUDED.inspection_type_code, order_objects.inspection_type_code),
            updated_at = now()`,
         [
           orderId,
           objRecord.id,
           JSON.stringify(scopeItems),
           unit.proposedDate || null,
-          unit.unitNotes || null
+          unit.unitNotes || null,
+          unitTypeCode
         ]
       );
       insertedObjectIds.push(objRecord.id);
@@ -463,8 +493,14 @@ router.get('/', async (req, res, next) => {
       )`);
     }
     if (status) {
-      params.push(status);
-      conds.push(`o.status = $${params.length}`);
+      if (status === 'ORDER_BARU' || status === 'TERDAFTAR') {
+        conds.push(`o.status IN ('ORDER_BARU', 'TERDAFTAR')`);
+      } else if (status === 'MENUNGGU_LAPORAN' || status === 'MENUNGGU_DOKUMEN') {
+        conds.push(`o.status IN ('MENUNGGU_LAPORAN', 'MENUNGGU_DOKUMEN')`);
+      } else {
+        params.push(status);
+        conds.push(`o.status = $${params.length}`);
+      }
     }
     if (clientId) {
       params.push(clientId);
@@ -566,6 +602,8 @@ router.get('/:id', async (req, res, next) => {
                 oc.code AS category_code, oc.name AS category_name, oc.default_bap_scopes,
                 oo.id AS order_object_id, oo.unit_status, oo.scope_items, oo.proposed_date,
                 oo.unit_notes, oo.cancel_reason AS unit_cancel_reason, oo.inspector_id AS unit_inspector_id,
+                COALESCE(oo.inspection_type_code, t.inspection_type_code, 'BERKALA') AS inspection_type_code,
+                it.name AS inspection_type_name,
                 u_insp.full_name AS unit_inspector_name,
                 i.id AS inspection_id, i.status AS inspection_status, i.conclusion, i.submitted_at,
                 b.id AS bap_id, b.bap_no, b.status AS bap_status, b.finalized_at AS bap_finalized_at,
@@ -573,6 +611,7 @@ router.get('/:id', async (req, res, next) => {
          FROM order_objects oo
          JOIN test_objects t ON t.id = oo.object_id
          JOIN object_categories oc ON oc.id = t.category_id
+         LEFT JOIN inspection_types it ON it.code = COALESCE(oo.inspection_type_code, t.inspection_type_code, 'BERKALA')
          LEFT JOIN users u_insp ON u_insp.id = oo.inspector_id
          LEFT JOIN inspections i ON i.order_id = oo.order_id AND i.object_id = oo.object_id
          LEFT JOIN bap_documents b ON b.inspection_id = i.id
@@ -831,6 +870,7 @@ router.post(
           locationId: resolvedLocationId,
           objectIds: b.objectIds || [],
           units: enrichedUnits,
+          defaultServiceType: b.serviceType,
           userId: req.user.id
         });
 
@@ -920,16 +960,36 @@ router.post(
           },
           db
         );
-        const { rows: finalOrderRows } = await db.query('SELECT * FROM orders WHERE id = $1', [
-          order.id
-        ]);
+        const { rows: finalOrderRows } = await db.query(
+          `SELECT o.*, c.name AS client_name
+           FROM orders o
+           JOIN clients c ON c.id = o.client_id
+           WHERE o.id = $1`,
+          [order.id]
+        );
         const { rows: unitRows } = await db.query(
-          'SELECT unit_status FROM order_objects WHERE order_id = $1',
+          'SELECT object_id, unit_status FROM order_objects WHERE order_id = $1',
+          [order.id]
+        );
+        const { rows: assignmentRows } = await db.query(
+          `SELECT a.id, a.inspector_id AS "inspectorId", u.full_name AS "fullName", a.status
+           FROM assignments a
+           JOIN users u ON u.id = a.inspector_id
+           WHERE a.order_id = $1 AND a.status IN ('MENUNGGU', 'DITERIMA')`,
           [order.id]
         );
         const unitProgress = computePoUnitProgress(unitRows);
 
-        return { order: { ...finalOrderRows[0], unitProgress }, unitProgress };
+        return {
+          order: {
+            ...finalOrderRows[0],
+            object_count: unitRows.length,
+            unit_rows: unitRows,
+            assignments: assignmentRows,
+            unitProgress
+          },
+          unitProgress
+        };
       });
 
       return res.status(201).json(created);
@@ -1114,6 +1174,7 @@ router.post(
           clientId: order.client_id,
           locationId: order.location_id,
           units,
+          defaultServiceType: order.service_type,
           userId: req.user.id
         });
 
@@ -1150,7 +1211,7 @@ router.post(
   }
 );
 
-// Perbarui detail unit di dalam PO (scope BAP, jadwal usulan, catatan unit, status unit)
+// Perbarui detail unit di dalam PO (identitas alat, jenis riksa uji, scope BAP, jadwal usulan, catatan unit, status unit)
 router.patch(
   '/:id/units/:objectId',
   authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'AHLI_K3'),
@@ -1169,18 +1230,56 @@ router.patch(
           throw new AppError(404, 'UNIT_NOT_FOUND', 'Unit alat tidak ditemukan di dalam PO ini.');
         }
 
+        // Perbarui data test_objects jika identitas fisik / spesifikasi diubah
+        if (
+          b.name !== undefined ||
+          b.serialNumber !== undefined ||
+          b.brand !== undefined ||
+          b.capacity !== undefined ||
+          b.installLocation !== undefined ||
+          b.categoryId !== undefined ||
+          b.inspectionTypeCode !== undefined
+        ) {
+          await db.query(
+            `UPDATE test_objects
+             SET name = COALESCE($1, name),
+                 serial_number = COALESCE($2, serial_number),
+                 brand = COALESCE($3, brand),
+                 capacity = COALESCE($4, capacity),
+                 install_location = COALESCE($5, install_location),
+                 category_id = COALESCE($6, category_id),
+                 inspection_type_code = COALESCE($7, inspection_type_code),
+                 updated_at = now()
+             WHERE id = $8`,
+            [
+              b.name ? b.name.trim() : null,
+              b.serialNumber ? b.serialNumber.trim() : null,
+              b.brand ? b.brand.trim() : null,
+              b.capacity ? b.capacity.trim() : null,
+              b.installLocation ? b.installLocation.trim() : null,
+              b.categoryId || null,
+              b.inspectionTypeCode ? normalizeInspectionTypeCode(b.inspectionTypeCode) : null,
+              objectId
+            ]
+          );
+        }
+
+        const normalizedType = b.inspectionTypeCode ? normalizeInspectionTypeCode(b.inspectionTypeCode) : null;
+
         const { rows } = await db.query(
           `UPDATE order_objects
-           SET scope_items = COALESCE($1::jsonb, scope_items),
-               proposed_date = COALESCE($2, proposed_date),
-               unit_notes = COALESCE($3, unit_notes),
-               inspector_id = COALESCE($4, inspector_id),
-               unit_status = COALESCE($5, unit_status),
-               cancel_reason = COALESCE($6, cancel_reason),
+           SET inspection_type_code = COALESCE($1, inspection_type_code),
+               scope_items = COALESCE($2::jsonb, scope_items),
+               proposed_date = COALESCE($3, proposed_date),
+               unit_notes = COALESCE($4, unit_notes),
+               inspector_id = COALESCE($5, inspector_id),
+               unit_status = COALESCE($6, unit_status),
+               cancel_reason = COALESCE($7, cancel_reason),
                updated_at = now()
-           WHERE order_id = $7 AND object_id = $8
+           WHERE order_id = $8 AND object_id = $9
            RETURNING *`,
           [
+            normalizedType,
             b.scopeItems ? JSON.stringify(b.scopeItems) : null,
             b.proposedDate !== undefined ? b.proposedDate || null : null,
             b.unitNotes !== undefined ? b.unitNotes : null,
@@ -1192,6 +1291,16 @@ router.patch(
           ]
         );
 
+        if (normalizedType) {
+          await db.query(
+            `UPDATE inspection_activities
+             SET inspection_type_code = $1, updated_at = now()
+             WHERE order_id = $2 AND object_id = $3
+               AND status IN ('BELUM_DIJADWALKAN', 'MENUNGGU_PERSETUJUAN', 'DISETUJUI')`,
+            [normalizedType, id, objectId]
+          );
+        }
+
         if (b.unitStatus) {
           await syncOrderUnitStatus(db, {
             orderId: id,
@@ -1202,10 +1311,111 @@ router.patch(
           });
         }
 
+        // Catat revisi PO jika ada perubahan unit
+        const { rows: versionRows } = await db.query(
+          'UPDATE orders SET po_revision_no = po_revision_no + 1, updated_at = now() WHERE id = $1 RETURNING po_revision_no',
+          [id]
+        );
+        await recordOrderRevision(db, {
+          orderId: id,
+          actorId: req.user.id,
+          version: versionRows[0].po_revision_no,
+          reason: 'Pembaruan data rincian unit alat pada PO'
+        });
+
         return rows[0];
       });
 
       return res.json({ unit: updated });
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// Hapus unit alat dari PO (hanya jika riksa uji belum dilaksanakan / selesai)
+router.delete(
+  '/:id/units/:objectId',
+  authorize('ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR'),
+  async (req, res, next) => {
+    try {
+      const { id, objectId } = req.params;
+
+      const result = await withTransaction(async (db) => {
+        const { rows: ordRows } = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
+        const order = ordRows[0];
+        if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order PO tidak ditemukan.');
+        if (order.status === 'SELESAI' || order.status === 'DIBATALKAN') {
+          throw new AppError(400, 'ORDER_CLOSED', 'PO yang sudah selesai atau dibatalkan tidak dapat diubah unitnya.');
+        }
+
+        const { rows: unitRows } = await db.query(
+          'SELECT * FROM order_objects WHERE order_id = $1 AND object_id = $2',
+          [id, objectId]
+        );
+        if (!unitRows[0]) {
+          throw new AppError(404, 'UNIT_NOT_FOUND', 'Unit alat tidak ditemukan pada PO ini.');
+        }
+        const unit = unitRows[0];
+
+        // Pastikan inspeksi belum berjalan / selesai
+        const allowedStatuses = ['BELUM_DIJADWALKAN', 'TERJADWAL', 'DITUGASKAN', 'DIBATALKAN'];
+        if (!allowedStatuses.includes(unit.unit_status)) {
+          throw new AppError(
+            400,
+            'UNIT_INSPECTION_STARTED',
+            'Unit yang sedang diperiksa atau sudah memiliki draf BAP/LHPP tidak dapat dihapus dari PO.'
+          );
+        }
+
+        // Hapus aktivitas pemeriksaan yang belum terlaksana untuk unit ini
+        await db.query(
+          `DELETE FROM inspection_activities
+           WHERE order_id = $1 AND object_id = $2
+             AND status IN ('BELUM_DIJADWALKAN', 'MENUNGGU_PERSETUJUAN', 'DISETUJUI', 'DIBATALKAN')`,
+          [id, objectId]
+        );
+
+        // Hapus unit dari PO
+        await db.query(
+          'DELETE FROM order_objects WHERE order_id = $1 AND object_id = $2',
+          [id, objectId]
+        );
+
+        // Catat riwayat revisi dan audit
+        const { rows: versionRows } = await db.query(
+          'UPDATE orders SET po_revision_no = po_revision_no + 1, updated_at = now() WHERE id = $1 RETURNING po_revision_no',
+          [id]
+        );
+        await recordOrderRevision(db, {
+          orderId: id,
+          actorId: req.user.id,
+          version: versionRows[0].po_revision_no,
+          reason: 'Penghapusan unit alat dari PO'
+        });
+
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'ORDER_DELETE_UNIT',
+            entity: 'order_objects',
+            entityId: `${id}:${objectId}`,
+            summary: { orderId: id, objectId },
+            ip: req.ip
+          },
+          db
+        );
+
+        const { rows: remainingUnits } = await db.query(
+          'SELECT unit_status FROM order_objects WHERE order_id = $1',
+          [id]
+        );
+        const unitProgress = computePoUnitProgress(remainingUnits);
+
+        return { orderId: id, objectId, unitProgress };
+      });
+
+      return res.json({ message: 'Unit berhasil dihapus dari PO.', ...result });
     } catch (err) {
       return next(err);
     }
@@ -1376,17 +1586,14 @@ router.post(
         let sched;
 
         if (existing[0]) {
-          if (!reason || reason.trim().length < 3) {
-            throw new AppError(
-              400,
-              'RESCHEDULE_REASON_REQUIRED',
-              'Alasan perubahan jadwal wajib diisi saat menjadwalkan ulang.'
-            );
-          }
+          const resolvedReason =
+            reason && reason.trim().length >= 3
+              ? reason.trim()
+              : 'Penyesuaian jadwal pemeriksaan operasional';
           await db.query(
             `INSERT INTO schedule_changes (schedule_id, old_start, old_end, new_start, new_end, reason, changed_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [existing[0].id, existing[0].start_at, existing[0].end_at, startAt, endAt, reason.trim(), req.user.id]
+            [existing[0].id, existing[0].start_at, existing[0].end_at, startAt, endAt, resolvedReason, req.user.id]
           );
           const { rows: upd } = await db.query(
             `UPDATE schedules SET start_at = $1, end_at = $2, notes = $3, updated_at = now()
@@ -1422,6 +1629,10 @@ router.post(
         }
 
         if (existing[0]) {
+          const resolvedBodyReason =
+            reason && reason.trim().length >= 3
+              ? reason.trim()
+              : 'Penyesuaian jadwal pemeriksaan operasional';
           const { rows: recipients } = await db.query(
             "SELECT inspector_id FROM assignments WHERE order_id = $1 AND status IN ('MENUNGGU','DITERIMA')",
             [id]
@@ -1431,7 +1642,7 @@ router.post(
               userId: recipient.inspector_id,
               type: 'SCHEDULE_CHANGED',
               title: `Perubahan jadwal ${order.po_number || order.order_no}`,
-              body: `${reason.trim()} Jadwal baru: ${new Date(startAt).toLocaleString('id-ID')}.`,
+              body: `${resolvedBodyReason} Jadwal baru: ${new Date(startAt).toLocaleString('id-ID')}.`,
               link: `/app/orders?orderNo=${encodeURIComponent(order.order_no)}`
             }, db);
           }
@@ -1466,7 +1677,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { inspectorIds, objectId } = req.body;
+      const { inspectorIds, objectId, startAt, endAt, notes } = req.body;
 
       const assigned = await withTransaction(async (db) => {
         const { rows: ordRows } = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
@@ -1475,7 +1686,42 @@ router.post(
 
         const { rows: schedRows } = await db.query('SELECT * FROM schedules WHERE order_id = $1', [id]);
         let schedule = schedRows[0];
-        if (!schedule) {
+        if (startAt && endAt) {
+          if (new Date(endAt) <= new Date(startAt)) {
+            throw new AppError(
+              400,
+              'INVALID_SCHEDULE_RANGE',
+              'Waktu selesai jadwal harus lebih besar dari waktu mulai.'
+            );
+          }
+          if (schedule) {
+            await db.query(
+              `INSERT INTO schedule_changes (schedule_id, old_start, old_end, new_start, new_end, reason, changed_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                schedule.id,
+                schedule.start_at,
+                schedule.end_at,
+                startAt,
+                endAt,
+                'Penjadwalan & penugasan Ahli K3',
+                req.user.id
+              ]
+            );
+          }
+          const { rows: upsertedSched } = await db.query(
+            `INSERT INTO schedules (order_id, start_at, end_at, notes, created_by)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (order_id) DO UPDATE SET
+               start_at = EXCLUDED.start_at,
+               end_at = EXCLUDED.end_at,
+               notes = COALESCE(EXCLUDED.notes, schedules.notes),
+               updated_at = now()
+             RETURNING *`,
+            [id, startAt, endAt, notes || order.notes || null, req.user.id]
+          );
+          schedule = upsertedSched[0];
+        } else if (!schedule) {
           const baseDate = order.requested_date || order.po_date || new Date().toISOString().slice(0, 10);
           const baseDateStr = new Date(baseDate).toISOString().slice(0, 10);
           const startIso = new Date(`${baseDateStr}T08:00:00.000Z`).toISOString();
@@ -1602,6 +1848,17 @@ router.post(
             [primaryInspectorId, id]
           );
         }
+
+        await db.query(
+          `UPDATE inspection_activities
+           SET inspector_id = COALESCE(inspector_id, $1),
+               planned_start_at = COALESCE($2::timestamptz, planned_start_at),
+               planned_end_at = COALESCE($3::timestamptz, planned_end_at),
+               status = CASE WHEN status IN ('BELUM_DIJADWALKAN', 'TERJADWAL') THEN 'DITUGASKAN' ELSE status END,
+               updated_at = now()
+           WHERE order_id = $4`,
+          [primaryInspectorId, schedule?.start_at || null, schedule?.end_at || null, id]
+        );
 
         if (order.status === 'TERJADWAL' || order.status === 'ORDER_BARU' || order.status === 'TERDAFTAR') {
           await db.query("UPDATE orders SET status = 'DITUGASKAN', updated_at = now() WHERE id = $1", [id]);

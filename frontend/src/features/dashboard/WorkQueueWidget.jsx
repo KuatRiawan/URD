@@ -86,8 +86,31 @@ export function WorkQueueWidget({ onRefresh }) {
   }, []);
 
   useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue]);
+    let isMounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const res = await api.get('/dashboard/work-queue');
+        if (!isMounted) return;
+        const items = res.data?.items || [];
+        setQueue(items);
+        setMeta({
+          total: res.data?.total ?? items.length,
+          shown: res.data?.shown ?? items.length,
+          truncated: Boolean(res.data?.truncated)
+        });
+      } catch (err) {
+        if (!isMounted) return;
+        setError(extractErrorMessage(err));
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleRespondAssignment = async (decision) => {
     if (!confirmModalItem) return;

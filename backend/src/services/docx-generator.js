@@ -1,203 +1,2241 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import {
   AlignmentType,
+  BorderStyle,
   Document,
+  Footer,
   HeadingLevel,
   ImageRun,
   Packer,
+  PageBreak,
   Paragraph,
+  ShadingType,
   Table,
   TableCell,
   TableRow,
   TextRun,
+  VerticalAlign,
   WidthType
 } from 'docx';
 import { buildLhppReportContent, getOfficialLogoPath } from './pdf-generator.js';
 import { getCompanyProfile } from './system-settings-service.js';
+import { resolveAttachmentPath } from '../storage/file-storage.js';
 
-export async function generateLhppDocxBuffer(data) {
-  const [report, _companyProfile] = await Promise.all([
-    Promise.resolve(buildLhppReportContent(data)),
-    getCompanyProfile().catch(() => null)
-  ]);
+export function resolveAttachmentBuffer(attachment) {
+  if (!attachment) return null;
+  if (Buffer.isBuffer(attachment)) return attachment;
+  if (typeof attachment === 'string') {
+    if (attachment.startsWith('data:image/')) {
+      const match = attachment.match(/^data:image\/[a-z]+;base64,(.+)$/);
+      if (match) {
+        try {
+          return Buffer.from(match[1], 'base64');
+        } catch {}
+      }
+    }
+    try {
+      const p = resolveAttachmentPath(attachment);
+      if (p && fs.existsSync(p)) return fs.readFileSync(p);
+    } catch {}
+    if (fs.existsSync(attachment)) return fs.readFileSync(attachment);
+  }
+  if (typeof attachment === 'object') {
+    if (attachment.buffer && Buffer.isBuffer(attachment.buffer)) return attachment.buffer;
+    if (attachment.path && fs.existsSync(attachment.path)) return fs.readFileSync(attachment.path);
+    const sk = attachment.storage_key || attachment.storageKey || attachment.file_id || attachment.fileId;
+    if (sk) {
+      try {
+        const fp = resolveAttachmentPath(sk);
+        if (fp && fs.existsSync(fp)) return fs.readFileSync(fp);
+      } catch {}
+    }
+    if (attachment.data_url || attachment.dataUrl) {
+      const match = (attachment.data_url || attachment.dataUrl).match(/^data:image\/[a-z]+;base64,(.+)$/);
+      if (match) {
+        try {
+          return Buffer.from(match[1], 'base64');
+        } catch {}
+      }
+    }
+  }
+  return null;
+}
 
-  const logoPath = getOfficialLogoPath();
-  const logoParagraph = logoPath && fs.existsSync(logoPath)
-    ? new Paragraph({
+// Ukuran Halaman Resmi F4 / Folio Indonesia (215.9 mm x 330.2 mm / 8.5 x 13.0 inch)
+// Satuan dalam DXA (1/20 of a point, 1 inch = 1440 DXA)
+export const F4_PAGE_PROPERTIES = {
+  page: {
+    size: {
+      width: 12240, // 8.5 in (215.9 mm)
+      height: 18720 // 13.0 in (330.2 mm) - Standar F4 / Folio Kemnaker RI
+    },
+    margin: {
+      top: 1080,    // ~19 mm
+      right: 1080,  // ~19 mm
+      bottom: 1080, // ~19 mm
+      left: 1080    // ~19 mm
+    }
+  }
+};
+
+const BORDER_BLACK_SOLID = {
+  style: BorderStyle.SINGLE,
+  size: 4,
+  color: '000000'
+};
+
+const TABLE_BORDERS_BLACK = {
+  top: BORDER_BLACK_SOLID,
+  bottom: BORDER_BLACK_SOLID,
+  left: BORDER_BLACK_SOLID,
+  right: BORDER_BLACK_SOLID,
+  insideHorizontal: BORDER_BLACK_SOLID,
+  insideVertical: BORDER_BLACK_SOLID
+};
+
+const TABLE_BORDERS_NONE = {
+  top: { style: BorderStyle.NONE },
+  bottom: { style: BorderStyle.NONE },
+  left: { style: BorderStyle.NONE },
+  right: { style: BorderStyle.NONE },
+  insideHorizontal: { style: BorderStyle.NONE },
+  insideVertical: { style: BorderStyle.NONE }
+};
+
+function createCell(children, options = {}) {
+  const {
+    widthDxa = null,
+    widthPercent = null,
+    isHeader = false,
+    shadingColor = null,
+    bold = false,
+    italics = false,
+    align = AlignmentType.LEFT,
+    size = 20, // 10 pt
+    font = 'Times New Roman',
+    color = '000000',
+    columnSpan = 1,
+    rowSpan = 1,
+    borders = null,
+    margins = { top: 80, bottom: 80, left: 120, right: 120 },
+    verticalAlign = VerticalAlign.CENTER
+  } = options;
+
+  let widthObj = undefined;
+  if (widthDxa !== null && widthDxa !== undefined) {
+    widthObj = { size: widthDxa, type: WidthType.DXA };
+  } else if (widthPercent !== null && widthPercent !== undefined) {
+    widthObj = { size: widthPercent, type: WidthType.PERCENTAGE };
+  }
+
+  const paras = Array.isArray(children)
+    ? children.map((c) =>
+        c instanceof Paragraph
+          ? c
+          : new Paragraph({
+              alignment: align,
+              children: [
+                new TextRun({
+                  text: String(c ?? ''),
+                  bold: bold || isHeader,
+                  italics,
+                  size,
+                  font,
+                  color
+                })
+              ]
+            })
+      )
+    : [
+        children instanceof Paragraph
+          ? children
+          : new Paragraph({
+              alignment: align,
+              children: [
+                new TextRun({
+                  text: String(children ?? ''),
+                  bold: bold || isHeader,
+                  italics,
+                  size,
+                  font,
+                  color
+                })
+              ]
+            })
+      ];
+
+  return new TableCell({
+    width: widthObj,
+    columnSpan,
+    rowSpan,
+    verticalAlign,
+    borders: borders || undefined,
+    margins: margins || undefined,
+    shading: shadingColor
+      ? { fill: shadingColor, type: ShadingType.CLEAR }
+      : isHeader
+      ? { fill: 'F8FAFC', type: ShadingType.CLEAR }
+      : undefined,
+    children: paras
+  });
+}
+
+function formatDateIndo(dateStr) {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return String(dateStr);
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch {
+    return String(dateStr);
+  }
+}
+
+function addYear(dateStr, yearsToAdd = 1) {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setFullYear(d.getFullYear() + yearsToAdd);
+    return formatDateIndo(d);
+  } catch {
+    return null;
+  }
+}
+
+function getTemplateAsset(filename) {
+  const p = path.resolve(process.cwd(), 'src/assets/forklift-template', filename);
+  if (fs.existsSync(p)) return p;
+  const p2 = path.resolve(process.cwd(), 'backend/src/assets/forklift-template', filename);
+  if (fs.existsSync(p2)) return p2;
+  return null;
+}
+
+function createRunningFooter() {
+  return new Footer({
+    children: [
+      new Paragraph({
         children: [
-          new ImageRun({
-            data: fs.readFileSync(logoPath),
-            transformation: { width: 104, height: 73 }
+          new TextRun({
+            text: 'PT. UPAYA RIKSA DAYA\n',
+            bold: true,
+            size: 18,
+            font: 'Times New Roman',
+            color: 'FF0000'
+          }),
+          new TextRun({
+            text: 'Jl. Pondasi No. 50B Kampung Ambon, Jakarta Timur. 13210',
+            size: 18,
+            font: 'Times New Roman',
+            color: '000000'
           })
         ],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 160 }
+        spacing: { before: 120 }
       })
-    : null;
+    ]
+  });
+}
+
+
+// =============================================================================
+// FORKLIFT OFFICIAL TEMPLATE (Persis 100% Sesuai PDF Resmi Kemnaker / URD)
+// =============================================================================
+function buildForkliftDocxDocument(data, report, companyProfile) {
+  const results = Array.isArray(data.results) ? data.results : [];
+  const photos = Array.isArray(data.photos) ? data.photos : [];
+  const hasResults = results.length > 0;
+  const isBlank = !hasResults && !data.client_name;
+
+  // 1. Result resolver helpers:
+  const findResult = (patterns) => {
+    const list = Array.isArray(patterns) ? patterns : [patterns];
+    return results.find((r) => {
+      const lbl = String(r.label || '').trim().toLowerCase();
+      return list.some((pat) => (typeof pat === 'string' ? lbl.includes(pat.toLowerCase()) : pat.test(lbl)));
+    });
+  };
+
+  const getResultVal = (patterns, fallback = '') => {
+    const match = findResult(patterns);
+    if (!match) return fallback;
+    if (match.text_value !== undefined && match.text_value !== null && String(match.text_value).trim() !== '') {
+      return String(match.text_value).trim();
+    }
+    if (match.number_value !== undefined && match.number_value !== null && String(match.number_value).trim() !== '') {
+      return `${match.number_value} ${match.unit || ''}`.trim();
+    }
+    if (match.choice_value) return match.choice_value;
+    if (match.date_value) return formatDateIndo(match.date_value);
+    return fallback;
+  };
+
+  const getConditionChoice = (patterns, forceBlank = false) => {
+    if (isBlank || forceBlank) {
+      return { ok: '☐', nok: '☐', ket: '' };
+    }
+    const match = findResult(patterns);
+    if (!match || !match.choice_value) {
+      return { ok: '☐', nok: '☐', ket: '' };
+    }
+    const val = String(match.choice_value).toUpperCase();
+    const ket = match.notes || match.keterangan || '';
+    if (val === 'MEMENUHI' || val === 'SESUAI' || val === 'BAIK' || val === 'PASS' || val === 'OK') {
+      return { ok: '√', nok: '-', ket };
+    }
+    if (val === 'TIDAK_MEMENUHI' || val === 'TIDAK SESUAI' || val === 'BURUK' || val === 'FAIL' || val === 'NOK') {
+      return { ok: '-', nok: '√', ket };
+    }
+    if (val === 'N/A' || val === 'NA' || val === 'TIDAK_ADA') {
+      return { ok: '-', nok: '-', ket: 'N/A' };
+    }
+    return { ok: '☐', nok: '☐', ket };
+  };
+
+  // 2. Photo resolver helpers:
+  const findPhotoBuffer = (captionPatterns, indexFallback) => {
+    const list = Array.isArray(captionPatterns) ? captionPatterns : [captionPatterns];
+    const match = photos.find((p) => {
+      const cap = String(p.caption || p.doc_category || p.category || p.originalName || '').toLowerCase();
+      return list.some((pat) => (typeof pat === 'string' ? cap.includes(pat.toLowerCase()) : pat.test(cap)));
+    });
+    if (match) {
+      if (match.buffer && Buffer.isBuffer(match.buffer)) return match.buffer;
+      if (match.path && fs.existsSync(match.path)) return fs.readFileSync(match.path);
+      const sk = match.storage_key || match.storageKey;
+      if (sk) {
+        try {
+          const p = resolveAttachmentPath(sk);
+          if (p && fs.existsSync(p)) return fs.readFileSync(p);
+        } catch {}
+      }
+    }
+    if (indexFallback !== undefined && photos[indexFallback]) {
+      const p = photos[indexFallback];
+      if (p.buffer && Buffer.isBuffer(p.buffer)) return p.buffer;
+      if (p.path && fs.existsSync(p.path)) return fs.readFileSync(p.path);
+      const sk = p.storage_key || p.storageKey;
+      if (sk) {
+        try {
+          const fp = resolveAttachmentPath(sk);
+          if (fp && fs.existsSync(fp)) return fs.readFileSync(fp);
+        } catch {}
+      }
+    }
+    return null;
+  };
+
+  const createPhotoPlaceholderCell = (caption, widthDxa = 5040, heightDxa = 2400) => {
+    return new TableCell({
+      width: { size: widthDxa, type: WidthType.DXA },
+      borders: TABLE_BORDERS_BLACK,
+      shading: { fill: 'FFFFFF', type: ShadingType.CLEAR },
+      margins: { top: 100, bottom: 100, left: 100, right: 100 },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: caption,
+              bold: true,
+              size: 20,
+              font: 'Times New Roman'
+            })
+          ],
+          spacing: { after: 80 }
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: '\n\n\n\n\n',
+              size: 20
+            })
+          ],
+          spacing: { after: 60 }
+        })
+      ]
+    });
+  };
+
+  const createPhotoCell = (imgBuf, caption, widthDxa = 5040) => {
+    return new TableCell({
+      width: { size: widthDxa, type: WidthType.DXA },
+      borders: TABLE_BORDERS_BLACK,
+      margins: { top: 100, bottom: 100, left: 100, right: 100 },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: caption,
+              bold: true,
+              size: 20,
+              font: 'Times New Roman'
+            })
+          ],
+          spacing: { after: 80 }
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new ImageRun({
+              data: imgBuf,
+              transformation: { width: 235, height: 165 }
+            })
+          ],
+          spacing: { after: 60 }
+        })
+      ]
+    });
+  };
+
+  // General field values
+  const clientName = data.client_name || data.customer_name || data.company_name || '';
+  const clientAddress = data.client_address || data.company_address || '';
+  const picName = data.pic_name || data.user_name || data.pic || '';
+  const location = data.install_location || data.location || '';
+  const serialNo = data.serial_number || data.no_seri || '';
+  const brandModel = data.brand_model || (data.brand && data.model ? `${data.brand} / ${data.model}` : (data.brand || data.model || ''));
+  const yearStr = data.manufacture_year || data.manufacturing_year || data.year || '';
+  const capacityStr = data.capacity ? `${data.capacity} ${data.capacity_unit || 'kg'}` : '';
+  const inspDateStr = formatDateIndo(data.inspected_at || data.inspection_date) || '';
+  const reInspDateStr = addYear(data.inspected_at || data.inspection_date, 1) || '';
+  const permitNo = data.previous_permit_no || data.permit_number || data.license_no || '';
+  const lhppNo = report.lhppNo || data.lhpp_no || '';
+  const inspectorName = data.inspector_name || '';
+  const inspectorSkpNo = data.inspector_skp_no || '';
+  const reportDateStr = formatDateIndo(data.report_date || data.submitted_at) || formatDateIndo(new Date());
+
+  // ---------------------------------------------------------------------------
+  // SECTION 1: COVER PAGE
+  // ---------------------------------------------------------------------------
+  const redBannerTop = new Table({
+    width: { size: 10080, type: WidthType.DXA },
+    columnWidths: [10080],
+    borders: TABLE_BORDERS_NONE,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 10080, type: WidthType.DXA },
+            shading: { fill: 'CC0000', type: ShadingType.CLEAR },
+            children: [new Paragraph({ text: '', spacing: { before: 200, after: 200 } })]
+          })
+        ]
+      })
+    ]
+  });
+
+  const yearParagraph = new Paragraph({
+    children: [
+      new TextRun({
+        text: String(yearStr || new Date().getFullYear()),
+        bold: true,
+        underline: {},
+        size: 48,
+        font: 'Times New Roman'
+      })
+    ],
+    spacing: { before: 240, after: 180 }
+  });
 
   const titleParagraph = new Paragraph({
-    text: report.title || 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP)',
-    heading: HeadingLevel.HEADING_1,
+    alignment: AlignmentType.CENTER,
+    children: [
+      new TextRun({
+        text: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN\n',
+        bold: true,
+        size: 30,
+        font: 'Times New Roman'
+      }),
+      new TextRun({
+        text: 'SERTIFIKASI\n',
+        bold: true,
+        size: 28,
+        font: 'Times New Roman'
+      }),
+      new TextRun({
+        text: 'PESAWAT ANGKAT DAN PESAWAT ANGKUT',
+        bold: true,
+        size: 30,
+        font: 'Times New Roman'
+      })
+    ],
+    spacing: { before: 180, after: 240 }
+  });
+
+  const coverInfoTable = new Table({
+    width: { size: 9000, type: WidthType.DXA },
+    columnWidths: [3000, 6000],
+    borders: TABLE_BORDERS_NONE,
+    rows: [
+      new TableRow({
+        children: [
+          createCell('Perusahaan', { widthDxa: 3000, bold: true, size: 24, font: 'Times New Roman' }),
+          createCell(`: ${clientName || '............................................................'}`, { widthDxa: 6000, bold: true, size: 24, font: 'Times New Roman' })
+        ]
+      }),
+      new TableRow({
+        children: [
+          createCell('Jenis', { widthDxa: 3000, bold: true, size: 24, font: 'Times New Roman' }),
+          createCell(': PAA / Forklift', { widthDxa: 6000, bold: true, size: 24, font: 'Times New Roman' })
+        ]
+      }),
+      new TableRow({
+        children: [
+          createCell('SN', { widthDxa: 3000, bold: true, size: 24, font: 'Times New Roman' }),
+          createCell(`: ${[serialNo, capacityStr, yearStr].filter(Boolean).join(' / ') || '............................................................'}`, { widthDxa: 6000, bold: true, size: 24, font: 'Times New Roman' })
+        ]
+      }),
+      new TableRow({
+        children: [
+          createCell('Lokasi', { widthDxa: 3000, bold: true, size: 24, font: 'Times New Roman' }),
+          createCell(`: ${location || '............................................................'}`, { widthDxa: 6000, bold: true, size: 24, font: 'Times New Roman' })
+        ]
+      }),
+      new TableRow({
+        children: [
+          createCell('Inspected', { widthDxa: 3000, bold: true, size: 24, font: 'Times New Roman' }),
+          createCell(`: ${inspDateStr || '............................................................'}`, { widthDxa: 6000, bold: true, size: 24, font: 'Times New Roman' })
+        ]
+      }),
+      new TableRow({
+        children: [
+          createCell('Re – Inspection', { widthDxa: 3000, bold: true, size: 24, font: 'Times New Roman' }),
+          createCell(`: ${reInspDateStr || '............................................................'}`, { widthDxa: 6000, bold: true, size: 24, font: 'Times New Roman' })
+        ]
+      })
+    ]
+  });
+
+  // Cover photo slot: only use if uploaded by user; otherwise render clean bordered box!
+  const coverPhotoBuf = findPhotoBuffer(['cover', 'unit', 'depan'], 0);
+  const coverHeroElement = coverPhotoBuf
+    ? new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            data: coverPhotoBuf,
+            transformation: { width: 330, height: 248 }
+          })
+        ],
+        spacing: { before: 200, after: 180 }
+      })
+    : new Table({
+        width: { size: 6000, type: WidthType.DXA },
+        columnWidths: [6000],
+        borders: TABLE_BORDERS_BLACK,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 6000, type: WidthType.DXA },
+                shading: { fill: 'FAFAFA', type: ShadingType.CLEAR },
+                margins: { top: 200, bottom: 200, left: 200, right: 200 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: '\n\n\n[ Tempelkan Foto Unit Forklift di Sini ]\n\n\n',
+                        size: 20,
+                        italics: true,
+                        font: 'Times New Roman',
+                        color: '888888'
+                      })
+                    ],
+                    spacing: { before: 200, after: 200 }
+                  })
+                ]
+              })
+            ]
+          })
+        ]
+      });
+
+  const coverFooterParagraph = new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: [
+      new TextRun({
+        text: 'PT. UPAYA RIKSA DAYA\n',
+        bold: true,
+        size: 22,
+        font: 'Times New Roman',
+        color: 'FF0000'
+      }),
+      new TextRun({
+        text: 'Jl. Pondasi No. 50B Kampung Ambon, Jakarta Timur. 13210\n',
+        size: 20,
+        font: 'Times New Roman'
+      }),
+      new TextRun({
+        text: 'Ph. 021 4891409, 021 4715699, 021 47861912\n',
+        size: 20,
+        font: 'Times New Roman'
+      }),
+      new TextRun({
+        text: 'Email: urd@upayariksadaya.com   Web. upayariksa.com',
+        size: 20,
+        font: 'Times New Roman',
+        color: '0000EE',
+        underline: {}
+      })
+    ],
+    spacing: { before: 180, after: 220 }
+  });
+
+  const redBannerBottom = new Table({
+    width: { size: 10080, type: WidthType.DXA },
+    columnWidths: [10080],
+    borders: TABLE_BORDERS_NONE,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 10080, type: WidthType.DXA },
+            shading: { fill: 'CC0000', type: ShadingType.CLEAR },
+            children: [new Paragraph({ text: '', spacing: { before: 200, after: 200 } })]
+          })
+        ]
+      })
+    ]
+  });
+
+  // ---------------------------------------------------------------------------
+  // SECTION 2: CONTENT PAGES (BAB I s/d LAMPIRAN)
+  // ---------------------------------------------------------------------------
+  const contentChildren = [];
+
+  // ===========================================================================
+  // PAGE 2: BAB I. DATA UMUM (Single Table with Title inside Header)
+  // ===========================================================================
+  const bab1Rows = [
+    new TableRow({
+      children: [
+        createCell(
+          [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({
+                  text: 'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN\nPESAWAT ANGKAT DAN PESAWAT ANGKUT\n',
+                  bold: true,
+                  size: 22,
+                  font: 'Times New Roman'
+                }),
+                new TextRun({
+                  text: `NO. ${lhppNo || '........................................'}`,
+                  bold: true,
+                  size: 22,
+                  font: 'Times New Roman'
+                })
+              ]
+            })
+          ],
+          { widthDxa: 10080, columnSpan: 2 }
+        )
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('I. DATA UMUM', { widthDxa: 10080, columnSpan: 2, bold: true, size: 22, font: 'Times New Roman' })
+      ]
+    }),
+    ...[
+      ['Pemilik', clientName],
+      ['Alamat', clientAddress],
+      ['Pemakai', getResultVal([/pemakai/i], clientName)],
+      ['Alamat', getResultVal([/alamat.*pemakai/i], clientAddress)],
+      ['Pengurus / Penanggung jawab', picName || getResultVal([/pengurus|penanggung/i], '')],
+      ['Lokasi Unit', location],
+      ['Jenis Pesawat', 'Forklift'],
+      ['Nomor Seri Unit', serialNo],
+      ['Merk / Model', brandModel],
+      ['Tahun', yearStr],
+      ['Kapasitas Angkat', capacityStr],
+      ['Standard yang dipakai', 'Permenaker No. 8 Tahun 2020'],
+      ['Digunakan untuk', getResultVal([/digunakan untuk/i], 'Mengangkat dan Memindahkan Material')],
+      ['Tanggal diperiksa', inspDateStr],
+      ['Jenis Pemeriksaan', data.inspection_type_code || data.inspection_type || 'Berkala'],
+      ['Nomor Ijin Pemakai', permitNo],
+      ['Diperiksa Oleh', 'PT UPAYA RIKSA DAYA']
+    ].map(
+      ([lbl, val]) =>
+        new TableRow({
+          children: [
+            createCell(lbl, { widthDxa: 3600, size: 20, font: 'Times New Roman' }),
+            createCell(`: ${val || '............................................................'}`, { widthDxa: 6480, size: 20, font: 'Times New Roman' })
+          ]
+        })
+    )
+  ];
+
+  contentChildren.push(
+    new Table({
+      width: { size: 10080, type: WidthType.DXA },
+      columnWidths: [3600, 6480],
+      borders: TABLE_BORDERS_BLACK,
+      rows: bab1Rows
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGE 3: BAB II. DATA TEKNIS (Single Master Table with Merged Cells)
+  // Grid: [2400, 1800, 1800, 4080] = 10080 DXA
+  // ===========================================================================
+  const bab2Rows = [
+    // Header Row
+    new TableRow({
+      children: [
+        createCell('II. DATA TEKNIS', { widthDxa: 10080, columnSpan: 4, bold: true, size: 22, font: 'Times New Roman' })
+      ]
+    }),
+    // 1. SPESIFIKASI PESAWAT (4 rows)
+    new TableRow({
+      children: [
+        createCell('SPESIFIKASI\nPESAWAT', { widthDxa: 2400, rowSpan: 4, bold: true, align: AlignmentType.CENTER }),
+        createCell('Perlengkapan / Attachment', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/perlengkapan|attachment/i], isBlank ? ': ....................' : 'Reguler fork'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Kecepatan\n/Speed', { widthDxa: 1800, rowSpan: 3 }),
+        createCell('Lifting', { widthDxa: 1800 }),
+        createCell(getResultVal([/kecepatan angkat|lifting speed/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Lowering', { widthDxa: 1800 }),
+        createCell(getResultVal([/kecepatan turun|lowering speed/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Travelling', { widthDxa: 1800 }),
+        createCell(getResultVal([/kecepatan jalan|travelling speed/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+
+    // 2. PENGGERAK UTAMA (12 rows)
+    new TableRow({
+      children: [
+        createCell('PENGGERAK\nUTAMA', { widthDxa: 2400, rowSpan: 12, bold: true, align: AlignmentType.CENTER }),
+        createCell('Jenis penggerak motor bakar', { widthDxa: 7680, columnSpan: 3, bold: true })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Putaran (rpm)', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/putaran.*rpm|rpm/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Merk / Tipe', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/merk.*mesin|tipe.*mesin|penggerak utama/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Nomor Seri', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/nomor seri.*mesin/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Tahun Pembuatan', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/tahun.*mesin/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Daya', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/daya.*mesin|daya/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Jumlah Silinder', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/jumlah silinder/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Jenis penggerak DC Motor', { widthDxa: 7680, columnSpan: 3, bold: true })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Type', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/type dc motor/i], '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Power of hydraulic motor', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/power.*hydraulic/i], '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Power of drive motor', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/power.*drive/i], '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Battery Capacity', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/battery/i], '-'), { widthDxa: 4080 })
+      ]
+    }),
+
+    // 3. DIMENSI (4 rows)
+    new TableRow({
+      children: [
+        createCell('DIMENSI', { widthDxa: 2400, rowSpan: 4, bold: true, align: AlignmentType.CENTER }),
+        createCell('Panjang', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/dimensi panjang|panjang unit/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Lebar', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/dimensi lebar|lebar unit/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Tinggi', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/dimensi tinggi|tinggi unit/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Tinggi angkat garpu / attachment', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/tinggi angkat/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+
+    // 4. TEKANAN RODA (2 rows)
+    new TableRow({
+      children: [
+        createCell('TEKANAN RODA', { widthDxa: 2400, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Roda depan', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/tekanan roda depan/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Roda belakang', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/tekanan roda belakang/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+
+    // 5. RODA DEPAN (2 rows)
+    new TableRow({
+      children: [
+        createCell('RODA DEPAN', { widthDxa: 2400, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Ukuran', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/ukuran roda depan/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Type', { widthDxa: 3600, columnSpan: 2, italics: true }),
+        createCell(getResultVal([/tipe roda depan/i], isBlank ? ': ....................' : 'Pneumatic'), { widthDxa: 4080 })
+      ]
+    }),
+
+    // 6. RODA BELAKANG (2 rows)
+    new TableRow({
+      children: [
+        createCell('RODA BELAKANG', { widthDxa: 2400, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Ukuran', { widthDxa: 3600, columnSpan: 2 }),
+        createCell(getResultVal([/ukuran roda belakang/i], isBlank ? ': ....................' : '-'), { widthDxa: 4080 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Type', { widthDxa: 3600, columnSpan: 2, italics: true }),
+        createCell(getResultVal([/tipe roda belakang/i], isBlank ? ': ....................' : 'Pneumatic'), { widthDxa: 4080 })
+      ]
+    })
+  ];
+
+  contentChildren.push(
+    new Table({
+      width: { size: 10080, type: WidthType.DXA },
+      columnWidths: [2400, 1800, 1800, 4080],
+      borders: TABLE_BORDERS_BLACK,
+      rows: bab2Rows
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGES 4 TO 7: BAB III. PEMERIKSAAN VISUAL & FUNGSI (5 KOLOM LENGKAP)
+  // Grid: [1800, 2000, 3480, 950, 950, 900] = 10080 DXA
+  // ===========================================================================
+  const makeVisualRow = (col1, col2, col3, searchRegex, forceNok = false) => {
+    const cond = getConditionChoice([searchRegex, col3]);
+    const cells = [];
+    if (col1) cells.push(col1);
+    if (col2) cells.push(col2);
+    cells.push(
+      createCell(col3, { widthDxa: 3480 }),
+      createCell(cond.ok, { widthDxa: 950, align: AlignmentType.CENTER }),
+      createCell(cond.nok, { widthDxa: 950, align: AlignmentType.CENTER }),
+      createCell(cond.ket || (isBlank ? '' : '-'), { widthDxa: 900, align: AlignmentType.CENTER })
+    );
+    return new TableRow({ children: cells });
+  };
+
+  const bab3Rows = [
+    // Header 1: Title
+    new TableRow({
+      children: [
+        createCell('III. PEMERIKSAAN VISUAL & FUNGSI', { widthDxa: 10080, columnSpan: 6, bold: true, size: 22 })
+      ]
+    }),
+    // Header 2: Main Column Titles
+    new TableRow({
+      children: [
+        createCell('Lokasi', { widthDxa: 1800, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Komponen', { widthDxa: 2000, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Pemeriksaan\nKomponen', { widthDxa: 3480, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Kondisi', { widthDxa: 1900, columnSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Keterangan', { widthDxa: 900, rowSpan: 2, bold: true, align: AlignmentType.CENTER })
+      ]
+    }),
+    // Header 3: Sub-Kondisi
+    new TableRow({
+      children: [
+        createCell('Memenuhi', { widthDxa: 950, bold: true, align: AlignmentType.CENTER, size: 18 }),
+        createCell('Tidak\nMemenuhi', { widthDxa: 950, bold: true, align: AlignmentType.CENTER, size: 18 })
+      ]
+    }),
+
+    // --- PAGE 4: Kerangka Utama / Chasis & Penggerak Utama ---
+    makeVisualRow(createCell('Kerangka\nUtama /\nChasis', { widthDxa: 1800, rowSpan: 9, bold: true }), createCell('Rangka\nPenguat', { widthDxa: 2000, rowSpan: 3 }), 'Korosi', /korosi.*rangka/i),
+    makeVisualRow(null, null, 'Keretakan', /keretakan.*rangka/i),
+    makeVisualRow(null, null, 'Perubahan Bentuk', /perubahan bentuk.*rangka/i),
+    makeVisualRow(null, createCell('Pemberat\n(C/W)', { widthDxa: 2000, rowSpan: 2 }), 'Korosi', /korosi.*pemberat/i),
+    makeVisualRow(null, null, 'Kondisi', /kondisi.*pemberat/i),
+    makeVisualRow(null, createCell('Perlengkapan\nLain', { widthDxa: 2000, rowSpan: 4 }), 'Lantai/Dek', /lantai|dek/i),
+    makeVisualRow(null, null, 'Tangga / pijakan', /tangga|pijakan/i),
+    makeVisualRow(null, null, 'Baut-baut Pengikat', /baut pengikat/i),
+    makeVisualRow(null, null, 'Dudukan Operator\n(Jok)', /jok|operator seat/i),
+
+    makeVisualRow(createCell('Penggerak\nUtama', { widthDxa: 1800, rowSpan: 17, bold: true }), createCell('Sistem', { widthDxa: 2000, rowSpan: 7 }), 'Pendinginan', /pendingin/i),
+    makeVisualRow(null, null, 'Pelumas', /pelumas.*mesin/i),
+    makeVisualRow(null, null, 'Bahan bakar', /bahan bakar/i),
+    makeVisualRow(null, null, 'Pemasukan udara', /pemasukan udara|air intake/i),
+    makeVisualRow(null, null, 'Gas buang', /gas buang|exhaust/i),
+    makeVisualRow(null, null, 'Starter', /starter/i),
+    makeVisualRow(null, null, 'Motor elektrik', /motor elektrik/i),
+    makeVisualRow(null, createCell('Kelistrikan', { widthDxa: 2000, rowSpan: 10 }), 'Accu / Battery', /accu|battery/i),
+    makeVisualRow(null, null, 'Dinamo starting', /dinamo start/i),
+    makeVisualRow(null, null, 'Alternator', /alternator/i),
+    makeVisualRow(null, null, 'Kabel Accu', /kabel accu/i),
+    makeVisualRow(null, null, 'Kabel instalasi', /kabel instalasi/i),
+    makeVisualRow(null, null, 'Lampu penerangan', /lampu penerangan/i),
+    makeVisualRow(null, null, 'Lampu pengaman\n/Sign', /lampu sign|lampu pengaman/i),
+    makeVisualRow(null, null, 'Klakson', /klakson/i),
+    makeVisualRow(null, null, 'Penghapus kaca\n/Wiper', /wiper/i),
+    makeVisualRow(null, null, 'Pengaman lebur /\nSekring', /sekring|fuse/i),
+
+    // --- PAGE 5: Dash Board & Komponen Bagian Bawah ---
+    makeVisualRow(createCell('Penggerak\nUtama', { widthDxa: 1800, rowSpan: 9, bold: true }), createCell('Dash Board', { widthDxa: 2000, rowSpan: 9, italics: true }), 'Indikator\ntemperature', /indikator temperature/i),
+    makeVisualRow(null, null, 'Tekanan oli mesin', /tekanan oli/i),
+    makeVisualRow(null, null, 'Tekanan hidrolik', /tekanan hidrolik/i),
+    makeVisualRow(null, null, 'Hour Meter', /hour meter/i),
+    makeVisualRow(null, null, 'Pemanas awal /\nGlow Plug', /glow plug|pemanas awal/i),
+    makeVisualRow(null, null, 'Indikator bahan\nbakar', /indikator bahan bakar/i),
+    makeVisualRow(null, null, 'Indikator beban', /indikator beban/i),
+    makeVisualRow(null, null, 'Load\nChart/NamePlate', /load chart|nameplate/i),
+    makeVisualRow(null, null, 'Pengisian accu /\nAmpere', /pengisian accu|ampere/i),
+
+    makeVisualRow(createCell('Komponen\nBagian\nBawah', { widthDxa: 1800, rowSpan: 13, bold: true }), createCell('Sistem\nKemudi', { widthDxa: 2000, rowSpan: 7 }), 'Kemudi roda', /kemudi roda/i),
+    makeVisualRow(null, null, 'Batang kemudi', /batang kemudi/i),
+    makeVisualRow(null, null, 'Kotak gigi / Gear\nBox', /gear box|kotak gigi/i),
+    makeVisualRow(null, null, 'Pengubah gerak /\nPitman', /pitman/i),
+    makeVisualRow(null, null, 'Batang tarik /Drag\nlink', /drag link/i),
+    makeVisualRow(null, null, 'Tie rod', /tie rod/i),
+    makeVisualRow(null, null, 'Pelumasan', /pelumasan kemudi/i),
+    makeVisualRow(null, createCell('Roda', { widthDxa: 2000, rowSpan: 6 }), 'Front', /roda front|roda depan/i),
+    makeVisualRow(null, null, 'Rear', /roda rear|roda belakang/i),
+    makeVisualRow(null, null, 'Baut pengikat', /baut pengikat roda/i),
+    makeVisualRow(null, null, 'Tromol / Hub', /tromol|hub/i),
+    makeVisualRow(null, null, 'Pelumasan', /pelumasan roda/i),
+    makeVisualRow(null, null, 'Perlengkapan\nmekanis', /perlengkapan mekanis roda/i),
+
+    // --- PAGE 6: Kopling, Gardan, Rem, Transmisi ---
+    makeVisualRow(createCell('Komponen\nBagian\nBawah', { widthDxa: 1800, rowSpan: 11, bold: true }), createCell('Kopling', { widthDxa: 2000, rowSpan: 6 }), 'Rumah kopling', /rumah kopling/i),
+    makeVisualRow(null, null, 'Kondisi Kopling', /kondisi kopling/i),
+    makeVisualRow(null, null, 'Pelumas/oli\ntransmisi', /oli transmisi/i),
+    makeVisualRow(null, null, 'Kebocoran\ntransmisi', /kebocoran transmisi/i),
+    makeVisualRow(null, null, 'Poros penghubung', /poros penghubung/i),
+    makeVisualRow(null, null, 'Perlengkapan\nmekanis', /mekanis kopling/i),
+    makeVisualRow(null, createCell('Gardan\n(Differential)', { widthDxa: 2000, rowSpan: 5 }), 'Rumah gardan', /rumah gardan/i),
+    makeVisualRow(null, null, 'Kondisi gardan', /kondisi gardan/i),
+    makeVisualRow(null, null, 'Pelumasan/oli\ngardan', /oli gardan/i),
+    makeVisualRow(null, null, 'Kebocoran gardan', /kebocoran gardan/i),
+    makeVisualRow(null, null, 'Poros penghubung', /poros gardan/i),
+
+    makeVisualRow(createCell('Komponen\nBagian\nBawah', { widthDxa: 1800, rowSpan: 9, bold: true }), createCell('Rem (Brake)', { widthDxa: 2000, rowSpan: 5 }), 'Kondisi rem utama', /rem utama/i),
+    makeVisualRow(null, null, 'Kondisi rem tangan', /rem tangan|rem parkir/i),
+    makeVisualRow(null, null, 'Kondisi rem darurat', /rem darurat/i),
+    makeVisualRow(null, null, 'Kebocoran', /kebocoran rem/i),
+    makeVisualRow(null, null, 'Komponen mekanis', /komponen mekanis rem/i),
+    makeVisualRow(null, createCell('Transmisi', { widthDxa: 2000, rowSpan: 4 }), 'Rumah transmisi', /rumah transmisi/i),
+    makeVisualRow(null, null, 'Pelumas/oli\ntransmisi', /oli transmisi/i),
+    makeVisualRow(null, null, 'Kebocoran transmisi', /kebocoran transmisi/i),
+    makeVisualRow(null, null, 'Perlengkapan\nmekanis', /mekanis transmisi/i),
+
+    // --- PAGE 7: Attachment, Hidrolik, Charging ---
+    makeVisualRow(createCell('Attachment /\nPerlengkapan', { widthDxa: 1800, rowSpan: 8, bold: true, italics: true }), createCell('Tiang\nPenyangga\n(Mast)', { widthDxa: 2000, rowSpan: 5 }), 'Keausan', /keausan mast/i),
+    makeVisualRow(null, null, 'Keretakan', /keretakan mast/i),
+    makeVisualRow(null, null, 'Perubahan bentuk', /perubahan bentuk mast/i),
+    makeVisualRow(null, null, 'Pelumasan', /pelumasan mast/i),
+    makeVisualRow(null, null, 'Poros dan bantalan', /poros.*bantalan/i),
+    makeVisualRow(null, createCell('Rantai\nPengangkat\n(Lift Chain)', { widthDxa: 2000, rowSpan: 3 }), 'Kondisi rantai', /kondisi rantai/i),
+    makeVisualRow(null, null, 'Perubahan bentuk', /perubahan bentuk rantai/i),
+    makeVisualRow(null, null, 'Pelumasan rantai', /pelumasan rantai/i),
+
+    makeVisualRow(createCell('Komponen\nHidrolik', { widthDxa: 1800, rowSpan: 18, bold: true }), createCell('Tangki', { widthDxa: 2000, rowSpan: 5 }), 'Kebocoran', /kebocoran tangki hidrolik/i),
+    makeVisualRow(null, null, 'Level oli hidrolik', /level oli hidrolik/i),
+    makeVisualRow(null, null, 'Kondisi oli hidrolik', /kondisi oli hidrolik/i),
+    makeVisualRow(null, null, 'Kondisi saluran isap', /saluran isap hidrolik/i),
+    makeVisualRow(null, null, 'Kondisi saluran\nbalik', /saluran balik hidrolik/i),
+    makeVisualRow(null, createCell('Pompa', { widthDxa: 2000, rowSpan: 5 }), 'Kebocoran', /kebocoran pompa/i),
+    makeVisualRow(null, null, 'Kondisi saluran isap', /saluran isap pompa/i),
+    makeVisualRow(null, null, 'Kondisi saluran\ntekan', /saluran tekan pompa/i),
+    makeVisualRow(null, null, 'Fungsi', /fungsi pompa/i),
+    makeVisualRow(null, null, 'Kelainan suara', /kelainan suara pompa/i),
+    makeVisualRow(null, createCell('Katup\nPengontrol /\nControl\nValve', { widthDxa: 2000, rowSpan: 6 }), 'Kebocoran', /kebocoran valve/i),
+    makeVisualRow(null, null, 'Kondisi saluran', /saluran valve/i),
+    makeVisualRow(null, null, 'Fungsi relief valve', /relief valve/i),
+    makeVisualRow(null, null, 'Fungsi Katup\nSilinder Angkat', /katup silinder angkat/i),
+    makeVisualRow(null, null, 'Fungsi katup\nsilinder ungkit', /katup silinder ungkit/i),
+    makeVisualRow(null, null, 'Fungsi katup\nsilinder kemudi', /katup silinder kemudi/i),
+    makeVisualRow(null, createCell('Aktuator', { widthDxa: 2000, rowSpan: 2 }), 'Kebocoran', /kebocoran aktuator/i),
+    makeVisualRow(null, null, 'Kondisi saluran', /saluran aktuator/i),
+
+    makeVisualRow(createCell('Charging', { widthDxa: 1800, rowSpan: 3, bold: true }), createCell('Sistem\nPengisian\nBattery', { widthDxa: 2000, rowSpan: 3 }), 'Socket / Fitting', /socket|fitting/i),
+    makeVisualRow(null, null, 'Kabel', /kabel charging/i),
+    makeVisualRow(null, null, 'Ruangan', /ruangan charging/i)
+  ];
+
+  contentChildren.push(
+    new Table({
+      width: { size: 10080, type: WidthType.DXA },
+      columnWidths: [1800, 2000, 3480, 950, 950, 900],
+      borders: TABLE_BORDERS_BLACK,
+      rows: bab3Rows
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGE 8: BAB IV. PEMERIKSAAN DENGAN MESIN HIDUP (4 KOLOM)
+  // Grid: [4880, 1800, 1800, 1600] = 10080 DXA
+  // ===========================================================================
+  const makeEngineRow = (param, searchRegex) => {
+    const cond = getConditionChoice([searchRegex, param]);
+    return new TableRow({
+      children: [
+        createCell(param, { widthDxa: 4880 }),
+        createCell(cond.ok, { widthDxa: 1800, align: AlignmentType.CENTER }),
+        createCell(cond.nok, { widthDxa: 1800, align: AlignmentType.CENTER }),
+        createCell(cond.ket || (isBlank ? '' : '-'), { widthDxa: 1600, align: AlignmentType.CENTER })
+      ]
+    });
+  };
+
+  const bab4Rows = [
+    new TableRow({
+      children: [
+        createCell('IV. PEMERIKSAAN DENGAN MESIN HIDUP', { widthDxa: 10080, columnSpan: 4, bold: true, size: 22 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Pemeriksaan\nKomponen', { widthDxa: 4880, rowSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Kondisi', { widthDxa: 3600, columnSpan: 2, bold: true, align: AlignmentType.CENTER }),
+        createCell('Keterangan', { widthDxa: 1600, rowSpan: 2, bold: true, align: AlignmentType.CENTER })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Memenuhi\nSyarat K3', { widthDxa: 1800, bold: true, align: AlignmentType.CENTER, size: 18 }),
+        createCell('Tidak\nMemenuhi\nSyarat K3', { widthDxa: 1800, bold: true, align: AlignmentType.CENTER, size: 18 })
+      ]
+    }),
+    makeEngineRow('Dinamo starter', /dinamo starter/i),
+    makeEngineRow('Kerja instrument/ Indikator', /kerja instrument|indikator/i),
+    makeEngineRow('Kerja perlengkapan listrik (busi, rotor, dll.\nPada bensin)', /perlengkapan listrik/i),
+    makeEngineRow('Kebocoran-kebocoran :', /kebocoran/i),
+    makeEngineRow('- oli engine', /kebocoran.*oli engine/i),
+    makeEngineRow('- Bahan bakar', /kebocoran.*bahan bakar/i),
+    makeEngineRow('- air pendingin', /kebocoran.*air pendingin/i),
+    makeEngineRow('- oli hidrolik', /kebocoran.*oli hidrolik/i),
+    makeEngineRow('- oli transmisi', /kebocoran.*oli transmisi/i),
+    makeEngineRow('- oli final drive', /kebocoran.*oli final drive/i),
+    makeEngineRow('Kondisi gas buang', /gas buang/i),
+    makeEngineRow('Kondisi getaran dan suara', /getaran.*suara/i),
+    makeEngineRow('Kondisi kelengkapan lainnya :', /kelengkapan lainnya/i),
+    makeEngineRow('- Lampu-lampu', /lampu/i),
+    makeEngineRow('- Klakson', /klakson/i),
+    makeEngineRow('- Spion', /spion/i),
+    makeEngineRow('- Alarm mundur', /alarm mundur/i),
+    makeEngineRow('- Rotary lamp', /rotary/i),
+    makeEngineRow('- Safety belt', /safety belt/i),
+    makeEngineRow('- APAR', /apar/i),
+    makeEngineRow('- Rem parkir / tangan', /rem parkir|rem tangan/i),
+    makeEngineRow('- Rem pelayanan / kaki', /rem kaki|rem pelayanan/i),
+    makeEngineRow('- Kemudi', /kemudi/i),
+    makeEngineRow('- Mast silinder angkat (angkat & turun)', /mast.*angkat/i),
+    makeEngineRow('- Mast silinder ungkit (maju & mundur)', /mast.*ungkit/i),
+    makeEngineRow('- Attachment kerja silinder', /attachment.*silinder/i),
+    makeEngineRow('- Kelainan suara hidrolik', /suara hidrolik/i),
+    makeEngineRow('- Tuas-tuas kendali', /tuas kendali/i)
+  ];
+
+  contentChildren.push(
+    new Table({
+      width: { size: 10080, type: WidthType.DXA },
+      columnWidths: [4880, 1800, 1800, 1600],
+      borders: TABLE_BORDERS_BLACK,
+      rows: bab4Rows
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGE 9: LAPORAN HASIL PENGUJIAN NON DESTRUCTIVE TEST (NDT) - MPI
+  // Grid: [2000, 900, 900, 2500, 1500, 2280] = 10080 DXA
+  // ===========================================================================
+  const ndtForkKananBuf = findPhotoBuffer(['ndt fork kanan', 'fork kanan', 'ndt kanan']);
+  const ndtForkKiriBuf = findPhotoBuffer(['ndt fork kiri', 'fork kiri', 'ndt kiri']);
+
+  const ndtRows = [
+    new TableRow({
+      children: [
+        createCell('PT UPAYA RIKSA DAYA', { widthDxa: 10080, columnSpan: 6, bold: true, size: 24, align: AlignmentType.CENTER })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('LAPORAN HASIL PENGUJIAN NON DESTRUCTIVE TEST ( NDT )\nMAGNETIC PARTICLES INSPECTION ( MPI )', {
+          widthDxa: 10080,
+          columnSpan: 6,
+          bold: true,
+          size: 20,
+          align: AlignmentType.CENTER
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Customer', { widthDxa: 2000 }),
+        createCell(`: ${clientName || '............................................................'}`, { widthDxa: 4300, columnSpan: 3 }),
+        createCell('Date of Inspection', { widthDxa: 1500 }),
+        createCell(`: ${inspDateStr || '....................'}`, { widthDxa: 2280 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Location', { widthDxa: 2000 }),
+        createCell(`: ${location || '............................................................'}`, { widthDxa: 4300, columnSpan: 3 }),
+        createCell('Report No.', { widthDxa: 1500 }),
+        createCell(`: ${lhppNo || '....................'}`, { widthDxa: 2280 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Item Inspected', { widthDxa: 2000 }),
+        createCell(': Fork / Garpu', { widthDxa: 4300, columnSpan: 3 }),
+        createCell('Reference Standard', { widthDxa: 1500 }),
+        createCell(': ASME BPVC Sec. V Art. 7', { widthDxa: 2280 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Unit / Serial No.', { widthDxa: 2000 }),
+        createCell(`: ${serialNo || '............................................................'}`, { widthDxa: 4300, columnSpan: 3 }),
+        createCell('Acceptance Criteria', { widthDxa: 1500 }),
+        createCell(': ASME BPVC Sec. VIII Div 1', { widthDxa: 2280 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Equipment / Material Data', { widthDxa: 10080, columnSpan: 6, bold: true, size: 20 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Equipment', { widthDxa: 2000, rowSpan: 2 }),
+        createCell('Merk', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Magnaflux', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Type', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Y-7 AC Yoke', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Cleaner', { widthDxa: 2000, rowSpan: 2 }),
+        createCell('Merk', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Magnaflux SKC-S', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Application', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Spraying', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Contrast', { widthDxa: 2000, rowSpan: 2 }),
+        createCell('Merk', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Magnaflux WCP-2', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Application', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Spraying', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Magnetic Particle', { widthDxa: 2000, rowSpan: 2 }),
+        createCell('Merk', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Magnaflux 7HF', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('Application', { widthDxa: 1800, columnSpan: 2 }),
+        createCell(': Spraying', { widthDxa: 6280, columnSpan: 3 })
+      ]
+    }),
+    // Results Table Subheaders
+    new TableRow({
+      children: [
+        createCell('No', { widthDxa: 800, bold: true, align: AlignmentType.CENTER }),
+        createCell('Description', { widthDxa: 3000, columnSpan: 2, bold: true }),
+        createCell('Indication', { widthDxa: 2500, bold: true, align: AlignmentType.CENTER }),
+        createCell('Result', { widthDxa: 1500, bold: true, align: AlignmentType.CENTER }),
+        createCell('Remark', { widthDxa: 2280, bold: true, align: AlignmentType.CENTER })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('1', { widthDxa: 800, align: AlignmentType.CENTER }),
+        createCell('Fork kanan', { widthDxa: 3000, columnSpan: 2 }),
+        createCell(isBlank ? '....................' : 'No Indication', { widthDxa: 2500, align: AlignmentType.CENTER }),
+        createCell(isBlank ? '......' : 'ACC', { widthDxa: 1500, align: AlignmentType.CENTER }),
+        createCell('-', { widthDxa: 2280, align: AlignmentType.CENTER })
+      ]
+    }),
+    new TableRow({
+      children: [
+        createCell('2', { widthDxa: 800, align: AlignmentType.CENTER }),
+        createCell('Fork kiri', { widthDxa: 3000, columnSpan: 2 }),
+        createCell(isBlank ? '....................' : 'No Indication', { widthDxa: 2500, align: AlignmentType.CENTER }),
+        createCell(isBlank ? '......' : 'ACC', { widthDxa: 1500, align: AlignmentType.CENTER }),
+        createCell('-', { widthDxa: 2280, align: AlignmentType.CENTER })
+      ]
+    }),
+    // Photos of Forks: clean placeholders if no photo uploaded!
+    new TableRow({
+      children: [
+        ndtForkKananBuf
+          ? createPhotoCell(ndtForkKananBuf, 'Fork kanan', 5040)
+          : createPhotoPlaceholderCell('Foto NDT MPI Fork Kanan', 5040),
+        ndtForkKiriBuf
+          ? createPhotoCell(ndtForkKiriBuf, 'Fork kiri', 5040)
+          : createPhotoPlaceholderCell('Foto NDT MPI Fork Kiri', 5040)
+      ]
+    })
+  ];
+
+  contentChildren.push(
+    new Table({
+      width: { size: 10080, type: WidthType.DXA },
+      columnWidths: [2000, 900, 900, 2500, 1500, 2280],
+      borders: TABLE_BORDERS_BLACK,
+      rows: ndtRows
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGE 10: BAB V. PENGUJIAN & DEFLEKSI GARPU (PERMENAKER 8/2020)
+  // ===========================================================================
+  const diagramPath = getTemplateAsset('diagram_defleksi.png');
+
+  contentChildren.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'V.   PENGUJIAN',
+          bold: true,
+          size: 26,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { before: 180, after: 140 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'Pengujian Tanpa Beban   :   ', bold: true, size: 22, font: 'Times New Roman' }),
+        new TextRun({
+          text: 'Forklift dilakukan pengujian Tanpa Beban dengan menyalakan mesin, berbelok kanan dan kiri, mengangkat fork dengan ketinggian maksimal dengan keadaan Normal dan Baik.',
+          size: 22,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 180 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'Pengujian dengan Beban   :   ', bold: true, size: 22, font: 'Times New Roman' }),
+        new TextRun({
+          text: `Forklift dilakukan pengujian beban kerja aman (SWL) ${capacityStr || '....................'} dengan mengangkat beban pada ketinggian efektif, menahan beban selama pengujian, dan melakukan pengukuran defleksi kelenturan garpu.`,
+          size: 22,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 180 }
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: 'PENGUKURAN DEFLEKSI KELENTURAN GARPU (FORK)\n(SESUAI DENGAN STANDAR PERMENAKER NO. 8 TAHUN 2020 PASAL 77)',
+          bold: true,
+          size: 20,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { before: 100, after: 140 }
+    })
+  );
+
+  if (diagramPath && fs.existsSync(diagramPath)) {
+    contentChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            data: fs.readFileSync(diagramPath),
+            transformation: { width: 440, height: 160 }
+          })
+        ],
+        spacing: { after: 140 }
+      })
+    );
+  }
+
+  const deflL = getResultVal([/panjang garpu|L garpu/i], isBlank ? '' : '1070');
+  const deflH = getResultVal([/tinggi garpu|H garpu/i], isBlank ? '' : '500');
+  const deflX = getResultVal([/defleksi aktual|X aktual/i], isBlank ? '' : '1.0');
+
+  contentChildren.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Rumus Perhitungan Defleksi Garpu Forklift Permenaker No. 8 Tahun 2020:\n',
+          bold: true,
+          size: 22,
+          font: 'Times New Roman'
+        }),
+        new TextRun({
+          text: '    • Panjang Garpu (L)           : ' + (deflL ? `${deflL} mm` : '.................... mm') + '\n' +
+                '    • Tinggi Garpu (H)            : ' + (deflH ? `${deflH} mm` : '.................... mm') + '\n' +
+                '    • Defleksi Maksimum Ijin (X)  : 3% × L = ' + (deflL ? `${(parseFloat(deflL) * 0.03).toFixed(1)} mm` : '.................... mm') + '\n' +
+                '    • Defleksi Aktual Hasil Uji   : ' + (deflX ? `${deflX} mm` : '.................... mm') + '\n\n' +
+                'Kesimpulan Pengujian Beban & Defleksi:\n' +
+                (isBlank
+                  ? '    [   ] MEMENUHI PERSYARATAN K3 (X aktual ≤ X ijin)\n    [   ] TIDAK MEMENUHI PERSYARATAN K3'
+                  : '    Berdasarkan hasil pengukuran, defleksi kelenturan garpu dinyatakan MEMENUHI PERSYARATAN K3 (X aktual < X maksimum yang diijinkan).'),
+          size: 21,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 200 }
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGE 11: BAB VI. KESIMPULAN & BAB VII. SYARAT-SYARAT & TTD
+  // ===========================================================================
+  contentChildren.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'VI.   KESIMPULAN',
+          bold: true,
+          size: 24,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { before: 180, after: 120 }
+    }),
+    new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
+      children: [
+        new TextRun({
+          text: isBlank
+            ? '        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa Forklift, dengan Nomor Seri : ...................., Tahun : ...................., Kapasitas : ...................., dinyatakan MEMENUHI PERSYARATAN K3. Unit dapat digunakan dengan mengikuti rekomendasi dan syarat-syarat keselamatan kerja yang berlaku.'
+            : `        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa Forklift, dengan Nomor Seri : ${serialNo || '-'}, Tahun : ${yearStr || '-'}, Kapasitas : ${capacityStr || '-'}, dinyatakan MEMENUHI PERSYARATAN K3. Unit Dapat digunakan di ${location || '-'}, ${clientName || '-'} dengan mengikuti rekomendasi yang telah kami berikan, antara lain:`,
+          size: 22,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 220 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'VII.   SYARAT - SYARAT',
+          bold: true,
+          size: 24,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 120 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: '1.   Operator yang mengoperasikan unit harus memiliki Lisensi Operator dari Kemnaker RI\n2.   Lakukan perawatan dan pembersihan rutin secara berkala pada unit.\n3.   Lakukan pemeriksaan dan pengujian berkala pada unit paling lambat tanggal ' +
+            (reInspDateStr || '........................................') +
+            ' sesuai dengan PER.08/MEN/2020 Tentang Keselamatan Dan Kesehatan Kerja Pesawat Angkat dan Pesawat Angkut',
+          size: 22,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 400 }
+    }),
+    // Signature block right aligned
+    (() => {
+      const inspectorSigBuf = resolveAttachmentBuffer(
+        data.inspector_signature || data.signature_data_url || data.signature_file_id || data.inspector_sig_file_id
+      );
+      const inspectorSigParagraphs = [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: `Jakarta, ${reportDateStr}\nYang Memeriksa/ Menguji\nAhli K3 Pesawat Angkat dan Angkut\n`,
+              size: 22,
+              font: 'Times New Roman',
+              bold: true
+            })
+          ],
+          spacing: { after: 60 }
+        }),
+        inspectorSigBuf
+          ? new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new ImageRun({
+                  data: inspectorSigBuf,
+                  transformation: { width: 130, height: 65 }
+                })
+              ],
+              spacing: { before: 60, after: 60 }
+            })
+          : new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({
+                  text: '\n\n\n\n\n',
+                  size: 22
+                })
+              ]
+            }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: (inspectorName || '............................................................') + '\n',
+              bold: true,
+              underline: {},
+              size: 22,
+              font: 'Times New Roman'
+            }),
+            new TextRun({
+              text: inspectorSkpNo ? `No. Reg: ${inspectorSkpNo}` : 'No. Reg: ............................................................',
+              bold: true,
+              size: 22,
+              font: 'Times New Roman'
+            })
+          ]
+        })
+      ];
+
+      return new Table({
+        width: { size: 10080, type: WidthType.DXA },
+        columnWidths: [5040, 5040],
+        borders: TABLE_BORDERS_NONE,
+        rows: [
+          new TableRow({
+            children: [
+              createCell('', { widthDxa: 5040 }),
+              createCell(inspectorSigParagraphs, { widthDxa: 5040 })
+            ]
+          })
+        ]
+      });
+    })(),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ===========================================================================
+  // PAGES 12 TO 15: BAB VIII. DOKUMENTASI (FOTO RESMI 2 KOLOM)
+  // Grid: [5040, 5040] = 10080 DXA
+  // NO SAMPLE PHOTOS FROM SUKABUMI! Real photos or clean fillable placeholders!
+  // ===========================================================================
+  contentChildren.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'VIII.   DOKUMENTASI',
+          bold: true,
+          size: 24,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { before: 180, after: 140 }
+    })
+  );
+
+  const docPhotoSlots = [
+    // Page 12 (6 slots, 3 pairs)
+    {
+      leftCaption: 'Tampak depan',
+      leftPattern: [/tampak depan|depan/i],
+      rightCaption: 'Tampak samping',
+      rightPattern: [/tampak samping|samping/i]
+    },
+    {
+      leftCaption: 'Fork',
+      leftPattern: [/fork|garpu/i],
+      rightCaption: 'Nameplate',
+      rightPattern: [/nameplate|plat nama/i]
+    },
+    {
+      leftCaption: 'Ban depan',
+      leftPattern: [/ban depan|front tire/i],
+      rightCaption: 'Ban belakang',
+      rightPattern: [/ban belakang|rear tire/i],
+      pageBreakAfter: true
+    },
+    // Page 13 (6 slots, 3 pairs)
+    {
+      leftCaption: 'Ban kondisi baik',
+      leftPattern: [/ban kondisi baik/i],
+      rightCaption: 'NDT MPI',
+      rightPattern: [/ndt|mpi/i]
+    },
+    {
+      leftCaption: 'Lampu penerangan',
+      leftPattern: [/lampu penerangan|lampu depan/i],
+      rightCaption: 'Overhead guard',
+      rightPattern: [/overhead guard|kanopi/i]
+    },
+    {
+      leftCaption: 'Jok Operator',
+      leftPattern: [/jok|operator seat/i],
+      rightCaption: 'Tuas Operasi',
+      rightPattern: [/tuas|control lever/i],
+      pageBreakAfter: true
+    },
+    // Page 14 (6 slots, 3 pairs)
+    {
+      leftCaption: 'Hidrolik lifting',
+      leftPattern: [/hidrolik lifting|silinder angkat/i],
+      rightCaption: 'Hidrolik tilting',
+      rightPattern: [/hidrolik tilting|silinder ungkit/i]
+    },
+    {
+      leftCaption: 'Mesin',
+      leftPattern: [/mesin|engine/i],
+      rightCaption: 'Radiator',
+      rightPattern: [/radiator/i]
+    },
+    {
+      leftCaption: 'Uji Fungsi',
+      leftPattern: [/uji fungsi|fungsi/i],
+      rightCaption: 'Lampu penerangan, lampu sign, klakson berfungsi',
+      rightPattern: [/sign.*klakson|lampu.*klakson/i],
+      pageBreakAfter: true
+    },
+    // Page 15 (2 slots, 1 pair)
+    {
+      leftCaption: 'Uji Beban',
+      leftPattern: [/uji beban|load test/i],
+      rightCaption: 'Stiker Riksa Uji',
+      rightPattern: [/stiker|riksa uji/i],
+      pageBreakAfter: true
+    }
+  ];
+
+  const CATEGORY_DOC_TITLES = {
+    TAMPAK_DEPAN: 'Tampak depan unit forklift',
+    TAMPAK_SAMPING: 'Tampak samping unit forklift',
+    TAMPAK_BELAKANG: 'Tampak belakang unit forklift',
+    NAMEPLATE: 'Kondisi nameplate unit',
+    FORK_MAST: 'Kondisi fork dan rantai pengangkat',
+    BAN_RODA: 'Kondisi ban dan roda',
+    HIDROLIK_MESIN: 'Sistem hidrolik dan mesin',
+    UJI_FUNGSI: 'Pemeriksaan uji fungsi peralatan',
+    UJI_BEBAN: 'Pengujian beban kerja aman',
+    STIKER_K3: 'Stiker hasil riksa uji K3',
+    NDT: 'Pemeriksaan NDT MPI',
+    LAINNYA: 'Dokumentasi teknis'
+  };
+
+  const validInspectionPhotos = [];
+  for (const p of photos) {
+    const buf = resolveAttachmentBuffer(p);
+    if (buf) {
+      const rawCat = String(p.doc_category || p.category || '').toUpperCase();
+      const catLabel = CATEGORY_DOC_TITLES[rawCat] || '';
+      let caption = p.caption;
+      if (!caption || !caption.trim()) {
+        const matchedItem = results.find(
+          (r) => r.item_id === (p.item_id || p.itemId) || r.itemId === (p.item_id || p.itemId)
+        );
+        caption = matchedItem?.label ? `[${matchedItem.section || 'Pemeriksaan'}] ${matchedItem.label}` : (catLabel || 'Dokumentasi Riksa Uji Lapangan');
+      }
+      validInspectionPhotos.push({ ...p, buffer: buf, caption });
+    }
+  }
+
+  if (validInspectionPhotos.length > 0) {
+    for (let i = 0; i < validInspectionPhotos.length; i += 2) {
+      const leftP = validInspectionPhotos[i];
+      const rightP = validInspectionPhotos[i + 1] || null;
+
+      const leftCell = createPhotoCell(leftP.buffer, `Foto ${i + 1}. ${leftP.caption}`, 5040);
+      const rightCell = rightP
+        ? createPhotoCell(rightP.buffer, `Foto ${i + 2}. ${rightP.caption}`, 5040)
+        : new TableCell({
+            width: { size: 5040, type: WidthType.DXA },
+            borders: TABLE_BORDERS_BLACK,
+            children: [new Paragraph({ text: '' })]
+          });
+
+      contentChildren.push(
+        new Table({
+          width: { size: 10080, type: WidthType.DXA },
+          columnWidths: [5040, 5040],
+          borders: TABLE_BORDERS_BLACK,
+          rows: [
+            new TableRow({
+              children: [leftCell, rightCell]
+            })
+          ]
+        })
+      );
+
+      // Page break every 4 photos (2 rows) if there are more
+      if ((i + 2) % 4 === 0 && i + 2 < validInspectionPhotos.length) {
+        contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+      }
+    }
+    contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+  } else {
+    // Mode Blangko Kosong: sediakan slot kotak rapi untuk penempelan foto manual
+    docPhotoSlots.forEach((slot, slotIdx) => {
+      const leftCell = createPhotoPlaceholderCell(slot.leftCaption, 5040);
+      const rightCell = createPhotoPlaceholderCell(slot.rightCaption, 5040);
+
+      contentChildren.push(
+        new Table({
+          width: { size: 10080, type: WidthType.DXA },
+          columnWidths: [5040, 5040],
+          borders: TABLE_BORDERS_BLACK,
+          rows: [
+            new TableRow({
+              children: [leftCell, rightCell]
+            })
+          ]
+        })
+      );
+
+      if (slot.pageBreakAfter) {
+        contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+      }
+    });
+  }
+
+  // ===========================================================================
+  // PAGES 16 TO 18: LAMPIRAN SKP KEMNAKER RI (FULL PAGE CERTIFICATE SCANS)
+  // ===========================================================================
+  const certFiles = ['cert_skp_pjk3_1.jpg', 'cert_skp_pjk3_2.jpg'];
+  certFiles.forEach((cf, idx) => {
+    const cp = getTemplateAsset(cf);
+    if (cp && fs.existsSync(cp)) {
+      contentChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new ImageRun({
+              data: fs.readFileSync(cp),
+              transformation: { width: 500, height: 750 }
+            })
+          ]
+        })
+      );
+      if (idx < certFiles.length - 1) {
+        contentChildren.push(new Paragraph({ children: [new PageBreak()] }));
+      }
+    }
+  });
+
+  return new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: 'Times New Roman',
+            size: 20,
+            color: '000000'
+          }
+        }
+      }
+    },
+    sections: [
+      // Cover Section (no running footer)
+      {
+        properties: F4_PAGE_PROPERTIES,
+        children: [
+          redBannerTop,
+          yearParagraph,
+          titleParagraph,
+          coverInfoTable,
+          coverHeroElement,
+          coverFooterParagraph,
+          redBannerBottom
+        ]
+      },
+      // Content Section with Running Footer at bottom left
+      {
+        properties: F4_PAGE_PROPERTIES,
+        footers: {
+          default: createRunningFooter()
+        },
+        children: contentChildren
+      }
+    ]
+  });
+}
+
+function buildGenericDocxDocument(data, report, companyProfile) {
+  const companyName = companyProfile?.company_name || 'PT UPAYA RIKSA DAYA';
+  const tagline = companyProfile?.tagline || 'JASA PEMERIKSAAN & PENGUJIAN KESELAMATAN DAN KESEHATAN KERJA (PJK3)';
+  const address = companyProfile?.address || 'Jl. Raya Cakung Cilincing Kav. 33, Jakarta Timur';
+  const email = companyProfile?.email || 'urd@upayariksadaya.com';
+  const phone = companyProfile?.phone || '(021) 489 1409';
+
+  const logoPath = getOfficialLogoPath();
+  const logoParagraph =
+    logoPath && fs.existsSync(logoPath)
+      ? new Paragraph({
+          children: [
+            new ImageRun({
+              data: fs.readFileSync(logoPath),
+              transformation: { width: 92, height: 65 }
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 120 }
+        })
+      : null;
+
+  const companyHeader = new Paragraph({
+    children: [
+      new TextRun({
+        text: companyName,
+        bold: true,
+        size: 26,
+        color: 'C81E1E'
+      })
+    ],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 40 }
+  });
+
+  const subHeader = new Paragraph({
+    children: [
+      new TextRun({
+        text: `${tagline}\nSKP KEMNAKER RI: No. 5/121/AS.02.04/I/2021 | Bidang: ${report.categoryName || 'PAA'}\n${address} | Telp: ${phone} | Email: ${email}`,
+        size: 15,
+        color: '64748B'
+      })
+    ],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 180 }
+  });
+
+  const divider = new Paragraph({
+    children: [
+      new TextRun({
+        text: '_________________________________________________________________________________',
+        bold: true,
+        size: 14,
+        color: 'C81E1E'
+      })
+    ],
     alignment: AlignmentType.CENTER,
     spacing: { after: 200 }
+  });
+
+  const titleParagraph = new Paragraph({
+    text: report.title || `LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP) - ${report.categoryName || 'PAA'}`,
+    heading: HeadingLevel.HEADING_1,
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 120 }
   });
 
   const subtitleParagraph = new Paragraph({
     children: [
       new TextRun({
-        text: `Nomor: ${report.lhppNo || '-'}   |   No. BAP: ${report.bapNo || '-'}`,
+        text: `Nomor: ${report.lhppNo || data.lhpp_no || 'DRAF'}   |   No. BAP: ${report.bapNo || data.bap_no || '-'}   |   No. PO: ${data.po_number || data.order_no || '-'}`,
         bold: true,
-        size: 20
+        size: 19,
+        color: '1E293B'
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 300 }
+    spacing: { after: 260 }
   });
 
-  // Table Data Umum
   const section1Title = new Paragraph({
-    children: [new TextRun({ text: 'I. DATA UMUM & IDENTITAS UNIT', bold: true, size: 22 })],
-    spacing: { before: 200, after: 100 }
+    children: [new TextRun({ text: 'I. DATA UMUM & IDENTITAS UNIT', bold: true, size: 22, color: 'C81E1E' })],
+    spacing: { before: 240, after: 120 }
   });
 
   const identityRows = (report.identityRows || []).map(
-    ([label, val]) =>
+    ([label, val], idx) =>
       new TableRow({
         children: [
-          new TableCell({
-            width: { size: 35, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 18 })] })]
-          }),
-          new TableCell({
-            width: { size: 65, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: String(val || '-'), size: 18 })] })]
-          })
+          createCell(`${idx + 1}. ${label}`, { widthPercent: 40, bold: true, size: 17 }),
+          createCell(val || '-', { widthPercent: 60, size: 17 })
         ]
       })
   );
 
   const identityTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
     rows: identityRows
   });
 
-  // Section Data Teknis
   const section2Title = new Paragraph({
-    children: [new TextRun({ text: 'II. DATA TEKNIS', bold: true, size: 22 })],
-    spacing: { before: 300, after: 100 }
+    children: [new TextRun({ text: 'II. DATA TEKNIS PERALATAN', bold: true, size: 22, color: 'C81E1E' })],
+    spacing: { before: 300, after: 120 }
   });
 
   const technicalRows = (report.technicalRows || []).map(
     (row) =>
       new TableRow({
         children: [
-          new TableCell({
-            width: { size: 40, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: row.label, bold: true, size: 18 })] })]
-          }),
-          new TableCell({
-            width: { size: 60, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: String(row.value || '-'), size: 18 })] })]
-          })
+          createCell(row.label, { widthPercent: 40, bold: true, size: 17 }),
+          createCell(row.value || '-', { widthPercent: 60, size: 17 })
         ]
       })
   );
 
   const technicalTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
     rows:
       technicalRows.length > 0
         ? technicalRows
         : [
             new TableRow({
               children: [
-                new TableCell({
-                  width: { size: 100, type: WidthType.PERCENTAGE },
-                  children: [new Paragraph({ text: 'Data teknis terverifikasi sesuai spesifikasi nameplate pabrikan.' })]
+                createCell('Data teknis terverifikasi sesuai spesifikasi nameplate pabrikan.', {
+                  widthPercent: 100,
+                  size: 17
                 })
               ]
             })
           ]
   });
 
-  // Section Pemeriksaan Visual & Hasil Uji
   const section3Title = new Paragraph({
-    children: [new TextRun({ text: 'III. PEMERIKSAAN VISUAL & PENGUJIAN', bold: true, size: 22 })],
-    spacing: { before: 300, after: 100 }
+    children: [new TextRun({ text: 'III. PEMERIKSAAN VISUAL & PENGUJIAN', bold: true, size: 22, color: 'C81E1E' })],
+    spacing: { before: 300, after: 120 }
   });
 
   const resultRows = (report.resultRows || []).map(
     (row) =>
       new TableRow({
         children: [
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: row.label, size: 18 })] })]
-          }),
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: String(row.value || '-'), size: 18 })] })]
-          })
+          createCell(row.label, { widthPercent: 50, size: 17 }),
+          createCell(row.value || '-', { widthPercent: 50, size: 17 })
         ]
       })
   );
 
   const resultTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
     rows:
       resultRows.length > 0
         ? resultRows
         : [
             new TableRow({
               children: [
-                new TableCell({
-                  width: { size: 100, type: WidthType.PERCENTAGE },
-                  children: [new Paragraph({ text: 'Hasil checklist riksa uji tercatat lengkap pada formulir.' })]
+                createCell('Hasil checklist riksa uji tercatat lengkap pada formulir pengujian.', {
+                  widthPercent: 100,
+                  size: 17
                 })
               ]
             })
           ]
   });
 
-  // Section Kesimpulan & Rekomendasi
   const section4Title = new Paragraph({
-    children: [new TextRun({ text: 'IV. KESIMPULAN & REKOMENDASI K3', bold: true, size: 22 })],
-    spacing: { before: 300, after: 100 }
+    children: [new TextRun({ text: 'IV. KESIMPULAN & SYARAT-SYARAT K3', bold: true, size: 22, color: 'C81E1E' })],
+    spacing: { before: 300, after: 120 }
   });
+
+  const isPassing = !/tidak/i.test(report.conclusion || '');
+  const conclusionColor = isPassing ? '15803D' : 'B91C1C';
+  const hasConclusion =
+    report.conclusion &&
+    report.conclusion !== '-' &&
+    report.conclusion !== 'Belum ditetapkan' &&
+    report.conclusion !== 'BELUM DIISI';
 
   const conclusionParagraph = new Paragraph({
     children: [
       new TextRun({ text: 'Kesimpulan Teknis: ', bold: true, size: 20 }),
-      new TextRun({ text: report.conclusion || 'MEMENUHI PERSYARATAN K3', bold: true, size: 20, color: '107038' })
+      new TextRun({
+        text: hasConclusion
+          ? (report.conclusion || 'MEMENUHI PERSYARATAN KESELAMATAN DAN KESEHATAN KERJA').toUpperCase()
+          : '[   ] MEMENUHI PERSYARATAN K3      [   ] MEMENUHI DENGAN CATATAN      [   ] TIDAK MEMENUHI SYARAT K3',
+        bold: true,
+        size: 20,
+        color: hasConclusion ? conclusionColor : '0F172A'
+      })
     ],
-    spacing: { after: 100 }
+    spacing: { after: 120 }
   });
 
   const notesParagraph = new Paragraph({
     children: [
-      new TextRun({ text: 'Catatan Riksa Uji: ', bold: true, size: 18 }),
-      new TextRun({ text: report.conclusionNotes || 'Peralatan diuji dalam batas aman operasional.', size: 18 })
+      new TextRun({ text: 'Catatan Pengujian: ', bold: true, size: 18 }),
+      new TextRun({
+        text:
+          report.conclusionNotes && report.conclusionNotes !== '-'
+            ? report.conclusionNotes
+            : 'Peralatan diuji dalam batas operasional aman dan laik dioperasikan sesuai peruntukannya.',
+        size: 18
+      })
     ],
-    spacing: { after: 200 }
+    spacing: { after: 160 }
   });
 
   const recommendationsParagraph = new Paragraph({
     children: [
-      new TextRun({ text: 'Rekomendasi K3: ', bold: true, size: 18 }),
+      new TextRun({ text: 'Syarat-Syarat K3 & Rekomendasi: ', bold: true, size: 18 }),
       new TextRun({
-        text: report.recommendations || 'Lakukan pemeliharaan berkala sesuai petunjuk pabrikan pembuat.',
+        text:
+          report.recommendations && report.recommendations !== '-' && report.recommendations !== 'Belum diisi.'
+            ? report.recommendations
+            : '1. Operator wajib memiliki Lisensi K3 (SIO) yang masih berlaku.\n2. Dilarang mengangkat beban melebihi Kapasitas Beban Kerja Aman (SWL).\n3. Lakukan pemeliharaan dan pemeriksaan berkala sesuai buku petunjuk pabrikan.',
         size: 18
       })
     ],
-    spacing: { after: 300 }
+    spacing: { after: 260 }
   });
 
-  const doc = new Document({
+  const section5Title = new Paragraph({
+    children: [new TextRun({ text: 'V. DOKUMENTASI FOTO RIKSA UJI', bold: true, size: 22, color: 'C81E1E' })],
+    spacing: { before: 300, after: 120 }
+  });
+
+  const photoLabels = [
+    '3.1 Foto Tampak Unit Keseluruhan (Tampak Depan / Samping)',
+    '3.2 Foto Nameplate Pabrikan & Pemeriksaan Visual',
+    '3.3 Foto Pengujian Fungsi Sistem Operasional',
+    '3.4 Foto Pengujian Beban & Defleksi Garpu (100% SWL)',
+    '3.5 Foto Stiker Uji Riksa K3'
+  ];
+
+  const photoTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
+    rows: [
+      new TableRow({
+        children: [
+          createCell('No', { widthPercent: 8, isHeader: true, align: AlignmentType.CENTER, size: 17 }),
+          createCell('Posisi / Butir Dokumentasi', { widthPercent: 47, isHeader: true, size: 17 }),
+          createCell('Status Foto Terlampir', { widthPercent: 45, isHeader: true, size: 17 })
+        ]
+      }),
+      ...photoLabels.map(
+        (label, idx) =>
+          new TableRow({
+            children: [
+              createCell(String(idx + 1), { widthPercent: 8, align: AlignmentType.CENTER, size: 16 }),
+              createCell(label, { widthPercent: 47, bold: true, size: 16 }),
+              createCell('[ Tempelkan Foto / Lampiran Dokumentasi di Sini ]', {
+                widthPercent: 45,
+                size: 16,
+                shadingColor: 'F8FAFC'
+              })
+            ]
+          })
+      )
+    ]
+  });
+
+  const validGenericPhotos = [];
+  const genericPhotos = Array.isArray(data.photos) ? data.photos : [];
+  const genericResults = Array.isArray(data.results) ? data.results : [];
+  for (const p of genericPhotos) {
+    const buf = resolveAttachmentBuffer(p);
+    if (buf) {
+      let caption = p.caption;
+      if (!caption || !caption.trim()) {
+        const matchedItem = genericResults.find(
+          (r) => r.item_id === (p.item_id || p.itemId) || r.itemId === (p.item_id || p.itemId)
+        );
+        caption = matchedItem?.label ? `[${matchedItem.section || 'Pemeriksaan'}] ${matchedItem.label}` : (p.doc_category || 'Dokumentasi Riksa Uji');
+      }
+      validGenericPhotos.push({
+        ...p,
+        buffer: buf,
+        caption
+      });
+    }
+  }
+
+  const photoTablesList = [];
+  if (validGenericPhotos.length > 0) {
+    for (let i = 0; i < validGenericPhotos.length; i += 2) {
+      const p1 = validGenericPhotos[i];
+      const p2 = validGenericPhotos[i + 1] || null;
+
+      const c1 = new TableCell({
+        width: { size: 50, type: WidthType.PERCENTAGE },
+        borders: TABLE_BORDERS_BLACK,
+        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: `Foto ${i + 1}. ${p1.caption}`, bold: true, size: 16, font: 'Times New Roman' })],
+            spacing: { after: 60 }
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new ImageRun({ data: p1.buffer, transformation: { width: 220, height: 150 } })]
+          })
+        ]
+      });
+
+      const c2 = p2
+        ? new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: TABLE_BORDERS_BLACK,
+            margins: { top: 80, bottom: 80, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: `Foto ${i + 2}. ${p2.caption}`, bold: true, size: 16, font: 'Times New Roman' })],
+                spacing: { after: 60 }
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new ImageRun({ data: p2.buffer, transformation: { width: 220, height: 150 } })]
+              })
+            ]
+          })
+        : new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: TABLE_BORDERS_BLACK,
+            children: [new Paragraph({ text: '' })]
+          });
+
+      photoTablesList.push(
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: TABLE_BORDERS_BLACK,
+          rows: [new TableRow({ children: [c1, c2] })]
+        })
+      );
+    }
+  } else {
+    photoTablesList.push(photoTable);
+  }
+
+  const signTitle = new Paragraph({
+    children: [new TextRun({ text: 'LEMBAR PENGESAHAN DOKUMEN LHPP', bold: true, size: 20, color: '1E293B' })],
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 340, after: 140 }
+  });
+
+  const inspectorSigBuf = resolveAttachmentBuffer(
+    data.inspector_signature || data.signature_data_url || data.signature_file_id || data.inspector_sig_file_id
+  );
+
+  const inspectorSigParas = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: 'Diperiksa Oleh,\nAhli K3 Spesialis / Inspector',
+          bold: true,
+          size: 16,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 60 }
+    }),
+    inspectorSigBuf
+      ? new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new ImageRun({
+              data: inspectorSigBuf,
+              transformation: { width: 110, height: 55 }
+            })
+          ],
+          spacing: { before: 40, after: 40 }
+        })
+      : new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: '\n\n\n\n', size: 16 })]
+        }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `( ${data.inspector_name || 'Ahli K3 Spesialis'} )\n`,
+          bold: true,
+          size: 16,
+          font: 'Times New Roman'
+        }),
+        new TextRun({
+          text: data.inspector_skp_no || data.skp_no ? `No. Reg: ${data.inspector_skp_no || data.skp_no}` : 'Ahli K3 Spesialis Kemnaker RI',
+          size: 14,
+          font: 'Times New Roman',
+          color: '555555'
+        })
+      ]
+    })
+  ];
+
+  const signatureTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 33.3, type: WidthType.PERCENTAGE },
+            borders: TABLE_BORDERS_BLACK,
+            margins: { top: 100, bottom: 100, left: 80, right: 80 },
+            children: inspectorSigParas
+          }),
+          new TableCell({
+            width: { size: 33.3, type: WidthType.PERCENTAGE },
+            borders: TABLE_BORDERS_BLACK,
+            margins: { top: 100, bottom: 100, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: 'Diverifikasi Oleh,\nReviewer Teknis QC\n\n\n\n\n',
+                    bold: true,
+                    size: 16,
+                    font: 'Times New Roman'
+                  }),
+                  new TextRun({
+                    text: `( ${data.reviewer_name || 'Tim Kendali Mutu QC'} )\n`,
+                    bold: true,
+                    size: 16,
+                    font: 'Times New Roman'
+                  }),
+                  new TextRun({
+                    text: 'Quality Control URD',
+                    size: 14,
+                    font: 'Times New Roman',
+                    color: '555555'
+                  })
+                ]
+              })
+            ]
+          }),
+          new TableCell({
+            width: { size: 33.4, type: WidthType.PERCENTAGE },
+            borders: TABLE_BORDERS_BLACK,
+            margins: { top: 100, bottom: 100, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: 'Disahkan Oleh,\nPenanggung Jawab PJK3\n\n\n\n\n',
+                    bold: true,
+                    size: 16,
+                    font: 'Times New Roman'
+                  }),
+                  new TextRun({
+                    text: `( ${data.approver_name || 'Direktur / Pimpinan URD'} )\n`,
+                    bold: true,
+                    size: 16,
+                    font: 'Times New Roman'
+                  }),
+                  new TextRun({
+                    text: 'Penanggung Jawab PJK3',
+                    size: 14,
+                    font: 'Times New Roman',
+                    color: '555555'
+                  })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+
+  return new Document({
     sections: [
       {
-        properties: {},
+        properties: F4_PAGE_PROPERTIES,
         children: [
           ...(logoParagraph ? [logoParagraph] : []),
+          companyHeader,
+          subHeader,
+          divider,
           titleParagraph,
           subtitleParagraph,
           section1Title,
@@ -209,33 +2247,59 @@ export async function generateLhppDocxBuffer(data) {
           section4Title,
           conclusionParagraph,
           notesParagraph,
-          recommendationsParagraph
+          recommendationsParagraph,
+          section5Title,
+          ...photoTablesList,
+          signTitle,
+          signatureTable
         ]
       }
     ]
   });
+}
+
+/**
+ * Entrypoint: Generate Laporan Hasil Pemeriksaan dan Pengujian (LHPP) DOCX Buffer
+ */
+export async function generateLhppDocxBuffer(data) {
+  const [report, companyProfile] = await Promise.all([
+    Promise.resolve(buildLhppReportContent(data)),
+    getCompanyProfile().catch(() => null)
+  ]);
+
+  const isForklift = /forklift/i.test(
+    `${data.object_name || ''} ${data.equipment_type_name || ''} ${data.category_name || ''} ${report.categoryName || ''}`
+  );
+
+  const doc = isForklift
+    ? buildForkliftDocxDocument(data, report, companyProfile)
+    : buildGenericDocxDocument(data, report, companyProfile);
 
   return await Packer.toBuffer(doc);
 }
 
+// =============================================================================
+// BERITA ACARA PEMERIKSAAN (BAP) DOCX GENERATOR
+// =============================================================================
 export async function generateBapDocxBuffer(bap) {
   const companyProfile = await getCompanyProfile().catch(() => null);
   const companyName = companyProfile?.company_name || 'PT UPAYA RIKSA DAYA';
   const tagline = companyProfile?.tagline || 'JASA PEMERIKSAAN & PENGUJIAN KESELAMATAN DAN KESEHATAN KERJA (PJK3)';
 
   const logoPath = getOfficialLogoPath();
-  const logoParagraph = logoPath && fs.existsSync(logoPath)
-    ? new Paragraph({
-        children: [
-          new ImageRun({
-            data: fs.readFileSync(logoPath),
-            transformation: { width: 92, height: 64 }
-          })
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 120 }
-      })
-    : null;
+  const logoParagraph =
+    logoPath && fs.existsSync(logoPath)
+      ? new Paragraph({
+          children: [
+            new ImageRun({
+              data: fs.readFileSync(logoPath),
+              transformation: { width: 92, height: 64 }
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 120 }
+        })
+      : null;
 
   const isNotCompliant = bap.conclusion === 'TIDAK_MEMENUHI_SYARAT';
   const statusColor = isNotCompliant ? '991B1B' : '107038';
@@ -259,26 +2323,20 @@ export async function generateBapDocxBuffer(bap) {
   const subHeader = new Paragraph({
     children: [
       new TextRun({
-        text: tagline.toUpperCase(),
-        bold: true,
-        size: 18,
-        color: '334155'
+        text: tagline,
+        size: 16,
+        color: '64748B'
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 180 }
+    spacing: { after: 200 }
   });
 
   const titleParagraph = new Paragraph({
-    children: [
-      new TextRun({
-        text: 'BERITA ACARA PEMERIKSAAN DAN PENGUJIAN (BAP)',
-        bold: true,
-        size: 24
-      })
-    ],
+    text: 'BERITA ACARA PEMERIKSAAN DAN PENGUJIAN (BAP)',
+    heading: HeadingLevel.HEADING_1,
     alignment: AlignmentType.CENTER,
-    spacing: { after: 80 }
+    spacing: { after: 100 }
   });
 
   const docNoParagraph = new Paragraph({
@@ -290,180 +2348,237 @@ export async function generateBapDocxBuffer(bap) {
       })
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 260 }
+    spacing: { after: 240 }
   });
 
   const introParagraph = new Paragraph({
     children: [
       new TextRun({
-        text: 'Pada hari ini telah dilaksanakan pemeriksaan dan pengujian Keselamatan dan Kesehatan Kerja (K3) oleh PT Upaya Riksa Daya terhadap peralatan sebagai berikut:',
-        size: 20
+        text: `Pada hari ini, tanggal ${bap.date_formatted || '________'}, telah dilakukan pemeriksaan dan pengujian Keselamatan dan Kesehatan Kerja (K3) terhadap peralatan kerja dengan rincian sebagai berikut:`,
+        size: 18
       })
     ],
-    spacing: { after: 180 }
+    spacing: { after: 160 }
   });
 
-  const inspectionDateFormatted = bap.inspection_date || bap.inspected_at
-    ? new Date(bap.inspection_date || bap.inspected_at).toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      })
-    : '-';
-
-  const identityData = [
-    ['Nama Perusahaan / Pemilik', bap.client_name || '-'],
-    ['Alamat Perusahaan', bap.client_address || bap.location_address || '-'],
-    ['Lokasi Pemeriksaan', bap.location_name || bap.install_location || '-'],
-    ['Jenis Pesawat / Objek Uji', `${bap.category_name || bap.category_code || ''} - ${bap.object_name || '-'}`],
-    ['Pabrik Pembuat / Model / Tahun', `${bap.manufacturer || bap.brand || '-'} / ${bap.model || '-'} / ${bap.manufacture_year || '-'}`],
-    ['Nomor Seri / Tag', bap.serial_number || '-'],
-    ['Kapasitas / Spesifikasi', `${bap.capacity || '-'}${bap.capacity_unit ? ` ${bap.capacity_unit}` : ''}`],
-    ['Nomor PO / SPK', bap.po_number || bap.order_no || '-'],
-    ['Tanggal Pemeriksaan', inspectionDateFormatted]
-  ];
-
-  const identityRows = identityData.map(
+  const identityRows = [
+    ['Nama Perusahaan / Klien', bap.client_name || '-'],
+    ['Alamat Lokasi Uji', bap.client_address || '-'],
+    ['Jenis Objek K3', bap.equipment_name || bap.equipment_type || '-'],
+    ['Nomor Seri / Tag Unit', bap.serial_number || '-'],
+    ['Kapasitas Kerja Aman (SWL)', bap.capacity || '-'],
+    ['Lokasi Instalasi', bap.install_location || '-'],
+    ['Jenis Riksa Uji', bap.inspection_type || 'Berkala'],
+    ['Inspector / Ahli K3', bap.inspector_name || '-']
+  ].map(
     ([label, val]) =>
       new TableRow({
         children: [
-          new TableCell({
-            width: { size: 35, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 19 })] })]
-          }),
-          new TableCell({
-            width: { size: 65, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text: String(val || '-'), size: 19 })] })]
-          })
+          createCell(label, { widthPercent: 38, bold: true, size: 17 }),
+          createCell(String(val || '-'), { widthPercent: 62, size: 17 })
         ]
       })
   );
 
   const identityTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
     rows: identityRows
   });
 
   const scopeTitle = new Paragraph({
-    children: [new TextRun({ text: 'LINGKUP RIKSA UJI', bold: true, size: 20 })],
-    spacing: { before: 260, after: 100 }
+    children: [new TextRun({ text: 'RUANG LINGKUP PEMERIKSAAN & PENGUJIAN', bold: true, size: 20 })],
+    spacing: { before: 240, after: 80 }
   });
 
-  const rawScopes = Array.isArray(bap.scope_items) && bap.scope_items.length > 0
-    ? bap.scope_items
-    : [
-        'Pemeriksaan Dokumen & Gambar Teknik',
-        'Pemeriksaan Visual Konstruksi & Komponen',
-        'Pengukuran Dimensi & Pengujian Fungsi / Safety Device'
-      ];
+  const scopes = [
+    '1. Pemeriksaan Dokumen Teknis dan Riwayat Perawatan Unit',
+    '2. Pemeriksaan Visual dan Pengukuran Komponen Mekanis / Elektrik',
+    '3. Pengujian Fungsi Sistem Keselamatan, Rem, dan Pengendali',
+    '4. Pengujian Beban Kerja Aman (Load Testing & Defleksi Garpu)'
+  ];
 
-  const scopeParagraphs = rawScopes.map(
-    (item) =>
+  const scopeParagraphs = scopes.map(
+    (s) =>
       new Paragraph({
-        children: [new TextRun({ text: `[ v ]  ${item}`, size: 19 })],
-        spacing: { after: 60 }
+        children: [new TextRun({ text: s, size: 17 })],
+        spacing: { after: 40 }
       })
   );
 
   const resultTitle = new Paragraph({
-    children: [new TextRun({ text: 'HASIL PEMERIKSAAN & KESIMPULAN', bold: true, size: 20 })],
-    spacing: { before: 260, after: 100 }
+    children: [new TextRun({ text: 'HASIL DAN KESIMPULAN AKHIR', bold: true, size: 20 })],
+    spacing: { before: 200, after: 80 }
   });
 
   const conclusionParagraph = new Paragraph({
     children: [
-      new TextRun({ text: 'Kesimpulan Teknis: ', bold: true, size: 20 }),
-      new TextRun({
-        text: statusText,
-        bold: true,
-        size: 20,
-        color: statusColor
-      })
+      new TextRun({ text: 'Berdasarkan hasil riksa uji lapangan, unit dinyatakan: ', size: 18 }),
+      new TextRun({ text: statusText, bold: true, size: 18, color: statusColor })
     ],
     spacing: { after: 120 }
   });
 
   const notesParagraph = new Paragraph({
     children: [
-      new TextRun({ text: 'Catatan Riksa Uji: ', bold: true, size: 19 }),
+      new TextRun({ text: 'Catatan Khusus: ', bold: true, size: 17 }),
       new TextRun({
         text:
           bap.notes ||
-          bap.conclusion_notes ||
-          'Pemeriksaan dan pengujian telah dilaksanakan sesuai standar K3 yang berlaku.',
-        size: 19
+          'Peralatan memenuhi standar K3 Kemnaker R.I. dan dapat dioperasikan dengan mematuhi SOP keselamatan kerja.',
+        size: 17
       })
     ],
     spacing: { after: 260 }
   });
 
-  const inspName = bap.inspector_signer_name || bap.inspector_name || 'Ahli K3 / Inspector';
-  const clientName = bap.client_signer_name || 'Perwakilan Klien';
+  const inspectorSigBuf = resolveAttachmentBuffer(
+    bap.inspector_signature || bap.inspector_sig_file_id || bap.signature_data_url || bap.signature_file_id
+  );
+  const clientSigBuf = resolveAttachmentBuffer(
+    bap.client_signature || bap.client_sig_file_id || bap.representative_signature
+  );
+
+  const inspectorSigCellParas = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: 'Pihak Penguji / Pelaksana\nPT UPAYA RIKSA DAYA',
+          bold: true,
+          size: 17,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 60 }
+    }),
+    inspectorSigBuf
+      ? new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new ImageRun({
+              data: inspectorSigBuf,
+              transformation: { width: 120, height: 60 }
+            })
+          ],
+          spacing: { before: 60, after: 60 }
+        })
+      : new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: '\n\n\n\n', size: 16 })]
+        }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `( ${bap.inspector_name || 'Ahli K3 Spesialis'} )\n`,
+          bold: true,
+          size: 17,
+          font: 'Times New Roman'
+        }),
+        new TextRun({
+          text: bap.inspector_skp_no || bap.skp_no ? `No. SKP: ${bap.inspector_skp_no || bap.skp_no}` : 'Ahli K3 Spesialis Kemnaker RI',
+          size: 15,
+          font: 'Times New Roman',
+          color: '555555'
+        })
+      ]
+    })
+  ];
+
+  const clientSigCellParas = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `Pihak Pemakai / Klien\n${bap.client_name || 'Perusahaan Klien'}`,
+          bold: true,
+          size: 17,
+          font: 'Times New Roman'
+        })
+      ],
+      spacing: { after: 60 }
+    }),
+    clientSigBuf
+      ? new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new ImageRun({
+              data: clientSigBuf,
+              transformation: { width: 120, height: 60 }
+            })
+          ],
+          spacing: { before: 60, after: 60 }
+        })
+      : new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: '\n\n\n\n', size: 16 })]
+        }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `( ${bap.representative_name || bap.pic_name || 'Penanggung Jawab Lapangan'} )\n`,
+          bold: true,
+          size: 17,
+          font: 'Times New Roman'
+        }),
+        new TextRun({
+          text: bap.representative_title || bap.pic_title || 'Penanggung Jawab / PIC Klien',
+          size: 15,
+          font: 'Times New Roman',
+          color: '555555'
+        })
+      ]
+    })
+  ];
 
   const sigTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS_BLACK,
     rows: [
       new TableRow({
         children: [
           new TableCell({
             width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: 'Yang Melakukan Pemeriksaan,\nInspector / Ahli K3',
-                    bold: true,
-                    size: 18
-                  })
-                ],
-                alignment: AlignmentType.CENTER
-              }),
-              new Paragraph({ text: '', spacing: { after: 600 } }),
-              new Paragraph({
-                children: [new TextRun({ text: `( ${inspName} )`, bold: true, size: 18 })],
-                alignment: AlignmentType.CENTER
-              }),
-              new Paragraph({
-                children: [new TextRun({ text: companyName, size: 16 })],
-                alignment: AlignmentType.CENTER
-              })
-            ]
+            borders: TABLE_BORDERS_BLACK,
+            margins: { top: 120, bottom: 120, left: 120, right: 120 },
+            children: inspectorSigCellParas
           }),
           new TableCell({
             width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: 'Mengetahui / Menyetujui,\nPerwakilan Perusahaan / Klien',
-                    bold: true,
-                    size: 18
-                  })
-                ],
-                alignment: AlignmentType.CENTER
-              }),
-              new Paragraph({ text: '', spacing: { after: 600 } }),
-              new Paragraph({
-                children: [new TextRun({ text: `( ${clientName} )`, bold: true, size: 18 })],
-                alignment: AlignmentType.CENTER
-              }),
-              new Paragraph({
-                children: [new TextRun({ text: bap.client_name || 'Perusahaan Klien', size: 16 })],
-                alignment: AlignmentType.CENTER
-              })
-            ]
+            borders: TABLE_BORDERS_BLACK,
+            margins: { top: 120, bottom: 120, left: 120, right: 120 },
+            children: clientSigCellParas
           })
         ]
       })
     ]
   });
 
+  const isBothSigned = Boolean(inspectorSigBuf && clientSigBuf);
+  const signatureStatusParagraph = isBothSigned
+    ? new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: '✓ DITANDATANGANI SECARA ELEKTRONIK & SAH OLEH KEDUA PIHAK',
+            bold: true,
+            size: 15,
+            color: '107038',
+            font: 'Times New Roman'
+          })
+        ],
+        spacing: { before: 100, after: 80 }
+      })
+    : null;
+
   const closingText = new Paragraph({
     children: [
       new TextRun({
         text: 'Demikian Berita Acara Pemeriksaan dan Pengujian ini dibuat dengan sebenarnya sesuai kondisi teknis di lapangan untuk dipergunakan sebagaimana mestinya.',
         italics: true,
-        size: 16,
+        size: 15,
         color: '64748B'
       })
     ],
@@ -474,7 +2589,7 @@ export async function generateBapDocxBuffer(bap) {
   const doc = new Document({
     sections: [
       {
-        properties: {},
+        properties: F4_PAGE_PROPERTIES,
         children: [
           ...(logoParagraph ? [logoParagraph] : []),
           companyHeader,
@@ -489,6 +2604,7 @@ export async function generateBapDocxBuffer(bap) {
           conclusionParagraph,
           notesParagraph,
           sigTable,
+          ...(signatureStatusParagraph ? [signatureStatusParagraph] : []),
           closingText
         ]
       }
@@ -497,4 +2613,3 @@ export async function generateBapDocxBuffer(bap) {
 
   return await Packer.toBuffer(doc);
 }
-

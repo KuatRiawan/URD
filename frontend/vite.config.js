@@ -20,7 +20,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router', 'axios'],
-          icons: ['@phosphor-icons/react']
+          icons: ['@phosphor-icons/react'],
+          pdfjs: ['pdfjs-dist']
         }
       }
     }

@@ -46,25 +46,12 @@ export function InspectionHeaderSection({
   const isFinal = inspection.status === 'TERKIRIM';
   const isAdminKantor = ['ADMIN_KANTOR', 'ADMIN_SISTEM', 'PIMPINAN'].includes(user?.role);
 
-  useEffect(() => {
-    if (error) {
-      toast(error, 'error');
-      setError('');
-    }
-  }, [error, toast, setError]);
-
-  useEffect(() => {
-    if (feedback) {
-      toast(feedback, 'info');
-      setFeedback('');
-    }
-  }, [feedback, toast, setFeedback]);
-
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
   const [revisionReasonInput, setRevisionReasonInput] = useState('');
   const [revisionSectionInput, setRevisionSectionInput] = useState('Checklist & Pengukuran');
   const [submittingReopen, setSubmittingReopen] = useState(false);
   const [showFullRevisionHistory, setShowFullRevisionHistory] = useState(false);
+  const [showQcCards, setShowQcCards] = useState(false);
 
   const REVISION_SECTIONS = [
     'Checklist & Pengukuran',
@@ -411,55 +398,54 @@ export function InspectionHeaderSection({
       )}
 
       {/* Ringkasan PO, Jadwal & Lokasi Pelaksanaan */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-3.5 text-xs space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono font-bold text-[#C81E1E] dark:text-red-400">
-            PO: {inspection.po_number || inspection.order_no}
-          </span>
-          <span>·</span>
-          <span className="font-bold text-slate-900 dark:text-white">
-            {inspection.client_name}
-          </span>
-          <span>·</span>
-          <span className="text-slate-500 dark:text-slate-400">
-            Lokasi:{' '}
-            {inspection.location_name ||
-              inspection.install_location ||
-              inspection.client_address ||
-              '-'}
-          </span>
-        </div>
-        <div className="text-slate-500 dark:text-slate-400">
-          Jadwal Pelaksanaan:{' '}
-          <strong className="text-slate-900 dark:text-white">
-            {inspection.schedule_start_at
-              ? formatDateTime(inspection.schedule_start_at)
-              : 'Sesuai Penugasan'}
-          </strong>
-          {inspection.inspector_name && (
-            <span>
-              {' '}
-              · Ahli K3 / Inspector: <strong className="text-slate-900 dark:text-white">{inspection.inspector_name}</strong>
+      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-[#F5F5F7]/70 dark:bg-white/[0.03] p-3 text-xs space-y-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono font-bold text-[#C81E1E] dark:text-rose-400">
+              PO: {inspection.po_number || inspection.order_no}
             </span>
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              {inspection.client_name}
+            </span>
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="text-slate-500 dark:text-slate-400">
+              Lokasi: {inspection.location_name || inspection.install_location || inspection.client_address || '-'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowQcCards(!showQcCards)}
+            className="text-xs font-semibold text-[#C81E1E] dark:text-rose-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+          >
+            <span>{showQcCards ? 'Sembunyikan QC' : 'Ringkasan QC & Kelengkapan'}</span>
+            {showQcCards ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">
+          <span>
+            Jadwal: <strong className="text-slate-800 dark:text-slate-200">{inspection.schedule_start_at ? formatDateTime(inspection.schedule_start_at) : 'Sesuai Penugasan'}</strong>
+          </span>
+          {inspection.inspector_name && (
+            <>
+              <span>·</span>
+              <span>Ahli K3: <strong className="text-slate-800 dark:text-slate-200">{inspection.inspector_name}</strong></span>
+            </>
           )}
           {inspection.contact_name && (
-            <span>
-              {' '}
-              · Kontak PIC: {inspection.contact_name} (
-              {inspection.contact_phone || '-'})
-            </span>
+            <>
+              <span>·</span>
+              <span>PIC: {inspection.contact_name} ({inspection.contact_phone || '-'})</span>
+            </>
           )}
         </div>
-        {(inspection.order_notes || inspection.schedule_notes) && (
-          <div className="text-slate-700 dark:text-slate-300 font-medium">
-            Detail Pekerjaan:{' '}
-            {inspection.schedule_notes || inspection.order_notes}
-          </div>
-        )}
       </div>
 
-      {/* Panel Ringkasan Kelengkapan & QC Hasil Inspeksi */}
-      <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 shadow-2xs">
+      {/* Panel Ringkasan Kelengkapan & QC Hasil Inspeksi (Collapsible) */}
+      {showQcCards && (
+        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 shadow-2xs animate-fade-in">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-xs font-extrabold text-slate-900 dark:text-white">
             Ringkasan Kelengkapan &amp; Validasi QC Data Teknis
@@ -604,6 +590,7 @@ export function InspectionHeaderSection({
           </button>
         </div>
       </div>
+      )}
 
       {/* Modal Permintaan Revisi / Buka Kunci Form */}
       <Modal

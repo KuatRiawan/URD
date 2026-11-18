@@ -297,9 +297,48 @@ textarea:disabled,
 }
 
 /* R-32: Indikator fokus keyboard jelas */
-:focus-visible {
+:focus-visible:not([class*="outline-none"]):not([class*="outline-hidden"]):not([aria-label*="tutup" i]):not([aria-label*="close" i]):not([aria-label*="Tutup" i]):not([aria-label*="Close" i]) {
   outline: 2px solid #C81E1E;
   outline-offset: 2px;
+}
+
+/* Jangan pernah beri outline merah pada tombol tutup modal dan tombol ikon bulat */
+button[aria-label*="tutup" i],
+button[aria-label*="close" i],
+button[aria-label*="Tutup" i],
+button[aria-label*="Close" i],
+[role="dialog"] button:has(svg:only-child),
+[role="dialog"] .rounded-full {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+button[aria-label*="tutup" i]:focus,
+button[aria-label*="close" i]:focus,
+button[aria-label*="Tutup" i]:focus,
+button[aria-label*="Close" i]:focus,
+button[aria-label*="tutup" i]:focus-visible,
+button[aria-label*="close" i]:focus-visible,
+button[aria-label*="Tutup" i]:focus-visible,
+button[aria-label*="Close" i]:focus-visible,
+[role="dialog"] button:has(svg:only-child):focus-visible,
+[role="dialog"] .rounded-full:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15) !important;
+}
+
+html.dark button[aria-label*="tutup" i]:focus,
+html.dark button[aria-label*="close" i]:focus,
+html.dark button[aria-label*="Tutup" i]:focus,
+html.dark button[aria-label*="Close" i]:focus,
+html.dark button[aria-label*="tutup" i]:focus-visible,
+html.dark button[aria-label*="close" i]:focus-visible,
+html.dark button[aria-label*="Tutup" i]:focus-visible,
+html.dark button[aria-label*="Close" i]:focus-visible,
+html.dark [role="dialog"] button:has(svg:only-child):focus-visible,
+html.dark [role="dialog"] .rounded-full:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.20) !important;
 }
 
 /* Scrollbar halus */

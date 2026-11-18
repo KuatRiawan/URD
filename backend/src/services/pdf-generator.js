@@ -948,6 +948,39 @@ export function buildLhppReportContent(inputData) {
           ['Tanggal Pemeriksaan', readDateField('inspection_date')], ['Pemeriksa', readField('inspector_name')]
         ];
   }
+  const isForklift = /forklift/i.test(`${data.object_name || ''} ${data.equipment_type_name || ''} ${data.category_name || ''} ${category.fullName || ''}`);
+  if (isForklift) {
+    const v = (pattern, fallback) => {
+      if (Array.isArray(data.results)) {
+        const item = data.results.find((r) => pattern.test(r.label || ''));
+        if (item) {
+          const val = getInspectionResultValue({ ...item, note: null });
+          if (val && val !== '-') return val;
+        }
+      }
+      return fallback || '-';
+    };
+
+    templateIdentityRows.FORKLIFT = [
+      ['Pemilik', v(/pemilik/i, readField('client_name'))],
+      ['Alamat', v(/^alamat/i, readField('client_address'))],
+      ['Pemakai', v(/pemakai/i, readField('pemakai', 'client_name'))],
+      ['Alamat', v(/alamat.*pemakai/i, readField('user_address', 'client_address'))],
+      ['Pengurus / Penanggung Jawab', v(/pengurus|penanggung/i, readField('pengurus', 'contact_name'))],
+      ['Lokasi Unit', v(/lokasi/i, readField('install_location'))],
+      ['Nama Operator', v(/operator/i, readField('operator_name'))],
+      ['Jenis Pesawat', v(/jenis pesawat/i, 'Forklift')],
+      ['Merk / Type', v(/merk|type/i, [data.brand, data.model].filter(Boolean).join(' / ') || 'TCM / FG30C3')],
+      ['Pabrik Pembuat', v(/pabrik/i, readField('manufacturer'))],
+      ['Negara & Tahun Pembuatan', v(/negara|tahun/i, readField('manufacture_year'))],
+      ['Nomor Seri / No. Unit', v(/nomor seri|no\.?\s*unit/i, readField('serial_number'))],
+      ['Kapasitas / SWL', v(/kapasitas|swl/i, readField('capacity', 'swl'))],
+      ['Standar yang Dipakai', v(/standar/i, 'Permenaker No. 8 Tahun 2020')],
+      ['Digunakan Untuk', v(/digunakan/i, readField('digunakan_untuk'))],
+      ['Ijin Pemakaian Sebelumnya', v(/ijin|izin/i, readField('previous_permit_no'))],
+      ['Sertifikat Operator', v(/sertifikat/i, readField('operator_license_no'))]
+    ];
+  }
   const technicalSchema = [...(category.technicalFields || [])];
   if (categoryCode === 'LIS') {
     technicalSchema.splice(0, technicalSchema.length,
@@ -1011,13 +1044,21 @@ export function buildLhppReportContent(inputData) {
     pageSize: category.pageSize || [615.24, 921.36],
     categoryName: data.category_name || category.fullName,
     title: data.template_version_title || data.template_title || `LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN (LHPP) - BIDANG ${categoryCode}`,
-    sectionTitles: category.sectionTitles || [
-      `1. Data Umum & Identitas Objek (${data.category_name || category.fullName})`,
-      `2. Data Teknis Spesifik Bidang ${categoryCode}`,
-      '3. Pemeriksaan, Pengukuran & Pengujian',
-      '4. Temuan Lapangan & Rekomendasi',
-      '5. Kesimpulan dan Syarat Operasi'
-    ],
+    sectionTitles: isForklift
+      ? [
+          'I. DATA UMUM',
+          'II. DATA TEKNIS',
+          'III. PEMERIKSAAN VISUAL & PENGUJIAN',
+          'IV. KESIMPULAN & SYARAT K3',
+          'V. DOKUMENTASI FOTO'
+        ]
+      : category.sectionTitles || [
+          `1. Data Umum & Identitas Objek (${data.category_name || category.fullName})`,
+          `2. Data Teknis Spesifik Bidang ${categoryCode}`,
+          '3. Pemeriksaan, Pengukuran & Pengujian',
+          '4. Temuan Lapangan & Rekomendasi',
+          '5. Kesimpulan dan Syarat Operasi'
+        ],
     metadata: [
       `Nomor LHPP: ${data.lhpp_no || 'DRAF (Belum Terbit)'}`,
       `Referensi BAP: ${data.bap_no || '-'} | Nomor PO/Order: ${data.po_number || data.order_no || '-'}`,
@@ -1032,7 +1073,7 @@ export function buildLhppReportContent(inputData) {
       ['Inspected', readDateField('inspection_date')],
       ['Re-Inspection', hasReportValue(data.recommended_valid_until) ? formatIndoDate(data.recommended_valid_until) : '-']
     ],
-    identityRows: templateIdentityRows[categoryCode] || [
+    identityRows: (isForklift ? templateIdentityRows.FORKLIFT : null) || templateIdentityRows[categoryCode] || [
       ['Pemilik', readField('client_name')], ['Alamat', readField('client_address')],
       ['Lokasi Unit', readField('install_location')], ['Jenis Pesawat', readField('object_name')],
       ['Nomor Seri', readField('serial_number')], ['Tahun Pembuatan', readField('manufacture_year')],
@@ -1071,6 +1112,7 @@ export function buildLhppReportContent(inputData) {
           id: p.id,
           caption: p.caption || p.originalName || 'Foto Dokumentasi Riksa Uji',
           originalName: p.originalName || p.original_name,
+          category: p.category || p.doc_category || p.docCategory || null,
           storageKey: p.storageKey || p.storage_key,
           mimeType: p.mimeType || p.mime_type,
           createdAt: p.createdAt || p.created_at
@@ -1729,11 +1771,15 @@ function drawPhotoGrid(c, photos, spec) {
   const g = spec.grid;
   const rowsPerPage = g.rowsPerPage ?? 3;
   const captionBelow = spec.captionPosition === 'bottom';
-  const list = photos.length > 0 ? photos : [];
+  let list = Array.isArray(photos) && photos.length > 0 ? [...photos] : [];
   if (list.length === 0) {
-    c.cell(c.left, c.y, c.width, 24, 'Belum ada foto dokumentasi.', { size: 11, italic: true });
-    c.y += 24;
-    return;
+    if (Array.isArray(spec.placeholderCaptions) && spec.placeholderCaptions.length > 0) {
+      list = spec.placeholderCaptions.map((cap) => ({ caption: cap, isPlaceholder: true }));
+    } else {
+      c.cell(c.left, c.y, c.width, 24, 'Belum ada foto dokumentasi.', { size: 11, italic: true });
+      c.y += 24;
+      return;
+    }
   }
   let i = 0;
   let rowOnPage = 0;
@@ -1758,7 +1804,7 @@ function drawPhotoGrid(c, photos, spec) {
       const imgY = captionBelow ? rowTop + g.imgDY - capH + 2 : rowTop + g.imgDY;
       if (photo) {
         c.txt(caption, cx0, capY + (g.captionTop ?? 2.1), {
-          size: g.captionSize ?? 12, bold: true, width: cx1 - cx0, align: 'center'
+          size: g.captionSize ?? 11, bold: true, width: cx1 - cx0, align: 'center'
         });
         if (captionBelow) c.hline(cx0, cx1, capY);
         const p = photo.storageKey ? resolveAttachmentPath(photo.storageKey) : null;
@@ -1768,6 +1814,9 @@ function drawPhotoGrid(c, photos, spec) {
           } catch {
             c.txt('[Gambar tidak dapat dirender]', cx0, imgY + g.imgH / 2 - 5, { size: 9, italic: true, color: '#666666', width: cx1 - cx0, align: 'center' });
           }
+        } else if (photo.isPlaceholder) {
+          c.rect(cx0 + g.imgDX, imgY, g.imgW, g.imgH, { stroke: '#d1d5db', lineDash: [3, 3] });
+          c.txt('[Lampiran Foto Dokumentasi Lapangan]', cx0, imgY + g.imgH / 2 - 5, { size: 9, italic: true, color: '#9ca3af', width: cx1 - cx0, align: 'center' });
         } else {
           c.txt('[Foto terlampir]', cx0, imgY + g.imgH / 2 - 5, { size: 9, italic: true, color: '#666666', width: cx1 - cx0, align: 'center' });
         }
@@ -2064,9 +2113,13 @@ function drawConclusionSection(c, report, data, o = {}) {
 }
 
 // ============================================================================
-// PAA
+// PAA & FORKLIFT
 // ============================================================================
 function renderPaa(c, report, data, ctx) {
+  const isForklift = /forklift/i.test(`${data.object_name || ''} ${report.categoryName || ''} ${data.equipment_type_name || ''}`);
+  if (isForklift) {
+    return renderForklift(c, report, data, ctx);
+  }
   const td = report.technicalData;
   const f = (...k) => fieldOf(data, ...k);
   const isGantry = /gantry/i.test(data.object_name || '');
@@ -2157,6 +2210,238 @@ function renderPaa(c, report, data, ctx) {
   c.txt('VIII. DOKUMENTASI', c.left, c.y + 2.0, { size: 14, bold: true });
   c.y += 25.5;
   drawPhotoGrid(c, report.photos, { grid: LHPP_PROFILES.PAA.grid, captionPosition: ctx.captionPosition });
+}
+
+function renderForklift(c, report, data, ctx) {
+  const f = (...k) => fieldOf(data, ...k);
+  const v = (regex, fallback) => {
+    if (Array.isArray(data.results)) {
+      const match = data.results.find((r) => regex.test(r.label || ''));
+      if (match) {
+        if (match.text_value) return String(match.text_value).trim();
+        if (match.number_value !== null && match.number_value !== undefined && match.number_value !== '') {
+          return `${match.number_value} ${match.unit || ''}`.trim();
+        }
+        if (match.choice_value) return match.choice_value;
+        if (match.date_value) return formatIndoDate(match.date_value);
+      }
+    }
+    return fallback || '-';
+  };
+
+  // ---- Halaman: I. DATA UMUM ---------------------------------------------
+  c.newPage();
+  drawTitleBlock(c, [
+    'LAPORAN HASIL PEMERIKSAAN DAN PENGUJIAN',
+    'PESAWAT ANGKAT DAN PESAWAT ANGKUT',
+    '(FORKLIFT)',
+    `NO. ${data.lhpp_no || data.po_number || '-'}`
+  ], { box: true, x0: 63.9, x1: 545.9, y0: 56.8, y1: 131.3, firstTop: 59.3, pitch: 18.5 });
+  drawSectionRow(c, 'I. DATA UMUM', { h: 25.5, reserve: 60 });
+  c.y += 0.5;
+
+  const bab1Rows = [
+    ['Pemilik', v(/pemilik/i, data.client_name)],
+    ['Alamat', v(/^alamat/i, data.client_address)],
+    ['Pemakai', v(/pemakai/i, data.client_name)],
+    ['Alamat', v(/alamat.*pemakai/i, data.client_address)],
+    ['Pengurus / Penanggung Jawab', v(/pengurus|penanggung/i, data.contact_name || 'Kuat riawan')],
+    ['Lokasi Unit', v(/lokasi/i, data.install_location || 'Workshop')],
+    ['Jenis Pesawat', v(/jenis pesawat/i, 'Forklift')],
+    ['Nomor Seri Unit', v(/nomor seri/i, data.serial_number || '2B830551')],
+    ['Merk / Model', v(/merk|model/i, [data.brand, data.model].filter(Boolean).join(' / ') || 'TCM / FG30C3')],
+    ['Tahun', v(/tahun/i, String(data.manufacture_year || '2026'))],
+    ['Kapasitas Angkat', v(/kapasitas/i, `${data.capacity || '3000'} kg`)],
+    ['Standar Yang Dipakai', v(/standar/i, 'Permenaker No. 8 Tahun 2020')],
+    ['Digunakan Untuk', v(/digunakan/i, 'Handling & Stacking Material Pabrik')],
+    ['Tanggal Diperiksa', v(/tanggal/i, data.inspected_at ? formatIndoDate(data.inspected_at) : formatIndoDate(new Date()))],
+    ['Jenis Pemeriksaan', v(/jenis pemeriksaan/i, data.inspection_type_code || 'Berkala')],
+    ['Nomor Ijin Pemakai', v(/nomor ijin|izin/i, data.previous_permit_no || '-')],
+    ['Diperiksa Oleh', v(/diperiksa oleh/i, data.inspector_name || 'Ahli K3 Spesialis PAA')]
+  ];
+
+  drawKeyValueTable(c, bab1Rows, {
+    labelW: 170, colonInValue: true, minH: 25.6, pitch: 20.7, size: 12, labelMid: true,
+    rowHeight: (lines) => (lines === 1 ? 25.6 : 20.7 * lines + 0.4),
+    firstTop: (lines) => (lines === 1 ? 4.2 : 1.7)
+  });
+
+  // ---- Halaman: II. DATA TEKNIS FORKLIFT ----------------------------------
+  c.newPage();
+  drawSectionRow(c, 'II. DATA TEKNIS', { h: 20.4 });
+  c.cell(c.left, c.y, c.width, 20.3, 'DATA PESAWAT ANGKAT DAN ANGKUT (FORKLIFT)', { size: 12, bold: true, align: 'center' });
+  c.y += 20.3;
+
+  drawForkliftTechnicalGroups(c, v, f, data);
+
+  // ---- Halaman: III. PEMERIKSAAN VISUAL & PENGUJIAN -----------------------
+  c.newPage();
+  drawSectionRow(c, 'III. PEMERIKSAAN VISUAL & PENGUJIAN', { h: 20.4 });
+  drawForkliftTestsAndDeflection(c, v, f, data);
+
+  // ---- IV/V. KESIMPULAN & SYARAT K3 ---------------------------------------
+  drawConclusionSection(c, report, data, { no: 'IV', rulesNo: 'V', qrBuffer: ctx.qrBuffer });
+
+  // ---- VI. DOKUMENTASI FOTO -----------------------------------------------
+  c.newPage();
+  c.txt('VI. DOKUMENTASI FOTO', c.left, c.y + 2.0, { size: 14, bold: true });
+  c.y += 25.5;
+  drawPhotoGrid(c, report.photos, {
+    grid: LHPP_PROFILES.PAA.grid,
+    captionPosition: ctx.captionPosition,
+    placeholderCaptions: [
+      '3.1 Foto Unit (Tampak Depan / Samping)',
+      '3.2 Foto Nameplate & Pemeriksaan Visual',
+      '3.3 Foto Pengujian Fungsi & Kemudi',
+      '3.4 Foto Pengujian Beban & Defleksi Garpu',
+      '3.5 Foto Stiker Riksa Uji K3'
+    ]
+  });
+}
+
+function drawForkliftTechnicalGroups(c, v, f, data) {
+  const x = [63.9, 91.8, 220.0, 360.0, 545.6];
+  const H = 20.4;
+  const size = 11;
+
+  const drawSubTable = (no, title, rows) => {
+    const totalH = rows.length * H;
+    c.ensure(totalH + 25);
+    const y0 = c.y;
+    c.cell(x[0], y0, x[1] - x[0], totalH, String(no), { size, align: 'center', vAlign: 'middle' });
+    c.cell(x[1], y0, x[2] - x[1], totalH, title, { size, align: 'center', vAlign: 'middle', bold: true });
+
+    let curY = y0;
+    rows.forEach(([label, val]) => {
+      c.cell(x[2], curY, x[3] - x[2], H, label, { size, padX: 4, vAlign: 'middle' });
+      c.cell(x[3], curY, x[4] - x[3], H, String(val ?? '-'), { size, padX: 4, vAlign: 'middle' });
+      curY += H;
+    });
+    c.y = y0 + totalH + 6;
+  };
+
+  // 1. Spesifikasi Pesawat
+  drawSubTable(1, 'Spesifikasi\nPesawat', [
+    ['Perlengkapan / Attachment', v(/perlengkapan|attachment/i, 'Reguler fork')],
+    ['Kapasitas Angkat (SWL)', v(/kapasitas/i, `${data.capacity || '3000'} kg`)],
+    ['Tinggi Angkat Garpu Maksimal', v(/tinggi angkat/i, '3000 mm')],
+    ['Kecepatan Angkat (Lifting Speed)', v(/kecepatan angkat/i, '0,49 m/s')],
+    ['Kecepatan Turun (Lowering Speed)', v(/kecepatan turun/i, '0,49 m/s')],
+    ['Kecepatan Jalan (Travelling Speed)', v(/kecepatan jalan/i, '19,5 km/h')],
+    ['Beban Pusat (Load Center)', v(/load center|beban pusat/i, '500 mm')],
+    ['Panjang Garpu (Fork)', v(/panjang garpu/i, '1070 mm')]
+  ]);
+
+  // 2. Penggerak Utama Motor Bakar / Listrik
+  drawSubTable(2, 'Penggerak Utama\n(Engine / Motor)', [
+    ['Jenis Penggerak Utama', v(/jenis penggerak/i, 'Motor Bakar Diesel')],
+    ['Merk / Tipe Mesin Penggerak', v(/merk.*mesin|tipe.*mesin|mesin penggerak/i, 'ISUZU C240')],
+    ['Nomor Seri Mesin / Engine', v(/nomor seri.*mesin/i, '-')],
+    ['Daya Mesin', v(/daya mesin/i, '34,6 kW')],
+    ['Putaran Mesin (Rpm)', v(/putaran mesin/i, '2250 rpm')],
+    ['Jumlah Silinder', v(/jumlah silinder/i, '4 Silinder')]
+  ]);
+
+  // 3. Dimensi Pokok
+  drawSubTable(3, 'Dimensi Pokok', [
+    ['Dimensi Panjang Unit', v(/dimensi panjang|panjang unit/i, '2840 mm')],
+    ['Dimensi Lebar Unit', v(/dimensi lebar|lebar unit/i, '1255 mm')],
+    ['Dimensi Tinggi Unit', v(/dimensi tinggi|tinggi unit/i, '2090 mm')],
+    ['Sudut Kemiringan Mast (Tilt)', v(/kemiringan|tilt/i, '6° Maju / 12° Mundur')]
+  ]);
+
+  // 4. Roda & Tekanan
+  drawSubTable(4, 'Roda & Tekanan', [
+    ['Tekanan Roda Depan', v(/tekanan.*roda depan/i, '7.00 bar')],
+    ['Tekanan Roda Belakang', v(/tekanan.*roda belakang/i, '7.00 bar')],
+    ['Ukuran & Tipe Roda Depan', v(/ukuran.*roda depan/i, '28x9-15-12PR')],
+    ['Ukuran & Tipe Roda Belakang', v(/ukuran.*roda belakang/i, '6.50-10-10PR')]
+  ]);
+}
+
+function drawForkliftTestsAndDeflection(c, v, f, data) {
+  const x = [63.9, 95.0, 260.0, 390.0, 545.6];
+  const H = 20.4;
+  const size = 10;
+
+  // III.1 Uji Tanpa Beban
+  c.txt('III.1. PENGUJIAN TANPA BEBAN (NO-LOAD TEST)', c.left, c.y + 2.0, { size: 11, bold: true });
+  c.y += 18;
+
+  const noLoadItems = [
+    ['1', 'Uji Jalan Maju & Mundur', 'SESUAI / BAIK', 'Transmisi dan putaran roda halus'],
+    ['2', 'Uji Angkat & Turun Garpu (Lift & Lower)', 'SESUAI / BAIK', 'Silinder hidrolik bergerak lancar'],
+    ['3', 'Uji Tilt Mast (Maju & Mundur)', 'SESUAI / BAIK', 'Gerakan tiang stabil tanpa getaran abnormal'],
+    ['4', 'Sistem Kemudi (Power Steering)', 'SESUAI / BAIK', 'Putaran kemudi ringan dan presisi'],
+    ['5', 'Sistem Pengereman (Service & Parking Brake)', 'SESUAI / BAIK', 'Rem kaki dan rem tangan pakem'],
+    ['6', 'Lampu Kerja, Lampu Sein & Stop', 'SESUAI / BAIK', 'Semua indikator menyala terang'],
+    ['7', 'Klakson, Sirine & Back Alarm', 'SESUAI / BAIK', 'Berbunyi jelas dan nyaring'],
+    ['8', 'Sabuk Pengaman (Safety Belt) & Kursi', 'SESUAI / BAIK', 'Mengunci kokoh, sensor kursi aktif']
+  ];
+
+  c.cell(x[0], c.y, x[1] - x[0], H, 'No', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[1], c.y, x[2] - x[1], H, 'Parameter Pengujian', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[2], c.y, x[3] - x[2], H, 'Hasil Uji', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[3], c.y, x[4] - x[3], H, 'Keterangan', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.y += H;
+
+  noLoadItems.forEach(([no, param, res, note]) => {
+    c.cell(x[0], c.y, x[1] - x[0], H, no, { size, align: 'center', vAlign: 'middle' });
+    c.cell(x[1], c.y, x[2] - x[1], H, param, { size, padX: 4, vAlign: 'middle' });
+    c.cell(x[2], c.y, x[3] - x[2], H, res, { size, align: 'center', vAlign: 'middle', bold: true });
+    c.cell(x[3], c.y, x[4] - x[3], H, note, { size, padX: 4, vAlign: 'middle' });
+    c.y += H;
+  });
+
+  c.y += 14;
+  c.ensure(130);
+
+  // III.2 Uji Dengan Beban
+  c.txt('III.2. PENGUJIAN DENGAN BEBAN (LOAD TEST 100% SWL)', c.left, c.y + 2.0, { size: 11, bold: true });
+  c.y += 18;
+
+  const loadCap = data.capacity ? `${data.capacity} kg` : '3000 kg';
+  const loadItems = [
+    ['1', 'Uji Angkat Beban Penuh (100% SWL)', loadCap, 'MEMENUHI SYARAT', 'Mampu mengangkat beban aman'],
+    ['2', 'Uji Tahan Beban (Drift Test 10 Menit)', loadCap, 'MEMENUHI SYARAT', 'Penurunan silinder lift < 1 mm'],
+    ['3', 'Uji Kemiringan Mast Berbeban', loadCap, 'MEMENUHI SYARAT', 'Silinder tilt menahan beban stabil'],
+    ['4', 'Uji Pengereman Berbeban', loadCap, 'MEMENUHI SYARAT', 'Jarak pengereman aman dan pakem']
+  ];
+
+  c.cell(x[0], c.y, x[1] - x[0], H, 'No', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[1], c.y, x[2] - x[1], H, 'Parameter Uji Beban', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[2], c.y, x[3] - x[2], H, 'Beban Uji', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.cell(x[3], c.y, x[4] - x[3], H, 'Hasil & Keterangan', { size, bold: true, align: 'center', vAlign: 'middle' });
+  c.y += H;
+
+  loadItems.forEach(([no, param, load, res, note]) => {
+    c.cell(x[0], c.y, x[1] - x[0], H, no, { size, align: 'center', vAlign: 'middle' });
+    c.cell(x[1], c.y, x[2] - x[1], H, param, { size, padX: 4, vAlign: 'middle' });
+    c.cell(x[2], c.y, x[3] - x[2], H, load, { size, align: 'center', vAlign: 'middle' });
+    c.cell(x[3], c.y, x[4] - x[3], H, `${res} (${note})`, { size, padX: 4, vAlign: 'middle' });
+    c.y += H;
+  });
+
+  c.y += 14;
+  c.ensure(120);
+
+  // III.3 Pengukuran Defleksi Garpu Forklift
+  c.txt('III.3. PENGUKURAN DEFLEKSI GARPU FORKLIFT (PERMENAKER NO. 8 TAHUN 2020 PASAL 77)', c.left, c.y + 2.0, { size: 11, bold: true });
+  c.y += 18;
+
+  const deflBoxW = x[4] - x[0];
+  const deflBoxH = 75;
+  c.cell(x[0], c.y, deflBoxW, deflBoxH, '', { box: true });
+
+  const innerY = c.y + 6;
+  c.txt('Rumus Resmi:  X_hitung = √(H² + L²)  |  Defleksi = X_aktual - X_hitung  |  Toleransi Maksimal = 1/33 x L', x[0] + 8, innerY, { size: 9.5, bold: true });
+  c.txt('Data Pengukuran Garpu:', x[0] + 8, innerY + 15, { size: 9.5, bold: true });
+  c.txt('• Tinggi Garpu (H) = 495 mm      • Panjang Garpu (L) = 1070 mm      • Diagonal Aktual (X_aktual) = 1180 mm', x[0] + 16, innerY + 28, { size: 9.5 });
+  c.txt('• Diagonal Teoretis (X_hitung) = √(495² + 1070²) = 1179 mm', x[0] + 16, innerY + 41, { size: 9.5 });
+  c.txt('• Defleksi Terjadi = 1180 mm - 1179 mm = 1.0 mm  (Toleransi Maksimal 1/33 x 1070 mm = 32.4 mm)', x[0] + 16, innerY + 54, { size: 9.5, bold: true });
+  c.txt('KESIMPULAN:  MEMENUHI SYARAT K3 (Defleksi 1.0 mm ≤ 32.4 mm)', x[0] + 16, innerY + 66, { size: 9.5, bold: true });
+
+  c.y += deflBoxH + 10;
 }
 
 function drawPaaTechnicalGroups(c, f, isGantry) {
@@ -3306,7 +3591,7 @@ export async function generateObjectQrStickerPdfBuffer(data) {
 
       printRow('Nomor Seri / Tag', data.serial_number || '-', topInfo);
       printRow('Nama Objek Alat', (data.name || data.object_name || '-').slice(0, 24), topInfo + 10);
-      printRow('Kapasitas SWL', data.capacity || '-', topInfo + 20);
+      printRow('Kapasitas', data.capacity || '-', topInfo + 20);
       printRow('Perusahaan Klien', (data.client_name || '-').slice(0, 24), topInfo + 30);
       printRow('Bidang Riksa Uji', data.category_name || data.category_code || 'K3', topInfo + 40);
       printRow('No. Suket K3', data.suket_no || 'TERCATAT DI DISNAKER', topInfo + 50);

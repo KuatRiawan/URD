@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { api } from '../../../lib/api/axios.js';
 
 export function useOrderManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlStatus = searchParams.get('status') || '';
+
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -10,10 +14,36 @@ export function useOrderManagement() {
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [page, setPage] = useState(1);
   const [limit] = useState(15);
   const [total, setTotal] = useState(0);
+
+  // Sinkronisasi statusFilter bila URL searchParams berubah (navigasi submenu sidebar / back-forward browser)
+  useEffect(() => {
+    setStatusFilter(urlStatus);
+    setPage(1);
+  }, [urlStatus]);
+
+  const handleSetStatusFilter = useCallback(
+    (nextStatus) => {
+      setStatusFilter(nextStatus || '');
+      setPage(1);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (nextStatus) {
+            next.set('status', nextStatus);
+          } else {
+            next.delete('status');
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   // State Modal Buat PO Wizard
   const [createOpen, setCreateOpen] = useState(false);
@@ -757,7 +787,7 @@ export function useOrderManagement() {
     q,
     setQ,
     statusFilter,
-    setStatusFilter,
+    setStatusFilter: handleSetStatusFilter,
     loadOrders,
     createOpen,
     setCreateOpen,

@@ -35,6 +35,15 @@ export const app = express();
 
 app.use(
   helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'frame-src': ["'self'", 'blob:'],
+        'object-src': ["'self'", 'blob:'],
+        'worker-src': ["'self'", 'blob:'],
+        'img-src': ["'self'", 'data:', 'blob:']
+      }
+    },
     crossOriginResourcePolicy: { policy: 'same-site' }
   })
 );

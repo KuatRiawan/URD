@@ -25,6 +25,15 @@ export const ROLE_ALIASES = {
   PIMPINAN: 'MANAGER'
 };
 
+export const PO_SUBMENUS = [
+  { to: '/app/orders', label: 'Semua PO', statusKey: '' },
+  { to: '/app/orders?status=ORDER_BARU', label: 'PO Baru', statusKey: 'ORDER_BARU' },
+  { to: '/app/orders?status=TERJADWAL', label: 'Terjadwal', statusKey: 'TERJADWAL' },
+  { to: '/app/orders?status=SEDANG_DIPERIKSA', label: 'Diperiksa', statusKey: 'SEDANG_DIPERIKSA' },
+  { to: '/app/orders?status=MENUNGGU_DOKUMEN', label: 'Tunggu Dokumen', statusKey: 'MENUNGGU_DOKUMEN' },
+  { to: '/app/orders?status=SELESAI', label: 'Selesai', statusKey: 'SELESAI' }
+];
+
 export const NAV_ITEMS = [
   {
     to: '/app/dashboard',
@@ -36,8 +45,9 @@ export const NAV_ITEMS = [
   {
     to: '/app/orders',
     group: 'Operasional',
-    label: 'PO & Order Pemeriksaan',
+    label: 'PO & Order Masuk',
     icon: ClipboardText,
+    submenus: PO_SUBMENUS,
     roles: ['ADMIN_SISTEM', 'MARKETING', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
@@ -167,8 +177,9 @@ export function getVisibleNav(role) {
       {
         to: '/app/orders',
         group: 'Pelaksanaan Lapangan',
-        label: 'PO & Order Riksa',
-        icon: ClipboardText
+        label: 'PO & Order Masuk',
+        icon: ClipboardText,
+        submenus: PO_SUBMENUS
       },
       {
         to: '/app/objects',
@@ -221,8 +232,9 @@ export function getVisibleNav(role) {
       {
         to: '/app/orders',
         group: 'Monitoring Operasional',
-        label: 'Monitoring PO & Status',
-        icon: ClipboardText
+        label: 'PO & Order Masuk',
+        icon: ClipboardText,
+        submenus: PO_SUBMENUS
       },
       {
         to: '/app/schedule',
@@ -317,8 +329,9 @@ export function getVisibleNav(role) {
       {
         to: '/app/orders',
         group: 'Komersial & CRM',
-        label: 'PO & Order Pemeriksaan',
-        icon: ClipboardText
+        label: 'PO & Order Masuk',
+        icon: ClipboardText,
+        submenus: PO_SUBMENUS
       },
       {
         to: '/app/clients',
@@ -372,7 +385,8 @@ export function getVisibleNav(role) {
         to: '/app/orders',
         group: 'Operasional & Jadwal',
         label: 'PO & Order Masuk',
-        icon: ClipboardText
+        icon: ClipboardText,
+        submenus: PO_SUBMENUS
       },
       {
         to: '/app/schedule',
@@ -473,8 +487,9 @@ export function getVisibleNav(role) {
       {
         to: '/app/orders',
         group: 'Operasional Lapangan',
-        label: 'PO & Order Pemeriksaan',
-        icon: ClipboardText
+        label: 'PO & Order Masuk',
+        icon: ClipboardText,
+        submenus: PO_SUBMENUS
       },
       {
         to: '/app/schedule',
@@ -577,7 +592,7 @@ export function getMobileNavConfig(role) {
           title: 'Pelaksanaan Lapangan',
           items: [
             { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
-            { to: '/app/orders', label: 'PO & Order Riksa', icon: ClipboardText },
+            { to: '/app/orders', label: 'PO & Order Masuk', icon: ClipboardText, submenus: PO_SUBMENUS },
             { to: '/app/schedule', label: 'Jadwal & Agenda', icon: CalendarCheck }
           ]
         },

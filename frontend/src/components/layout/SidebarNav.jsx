@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router';
-import { SignOut } from '@phosphor-icons/react';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router';
+import { CaretDown, SignOut } from '@phosphor-icons/react';
 import logoUrd from '../../assets/logo-urd.png';
 
 export function getInitials(name = '') {
@@ -75,6 +76,22 @@ export function SidebarLogout({ collapsed = false, onLogout }) {
 export const UserCard = SidebarLogout;
 
 export function SidebarNav({ items, collapsed = false, onNavigate }) {
+  const location = useLocation();
+
+  // State menu expandable (default terbuka untuk PO & Order Masuk)
+  const [expandedKeys, setExpandedKeys] = useState(() => ({
+    '/app/orders': true
+  }));
+
+  // Otomatis buka parent dropdown jika rute saat ini berada di dalam menu tersebut
+  useEffect(() => {
+    for (const item of items) {
+      if (item.submenus && location.pathname.startsWith(item.to)) {
+        setExpandedKeys((prev) => ({ ...prev, [item.to]: true }));
+      }
+    }
+  }, [location.pathname, items]);
+
   const groups = [];
   for (const item of items) {
     let g = groups.find((x) => x.name === item.group);
@@ -105,6 +122,94 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const Icon = item.icon;
+              const hasSubmenus = Array.isArray(item.submenus) && item.submenus.length > 0;
+
+              // Menu dengan Submenu Expandable (seperti PO & Order Masuk)
+              if (hasSubmenus && !collapsed) {
+                const isExpanded = Boolean(expandedKeys[item.to]);
+                const isParentActive = location.pathname.startsWith(item.to);
+
+                const toggleSubmenu = (e) => {
+                  e.preventDefault();
+                  setExpandedKeys((prev) => ({ ...prev, [item.to]: !prev[item.to] }));
+                };
+
+                return (
+                  <div key={item.to} className="space-y-0.5">
+                    {/* Tombol Parent Dropdown */}
+                    <button
+                      type="button"
+                      onClick={toggleSubmenu}
+                      aria-expanded={isExpanded}
+                      className={`w-full group relative flex items-center justify-between rounded-[10px] gap-2.5 px-2.5 py-2 text-[13px] tracking-[-0.01em] transition-all duration-150 cursor-pointer ${
+                        isParentActive
+                          ? 'bg-black/[0.04] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7] font-semibold'
+                          : 'text-[#1D1D1F]/80 dark:text-[#E5E5EA]/80 font-medium hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-[#1D1D1F] dark:hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon
+                          size={18}
+                          weight={isParentActive ? 'fill' : 'regular'}
+                          aria-hidden="true"
+                          className={
+                            isParentActive
+                              ? 'text-[#C81E1E] dark:text-rose-400 shrink-0'
+                              : 'text-[#6E6E73] dark:text-[#98989D] group-hover:text-[#1D1D1F] dark:group-hover:text-white shrink-0 transition-colors'
+                          }
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+
+                      <CaretDown
+                        size={14}
+                        weight="bold"
+                        className={`shrink-0 text-[#86868B] dark:text-[#8E8E93] group-hover:text-[#1D1D1F] dark:group-hover:text-white transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180' : 'rotate-0'
+                        }`}
+                      />
+                    </button>
+
+                    {/* Daftar Submenu Dropdown */}
+                    {isExpanded && (
+                      <div
+                        className="ml-4 pl-3.5 space-y-0.5 border-l border-black/[0.08] dark:border-white/[0.08] py-1 transition-all duration-200"
+                        role="menu"
+                        aria-label={`Submenu ${item.label}`}
+                      >
+                        {item.submenus.map((sub) => {
+                          const currentStatus =
+                            new URLSearchParams(location.search).get('status') || '';
+                          const isSubActive =
+                            location.pathname === '/app/orders' &&
+                            currentStatus === (sub.statusKey || '');
+
+                          return (
+                            <Link
+                              key={sub.to}
+                              to={sub.to}
+                              onClick={onNavigate}
+                              role="menuitem"
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-[8px] text-[12px] tracking-[-0.01em] transition-all duration-150 cursor-pointer ${
+                                isSubActive
+                                  ? 'bg-[#C81E1E] text-white font-semibold shadow-[0_1px_3px_rgba(200,30,30,0.25)]'
+                                  : 'text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-[#1D1D1F] dark:hover:text-white font-medium'
+                              }`}
+                            >
+                              <span className="truncate">{sub.label}</span>
+                              {isSubActive && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0 ml-1.5" />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // Menu Biasa atau saat Sidebar Collapsed (Icon-Only)
               return (
                 <NavLink
                   key={item.to}
@@ -117,27 +222,30 @@ export function SidebarNav({ items, collapsed = false, onNavigate }) {
                         ? 'justify-center p-2.5'
                         : 'gap-2.5 px-2.5 py-2 text-[13px] tracking-[-0.01em]'
                     } ${
-                      isActive
+                      isActive || (collapsed && hasSubmenus && location.pathname.startsWith(item.to))
                         ? 'bg-[#C81E1E] text-white font-semibold shadow-[0_1px_3px_rgba(200,30,30,0.28)]'
                         : 'text-[#1D1D1F]/80 dark:text-[#E5E5EA]/80 font-medium hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-[#1D1D1F] dark:hover:text-white'
                     }`
                   }
                 >
-                  {({ isActive }) => (
-                    <>
-                      <Icon
-                        size={collapsed ? 20 : 18}
-                        weight={isActive ? 'fill' : 'regular'}
-                        aria-hidden="true"
-                        className={
-                          isActive
-                            ? 'text-white shrink-0'
-                            : 'text-[#6E6E73] dark:text-[#98989D] group-hover:text-[#1D1D1F] dark:group-hover:text-white shrink-0 transition-colors'
-                        }
-                      />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
-                    </>
-                  )}
+                  {({ isActive }) => {
+                    const activeState = isActive || (collapsed && hasSubmenus && location.pathname.startsWith(item.to));
+                    return (
+                      <>
+                        <Icon
+                          size={collapsed ? 20 : 18}
+                          weight={activeState ? 'fill' : 'regular'}
+                          aria-hidden="true"
+                          className={
+                            activeState
+                              ? 'text-white shrink-0'
+                              : 'text-[#6E6E73] dark:text-[#98989D] group-hover:text-[#1D1D1F] dark:group-hover:text-white shrink-0 transition-colors'
+                          }
+                        />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </>
+                    );
+                  }}
                 </NavLink>
               );
             })}

@@ -80,39 +80,44 @@ function ConfirmDialog({ state, onResolve }) {
   );
 }
 
+// Cache deduplikasi tingkat modul untuk mencegah duplikasi toast pada react re-render / double effect
+const globalRecentToastMap = new Map();
+let globalLastToastTimestamp = 0;
+let globalLastToastContent = '';
+
 function ToastViewport({ toasts, onDismiss }) {
   if (!toasts.length) return null;
+  // Menjamin hanya 1 toast aktif yang tampil di layar (anti double-toast)
+  const item = toasts[toasts.length - 1];
+  if (!item) return null;
+
+  const t = NOTICE_TONES[item.tone] || NOTICE_TONES.info;
+  const Icon = t.Icon || CheckCircle;
 
   return (
     <div
       aria-live="polite"
       className="fixed top-5 right-4 left-4 sm:left-auto sm:right-6 z-[9999] flex flex-col gap-2.5 w-auto sm:w-full sm:max-w-md pointer-events-none"
     >
-      {toasts.map((item) => {
-        const t = NOTICE_TONES[item.tone] || NOTICE_TONES.info;
-        const Icon = t.Icon || CheckCircle;
-        return (
-          <div
-            key={item.id}
-            role={item.tone === 'error' || item.tone === 'danger' ? 'alert' : 'status'}
-            className={`pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-sm shadow-[0_20px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl animate-pop-in ${t.box}`}
-          >
-            <Icon size={20} weight="fill" className={`mt-0.5 shrink-0 ${t.icon}`} aria-hidden="true" />
-            <div className="min-w-0 flex-1">
-              {item.title && <p className="font-semibold text-xs tracking-tight">{item.title}</p>}
-              <p className="text-xs font-medium leading-snug">{item.message}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onDismiss(item.id)}
-              aria-label="Tutup notifikasi"
-              className="-my-1 -mr-1 h-6 w-6 inline-flex items-center justify-center rounded-lg opacity-70 hover:opacity-100 cursor-pointer transition-opacity"
-            >
-              <X size={14} weight="bold" aria-hidden="true" />
-            </button>
-          </div>
-        );
-      })}
+      <div
+        key={item.id}
+        role={item.tone === 'error' || item.tone === 'danger' ? 'alert' : 'status'}
+        className={`pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-sm shadow-[0_20px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl animate-pop-in ${t.box}`}
+      >
+        <Icon size={20} weight="fill" className={`mt-0.5 shrink-0 ${t.icon}`} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          {item.title && <p className="font-semibold text-xs tracking-tight">{item.title}</p>}
+          <p className="text-xs font-medium leading-snug">{item.message}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onDismiss(item.id)}
+          aria-label="Tutup notifikasi"
+          className="-my-1 -mr-1 h-6 w-6 inline-flex items-center justify-center rounded-lg opacity-70 hover:opacity-100 cursor-pointer transition-opacity"
+        >
+          <X size={14} weight="bold" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -153,17 +158,46 @@ export function FeedbackProvider({ children }) {
         typeof options === 'string'
           ? { tone: 'info', message: options }
           : options || {};
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const msg = String(normalized.message || '').trim();
+      if (!msg) return null;
+
       const duration = normalized.duration ?? 4000;
+      const tone = normalized.tone || 'info';
+      const now = Date.now();
 
-      setToasts((prev) => [...prev.slice(-3), { id, ...normalized }]);
+      // 1. Synchronous gate & Debounce: tolak pesan duplikat dalam kurun 3 detik
+      const lastSentTime = globalRecentToastMap.get(msg) || 0;
+      if (now - lastSentTime < 3000) {
+        return null;
+      }
 
+      // Cegah lonjakan toast yang dikirim bersamaan (< 300ms) jika pesannya sama
+      if (now - globalLastToastTimestamp < 350 && globalLastToastContent === msg) {
+        return null;
+      }
+
+      globalRecentToastMap.set(msg, now);
+      globalLastToastTimestamp = now;
+      globalLastToastContent = msg;
+
+      // Bersihkan cache map jika terlalu banyak
+      if (globalRecentToastMap.size > 20) {
+        for (const [k, v] of globalRecentToastMap.entries()) {
+          if (now - v > 6000) globalRecentToastMap.delete(k);
+        }
+      }
+
+      const id = `${now}-${Math.random().toString(36).slice(2, 7)}`;
       if (duration > 0) {
         setTimeout(() => {
           dismissToast(id);
         }, duration);
       }
-      return id;
+
+      // 2. Kebijakan Single Toast Aktif: Hanya tampilkan 1 toast terkini untuk mencegah tampilan bertumpuk ganda
+      setToasts([{ id, ...normalized, message: msg, tone }]);
+
+      return msg;
     },
     [dismissToast]
   );

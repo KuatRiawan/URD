@@ -9,7 +9,7 @@ import { StepConclusion } from './StepConclusion.jsx';
 import { StepPhotosFindings } from './StepPhotosFindings.jsx';
 import { StepSignatures } from './StepSignatures.jsx';
 import { useNavigate } from 'react-router';
-import { WarningCircle } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, FloppyDisk, PaperPlaneTilt, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/Button.jsx';
 
 export function InspectionDetailModal({
@@ -83,6 +83,71 @@ export function InspectionDetailModal({
 
   if (!inspectionId || !activeDetail?.inspection) return null;
 
+  const modalFooter = (
+    <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+      <div className="flex items-center gap-2">
+        {formStep === 2 && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            icon={ArrowLeft}
+            onClick={() => setFormStep(1)}
+          >
+            Kembali ke Ceklist
+          </Button>
+        )}
+        {isInspector && activeDetail.inspection.status === 'DRAF' && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
+            icon={FloppyDisk}
+            disabled={submitting}
+            loading={submitting}
+            onClick={handleSaveDraft}
+          >
+            Simpan Draf
+          </Button>
+        )}
+        <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline font-medium">
+          {lastSavedAt
+            ? `Tersimpan ${lastSavedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+            : 'Autosave aktif'}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {formStep === 1 ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            icon={ArrowRight}
+            onClick={() => setFormStep(2)}
+          >
+            Lanjut: Simpulan &amp; Tanda Tangan
+          </Button>
+        ) : (
+          isInspector &&
+          activeDetail.inspection.status === 'DRAF' && (
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              icon={PaperPlaneTilt}
+              disabled={submitting || !canSubmit}
+              loading={submitting}
+              onClick={handleSubmitFinal}
+            >
+              {submitting ? 'Mengirim...' : 'Kirim & Terbitkan BAP/LHPP'}
+            </Button>
+          )
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <Modal
       open={Boolean(inspectionId)}
@@ -92,6 +157,7 @@ export function InspectionDetailModal({
       closeOnBackdrop={false}
       closeOnEscape={false}
       fullScreenMobile={true}
+      footer={modalFooter}
     >
       <div className="space-y-5 text-sm">
         {isInspector && (

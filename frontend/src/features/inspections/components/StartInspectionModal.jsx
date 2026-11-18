@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 
@@ -13,13 +14,83 @@ export function StartInspectionModal({
   onSelectOrder,
   submitting
 }) {
+  // Seluruh template yang memiliki versi aktif siap dipilih
+  const activeTemplates = useMemo(() => {
+    return templates.filter((t) => Boolean(t.active_version_id));
+  }, [templates]);
+
+  const selectedObject = useMemo(() => {
+    return orderObjects.find((o) => o.id === startForm.objectId);
+  }, [orderObjects, startForm.objectId]);
+
+  // Otomatis pasangkan template checklist jika unit yang dipilih cocok dengan bidang/tipe alat
+  useEffect(() => {
+    if (!selectedObject) return;
+
+    // Cari kecocokan paling spesifik
+    const matched =
+      activeTemplates.find(
+        (t) =>
+          selectedObject.equipment_type_id &&
+          t.equipment_type_id === selectedObject.equipment_type_id
+      ) ||
+      activeTemplates.find(
+        (t) =>
+          selectedObject.name &&
+          t.name.toLowerCase().includes(selectedObject.name.toLowerCase())
+      ) ||
+      activeTemplates.find(
+        (t) =>
+          selectedObject.category_code &&
+          t.category_code === selectedObject.category_code
+      ) ||
+      activeTemplates.find(
+        (t) =>
+          selectedObject.category_id &&
+          t.category_id === selectedObject.category_id
+      );
+
+    if (matched?.active_version_id) {
+      setStartForm((prev) => {
+        if (prev.templateVersionId === matched.active_version_id) return prev;
+        return { ...prev, templateVersionId: matched.active_version_id };
+      });
+    }
+  }, [selectedObject, activeTemplates, setStartForm]);
+
+  const footerActions = (
+    <div className="flex items-center justify-end gap-2.5 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="start-inspection-form"
+        variant="primary"
+        size="md"
+        disabled={submitting || !startForm.orderId || !startForm.objectId || !startForm.templateVersionId}
+        loading={submitting}
+      >
+        Buka Form Inspeksi
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Mulai Lembar Kerja Inspeksi Lapangan"
+      subtitle="Pilih order, objek uji K3 yang ditugaskan, dan template checklist riksa uji"
+      size="md"
+      footer={footerActions}
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form id="start-inspection-form" onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-bold text-slate-900 dark:text-slate-100 mb-1">
             Order Pemeriksaan *
@@ -46,10 +117,17 @@ export function StartInspectionModal({
           <select
             required
             value={startForm.objectId}
+            disabled={!startForm.orderId || orderObjects.length === 0}
             onChange={(e) => setStartForm((prev) => ({ ...prev, objectId: e.target.value }))}
-            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 disabled:opacity-60"
           >
-            <option value="">Pilih Objek Uji...</option>
+            <option value="">
+              {!startForm.orderId
+                ? 'Pilih Order terlebih dahulu...'
+                : orderObjects.length === 0
+                ? 'Tidak ada objek uji dalam order ini'
+                : 'Pilih Objek Uji...'}
+            </option>
             {orderObjects.map((obj) => (
               <option key={obj.id} value={obj.id}>
                 {obj.name} (SN: {obj.serial_number} · {obj.category_code})
@@ -71,34 +149,13 @@ export function StartInspectionModal({
             className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
           >
             <option value="">Pilih Template Checklist...</option>
-            {templates
-              .filter((t) => t.is_validated && t.active_version_id)
-              .map((t) => (
-                <option key={t.id} value={t.active_version_id}>
-                  {t.category_code} · {t.name} (v{t.active_version})
-                </option>
-              ))}
+            {activeTemplates.map((t) => (
+              <option key={t.id} value={t.active_version_id}>
+                {t.category_code ? `${t.category_code} · ` : ''}
+                {t.name} (v{t.active_version || 1})
+              </option>
+            ))}
           </select>
-        </div>
-
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={submitting}
-            loading={submitting}
-          >
-            Buka Form Inspeksi
-          </Button>
         </div>
       </form>
     </Modal>

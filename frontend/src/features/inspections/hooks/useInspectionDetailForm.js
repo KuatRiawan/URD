@@ -528,20 +528,23 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     }
   };
 
-  const handleUploadItemInlinePhoto = async (item, file) => {
+  const handleUploadItemInlinePhoto = async (itemOrLabel, file) => {
     if (!activeDetail?.inspection || !file) return;
     setSubmitting(true);
     setError('');
     try {
       const prepared = await compressImage(file);
-      const caption = `[${item.section}] ${item.label}`;
+      const isObj = typeof itemOrLabel === 'object' && itemOrLabel !== null;
+      const label = isObj ? itemOrLabel.label : String(itemOrLabel);
+      const sectionPrefix = isObj && itemOrLabel.section ? `[${itemOrLabel.section}] ` : '';
+      const caption = `${sectionPrefix}${label}`.trim();
       const fd = new FormData();
       fd.append('photo', prepared);
       fd.append('caption', caption);
       await api.post(`/inspections/${activeDetail.inspection.id}/photos`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setFeedback(`Foto untuk butir [${item.section}] ${item.label} berhasil dilampirkan.`);
+      setFeedback(`Foto untuk butir "${label}" berhasil dilampirkan.`);
       await openDetail(activeDetail.inspection.id);
       if (onSaved) onSaved();
     } catch (err) {

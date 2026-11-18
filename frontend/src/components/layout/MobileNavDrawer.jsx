@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { NavLink, useLocation } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router';
 import {
+  CaretDown,
   MagnifyingGlass,
   SignOut,
   X
@@ -21,6 +22,9 @@ export function MobileNavDrawer({
   const location = useLocation();
   const drawerRef = useRef(null);
   const lastPathnameRef = useRef(location.pathname);
+  const [mobileExpandedKeys, setMobileExpandedKeys] = useState(() => ({
+    '/app/orders': true
+  }));
   useDialogFocus(open, drawerRef, onClose);
 
   // Kunci scroll latar belakang saat drawer terbuka.
@@ -127,7 +131,81 @@ export function MobileNavDrawer({
               <div className="rounded-2xl bg-white dark:bg-[#1E222D] border border-black/[0.06] dark:border-white/[0.07] divide-y divide-black/[0.05] dark:divide-white/[0.06] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                 {group.items.map((item) => {
                   const Icon = item.icon;
+                  const hasSubmenus = Array.isArray(item.submenus) && item.submenus.length > 0;
                   const isActive = location.pathname.startsWith(item.to);
+
+                  if (hasSubmenus) {
+                    const isExpanded = Boolean(mobileExpandedKeys[item.to]);
+                    return (
+                      <div key={item.to} className="flex flex-col">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMobileExpandedKeys((prev) => ({
+                              ...prev,
+                              [item.to]: !prev[item.to]
+                            }))
+                          }
+                          aria-expanded={isExpanded}
+                          className={`flex items-center justify-between px-3.5 py-2.5 transition-all select-none min-h-[46px] cursor-pointer ${
+                            isActive
+                              ? 'bg-rose-50/70 dark:bg-rose-950/35 text-[#C81E1E] dark:text-rose-400 font-semibold'
+                              : 'text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`h-8 w-8 rounded-[9px] flex items-center justify-center shrink-0 ${
+                                isActive
+                                  ? 'bg-[#C81E1E] text-white shadow-2xs'
+                                  : 'bg-[#F5F5F7] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D]'
+                              }`}
+                            >
+                              <Icon size={17} weight={isActive ? 'fill' : 'regular'} aria-hidden="true" />
+                            </div>
+                            <span className="text-[13px] truncate">{item.label}</span>
+                          </div>
+                          <CaretDown
+                            size={15}
+                            weight="bold"
+                            className={`shrink-0 text-[#86868B] transition-transform duration-200 ${
+                              isExpanded ? 'rotate-180' : 'rotate-0'
+                            }`}
+                          />
+                        </button>
+
+                        {isExpanded && (
+                          <div className="bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/[0.04] dark:border-white/[0.04] pl-11 pr-3 py-1 space-y-0.5">
+                            {item.submenus.map((sub) => {
+                              const currentStatus =
+                                new URLSearchParams(location.search).get('status') || '';
+                              const isSubActive =
+                                location.pathname === '/app/orders' &&
+                                currentStatus === (sub.statusKey || '');
+
+                              return (
+                                <Link
+                                  key={sub.to}
+                                  to={sub.to}
+                                  onClick={onClose}
+                                  className={`flex items-center justify-between py-2 px-2.5 rounded-[8px] text-[12px] transition-all cursor-pointer ${
+                                    isSubActive
+                                      ? 'bg-[#C81E1E] text-white font-semibold shadow-xs'
+                                      : 'text-[#6E6E73] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-white font-medium'
+                                  }`}
+                                >
+                                  <span>{sub.label}</span>
+                                  {isSubActive && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0 ml-1.5" />
+                                  )}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
 
                   return (
                     <NavLink
