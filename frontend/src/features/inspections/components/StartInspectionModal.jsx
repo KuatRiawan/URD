@@ -92,14 +92,14 @@ export function StartInspectionModal({
     >
       <form id="start-inspection-form" onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-900 dark:text-slate-100 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Order Pemeriksaan *
           </label>
           <select
             required
             value={startForm.orderId}
             onChange={(e) => onSelectOrder(e.target.value)}
-            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
           >
             <option value="">Pilih Order...</option>
             {orders.map((o) => (
@@ -111,7 +111,7 @@ export function StartInspectionModal({
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-900 dark:text-slate-100 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Objek Uji K3 dalam Order *
           </label>
           <select
@@ -119,7 +119,7 @@ export function StartInspectionModal({
             value={startForm.objectId}
             disabled={!startForm.orderId || orderObjects.length === 0}
             onChange={(e) => setStartForm((prev) => ({ ...prev, objectId: e.target.value }))}
-            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 disabled:opacity-60"
+            className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400 disabled:opacity-60"
           >
             <option value="">
               {!startForm.orderId
@@ -137,7 +137,7 @@ export function StartInspectionModal({
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-900 dark:text-slate-100 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Template Checklist Tervalidasi *
           </label>
           <select
@@ -146,7 +146,7 @@ export function StartInspectionModal({
             onChange={(e) =>
               setStartForm((prev) => ({ ...prev, templateVersionId: e.target.value }))
             }
-            className="w-full min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
           >
             <option value="">Pilih Template Checklist...</option>
             {activeTemplates.map((t) => (

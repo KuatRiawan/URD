@@ -12,14 +12,38 @@ export function CreateSuketModal({
   lhppList,
   submitting
 }) {
+  const modalFooter = (
+    <div className="flex w-full items-center justify-end gap-2.5">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="create-suket-form"
+        variant="primary"
+        size="md"
+        disabled={submitting}
+        loading={submitting}
+      >
+        Simpan Suket K3
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Daftarkan Pengajuan / Penerbitan Suket K3"
       size="lg"
+      footer={modalFooter}
     >
-      <form onSubmit={handleCreateSuket} className="space-y-4">
+      <form id="create-suket-form" onSubmit={handleCreateSuket} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
@@ -121,25 +145,6 @@ export function CreateSuketModal({
             onChange={(e) => setCreateForm((prev) => ({ ...prev, issuer: e.target.value }))}
             className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
           />
-        </div>
-        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={submitting}
-            loading={submitting}
-          >
-            Simpan Suket K3
-          </Button>
         </div>
       </form>
     </Modal>

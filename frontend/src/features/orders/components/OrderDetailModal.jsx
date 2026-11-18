@@ -18,6 +18,7 @@ import {
 } from '@phosphor-icons/react';
 import { api } from '../../../lib/api/axios.js';
 import { Badge } from '../../../components/ui/Badge.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { ErrorBanner } from '../../../components/feedback/StateViews.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
 import {
@@ -231,6 +232,18 @@ export function OrderDetailModal({
       title={titleText}
       subtitle={subtitleText}
       size="xl"
+      footer={
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="text-xs text-slate-500">
+            {activeOrder && (
+              <span>Status PO: <strong className="text-slate-800 dark:text-slate-200">{ORDER_STATUS_LABELS[activeOrder.status] || activeOrder.status}</strong></span>
+            )}
+          </div>
+          <Button variant="secondary" size="md" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      }
     >
       {activeOrder && (
         <div className="space-y-4 text-sm">

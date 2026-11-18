@@ -12,14 +12,36 @@ export function ObjectCsvModal({
   csvFeedback,
   clients
 }) {
+  const modalFooter = (
+    <div className="flex items-center justify-end gap-2.5 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="object-csv-form"
+        variant="primary"
+        size="md"
+      >
+        Validasi &amp; Impor Baris
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Impor Data Objek Uji Massal (CSV)"
-      maxWidth="max-w-2xl"
+      size="lg"
+      footer={modalFooter}
     >
-      <form onSubmit={handleCsvImport} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
+      <form id="object-csv-form" onSubmit={handleCsvImport} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
         {csvFeedback && (
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3 font-semibold text-slate-900 dark:text-slate-100">
             {csvFeedback}
@@ -55,23 +77,6 @@ export function ObjectCsvModal({
             onChange={(e) => setCsvText(e.target.value)}
             className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
           />
-        </div>
-        <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-200 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-          >
-            Validasi &amp; Impor Baris
-          </Button>
         </div>
       </form>
     </Modal>

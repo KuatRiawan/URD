@@ -34,12 +34,37 @@ export function ObjectQrModal({ qrModal, onClose }) {
     }
   };
 
+  const modalFooter = (
+    <div className="flex items-center justify-between gap-2.5 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Tutup
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        size="md"
+        icon={DownloadSimple}
+        onClick={handleDownloadSticker}
+        disabled={downloading}
+        loading={downloading}
+      >
+        Cetak Stiker Label QR
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={Boolean(qrModal)}
       onClose={onClose}
       title="Kode QR Identitas Objek K3"
-      maxWidth="max-w-sm"
+      size="sm"
+      footer={modalFooter}
     >
       <div className="text-center space-y-3.5 text-xs text-slate-800 dark:text-slate-200">
         <div className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 mx-auto">
@@ -64,21 +89,6 @@ export function ObjectQrModal({ qrModal, onClose }) {
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed px-2">
           Pindai menggunakan perangkat staf atau kamera HP untuk membuka data riwayat alat ini.
         </p>
-
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            icon={DownloadSimple}
-            onClick={handleDownloadSticker}
-            disabled={downloading}
-            loading={downloading}
-            className="w-full justify-center"
-          >
-            Cetak Stiker Label QR (PDF)
-          </Button>
-        </div>
       </div>
     </Modal>
   );

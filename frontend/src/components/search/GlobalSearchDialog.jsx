@@ -96,15 +96,15 @@ export function GlobalSearchDialog({ isOpen, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="global-search-title"
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 md:p-20 overflow-y-auto bg-black/35 dark:bg-black/65 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 md:p-20 overflow-y-auto bg-slate-950/40 dark:bg-black/55 backdrop-blur-[1.5px] transition-opacity duration-200 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white/95 dark:bg-[#151821]/95 backdrop-blur-xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.08)] border border-black/[0.08] dark:border-white/[0.10] transition-all text-[#1D1D1F] dark:text-[#F5F5F7] animate-pop-in"
+        className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-[#161922] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)] border border-slate-200/90 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100 animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Spotlight Input Bar */}
-        <div className="relative flex items-center border-b border-black/[0.06] dark:border-white/[0.08] px-4 py-3.5 sm:px-5">
+        <div className="relative flex items-center border-b border-slate-100 dark:border-slate-800/80 px-4 py-3.5 sm:px-5">
           <MagnifyingGlass
             size={20}
             weight="bold"

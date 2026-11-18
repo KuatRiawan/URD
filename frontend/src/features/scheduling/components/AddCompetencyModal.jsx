@@ -11,6 +11,29 @@ export function AddCompetencyModal({
   submitting,
   onSubmit
 }) {
+  const modalFooter = (
+    <div className="flex w-full items-center justify-end gap-2.5">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="add-competency-form"
+        variant="primary"
+        size="md"
+        disabled={submitting}
+        loading={submitting}
+      >
+        Simpan SKP
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={open}
@@ -20,8 +43,10 @@ export function AddCompetencyModal({
           ? `Tambah SKP Ahli K3: ${selectedInspector.fullName}`
           : 'Tambah SKP Ahli K3'
       }
+      size="md"
+      footer={modalFooter}
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form id="add-competency-form" onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
             Bidang Kompetensi K3 *
@@ -77,25 +102,6 @@ export function AddCompetencyModal({
               className="w-full min-h-11 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
             />
           </div>
-        </div>
-        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={submitting}
-            loading={submitting}
-          >
-            Simpan SKP
-          </Button>
         </div>
       </form>
     </Modal>

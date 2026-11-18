@@ -57,7 +57,7 @@ export function MobileNavDrawer({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/35 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-slate-950/40 dark:bg-black/55 backdrop-blur-[1.5px] transition-opacity duration-200"
         onClick={onClose}
         aria-hidden="true"
       />

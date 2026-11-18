@@ -13,14 +13,14 @@ function ConfirmDialog({ state, onResolve }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/35 dark:bg-black/65 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 dark:bg-black/55 backdrop-blur-[1.5px] transition-opacity duration-200 animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       onClick={() => onResolve(false)}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#151821] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden animate-pop-in"
+        className="w-full max-w-md rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#161922] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)] overflow-hidden animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
@@ -31,7 +31,7 @@ function ConfirmDialog({ state, onResolve }) {
                   ? 'bg-[#C81E1E]/10 text-[#C81E1E] dark:text-rose-400'
                   : isWarning
                   ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                  : 'bg-[#F5F5F7] dark:bg-white/[0.07] text-[#1D1D1F] dark:text-[#F5F5F7]'
+                  : 'bg-slate-100 dark:bg-white/[0.07] text-slate-700 dark:text-slate-200'
               }`}
             >
               {isDanger ? (
@@ -46,18 +46,18 @@ function ConfirmDialog({ state, onResolve }) {
             <div className="min-w-0 flex-1">
               <h3
                 id="confirm-dialog-title"
-                className="text-[15px] font-bold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-[-0.015em]"
+                className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-[-0.015em]"
               >
                 {state.title || 'Konfirmasi Tindakan'}
               </h3>
-              <p className="mt-1.5 text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed whitespace-pre-line">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-line">
                 {state.message}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-3.5 bg-[#F5F5F7]/75 dark:bg-[#11141C] border-t border-black/[0.06] dark:border-white/[0.08]">
+        <div className="flex items-center justify-end gap-2.5 px-6 py-4 bg-slate-50/75 dark:bg-[#12151D]/80 border-t border-slate-100 dark:border-slate-800/80">
           <Button
             type="button"
             variant="secondary"

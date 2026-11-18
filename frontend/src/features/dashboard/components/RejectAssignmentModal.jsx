@@ -9,21 +9,55 @@ export function RejectAssignmentModal({
   actionLoading,
   onConfirm
 }) {
+  const modalFooter = (
+    <div className="flex items-center justify-end gap-2.5 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        disabled={actionLoading}
+        onClick={onClose}
+      >
+        Kembali
+      </Button>
+      <Button
+        type="button"
+        variant="danger"
+        size="md"
+        disabled={actionLoading || !rejectReason.trim()}
+        loading={actionLoading}
+        onClick={() =>
+          onConfirm(
+            rejectModalData.orderId,
+            rejectModalData.assignmentId,
+            'DITOLAK',
+            rejectModalData.isCancel
+              ? `Dibatalkan oleh inspector: ${rejectReason.trim()}`
+              : rejectReason.trim()
+          )
+        }
+      >
+        {rejectModalData?.isCancel ? 'Konfirmasi Batal' : 'Tolak Penugasan'}
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={Boolean(rejectModalData)}
       onClose={onClose}
       title={rejectModalData?.isCancel ? 'Batalkan Penerimaan Penugasan' : 'Tolak Penugasan Riksa Uji'}
       size="sm"
+      footer={modalFooter}
     >
       <div className="space-y-4 text-xs">
-        <p className="text-[#6E6E73] dark:text-[#98989D] leading-relaxed">
+        <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
           {rejectModalData?.isCancel
             ? `Apakah Anda yakin ingin membatalkan penerimaan penugasan untuk PO/Order ${rejectModalData?.poNo}? Unit akan dikembalikan ke status Terjadwal agar dapat ditugaskan kembali.`
             : `Mohon tuliskan alasan penolakan penugasan PO/Order ${rejectModalData?.poNo} (misal: jadwal bentrok atau berhalangan).`}
         </p>
         <div>
-          <label className="block text-[#1D1D1F] dark:text-[#F5F5F7] font-semibold mb-1.5">
+          <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
             Alasan {rejectModalData?.isCancel ? 'Pembatalan' : 'Penolakan'} *
           </label>
           <textarea
@@ -32,37 +66,8 @@ export function RejectAssignmentModal({
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="Tuliskan alasan jelas..."
-            className="w-full rounded-[10px] border border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#1C1F2B] p-2.5 text-xs text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:border-[#C81E1E]"
+            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
           />
-        </div>
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={actionLoading}
-            onClick={onClose}
-          >
-            Kembali
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            size="sm"
-            disabled={actionLoading || !rejectReason.trim()}
-            onClick={() =>
-              onConfirm(
-                rejectModalData.orderId,
-                rejectModalData.assignmentId,
-                'DITOLAK',
-                rejectModalData.isCancel
-                  ? `Dibatalkan oleh inspector: ${rejectReason.trim()}`
-                  : rejectReason.trim()
-              )
-            }
-          >
-            {actionLoading ? 'Memproses...' : rejectModalData?.isCancel ? 'Konfirmasi Batal' : 'Tolak Penugasan'}
-          </Button>
         </div>
       </div>
     </Modal>

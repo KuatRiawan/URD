@@ -354,8 +354,37 @@ export function IssuesPage() {
       )}
 
       {createOpen && (
-        <Modal open onClose={() => { if (!saving) setCreateOpen(false); }} title="Laporkan kendala lapangan" size="lg" closeOnBackdrop={!saving}>
-          <form onSubmit={createIssue} className="space-y-4">
+        <Modal
+          open
+          onClose={() => { if (!saving) setCreateOpen(false); }}
+          title="Laporkan kendala lapangan"
+          size="lg"
+          closeOnBackdrop={!saving}
+          footer={
+            <div className="flex w-full items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                disabled={saving}
+                onClick={() => setCreateOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                form="create-issue-form"
+                variant="primary"
+                size="md"
+                disabled={saving}
+                loading={saving}
+              >
+                Simpan Laporan
+              </Button>
+            </div>
+          }
+        >
+          <form id="create-issue-form" onSubmit={createIssue} className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-slate-300">Laporan diteruskan ke Marketing dan Admin Sistem. Laporan ini tidak mengubah hasil checklist atau identitas unit.</p>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">PO terkait *
               <select required value={form.orderId} onChange={(event) => setForm({ ...form, orderId: event.target.value, objectId: '', inspectionId: '' })} className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">
@@ -374,26 +403,6 @@ export function IssuesPage() {
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Keterangan dan tindak lanjut yang dibutuhkan *<textarea required minLength={5} maxLength={3000} rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-1 w-full rounded-md border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-950" /></label>
             <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"><Camera size={18} />{form.evidence ? form.evidence.name : 'Tambahkan bukti foto/PDF (opsional)'}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(event) => setForm({ ...form, evidence: event.target.files?.[0] || null })} /></label>
             {form.issueType === 'UNSAFE_CONDITION' && <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">Catat kondisi yang ditemukan dan hentikan pemeriksaan sesuai prosedur keselamatan kerja URD. Aplikasi tidak menentukan tindakan teknis K3.</p>}
-            <div className="flex justify-end gap-2 border-t border-black/[0.06] pt-4 dark:border-white/[0.08]">
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                disabled={saving}
-                onClick={() => setCreateOpen(false)}
-              >
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                disabled={saving}
-                loading={saving}
-              >
-                Simpan Laporan
-              </Button>
-            </div>
           </form>
         </Modal>
       )}

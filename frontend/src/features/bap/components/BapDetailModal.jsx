@@ -133,6 +133,16 @@ export function BapDetailModal({
       onClose={onClose}
       title={`Berita Acara Riksa Uji: ${selectedBap.bap_no}`}
       size="xl"
+      footer={
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="text-xs text-slate-500">
+            Status: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedBap.status}</span>
+          </div>
+          <Button variant="secondary" size="md" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      }
     >
       {detailLoading ? (
         <LoadingState message="Memuat lembar Berita Acara Riksa Uji..." />

@@ -62,6 +62,29 @@ export function UnitValidityModal({
 
   if (!validityModalUnit) return null;
 
+  const modalFooter = (
+    <div className="flex w-full items-center justify-end gap-2.5">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="unit-validity-form"
+        variant="primary"
+        size="md"
+        disabled={submitting}
+        loading={submitting}
+      >
+        Simpan Masa Berlaku
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={Boolean(validityModalUnit)}
@@ -69,8 +92,9 @@ export function UnitValidityModal({
       title="Masa Berlaku &amp; Tindak Lanjut Unit"
       subtitle={`${validityModalUnit.object_name} · ${validityModalUnit.client_name}`}
       size="lg"
+      footer={modalFooter}
     >
-      <form onSubmit={handleSaveUnitValidity} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
+      <form id="unit-validity-form" onSubmit={handleSaveUnitValidity} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
         <div>
           <label htmlFor="validity-date" className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
             Tanggal Masa Berlaku Resmi / Jadwal Riksa Uji Berikutnya *
@@ -173,26 +197,6 @@ export function UnitValidityModal({
               ))}
             </div>
           )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={submitting}
-            loading={submitting}
-          >
-            Simpan Masa Berlaku
-          </Button>
         </div>
       </form>
     </Modal>

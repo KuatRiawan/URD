@@ -28,7 +28,14 @@ export function ObjectDetailModal({
       onClose={onClose}
       title={`[${obj.category_code}] ${obj.name}`}
       subtitle={`Nomor Seri: ${obj.serial_number} · ${obj.client_name}`}
-      maxWidth="max-w-3xl"
+      size="xl"
+      footer={
+        <div className="flex w-full items-center justify-end">
+          <Button variant="secondary" size="md" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-5 text-xs text-slate-800 dark:text-slate-200">
         {/* Banner Aksi Cepat Perpanjangan */}

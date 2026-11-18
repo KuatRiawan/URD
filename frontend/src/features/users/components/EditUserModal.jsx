@@ -28,14 +28,38 @@ export function EditUserModal({
     MARKETING: 'Mengelola hubungan klien (CRM), pencatatan pesanan PO, registrasi unit baru, dan memantau perpanjangan masa berlaku Suket.'
   };
 
+  const modalFooter = (
+    <div className="flex items-center justify-end gap-2.5 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="edit-user-form"
+        variant="primary"
+        size="md"
+        disabled={submitting}
+        loading={submitting}
+      >
+        Simpan Perubahan
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={Boolean(editUser)}
       onClose={onClose}
       title={editUser ? `Perbarui Akun: ${editUser.fullName}` : 'Perbarui Akun Pengguna'}
-      size="md"
+      size="lg"
+      footer={modalFooter}
     >
-      <form onSubmit={onSubmit} className="space-y-4 text-xs">
+      <form id="edit-user-form" onSubmit={onSubmit} className="space-y-4 text-xs">
         {error && (
           <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
             <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
@@ -177,27 +201,6 @@ export function EditUserModal({
           <span className="text-[10px] text-slate-400 block">
             Bila diisi, sandi lama akan diganti dan pengguna dapat langsung masuk dengan sandi baru ini.
           </span>
-        </div>
-
-        {/* Modal Actions */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={submitting}
-            loading={submitting}
-          >
-            Simpan Perubahan
-          </Button>
         </div>
       </form>
     </Modal>

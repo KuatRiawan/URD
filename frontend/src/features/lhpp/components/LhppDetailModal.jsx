@@ -124,6 +124,18 @@ export function LhppDetailModal({
       onClose={onClose}
       title={detailLhpp ? `Dokumen LHPP ${detailLhpp.lhpp_no}` : 'Detail LHPP'}
       size="xl"
+      footer={
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="text-xs text-slate-500">
+            {detailLhpp && (
+              <span>Status: <strong className="text-slate-800 dark:text-slate-200">{LHPP_STATUS_LABELS[detailLhpp.status] || detailLhpp.status}</strong></span>
+            )}
+          </div>
+          <Button variant="secondary" size="md" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      }
     >
       {detailLhpp && (
         <div className="space-y-6 text-sm text-slate-800 dark:text-slate-200">

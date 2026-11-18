@@ -1349,8 +1349,29 @@ export function EquipmentMasterSection({
           title={unitModal.mode === 'EDIT' ? 'Ubah Data Nama Alat' : 'Tambah Nama Alat Baru'}
           subtitle="Konfigurasi klasifikasi nama alat resmi URD dan parameter teknis nameplate."
           size="lg"
+          footer={
+            <div className="flex w-full items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => setUnitModal(null)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                form="unit-master-form"
+                variant="primary"
+                size="md"
+                loading={savingUnit}
+              >
+                {unitModal.mode === 'EDIT' ? 'Simpan Perubahan' : 'Tambahkan Jenis Unit'}
+              </Button>
+            </div>
+          }
         >
-          <form onSubmit={handleSaveUnit} className="space-y-4 text-xs">
+          <form id="unit-master-form" onSubmit={handleSaveUnit} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
@@ -1532,25 +1553,6 @@ export function EquipmentMasterSection({
                 <span>Status Aktif (Tersedia untuk pendaftaran unit baru di Marketing)</span>
               </label>
             </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={() => setUnitModal(null)}
-              >
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                loading={savingUnit}
-              >
-                {unitModal.mode === 'EDIT' ? 'Simpan Perubahan' : 'Tambahkan Jenis Unit'}
-              </Button>
-            </div>
           </form>
         </Modal>
       )}
@@ -1661,8 +1663,29 @@ export function EquipmentMasterSection({
           title={groupModal.mode === 'EDIT' ? 'Ubah Data Kelompok Alat' : 'Tambah Kelompok Alat Baru'}
           subtitle="Kelompok alat menaungi jenis-jenis unit alat riksa uji K3 dalam satu kategori operasional."
           size="md"
+          footer={
+            <div className="flex w-full items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => setGroupModal(null)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                form="group-master-form"
+                variant="primary"
+                size="md"
+                loading={savingGroup}
+              >
+                {groupModal.mode === 'EDIT' ? 'Simpan Perubahan' : 'Tambahkan Kelompok'}
+              </Button>
+            </div>
+          }
         >
-          <form onSubmit={handleSaveGroup} className="space-y-4 text-xs">
+          <form id="group-master-form" onSubmit={handleSaveGroup} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
@@ -1739,25 +1762,6 @@ export function EquipmentMasterSection({
                 />
                 <span>Status Aktif (Tersedia dalam hierarki registrasi alat)</span>
               </label>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={() => setGroupModal(null)}
-              >
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                loading={savingGroup}
-              >
-                {groupModal.mode === 'EDIT' ? 'Simpan Perubahan' : 'Tambahkan Kelompok'}
-              </Button>
             </div>
           </form>
         </Modal>
@@ -1865,8 +1869,19 @@ export function EquipmentMasterSection({
           title={toolModal.mode === 'EDIT' ? 'Ubah Data Kalibrasi Alat Ukur' : 'Tambah Alat Ukur Baru'}
           subtitle="Registri alat ukur pengujian K3 berstandar laboratorium kalibrasi KAN."
           size="md"
+          footer={
+            <div className="flex w-full items-center justify-end gap-2.5">
+              <Button type="button" variant="secondary" size="md" onClick={() => setToolModal(null)}>
+                Batal
+              </Button>
+              <Button type="submit" form="tool-master-form" variant="primary" size="md" loading={savingTool}>
+                {toolModal.mode === 'EDIT' ? 'Simpan Perubahan' : 'Tambahkan Alat Ukur'}
+              </Button>
+            </div>
+          }
         >
           <form
+            id="tool-master-form"
             onSubmit={async (e) => {
               e.preventDefault();
               setSavingTool(true);
@@ -2009,15 +2024,6 @@ export function EquipmentMasterSection({
                 onChange={(e) => setToolForm({ ...toolForm, validUntil: e.target.value })}
                 className="w-full h-9 px-3 border border-black/[0.12] dark:border-white/[0.15] rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.08] dark:border-white/[0.10]">
-              <Button type="button" variant="secondary" size="md" onClick={() => setToolModal(null)}>
-                Batal
-              </Button>
-              <Button type="submit" variant="primary" size="md" loading={savingTool}>
-                {toolModal.mode === 'EDIT' ? 'Simpan Perubahan' : 'Tambahkan Alat Ukur'}
-              </Button>
             </div>
           </form>
         </Modal>

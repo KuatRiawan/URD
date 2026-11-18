@@ -167,7 +167,7 @@ export function OfflineSyncDrawer({ isOpen, onClose, onSyncComplete }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-xs transition-opacity animate-fade-in">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 dark:bg-black/55 backdrop-blur-[1.5px] transition-opacity duration-200 animate-fade-in">
       {/* Backdrop */}
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 

@@ -64,6 +64,13 @@ export function SuketDetailModal({
       onClose={onClose}
       title={`Detail Suket K3: ${detailData.suket.object_name} (${detailData.suket.client_name})`}
       size="xl"
+      footer={
+        <div className="flex w-full items-center justify-end">
+          <Button variant="secondary" size="md" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-6 text-sm">
         {canManage && (

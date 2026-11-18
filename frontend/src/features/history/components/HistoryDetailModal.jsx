@@ -6,6 +6,7 @@ import {
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { Modal } from '../../../components/ui/Modal.jsx';
+import { Button } from '../../../components/ui/Button.jsx';
 import { formatDate, formatDateTime, SERVICE_TYPE_LABELS } from '../../../lib/utils/format.js';
 import { buildEmailUrl, buildWhatsAppUrl } from '../utils/historyReminder.js';
 
@@ -26,6 +27,13 @@ export function HistoryDetailModal({ selectedRecord, onClose }) {
       title="Jejak Audit &amp; Riwayat Riksa Uji"
       subtitle={`${selectedRecord.object_name} (SN: ${selectedRecord.serial_number}) · ${selectedRecord.client_name}`}
       size="lg"
+      footer={
+        <div className="flex w-full items-center justify-end">
+          <Button variant="secondary" size="md" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-5 text-xs text-slate-800 dark:text-slate-200">
         {/* Banner Pemisahan Tanggung Jawab: Audit vs Reminder */}

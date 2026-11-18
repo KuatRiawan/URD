@@ -148,6 +148,18 @@ export function ClientDetailModal({
       title={`Workspace Klien: ${client.name}`}
       subtitle={`${client.industry || 'Mitra Perusahaan'} · ${locations.length} Lokasi Site · ${contacts.length} PIC Terdaftar · ${objects.length} Objek Uji K3`}
       size="xl"
+      footer={
+        <div className="flex w-full items-center justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={onClose}
+          >
+            Tutup Workspace Klien
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
         {/* Tab Navigasi Workspace Klien */}
@@ -993,18 +1005,6 @@ export function ClientDetailModal({
             )}
           </div>
         )}
-
-        {/* Footer Modal */}
-        <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Tutup Workspace Klien
-          </Button>
-        </div>
       </div>
     </Modal>
   );

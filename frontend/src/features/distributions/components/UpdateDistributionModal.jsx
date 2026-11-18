@@ -21,15 +21,39 @@ export function UpdateDistributionModal({
   submitting,
   onSubmit
 }) {
+  const modalFooter = (
+    <div className="flex w-full items-center justify-end gap-2.5">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="distribution-update-form"
+        variant="primary"
+        size="md"
+        disabled={submitting}
+        loading={submitting}
+      >
+        Simpan Status
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Pembaruan Status Pengiriman Dokumen"
       size="md"
+      footer={modalFooter}
     >
       {selectedItem && (
-        <form onSubmit={onSubmit} className="space-y-4 text-xs">
+        <form id="distribution-update-form" onSubmit={onSubmit} className="space-y-4 text-xs">
           <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-3.5 space-y-1.5 border border-slate-200 dark:border-slate-700">
             <p className="font-bold text-slate-900 dark:text-white">
               {DISTRIBUTION_DOC_TYPE_LABELS[selectedItem.document_type] || selectedItem.document_type}{' '}
@@ -108,26 +132,6 @@ export function UpdateDistributionModal({
               placeholder="Nama penerima paket, foto tanda terima, atau keterangan serah terima..."
               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500"
             />
-          </div>
-
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              onClick={onClose}
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              disabled={submitting}
-              loading={submitting}
-            >
-              Simpan Status
-            </Button>
           </div>
         </form>
       )}

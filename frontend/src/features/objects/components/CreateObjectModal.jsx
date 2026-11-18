@@ -137,6 +137,29 @@ export function CreateObjectModal({
     }));
   };
 
+  const modalFooter = (
+    <div className="flex items-center justify-end gap-2.5 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+      >
+        Batal
+      </Button>
+      <Button
+        type="submit"
+        form="create-object-form"
+        variant="primary"
+        size="md"
+        disabled={saving}
+        loading={saving}
+      >
+        {saving ? 'Menyimpan...' : 'Simpan Objek Uji'}
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       open={open}
@@ -144,8 +167,9 @@ export function CreateObjectModal({
       title="Tambah Objek Uji K3 Baru"
       subtitle="Pendaftaran identitas unit alat ke katalog riksa uji keselamatan dan kesehatan kerja."
       size="lg"
+      footer={modalFooter}
     >
-      <form onSubmit={handleSaveObject} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
+      <form id="create-object-form" onSubmit={handleSaveObject} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
         {formErr && (
           <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
             <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
@@ -426,26 +450,6 @@ export function CreateObjectModal({
             </div>
           </div>
         )}
-
-        {/* 7. Tombol Aksi */}
-        <div className="pt-3 flex justify-end gap-2.5 border-t border-slate-200 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            loading={saving}
-          >
-            {saving ? 'Menyimpan...' : 'Simpan Objek Uji'}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

@@ -94,13 +94,107 @@ export function AssignmentDetailModal({
     }
   };
 
+  const modalFooter = (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+      <Button
+        type="button"
+        variant="secondary"
+        size="md"
+        onClick={onClose}
+        className="w-full sm:w-auto"
+      >
+        Tutup
+      </Button>
+
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        {u.assignment_status === 'MENUNGGU' ? (
+          <>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              icon={CheckCircle}
+              onClick={() => {
+                onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA');
+                onClose();
+              }}
+              className="flex-1 sm:flex-initial"
+            >
+              Terima Penugasan
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="md"
+              icon={XCircle}
+              onClick={() => {
+                onClose();
+                onOpenRejectModal({
+                  orderId: u.order_id,
+                  assignmentId: u.assignment_id,
+                  poNo: u.po_number || u.order_no,
+                  isCancel: false
+                });
+              }}
+            >
+              Tolak
+            </Button>
+          </>
+        ) : isCompleted ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            icon={ArrowRight}
+            iconPosition="right"
+            onClick={() => {
+              onClose();
+              if (onOpenInspection) onOpenInspection(u);
+            }}
+            className="w-full sm:w-auto"
+          >
+            Lihat Dokumen Hasil Riksa Uji
+          </Button>
+        ) : isInProgress ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            icon={Play}
+            onClick={() => {
+              onClose();
+              if (onOpenInspection) onOpenInspection(u);
+            }}
+            className="w-full sm:w-auto"
+          >
+            Lanjutkan Lembar Pemeriksaan
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            icon={Play}
+            onClick={() => {
+              onClose();
+              if (onOpenInspection) onOpenInspection(u);
+            }}
+            className="w-full sm:w-auto"
+          >
+            Mulai Pemeriksaan Sekarang
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <Modal
       open={isOpen}
       onClose={onClose}
       title="Detail Tugas &amp; Surat Tugas Riksa Uji"
       size="lg"
-      fullScreenMobile={true}
+      footer={modalFooter}
     >
       <div className="space-y-5 text-xs text-slate-800 dark:text-slate-200">
         {/* Header Unit Info & Status */}
@@ -292,99 +386,6 @@ export function AssignmentDetailModal({
                 Unduh PDF
               </Button>
             </div>
-          </div>
-        </div>
-
-        {/* Footer Modal: Action Buttons */}
-        <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-            className="w-full sm:w-auto"
-          >
-            Tutup
-          </Button>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {u.assignment_status === 'MENUNGGU' ? (
-              <>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="md"
-                  icon={CheckCircle}
-                  onClick={() => {
-                    onRespondAssignment(u.order_id, u.assignment_id, 'DITERIMA');
-                    onClose();
-                  }}
-                  className="flex-1 sm:flex-initial"
-                >
-                  Terima Penugasan
-                </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="md"
-                  icon={XCircle}
-                  onClick={() => {
-                    onClose();
-                    onOpenRejectModal({
-                      orderId: u.order_id,
-                      assignmentId: u.assignment_id,
-                      poNo: u.po_number || u.order_no,
-                      isCancel: false
-                    });
-                  }}
-                >
-                  Tolak
-                </Button>
-              </>
-            ) : isCompleted ? (
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                icon={ArrowRight}
-                iconPosition="right"
-                onClick={() => {
-                  onClose();
-                  if (onOpenInspection) onOpenInspection(u);
-                }}
-                className="w-full sm:w-auto"
-              >
-                Lihat Dokumen Hasil Riksa Uji
-              </Button>
-            ) : isInProgress ? (
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                icon={Play}
-                onClick={() => {
-                  onClose();
-                  if (onOpenInspection) onOpenInspection(u);
-                }}
-                className="w-full sm:w-auto"
-              >
-                Lanjutkan Lembar Pemeriksaan
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                icon={Play}
-                onClick={() => {
-                  onClose();
-                  if (onOpenInspection) onOpenInspection(u);
-                }}
-                className="w-full sm:w-auto"
-              >
-                Mulai Pemeriksaan Sekarang
-              </Button>
-            )}
           </div>
         </div>
       </div>
