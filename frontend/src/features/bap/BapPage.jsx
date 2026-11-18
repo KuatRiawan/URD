@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Clock, FileText, MagnifyingGlass } from '@phosphor-icons/react';
+import { CheckCircle, Clock, FileText, MagnifyingGlass, Plus } from '@phosphor-icons/react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { LoadingState, ErrorState, EmptyState } from '../../components/feedback/StateViews.jsx';
 import { useConfirm, useToast } from '../../components/ui/FeedbackProvider.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api/axios.js';
 import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 import { BapTable } from './components/BapTable.jsx';
 import { BapDetailModal } from './components/BapDetailModal.jsx';
+import { PrepareBapModal } from './components/PrepareBapModal.jsx';
 
 export function BapPage() {
   const confirm = useConfirm();
@@ -26,6 +28,7 @@ export function BapPage() {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [search, setSearch] = useState('');
+  const [prepareModalOpen, setPrepareModalOpen] = useState(false);
 
   useEffect(() => {
     setStatusFilter(urlStatus);
@@ -34,12 +37,7 @@ export function BapPage() {
   const [selectedBap, setSelectedBap] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const [draftForm, setDraftForm] = useState({
-    inspectionDate: '',
-    scopeItems: [],
-    isCompliant: true,
-    inspectionNotes: ''
-  });
+  const [bapEditForm, setBapEditForm] = useState(null);
 
   const [sigForm, setSigForm] = useState({
     signerRole: 'AHLI_K3',
@@ -95,12 +93,24 @@ export function BapPage() {
       const res = await api.get(`/bap/${id}`);
       const b = res.data.bap;
       setSelectedBap(b);
-      setDraftForm({
-        inspectionDate: b.inspection_date ? String(b.inspection_date).slice(0, 10) : '',
-        scopeItems: Array.isArray(b.scope_items) ? b.scope_items : [],
-        isCompliant:
-          b.is_compliant === true ? true : b.is_compliant === false ? false : null,
-        inspectionNotes: b.inspection_notes || ''
+      const docData = b.document_data || {};
+      setBapEditForm({
+        object_name: docData.object_name || b.object_name || '',
+        client_name: docData.client_name || b.client_name || '',
+        client_address: docData.client_address || b.client_address || b.location_address || '',
+        manufacturer: docData.manufacturer || b.manufacturer || b.brand || '',
+        brand: docData.brand || b.brand || b.manufacturer || '',
+        manufacture_year: docData.manufacture_year || b.manufacture_year || '',
+        serial_number: docData.serial_number || b.serial_number || '',
+        capacity: docData.capacity || b.capacity || '',
+        install_location: docData.install_location || b.install_location || b.location_name || '',
+        bap_no: docData.bap_no || b.bap_no || '',
+        contact_name: docData.contact_name || b.contact_name || b.client_signer_name || '',
+        contact_title: docData.contact_title || b.contact_title || b.client_signer_title || '',
+        inspection_date: b.inspection_date ? String(b.inspection_date).slice(0, 10) : '',
+        scope_items: Array.isArray(b.scope_items) ? b.scope_items : [],
+        is_compliant: b.is_compliant === true ? true : b.is_compliant === false ? false : null,
+        inspection_notes: b.inspection_notes || ''
       });
       setSigForm({
         signerRole: b.inspector_sig_file_id ? 'PERWAKILAN_KLIEN' : 'AHLI_K3',
@@ -139,19 +149,20 @@ export function BapPage() {
   }, [searchParam, bapList, selectedBap, openBapDetail]);
 
   const toggleScopeItem = (scopeName) => {
-    setDraftForm((prev) => {
-      const exists = prev.scopeItems.includes(scopeName);
-      const next = exists
-        ? prev.scopeItems.filter((item) => item !== scopeName)
-        : [...prev.scopeItems, scopeName];
-      return { ...prev, scopeItems: next };
+    setBapEditForm((prev) => {
+      if (!prev) return prev;
+      const current = Array.isArray(prev.scope_items) ? prev.scope_items : [];
+      const exists = current.includes(scopeName);
+      const next = exists ? current.filter((item) => item !== scopeName) : [...current, scopeName];
+      return { ...prev, scope_items: next };
     });
   };
 
-  const handleSaveDraft = async (e) => {
+  const handleSaveDraft = async (e, formOverride) => {
     if (e) e.preventDefault();
     if (!selectedBap) return;
-    if (draftForm.scopeItems.length === 0) {
+    const formToSave = formOverride || bapEditForm;
+    if (!formToSave || (formToSave.scope_items || []).length === 0) {
       setFeedback({ type: 'error', message: 'Pilih minimal 1 ruang lingkup riksa uji pada BAP.' });
       return;
     }
@@ -159,17 +170,33 @@ export function BapPage() {
     setFeedback(null);
     try {
       const resolvedConclusion =
-        draftForm.isCompliant === true
+        formToSave.is_compliant === true
           ? 'MEMENUHI_SYARAT'
-          : draftForm.isCompliant === false
+          : formToSave.is_compliant === false
           ? 'TIDAK_MEMENUHI_SYARAT'
           : null;
+      const documentData = {
+        object_name: formToSave.object_name,
+        client_name: formToSave.client_name,
+        client_address: formToSave.client_address,
+        manufacturer: formToSave.manufacturer,
+        brand: formToSave.brand,
+        manufacture_year: formToSave.manufacture_year,
+        serial_number: formToSave.serial_number,
+        capacity: formToSave.capacity,
+        install_location: formToSave.install_location,
+        bap_no: formToSave.bap_no,
+        contact_name: formToSave.contact_name,
+        contact_title: formToSave.contact_title
+      };
       await api.put(`/bap/${selectedBap.id}/draft`, {
-        inspectionDate: draftForm.inspectionDate || null,
-        scopeItems: draftForm.scopeItems,
-        isCompliant: draftForm.isCompliant,
+        bapNo: formToSave.bap_no || undefined,
+        inspectionDate: formToSave.inspection_date || null,
+        scopeItems: formToSave.scope_items,
+        isCompliant: formToSave.is_compliant,
         conclusion: resolvedConclusion,
-        inspectionNotes: draftForm.inspectionNotes
+        inspectionNotes: formToSave.inspection_notes,
+        documentData
       });
       await openBapDetail(selectedBap.id);
       await fetchBapList();
@@ -375,6 +402,18 @@ export function BapPage() {
             ? 'Pengawasan Berita Acara riksa uji, penandatanganan pihak terkait, dan status pengesahan.'
             : 'Pemeriksaan ruang lingkup riksa uji, penandatanganan Berita Acara, dan penerbitan dokumen resmi.'
         }
+        actions={
+          canManage && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              onClick={() => setPrepareModalOpen(true)}
+            >
+              Siapkan BAP Baru
+            </Button>
+          )
+        }
       />
 
       {/* Ringkasan Status Berita Acara (BAP) */}
@@ -466,8 +505,8 @@ export function BapPage() {
         feedback={feedback}
         canManage={canManage}
         canFinalize={canFinalize}
-        draftForm={draftForm}
-        setDraftForm={setDraftForm}
+        bapEditForm={bapEditForm}
+        setBapEditForm={setBapEditForm}
         toggleScopeItem={toggleScopeItem}
         scopeCatalog={scopeCatalog}
         handleSaveDraft={handleSaveDraft}
@@ -484,6 +523,18 @@ export function BapPage() {
         handleDownloadBatchPoPdf={handleDownloadBatchPoPdf}
         submitting={submitting}
         navigate={navigate}
+      />
+
+      <PrepareBapModal
+        open={prepareModalOpen}
+        onClose={() => setPrepareModalOpen(false)}
+        onBapCreated={(newBap) => {
+          fetchBapList();
+          if (newBap?.id) {
+            openBapDetail(newBap.id);
+          }
+        }}
+        scopeCatalog={scopeCatalog}
       />
 
       <PdfPreviewModal

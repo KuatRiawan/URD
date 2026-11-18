@@ -5,7 +5,6 @@ import { useInspectionDetailForm } from '../hooks/useInspectionDetailForm.js';
 import { InspectionHeaderSection } from './InspectionHeaderSection.jsx';
 import { InspectionStepNav } from './InspectionStepNav.jsx';
 import { StepChecklist } from './StepChecklist.jsx';
-import { StepConclusion } from './StepConclusion.jsx';
 import { StepPhotosFindings } from './StepPhotosFindings.jsx';
 import { StepSignatures } from './StepSignatures.jsx';
 import { useNavigate } from 'react-router';
@@ -59,7 +58,6 @@ export function InspectionDetailModal({
     setFindingForm,
     signatures,
     handleSaveDraft,
-    handleSaveFieldProgressAndBap,
     handleDiscardDraft,
     handleAddFinding,
     handleChecklistResultChange,
@@ -77,7 +75,6 @@ export function InspectionDetailModal({
     missingItems,
     photosCount,
     inspectorSig,
-    clientSig,
     canSubmit
   } = useInspectionDetailForm({ inspectionId, user, onSaved, confirm });
 
@@ -122,14 +119,10 @@ export function InspectionDetailModal({
 
   const isDraftStatus = activeDetail.inspection.status === 'DRAF';
   const submitLabel = submitting
-    ? 'Mengirim...'
-    : !draftConclusion
-    ? 'Pilih Kesimpulan Terlebih Dahulu'
+    ? 'Mengajukan Draf LHPP...'
     : !inspectorSig
     ? 'Tanda Tangan Ahli K3 Diperlukan'
-    : !clientSig
-    ? 'Tanda Tangan Klien Diperlukan'
-    : 'Selesaikan Pemeriksaan Lapangan & Buat BAP';
+    : 'Selesaikan & Ajukan Draf LHPP ke Admin Kantor';
 
   const modalFooter = (
     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 w-full">
@@ -142,7 +135,7 @@ export function InspectionDetailModal({
             icon={ArrowLeft}
             onClick={() => setFormStep(formStep - 1)}
           >
-            {formStep === 2 ? 'Kembali ke Data Umum' : 'Kembali ke Foto Lapangan'}
+            Sebelumnya: Bagian {formStep - 1}
           </Button>
         )}
         {isInspector && isDraftStatus && (
@@ -166,45 +159,20 @@ export function InspectionDetailModal({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-        {formStep === 1 && (
+        {formStep < 8 && (
           <Button
             type="button"
             variant="primary"
             size="md"
             icon={ArrowRight}
             className="w-full sm:w-auto"
-            onClick={() => setFormStep(2)}
+            onClick={() => setFormStep(formStep + 1)}
           >
-            Lanjut: Dokumentasi Foto (Bagian 8)
+            Selanjutnya: Bagian {formStep + 1}
           </Button>
         )}
-        {formStep === 2 && (
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            icon={ArrowRight}
-            className="w-full sm:w-auto"
-            onClick={() => setFormStep(3)}
-          >
-            Lanjut: Tanda Tangan &amp; BAP
-          </Button>
-        )}
-        {formStep === 3 && (
+        {formStep === 8 && (
           <>
-            {isInspector && isDraftStatus && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                icon={FloppyDisk}
-                disabled={submitting}
-                onClick={handleSaveFieldProgressAndBap}
-                className="w-full sm:w-auto"
-              >
-                Simpan Progres Lapangan &amp; Siapkan BAP
-              </Button>
-            )}
             {isInspector && isDraftStatus ? (
               <Button
                 type="button"
@@ -285,7 +253,6 @@ export function InspectionDetailModal({
           missingItems={missingItems}
           photosCount={photosCount}
           inspectorSig={inspectorSig}
-          clientSig={clientSig}
           draftResults={draftResults}
           draftObjectAttributes={draftObjectAttributes}
           draftConclusion={draftConclusion}
@@ -297,42 +264,28 @@ export function InspectionDetailModal({
           setFormStep={setFormStep}
           photosCount={photosCount}
           inspectorSig={inspectorSig}
-          clientSig={clientSig}
-          bapNo={activeDetail.inspection.bap_no}
         />
 
-        {formStep === 1 && (
-          <div key="step-1" className="space-y-6 animate-section-in">
+        {formStep >= 1 && formStep <= 7 && (
+          <div key={`section-${formStep}`} className="space-y-6 animate-section-in">
             <StepChecklist
               inspection={activeDetail.inspection}
-              items={activeDetail.items || []}
-              draftResults={draftResults}
-              setDraftResults={setDraftResults}
-              onResultChange={handleChecklistResultChange}
               draftObjectAttributes={draftObjectAttributes}
               setDraftObjectAttributes={setDraftObjectAttributes}
-              attributeSchema={activeDetail.inspection?.attribute_schema || []}
-              categoryCode={activeDetail.inspection?.category_code || ''}
-              categoryName={activeDetail.inspection?.category_name || ''}
-              workPhase={workPhase}
-              onUploadInlinePhoto={handleUploadItemInlinePhoto}
-              onDeletePhoto={handleDeletePhoto}
-              onUploadNameplatePhoto={handleUploadNameplatePhoto}
-              onAddFindingFromItem={handleAddFindingFromItem}
               readOnly={!isInspector || activeDetail.inspection.status !== 'DRAF'}
-              missingItems={missingItems}
-              evaluatedItems={evaluatedItems}
-              totalItems={totalItems}
-              isInspector={isInspector}
-              status={activeDetail.inspection.status}
-              photos={activeDetail.photos || []}
-              onNext={() => setFormStep(2)}
+              formStep={formStep}
+              setFormStep={setFormStep}
+              draftConclusion={draftConclusion}
+              setDraftConclusion={handleConclusionSelect}
+              draftConclusionNotes={draftConclusionNotes}
+              setDraftConclusionNotes={setDraftConclusionNotes}
+              onNext={() => setFormStep(formStep + 1)}
             />
           </div>
         )}
 
-        {formStep === 2 && (
-          <div key="step-2" className="space-y-6 animate-section-in">
+        {formStep === 8 && (
+          <div key="section-8" className="space-y-6 animate-section-in">
             <StepPhotosFindings
               photos={activeDetail.photos || []}
               findings={activeDetail.findings || []}
@@ -349,95 +302,38 @@ export function InspectionDetailModal({
               onDeletePhoto={handleDeletePhoto}
               onAddFinding={handleAddFinding}
               onSaveDraft={handleSaveDraft}
-              onBack={() => setFormStep(1)}
-              onNext={() => setFormStep(3)}
+              onBack={() => setFormStep(7)}
+              onNext={() => {}}
               hideInlineActions={true}
-            />
-          </div>
-        )}
-
-        {formStep === 3 && (
-          <div key="step-3" className="space-y-6 animate-section-in">
-            <StepConclusion
-              draftConclusion={draftConclusion}
-              setDraftConclusion={handleConclusionSelect}
-              draftConclusionNotes={draftConclusionNotes}
-              setDraftConclusionNotes={setDraftConclusionNotes}
-              draftScopes={draftScopes}
-              setDraftScopes={setDraftScopes}
-              scopeCatalog={activeDetail.scopeCatalog || []}
-              workPhase={workPhase}
-              isInspector={isInspector}
-              status={activeDetail.inspection.status}
-              submitting={submitting}
-              onSaveDraft={handleSaveDraft}
             />
 
             <StepSignatures
               inspectorSig={inspectorSig}
-              clientSig={clientSig}
               inspectorSigName={signatures.inspectorSigName}
               setInspectorSigName={signatures.setInspectorSigName}
               inspectorSigTitle={signatures.inspectorSigTitle}
               setInspectorSigTitle={signatures.setInspectorSigTitle}
-              clientSigName={signatures.clientSigName}
-              setClientSigName={signatures.setClientSigName}
-              clientSigTitle={signatures.clientSigTitle}
-              setClientSigTitle={signatures.setClientSigTitle}
               inspectorCanvasRef={signatures.inspectorCanvasRef}
-              clientCanvasRef={signatures.clientCanvasRef}
               onInspectorPointerDown={signatures.handleInspectorPointerDown}
               onInspectorPointerMove={signatures.handleInspectorPointerMove}
               onInspectorPointerUp={signatures.handleInspectorPointerUp}
-              onClientPointerDown={signatures.handleClientPointerDown}
-              onClientPointerMove={signatures.handleClientPointerMove}
-              onClientPointerUp={signatures.handleClientPointerUp}
               onClearInspectorCanvas={signatures.clearInspectorCanvas}
-              onClearClientCanvas={signatures.clearClientCanvas}
               onSaveInspectorSignature={signatures.handleSaveInspectorSignature}
-              onSaveClientSignature={signatures.handleSaveClientSignature}
               reSigningInspector={signatures.reSigningInspector}
               setReSigningInspector={signatures.setReSigningInspector}
-              reSigningClient={signatures.reSigningClient}
-              setReSigningClient={signatures.setReSigningClient}
               savingInspector={signatures.savingInspector}
-              savingClient={signatures.savingClient}
               sigErrorInspector={signatures.sigErrorInspector}
-              sigErrorClient={signatures.sigErrorClient}
               sigFeedbackInspector={signatures.sigFeedbackInspector}
-              sigFeedbackClient={signatures.sigFeedbackClient}
               isInspector={isInspector}
               status={activeDetail.inspection.status}
               submitting={submitting}
               canSubmit={canSubmit}
-              missingItems={missingItems}
-              evaluatedItems={evaluatedItems}
-              totalItems={totalItems}
               photosCount={photosCount}
               draftConclusion={draftConclusion}
-              bapId={activeDetail.inspection.bap_id}
-              bapNo={activeDetail.inspection.bap_no}
-              lhppId={activeDetail.inspection.lhpp_id}
-              lhppNo={activeDetail.inspection.lhpp_no}
-              onPrepareBapDraft={handleSaveFieldProgressAndBap}
-              onPreviewBapPdf={(id) =>
-                onPreviewPdf(
-                  `/bap/${id}/pdf`,
-                  `Pratinjau BAP - ${activeDetail.inspection.bap_no || 'BAP'}`,
-                  `${(activeDetail.inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.pdf`
-                )
-              }
-              onPreviewBapDocx={(id) =>
-                handleDownloadDocx(
-                  `/bap/${id}/docx`,
-                  `${(activeDetail.inspection.bap_no || 'BAP').replace(/[/\s]/g, '-')}.docx`
-                )
-              }
               onSubmitFinal={handleSubmitFinal}
-              onBack={() => setFormStep(2)}
+              onBack={() => setFormStep(7)}
               onSaveDraft={handleSaveDraft}
               onCloseModal={onClose}
-              onPreviewPdf={onPreviewPdf}
               hideInlineActions={true}
             />
           </div>

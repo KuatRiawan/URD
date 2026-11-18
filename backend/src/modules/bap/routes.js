@@ -24,6 +24,7 @@ const router = Router();
 router.use(authenticate);
 
 const updateBapDraftSchema = Joi.object({
+  bapNo: Joi.string().max(160).allow('', null).optional(),
   inspectionDate: Joi.date().iso().allow('', null),
   scopeItems: Joi.array().items(Joi.string().max(160)).min(1).required(),
   conclusion: Joi.string()
@@ -36,7 +37,8 @@ const updateBapDraftSchema = Joi.object({
   dimensionMeasurementNotes: Joi.string().max(2000).allow('', null),
   ndtTestingNotes: Joi.string().max(2000).allow('', null),
   loadFunctionTestNotes: Joi.string().max(2000).allow('', null),
-  safetyDeviceCheckNotes: Joi.string().max(2000).allow('', null)
+  safetyDeviceCheckNotes: Joi.string().max(2000).allow('', null),
+  documentData: Joi.object().unknown(true).optional()
 });
 
 const bapSignatureSchema = Joi.object({
@@ -101,15 +103,44 @@ export async function fetchFullBapContext(db, id) {
      ORDER BY r.created_at DESC`,
     [id]
   );
+
+  const overrides =
+    bap.document_data && typeof bap.document_data === 'object' && !Array.isArray(bap.document_data)
+      ? bap.document_data
+      : {};
+
   return {
     ...bap,
+    ...overrides,
+    id: bap.id,
+    order_id: bap.order_id,
+    object_id: bap.object_id,
+    inspection_id: bap.inspection_id,
+    status: bap.status,
+    version: bap.version,
+    created_at: bap.created_at,
+    updated_at: bap.updated_at,
+    document_data: overrides,
+    raw_source: {
+      client_name: bap.client_name,
+      client_address: bap.client_address,
+      object_name: bap.object_name,
+      brand: bap.brand,
+      model: bap.model,
+      manufacturer: bap.manufacturer,
+      serial_number: bap.serial_number,
+      capacity: bap.capacity,
+      manufacture_year: bap.manufacture_year,
+      install_location: bap.install_location,
+      bap_no: bap.bap_no
+    },
     is_compliant:
-      bap.conclusion === 'TIDAK_MEMENUHI_SYARAT'
+      (overrides.conclusion || bap.conclusion) === 'TIDAK_MEMENUHI_SYARAT'
         ? false
-        : bap.conclusion
+        : (overrides.conclusion || bap.conclusion)
         ? true
         : null,
-    inspection_notes: bap.notes || '',
+    inspection_notes: overrides.notes !== undefined ? overrides.notes : (bap.notes || ''),
     inspector_sig_file_id: bap.inspector_signature_file_id,
     client_sig_file_id: bap.client_signature_file_id,
     inspector_signature_path: bap.inspector_sig_storage_key
@@ -438,7 +469,7 @@ router.put(
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { inspectionDate, scopeItems, conclusion, isCompliant, notes, inspectionNotes } = req.body;
+      const { inspectionDate, scopeItems, conclusion, isCompliant, notes, inspectionNotes, documentData } = req.body;
       const resolvedConclusion =
         conclusion ||
         (isCompliant === false ? 'TIDAK_MEMENUHI_SYARAT' : isCompliant === true ? 'MEMENUHI_SYARAT' : null);
@@ -459,20 +490,30 @@ router.put(
           );
         }
 
+        const mergedDocData = {
+          ...(cur.document_data || {}),
+          ...(documentData || {})
+        };
+        const customBapNo = mergedDocData.bap_no ? String(mergedDocData.bap_no).trim() : null;
+
         const { rows } = await db.query(
           `UPDATE bap_documents
            SET inspection_date = COALESCE($1::date, inspection_date),
                scope_items = $2::jsonb,
                conclusion = $3,
                notes = $4,
+               document_data = $5::jsonb,
+               bap_no = COALESCE($6, bap_no),
                updated_at = now()
-           WHERE id = $5
+           WHERE id = $7
            RETURNING *`,
           [
             inspectionDate || null,
             JSON.stringify(scopeItems),
             resolvedConclusion,
             resolvedNotes || null,
+            JSON.stringify(mergedDocData),
+            customBapNo,
             id
           ]
         );
@@ -484,19 +525,39 @@ router.put(
           [JSON.stringify(scopeItems), cur.order_id, cur.object_id]
         );
 
+        await db.query(
+          `INSERT INTO bap_revisions (bap_id, version, action, reason, snapshot, actor_id)
+           VALUES ($1, $2, 'UPDATED', 'Informasi BAP diperbarui oleh pengguna terotorisasi', $3, $4)`,
+          [
+            id,
+            (cur.version || 1),
+            JSON.stringify({
+              scope_items: scopeItems,
+              conclusion: resolvedConclusion,
+              document_data: mergedDocData
+            }),
+            req.user.id
+          ]
+        );
+
         await recordAudit(
           {
             userId: req.user.id,
             action: 'BAP_UPDATE_DRAFT',
             entity: 'bap_documents',
             entityId: id,
-            summary: { bapNo: cur.bap_no, scopeCount: scopeItems.length, conclusion: resolvedConclusion },
+            summary: {
+              bapNo: customBapNo || cur.bap_no,
+              scopeCount: scopeItems.length,
+              conclusion: resolvedConclusion,
+              hasCustomDocumentData: Boolean(documentData && Object.keys(documentData).length)
+            },
             ip: req.ip
           },
           db
         );
 
-        return rows[0];
+        return fetchFullBapContext(db, id);
       });
 
       return res.json({ bap: updated });
@@ -617,13 +678,6 @@ router.post(
         }
         if (cur.status === 'FINAL') {
           throw new AppError(400, 'BAP_ALREADY_FINAL', 'Dokumen BAP sudah berstatus FINAL.');
-        }
-        if (cur.lhpp_id && !['FINAL', 'TERBIT'].includes(cur.lhpp_status)) {
-          throw new AppError(
-            409,
-            'LHPP_NOT_FINALIZED',
-            'LHPP terkait belum difinalisasi atau sedang dalam revisi. Selesaikan finalisasi LHPP terlebih dahulu sebelum menerbitkan BAP resmi.'
-          );
         }
 
         const scopes = Array.isArray(cur.scope_items) ? cur.scope_items : [];

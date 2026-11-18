@@ -141,7 +141,7 @@ describe('Admin Kantor Workspace V2 UI & Workflow Verification', () => {
     ).toBeNull();
   });
 
-  it('3. BapDetailModal menonaktifkan tombol Finalisasi BAP jika LHPP masih SIAP_PREVIEW (belum FINAL)', () => {
+  it('3. BapDetailModal menampilkan identitas 1 Unit = 1 BAP dan tombol Finalisasi BAP mandiri', () => {
     const noop = vi.fn();
     render(
       <MemoryRouter>
@@ -163,13 +163,17 @@ describe('Admin Kantor Workspace V2 UI & Workflow Verification', () => {
           feedback={null}
           canManage={true}
           canFinalize={true}
-          draftForm={{
-            inspectionDate: '2026-11-05',
-            scopeItems: ['Pemeriksaan Visual'],
-            isCompliant: true,
-            inspectionNotes: ''
+          bapEditForm={{
+            object_name: 'Steam Boiler 5 Ton',
+            client_name: 'PT Energi Nusantara',
+            client_address: 'Jl. Industri No. 5',
+            bap_no: '0002/BAP-PUBT/URD/XI/2026',
+            inspection_date: '2026-11-05',
+            scope_items: ['Pemeriksaan Visual'],
+            is_compliant: true,
+            inspection_notes: ''
           }}
-          setDraftForm={noop}
+          setBapEditForm={noop}
           toggleScopeItem={noop}
           scopeCatalog={['Pemeriksaan Visual']}
           handleSaveDraft={noop}
@@ -190,11 +194,12 @@ describe('Admin Kantor Workspace V2 UI & Workflow Verification', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Urutan Dokumen Wajib:/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 Unit = 1 BAP/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/STEAM BOILER 5 TON/i).length).toBeGreaterThanOrEqual(1);
     const finalizeBtn = screen.getByRole('button', {
       name: /Finalisasi & Kunci Berita Acara Riksa Uji \(BAP\)/i
     });
-    expect(finalizeBtn).toBeDisabled();
+    expect(finalizeBtn).toBeInTheDocument();
   });
 
   it('4. DistributionTable menampilkan nomor dokumen kanonis, target penerima, resi, dan tombol Pratinjau BAST', () => {

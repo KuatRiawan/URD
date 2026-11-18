@@ -1,28 +1,22 @@
 import { useState } from 'react';
 import {
-  ArrowSquareOut,
   ArrowUUpLeft,
   CheckCircle,
   Clock,
   DownloadSimple,
-  Eye,
   FileDoc,
-  FileText,
-  IdentificationBadge,
   MapPin,
   WarningCircle,
   Wrench
 } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/Button.jsx';
 import { Modal } from '../../../components/ui/Modal.jsx';
-import { api } from '../../../lib/api/axios.js';
 
 export function InspectionHeaderSection({
   activeDetail,
   lastSavedAt,
   isInspector,
   user,
-  onPreviewPdf,
   onDownloadDocx,
   onReopenInspection
 }) {
@@ -34,74 +28,13 @@ export function InspectionHeaderSection({
   const [revisionReasonInput, setRevisionReasonInput] = useState('');
   const [revisionSectionInput, setRevisionSectionInput] = useState('Checklist & Pengukuran');
   const [submittingReopen, setSubmittingReopen] = useState(false);
-  const [downloadingBap, setDownloadingBap] = useState(false);
 
   const REVISION_SECTIONS = [
     'Data Umum & Identitas Alat',
     'Dokumentasi Foto Lapangan',
     'Temuan & Rekomendasi K3',
-    'Tanda Tangan & BAP'
+    'Data Teknis & Pengujian'
   ];
-
-  const handleDownloadBapPdf = async () => {
-    try {
-      setDownloadingBap(true);
-      const res = await api.get(`/inspections/${inspection.id}/bap/pdf`, {
-        responseType: 'blob'
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `BAP-${(inspection.object_name || 'Unit').replace(/\s+/g, '-')}-${(inspection.order_no || 'Draf').replace(/\//g, '-')}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      // fallback
-    } finally {
-      setDownloadingBap(false);
-    }
-  };
-
-  const handleDownloadBapDocx = async () => {
-    try {
-      setDownloadingBap(true);
-      const res = await api.get(`/inspections/${inspection.id}/bap/docx`, {
-        responseType: 'blob'
-      });
-      const blob = new Blob([res.data]);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `BAP-${(inspection.object_name || 'Unit').replace(/\s+/g, '-')}-${(inspection.order_no || 'Draf').replace(/\//g, '-')}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      // fallback
-    } finally {
-      setDownloadingBap(false);
-    }
-  };
-
-  const handlePreviewBap = () => {
-    if (onPreviewPdf) {
-      if (inspection.bap_id) {
-        onPreviewPdf(
-          `/api/bap/${inspection.bap_id}/pdf`,
-          `Pratinjau BAP: ${inspection.object_name || 'Unit'}`
-        );
-      } else {
-        onPreviewPdf(
-          `/api/inspections/${inspection.id}/bap/pdf`,
-          `Pratinjau BAP: ${inspection.object_name || 'Unit'}`
-        );
-      }
-    }
-  };
 
   const executeReopen = async (e) => {
     e.preventDefault();
@@ -169,41 +102,26 @@ export function InspectionHeaderSection({
             </div>
           </div>
 
-          {/* Sisi Kanan: Tombol Aksi BAP Cepat */}
+          {/* Sisi Kanan: Aksi LHPP Word & Status Simpan */}
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              icon={Eye}
-              onClick={handlePreviewBap}
-              title="Pratinjau dokumen Berita Acara Riksa Uji (BAP)"
-            >
-              Pratinjau BAP
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon={DownloadSimple}
-              loading={downloadingBap}
-              disabled={downloadingBap}
-              onClick={handleDownloadBapPdf}
-              title="Unduh Berita Acara Riksa Uji dalam format PDF"
-            >
-              Unduh BAP (PDF)
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={FileText}
-              disabled={downloadingBap}
-              onClick={handleDownloadBapDocx}
-              title="Unduh Berita Acara Riksa Uji dalam format Word (.docx)"
-            >
-              BAP (DOCX)
-            </Button>
+            {lastSavedAt && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700/60 font-mono">
+                <CheckCircle size={13} className="text-emerald-500" weight="fill" />
+                Tersimpan: {lastSavedAt}
+              </span>
+            )}
+            {onDownloadDocx && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={FileDoc}
+                onClick={onDownloadDocx}
+                title="Unduh Blangko Berkas LHPP Resmi Microsoft Word (.docx) dengan tabel teknis lengkap"
+              >
+                Unduh Blangko Word (.docx)
+              </Button>
+            )}
 
             {isFinal && isAdminKantor && (
               <Button

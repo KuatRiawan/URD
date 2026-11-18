@@ -1,14 +1,18 @@
 import { useRef, useState } from 'react';
 import {
+  CheckCircle,
   Eraser,
   Eye,
   FileDoc,
   FilePdf,
+  IdentificationBadge,
   LockKey,
   LockKeyOpen,
+  PencilSimple,
   PenNib,
   SealCheck,
-  WarningCircle
+  WarningCircle,
+  Wrench
 } from '@phosphor-icons/react';
 import logoUrd from '../../../assets/logo-urd.png';
 import { LoadingState } from '../../../components/feedback/StateViews.jsx';
@@ -24,8 +28,8 @@ export function BapDetailModal({
   detailLoading,
   canManage,
   canFinalize,
-  draftForm,
-  setDraftForm,
+  bapEditForm,
+  setBapEditForm,
   toggleScopeItem,
   scopeCatalog,
   handleSaveDraft,
@@ -46,6 +50,7 @@ export function BapDetailModal({
   const canvasRef = useRef(null);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [sigError, setSigError] = useState('');
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
   const isDrawingRef = useRef(false);
 
   const getCoordinates = (e) => {
@@ -125,18 +130,35 @@ export function BapDetailModal({
   if (!selectedBap) return null;
 
   const isEditable = ['DRAF', 'REVISI'].includes(selectedBap.status) && (canManage || canFinalize);
-  const isLhppFinalized = !selectedBap.lhpp_id || ['FINAL', 'TERBIT'].includes(selectedBap.lhpp_status);
+  const form = bapEditForm || {};
+
+  const handleFieldChange = (key, value) => {
+    if (setBapEditForm) {
+      setBapEditForm((prev) => ({
+        ...(prev || {}),
+        [key]: value
+      }));
+    }
+  };
+
+  const equipmentTitle = String(
+    form.object_name ||
+    selectedBap.equipment_subtype_name ||
+    selectedBap.equipment_type_name ||
+    selectedBap.object_name ||
+    'ALAT K3'
+  ).toUpperCase();
 
   return (
     <Modal
       isOpen={Boolean(selectedBap)}
       onClose={onClose}
-      title={`Berita Acara Riksa Uji: ${selectedBap.bap_no}`}
+      title={`Berita Acara Riksa Uji: ${form.bap_no || selectedBap.bap_no}`}
       size="xl"
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <div className="text-xs text-slate-500">
-            Status: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedBap.status}</span>
+            Status: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedBap.status}</span> · Versi #{selectedBap.version || 1}
           </div>
           <Button variant="secondary" size="md" onClick={onClose}>
             Tutup
@@ -149,7 +171,7 @@ export function BapDetailModal({
       ) : (
         <div className="space-y-6">
           {/* Kop Dokumen Resmi BAP */}
-          <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 shadow-2xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[#C81E1E] pb-4">
               <div className="flex items-center gap-3">
                 <img
@@ -170,73 +192,228 @@ export function BapDetailModal({
                 <span className="inline-block px-3 py-1 rounded bg-slate-900 dark:bg-slate-800 text-white text-xs font-extrabold tracking-wider uppercase">
                   BERITA ACARA RIKSA UJI
                 </span>
+                {/* Equipment Title langsung di bawah judul */}
                 <div className="mt-1.5 text-sm font-extrabold tracking-wider uppercase text-[#C81E1E] dark:text-rose-400">
-                  {(
-                    selectedBap.equipment_subtype_name ||
-                    selectedBap.equipment_type_name ||
-                    selectedBap.object_name ||
-                    ''
-                  ).toUpperCase()}
+                  {equipmentTitle}
                 </div>
                 <div className="mt-0.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
-                  Nomor: {selectedBap.bap_no}
+                  Nomor: {form.bap_no || selectedBap.bap_no}
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Status: {selectedBap.status} · Versi #{selectedBap.version || selectedBap.revision_no || 1}
+                  Status: {selectedBap.status} · 1 Unit = 1 BAP
                 </div>
               </div>
             </div>
 
-            {/* Bagian Identitas Pemeriksaan sesuai Template BAP */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 text-xs">
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">1. Objek yang Diperiksa</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  {selectedBap.object_name} ({selectedBap.category_code} - {selectedBap.category_name})
-                </span>
+            {/* Bagian Identitas BAP - Dengan Mode Edit Mandiri */}
+            <div className="pt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <IdentificationBadge size={16} className="text-[#C81E1E]" />
+                  Identitas Objek &amp; Perusahaan pada BAP
+                </h4>
+                {isEditable && (
+                  <Button
+                    type="button"
+                    variant={isEditingInfo ? 'secondary' : 'outline'}
+                    size="xs"
+                    icon={PencilSimple}
+                    onClick={() => setIsEditingInfo(!isEditingInfo)}
+                  >
+                    {isEditingInfo ? 'Selesai Edit' : 'Edit Informasi BAP'}
+                  </Button>
+                )}
               </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">2. Nama Perusahaan / Klien</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedBap.client_name}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">3. Alamat Perusahaan</span>
-                <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {selectedBap.client_address || selectedBap.location_address || '-'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">4. Pabrik Pembuat / Tahun</span>
-                <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {selectedBap.manufacturer || selectedBap.brand || '-'} /{' '}
-                  {selectedBap.manufacture_year || '-'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">5. Nomor Seri / Kapasitas</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                  {selectedBap.serial_number || '-'} / {selectedBap.capacity || '-'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">6. Lokasi Pemeriksaan &amp; Referensi PO</span>
-                <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {selectedBap.install_location || selectedBap.location_name || '-'} · PO:{' '}
-                  <strong className="font-mono text-slate-900 dark:text-slate-100">{selectedBap.po_number || selectedBap.order_no}</strong>
-                </span>
-              </div>
+
+              {isEditingInfo ? (
+                /* Form Edit Informasi BAP */
+                <div className="space-y-4 p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/20">
+                  <div className="text-[11px] text-rose-800 dark:text-rose-300 font-medium">
+                    Perubahan informasi di bawah disimpan khusus pada dokumen BAP ini tanpa mengubah master PO atau data peralatan lain.
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        1. Nama / Jenis Objek Alat *
+                      </label>
+                      <input
+                        type="text"
+                        value={form.object_name}
+                        onChange={(e) => handleFieldChange('object_name', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        2. Nama Perusahaan / Klien *
+                      </label>
+                      <input
+                        type="text"
+                        value={form.client_name}
+                        onChange={(e) => handleFieldChange('client_name', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        3. Alamat Perusahaan *
+                      </label>
+                      <input
+                        type="text"
+                        value={form.client_address}
+                        onChange={(e) => handleFieldChange('client_address', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        4. Pabrik Pembuat / Merek
+                      </label>
+                      <input
+                        type="text"
+                        value={form.manufacturer || form.brand}
+                        onChange={(e) => {
+                          handleFieldChange('manufacturer', e.target.value);
+                          handleFieldChange('brand', e.target.value);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        Tahun Pembuatan
+                      </label>
+                      <input
+                        type="text"
+                        value={form.manufacture_year}
+                        onChange={(e) => handleFieldChange('manufacture_year', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        5. Nomor Seri (Serial Number) *
+                      </label>
+                      <input
+                        type="text"
+                        value={form.serial_number}
+                        onChange={(e) => handleFieldChange('serial_number', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        Kapasitas Beban
+                      </label>
+                      <input
+                        type="text"
+                        value={form.capacity}
+                        onChange={(e) => handleFieldChange('capacity', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        6. Lokasi Pemeriksaan Unit
+                      </label>
+                      <input
+                        type="text"
+                        value={form.install_location}
+                        onChange={(e) => handleFieldChange('install_location', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        Nomor Dokumen BAP *
+                      </label>
+                      <input
+                        type="text"
+                        value={form.bap_no}
+                        onChange={(e) => handleFieldChange('bap_no', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        Nama PIC Perwakilan Klien
+                      </label>
+                      <input
+                        type="text"
+                        value={form.contact_name}
+                        onChange={(e) => handleFieldChange('contact_name', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                        Jabatan PIC Klien
+                      </label>
+                      <input
+                        type="text"
+                        value={form.contact_title}
+                        onChange={(e) => handleFieldChange('contact_title', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Tampilan Readout dengan Traceability */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">1. Objek yang Diperiksa</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {form.object_name || selectedBap.object_name} ({selectedBap.category_code} - {selectedBap.category_name})
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">2. Nama Perusahaan / Klien</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {form.client_name || selectedBap.client_name}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">3. Alamat Perusahaan</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {form.client_address || selectedBap.client_address || selectedBap.location_address || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">4. Pabrik Pembuat / Tahun</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {form.manufacturer || form.brand || selectedBap.manufacturer || selectedBap.brand || '-'} /{' '}
+                      {form.manufacture_year || selectedBap.manufacture_year || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">5. Nomor Seri / Kapasitas</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                      {form.serial_number || selectedBap.serial_number || '-'} / {form.capacity || selectedBap.capacity || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block">6. Lokasi Pemeriksaan &amp; Referensi PO</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {form.install_location || selectedBap.install_location || selectedBap.location_name || '-'} · PO:{' '}
+                      <strong className="font-mono text-slate-900 dark:text-slate-100">{selectedBap.po_number || selectedBap.order_no}</strong>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Ruang Lingkup Riksa Uji */}
-          <form onSubmit={handleSaveDraft} className="space-y-4">
+          <form onSubmit={(e) => handleSaveDraft(e, form)} className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Ruang Lingkup Riksa Uji (Centang yang Dilaksanakan)
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Terpilih {draftForm.scopeItems.length} dari {scopeCatalog.length} item ruang lingkup pada template BAP.
+                  Terpilih {form.scope_items?.length || 0} dari {scopeCatalog.length} item ruang lingkup pada template BAP.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -244,8 +421,8 @@ export function BapDetailModal({
                 <input
                   type="date"
                   disabled={!isEditable}
-                  value={draftForm.inspectionDate}
-                  onChange={(e) => setDraftForm({ ...draftForm, inspectionDate: e.target.value })}
+                  value={form.inspection_date || ''}
+                  onChange={(e) => handleFieldChange('inspection_date', e.target.value)}
                   className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-md"
                 />
               </div>
@@ -253,7 +430,7 @@ export function BapDetailModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 max-h-72 overflow-y-auto">
               {scopeCatalog.map((scopeName) => {
-                const checked = draftForm.scopeItems.includes(scopeName);
+                const checked = form.scope_items?.includes(scopeName);
                 return (
                   <label
                     key={scopeName}
@@ -288,8 +465,8 @@ export function BapDetailModal({
                       type="radio"
                       name="isCompliant"
                       disabled={!isEditable}
-                      checked={draftForm.isCompliant === true}
-                      onChange={() => setDraftForm({ ...draftForm, isCompliant: true })}
+                      checked={form.is_compliant === true}
+                      onChange={() => handleFieldChange('is_compliant', true)}
                     />
                     MEMENUHI PERSYARATAN K3
                   </label>
@@ -298,8 +475,8 @@ export function BapDetailModal({
                       type="radio"
                       name="isCompliant"
                       disabled={!isEditable}
-                      checked={draftForm.isCompliant === false}
-                      onChange={() => setDraftForm({ ...draftForm, isCompliant: false })}
+                      checked={form.is_compliant === false}
+                      onChange={() => handleFieldChange('is_compliant', false)}
                     />
                     TIDAK MEMENUHI PERSYARATAN K3
                   </label>
@@ -308,8 +485,8 @@ export function BapDetailModal({
                       type="radio"
                       name="isCompliant"
                       disabled={!isEditable}
-                      checked={draftForm.isCompliant === null}
-                      onChange={() => setDraftForm({ ...draftForm, isCompliant: null })}
+                      checked={form.is_compliant === null}
+                      onChange={() => handleFieldChange('is_compliant', null)}
                     />
                     BELUM DITETAPKAN (TTD Situasional)
                   </label>
@@ -317,7 +494,7 @@ export function BapDetailModal({
               </div>
 
               <div className="p-3 rounded bg-slate-100 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-slate-100 border-l-4 border-[#C81E1E]">
-                {draftForm.isCompliant === null ? (
+                {form.is_compliant === null ? (
                   <span>
                     &quot;Kesimpulan kelayakan K3{' '}
                     <span className="text-amber-700 dark:text-amber-400 underline">
@@ -330,12 +507,12 @@ export function BapDetailModal({
                     &quot;Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut{' '}
                     <span
                       className={
-                        draftForm.isCompliant
+                        form.is_compliant
                           ? 'text-emerald-700 dark:text-emerald-400 underline'
                           : 'text-red-700 dark:text-red-400 underline'
                       }
                     >
-                      {draftForm.isCompliant ? 'MEMENUHI' : 'TIDAK MEMENUHI'}
+                      {form.is_compliant ? 'MEMENUHI' : 'TIDAK MEMENUHI'}
                     </span>{' '}
                     Persyaratan Keselamatan dan Kesehatan Kerja.&quot;
                   </span>
@@ -349,8 +526,8 @@ export function BapDetailModal({
                 <textarea
                   rows={3}
                   disabled={!isEditable}
-                  value={draftForm.inspectionNotes}
-                  onChange={(e) => setDraftForm({ ...draftForm, inspectionNotes: e.target.value })}
+                  value={form.inspection_notes || ''}
+                  onChange={(e) => handleFieldChange('inspection_notes', e.target.value)}
                   placeholder="Catatan hasil riksa uji, temuan penting, atau kondisi operasional unit..."
                   className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-md"
                 />
@@ -360,12 +537,12 @@ export function BapDetailModal({
                 <div className="flex justify-end">
                   <Button
                     type="submit"
-                    variant="secondary"
+                    variant="primary"
                     size="sm"
                     disabled={submitting}
                     loading={submitting}
                   >
-                    Simpan Perubahan Draf BAP
+                    Simpan Perubahan Dokumen BAP
                   </Button>
                 </div>
               )}
@@ -385,7 +562,7 @@ export function BapDetailModal({
                       Inspector (PT Upaya Riksa Daya)
                     </div>
                     <div className="text-slate-600 dark:text-slate-400">
-                      {selectedBap.inspector_signer_name || selectedBap.inspector_name} (
+                      {form.inspector_name || selectedBap.inspector_signer_name || selectedBap.inspector_name} (
                       {selectedBap.inspector_signer_title || 'Ahli K3 Pemeriksa'})
                     </div>
                     {selectedBap.inspector_signed_at && (
@@ -405,8 +582,8 @@ export function BapDetailModal({
                       Pemilik Alat / Unit (Perwakilan Klien)
                     </div>
                     <div className="text-slate-600 dark:text-slate-400">
-                      {selectedBap.client_signer_name || 'Belum diisi'} (
-                      {selectedBap.client_signer_title || 'Perwakilan Klien'})
+                      {form.contact_name || selectedBap.client_signer_name || 'Belum diisi'} (
+                      {form.contact_title || selectedBap.client_signer_title || 'Perwakilan Klien'})
                     </div>
                     {selectedBap.client_signed_at && (
                       <div className="text-[11px] text-slate-400 dark:text-slate-500">
@@ -445,12 +622,12 @@ export function BapDetailModal({
                             signerRole: role,
                             signerName:
                               role === 'AHLI_K3'
-                                ? selectedBap.inspector_signer_name || selectedBap.inspector_name || ''
-                                : selectedBap.client_signer_name || selectedBap.contact_name || '',
+                                ? form.inspector_name || selectedBap.inspector_signer_name || selectedBap.inspector_name || ''
+                                : form.contact_name || selectedBap.client_signer_name || selectedBap.contact_name || '',
                             signerTitle:
                               role === 'AHLI_K3'
                                 ? 'Ahli K3 Pemeriksa'
-                                : 'Pemilik Alat / Perwakilan Klien'
+                                : form.contact_title || 'Pemilik Alat / Perwakilan Klien'
                           });
                         }}
                         className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -548,10 +725,10 @@ export function BapDetailModal({
             <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 flex flex-col justify-between space-y-4">
               <div className="space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Tindakan Dokumen BAP &amp; Tautan LHPP
+                  Tindakan Dokumen BAP &amp; Tautan Berkas
                 </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Setelah ditandatangani oleh Inspector dan Perwakilan Klien, finalisasi BAP untuk mengunci dokumen serah terima dan menyelesaikan unit riksa uji.
+                  Setelah ditandatangani oleh Inspector dan Perwakilan Klien, finalisasi BAP untuk mengunci dokumen serah terima pemeriksaan unit.
                 </p>
 
                 <div className="flex items-center gap-2 pt-2 flex-wrap">
@@ -560,7 +737,7 @@ export function BapDetailModal({
                     variant="primary"
                     size="sm"
                     icon={FilePdf}
-                    onClick={() => handleDownloadPdf(selectedBap.id, selectedBap.bap_no)}
+                    onClick={() => handleDownloadPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
                   >
                     Unduh PDF BAP
                   </Button>
@@ -569,17 +746,17 @@ export function BapDetailModal({
                     variant="secondary"
                     size="sm"
                     icon={Eye}
-                    onClick={() => handlePreviewPdf(selectedBap.id, selectedBap.bap_no)}
+                    onClick={() => handlePreviewPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
                   >
                     Pratinjau PDF
                   </Button>
                   <ActionMenu
-                    label="Aksi & Berkas Lainnya"
+                    label="Aksi &amp; Berkas Lainnya"
                     items={[
                       handleDownloadDocx && {
                         label: 'Unduh Word (.docx)',
                         icon: FileDoc,
-                        onClick: () => handleDownloadDocx(selectedBap.id, selectedBap.bap_no)
+                        onClick: () => handleDownloadDocx(selectedBap.id, form.bap_no || selectedBap.bap_no)
                       },
                       {
                         label: 'Cetak Gabungan BAP 1 PO',
@@ -587,7 +764,7 @@ export function BapDetailModal({
                         onClick: () => handleDownloadBatchPoPdf(selectedBap.order_id, selectedBap.po_number || selectedBap.order_no)
                       },
                       selectedBap.lhpp_id && {
-                        label: `Buka Dokumen LHPP (${selectedBap.lhpp_status})`,
+                        label: `Buka Dokumen LHPP (${selectedBap.lhpp_status || 'DRAF'})`,
                         icon: SealCheck,
                         onClick: () => {
                           onClose();
@@ -601,18 +778,15 @@ export function BapDetailModal({
 
               {['DRAF', 'REVISI'].includes(selectedBap.status) && canFinalize && (
                 <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
-                  {!isLhppFinalized && (
-                    <div className="p-2.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-900 dark:text-amber-200">
-                      <strong>Urutan Dokumen Wajib:</strong> LHPP unit ini masih berstatus{' '}
-                      <span className="font-mono font-bold">{selectedBap.lhpp_status}</span>. Selesaikan finalisasi LHPP terlebih dahulu sebelum menerbitkan BAP resmi.
-                    </div>
-                  )}
+                  <div className="p-2.5 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 text-xs text-blue-900 dark:text-blue-200">
+                    <strong>Penerbitan BAP Mandiri:</strong> Berita Acara Riksa Uji (BAP) dapat difinalisasi dan diterbitkan secara mandiri tanpa harus menunggu LHPP selesai.
+                  </div>
                   <Button
                     type="button"
                     variant="primary"
                     size="md"
                     icon={LockKey}
-                    disabled={submitting || !isLhppFinalized}
+                    disabled={submitting}
                     loading={submitting}
                     onClick={handleFinalizeBap}
                     className="w-full justify-center"
@@ -622,7 +796,7 @@ export function BapDetailModal({
                 </div>
               )}
 
-              {selectedBap.status === 'FINAL' && selectedBap.lhpp_status !== 'TERBIT' && canFinalize && (
+              {selectedBap.status === 'FINAL' && canFinalize && (
                 <form onSubmit={handleReopenBap} className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     Buka Kunci BAP untuk Revisi Tercatat
@@ -683,4 +857,3 @@ export function BapDetailModal({
     </Modal>
   );
 }
-
