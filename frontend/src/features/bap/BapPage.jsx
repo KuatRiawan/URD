@@ -11,6 +11,7 @@ import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 import { BapTable } from './components/BapTable.jsx';
 import { BapDetailModal } from './components/BapDetailModal.jsx';
 import { PrepareBapModal } from './components/PrepareBapModal.jsx';
+import { ShareBapModal } from './components/ShareBapModal.jsx';
 
 export function BapPage() {
   const confirm = useConfirm();
@@ -58,6 +59,13 @@ export function BapPage() {
   const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [previewPdfTitle, setPreviewPdfTitle] = useState('');
+  const [previewingBapId, setPreviewingBapId] = useState(null);
+  const [shareBapTarget, setShareBapTarget] = useState(null);
+
+  const handleOpenShare = (bap) => {
+    if (!bap) return;
+    setShareBapTarget(bap);
+  };
 
   const fetchBapList = useCallback(async () => {
     setLoading(true);
@@ -359,6 +367,7 @@ export function BapPage() {
   const handlePreviewPdf = async (bapId, bapNo) => {
     try {
       setPreviewPdfUrl(null);
+      setPreviewingBapId(bapId);
       setPreviewPdfTitle(`Pratinjau Berita Acara (BAP): ${bapNo || bapId}`);
       setPdfPreviewModalOpen(true);
       const res = await api.get(`/bap/${bapId}/pdf`, { responseType: 'blob' });
@@ -366,6 +375,7 @@ export function BapPage() {
       setPreviewPdfUrl(url);
     } catch (err) {
       setPdfPreviewModalOpen(false);
+      setPreviewingBapId(null);
       setFeedback({
         type: 'error',
         message:
@@ -381,10 +391,16 @@ export function BapPage() {
       window.URL.revokeObjectURL(previewPdfUrl);
     }
     setPreviewPdfUrl(null);
+    setPreviewingBapId(null);
     setPdfPreviewModalOpen(false);
   };
 
   const isPimpinan = ['PIMPINAN', 'MANAGER'].includes(user?.role);
+
+  const previewingBap = useMemo(() => {
+    if (!previewingBapId) return selectedBap;
+    return bapList.find((b) => b.id === previewingBapId) || selectedBap;
+  }, [previewingBapId, bapList, selectedBap]);
 
   const stats = useMemo(() => {
     const total = bapList.length;
@@ -495,6 +511,7 @@ export function BapPage() {
           onDownloadPdf={handleDownloadPdf}
           onDownloadDocx={handleDownloadDocx}
           onOpenDetail={openBapDetail}
+          onShareBap={handleOpenShare}
         />
       )}
 
@@ -522,6 +539,7 @@ export function BapPage() {
         handleDownloadPdf={handleDownloadPdf}
         handleDownloadDocx={handleDownloadDocx}
         handleDownloadBatchPoPdf={handleDownloadBatchPoPdf}
+        onShareBap={handleOpenShare}
         submitting={submitting}
         navigate={navigate}
       />
@@ -544,6 +562,14 @@ export function BapPage() {
         pdfUrl={previewPdfUrl}
         title={previewPdfTitle}
         downloadFilename={`${(previewPdfTitle || 'BAP').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`}
+        onShare={previewingBap ? () => handleOpenShare(previewingBap) : undefined}
+      />
+
+      <ShareBapModal
+        isOpen={Boolean(shareBapTarget)}
+        onClose={() => setShareBapTarget(null)}
+        bap={shareBapTarget}
+        onDownloadPdf={handleDownloadPdf}
       />
     </div>
   );

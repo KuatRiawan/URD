@@ -9,10 +9,12 @@ import {
   Trash,
   Eraser,
   SealCheck,
-  ArrowClockwise
+  ArrowClockwise,
+  Sparkle
 } from '@phosphor-icons/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
+import { Badge } from '../../../components/ui/Badge.jsx';
 import { ROLE_LABELS, formatDate } from '../../../lib/utils/format.js';
 
 function hasCanvasDrawing(canvas) {
@@ -28,6 +30,64 @@ function hasCanvasDrawing(canvas) {
     return false;
   }
   return false;
+}
+
+/**
+ * Filter cerdas pembersih latar belakang kertas putih pada foto tanda tangan.
+ * Mengubah piksel putih/abu-abu kertas menjadi transparan (Alpha 0) dengan feathering halus pada tepi goresan tinta.
+ */
+async function processImageToTransparentPng(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+          const isNearMonochrome = Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30;
+
+          if (brightness > 218 && isNearMonochrome) {
+            // Latar putih atau abu-abu kertas -> jadikan transparan
+            data[i + 3] = 0;
+          } else if (brightness > 180 && isNearMonochrome) {
+            // Feathering lembut di pinggir goresan tinta
+            const alphaFactor = (218 - brightness) / 38;
+            data[i + 3] = Math.round(data[i + 3] * Math.max(0, Math.min(1, alphaFactor)));
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const cleanFile = new File(
+              [blob],
+              file.name.replace(/\.[^.]+$/, '') + '-transparent.png',
+              { type: 'image/png' }
+            );
+            resolve(cleanFile);
+          } else {
+            resolve(file);
+          }
+        }, 'image/png');
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export function ProfileTab({
@@ -53,6 +113,9 @@ export function ProfileTab({
   const [hasDrawn, setHasDrawn] = useState(false);
   const [uploadedSigFile, setUploadedSigFile] = useState(null);
   const [uploadedSigPreview, setUploadedSigPreview] = useState(null);
+  const [autoCleanBg, setAutoCleanBg] = useState(true);
+  const [cleaningBg, setCleaningBg] = useState(false);
+  const [saveSigError, setSaveSigError] = useState('');
   const [signerTitleInput, setSignerTitleInput] = useState(
     user?.signerTitle || profileForm.signerTitle || ''
   );
@@ -60,6 +123,11 @@ export function ProfileTab({
 
   const avatarSrc = profileForm.avatarUrl || user?.avatarUrl;
   const currentSignatureUrl = user?.signatureUrl;
+
+  // Status evaluasi tanda tangan digital
+  const isSignatureReady = Boolean(currentSignatureUrl && (user?.signerTitle || profileForm.signerTitle));
+  const isSignatureNeedUpdate = Boolean(currentSignatureUrl && !(user?.signerTitle || profileForm.signerTitle));
+  const isSignatureEmpty = !currentSignatureUrl;
 
   useEffect(() => {
     if (user?.signerTitle) {
@@ -74,12 +142,28 @@ export function ProfileTab({
     }
   };
 
-  const handleSigFileChange = (e) => {
+  const handleSigFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setSaveSigError('');
+    if (autoCleanBg) {
+      try {
+        setCleaningBg(true);
+        const processedFile = await processImageToTransparentPng(file);
+        setUploadedSigFile(processedFile);
+        const objectUrl = URL.createObjectURL(processedFile);
+        setUploadedSigPreview(objectUrl);
+      } catch (err) {
+        console.warn('Gagal memproses transparansi otomatis:', err);
+        setUploadedSigFile(file);
+        setUploadedSigPreview(URL.createObjectURL(file));
+      } finally {
+        setCleaningBg(false);
+      }
+    } else {
       setUploadedSigFile(file);
-      const objectUrl = URL.createObjectURL(file);
-      setUploadedSigPreview(objectUrl);
+      setUploadedSigPreview(URL.createObjectURL(file));
     }
   };
 
@@ -141,16 +225,23 @@ export function ProfileTab({
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasDrawn(false);
+    setSaveSigError('');
   };
 
   const handleSubmitSignature = async (e) => {
     e.preventDefault();
+    setSaveSigError('');
     if (!onSaveSignature) return;
+
+    if (!signerTitleInput.trim()) {
+      setSaveSigError('Gelar atau spesialisasi penandatangan wajib diisi untuk pencantuman pada dokumen BAP & LHPP.');
+      return;
+    }
 
     if (sigMode === 'draw') {
       const canvas = canvasRef.current;
       if (!canvas || !hasDrawn) {
-        alert('Silakan goreskan tanda tangan pada kanvas terlebih dahulu.');
+        setSaveSigError('Silakan goreskan tanda tangan pada kanvas terlebih dahulu.');
         return;
       }
       const dataUrl = canvas.toDataURL('image/png');
@@ -161,10 +252,12 @@ export function ProfileTab({
       if (ok) {
         setShowEditSig(false);
         clearCanvas();
+      } else {
+        setSaveSigError('Gagal menyimpan tanda tangan digital ke server.');
       }
     } else {
       if (!uploadedSigFile) {
-        alert('Silakan pilih berkas gambar tanda tangan terlebih dahulu.');
+        setSaveSigError('Silakan pilih berkas gambar tanda tangan terlebih dahulu.');
         return;
       }
       const ok = await onSaveSignature({
@@ -175,8 +268,18 @@ export function ProfileTab({
         setShowEditSig(false);
         setUploadedSigFile(null);
         setUploadedSigPreview(null);
+      } else {
+        setSaveSigError('Gagal menyimpan berkas tanda tangan digital ke server.');
       }
     }
+  };
+
+  // Gaya latar bermotif papan catur transparan (Checkerboard)
+  const checkerboardStyle = {
+    backgroundImage:
+      'linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)',
+    backgroundSize: '16px 16px',
+    backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px'
   };
 
   return (
@@ -264,7 +367,7 @@ export function ProfileTab({
         </Card>
       </div>
 
-      {/* Kolom Kanan: Form Profil & Tanda Tangan Digital Tersimpan */}
+      {/* Kolom Kanan: Form Profil & Tanda Tangan Saya */}
       <div className="lg:col-span-2 space-y-6">
         {/* Form Perubahan Profil */}
         <Card>
@@ -369,54 +472,88 @@ export function ProfileTab({
           </CardContent>
         </Card>
 
-        {/* Card Tanda Tangan Digital Tersimpan */}
+        {/* Card Tanda Tangan Saya */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-[#C81E1E]">
                   <Signature size={20} weight="bold" />
                 </div>
                 <div>
-                  <CardTitle>Tanda Tangan Digital Tersimpan</CardTitle>
+                  <CardTitle>Tanda Tangan Saya</CardTitle>
                   <CardDescription>
-                    Otorisasi tanda tangan digital untuk penandatanganan instan BAP &amp; LHPP di lapangan maupun kantor
+                    Tanda tangan digital resmi untuk pengesahan otomatis pada dokumen BAP &amp; LHPP tanpa tanda tangan berulang
                   </CardDescription>
                 </div>
               </div>
-              {currentSignatureUrl && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  <SealCheck size={14} weight="fill" />
-                  Aktif &amp; Siap Digunakan
-                </span>
-              )}
+
+              {/* Status Badge Dinamis */}
+              <div>
+                {isSignatureReady && (
+                  <Badge variant="success" className="gap-1 py-1 px-2.5">
+                    <SealCheck size={14} weight="fill" />
+                    <span>Tersimpan &amp; Siap Digunakan</span>
+                  </Badge>
+                )}
+                {isSignatureNeedUpdate && (
+                  <Badge variant="warning" className="gap-1 py-1 px-2.5">
+                    <WarningCircle size={14} weight="fill" />
+                    <span>Perlu Diperbarui (Gelar Belum Diisi)</span>
+                  </Badge>
+                )}
+                {isSignatureEmpty && (
+                  <Badge variant="neutral" className="gap-1 py-1 px-2.5">
+                    <WarningCircle size={14} weight="bold" />
+                    <span>Belum Tersedia</span>
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-200">
               <p className="leading-relaxed">
-                <strong>Efisiensi Pemeriksaan Lapangan:</strong> Dengan menyimpan tanda tangan digital di sini, Inspector/Ahli K3 dan Pimpinan dapat membubuhkan tanda tangan resmi hanya dengan <strong>1 klik tombol</strong> pada formulir BAP dan LHPP tanpa perlu mencoret layar secara manual berulang-ulang di lokasi riksa uji.
+                <strong>Otomatisasi Tanda Tangan Lapangan &amp; Kantor:</strong> Dengan menyimpan tanda tangan di sini, sistem secara otomatis menyematkan tanda tangan resmi Anda pada Berita Acara (BAP) dan Laporan Hasil Pemeriksaan (LHPP) yang Anda terbitkan tanpa perlu menggores layar berulang kali di lokasi riksa uji.
               </p>
             </div>
+
+            {saveSigError && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
+                <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
+                <span>{saveSigError}</span>
+              </div>
+            )}
 
             {/* Pratinjau Tanda Tangan yang Sudah Tersimpan */}
             {currentSignatureUrl && !showEditSig && (
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
-                <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Pratinjau Tanda Tangan Tersimpan:
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    Pratinjau Tanda Tangan Aktif:
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Proporsi Asli (Latar Transparan)
+                  </span>
                 </div>
-                <div className="h-32 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white flex items-center justify-center p-3 shadow-inner">
+
+                {/* Kanvas Motif Papan Catur untuk Menjamin Transparansi */}
+                <div
+                  style={checkerboardStyle}
+                  className="h-32 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center p-3 shadow-inner overflow-hidden"
+                >
                   <img
                     src={currentSignatureUrl}
                     alt="Tanda Tangan Tersimpan"
-                    className="max-h-24 max-w-full object-contain"
+                    className="max-h-24 max-w-full object-contain filter drop-shadow-xs"
                   />
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-1 border-t border-slate-200/80 dark:border-slate-800">
                   <div>
-                    <span className="text-slate-500 dark:text-slate-400">Jabatan Penandatangan: </span>
+                    <span className="text-slate-500 dark:text-slate-400">Gelar / Jabatan: </span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {user?.signerTitle || profileForm.signerTitle || 'Ahli K3 Spesialis / Pimpinan'}
+                      {user?.signerTitle || profileForm.signerTitle || '(Belum diatur)'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -463,6 +600,9 @@ export function ProfileTab({
                     placeholder="Contoh: Ahli K3 Spesialis Pesawat Angkat dan Angkut"
                     className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Gelar ini akan dicantumkan di bawah nama dan tanda tangan Anda pada BAP &amp; LHPP.
+                  </p>
                 </div>
 
                 {/* Switcher Tab: Gores Kanvas vs Unggah File */}
@@ -478,7 +618,7 @@ export function ProfileTab({
                       }`}
                     >
                       <PenNib size={14} weight="bold" />
-                      Gores di Kanvas (Layar / Mouse)
+                      Gores di Layar (Jari / Stylus / Mouse)
                     </button>
                     <button
                       type="button"
@@ -490,7 +630,7 @@ export function ProfileTab({
                       }`}
                     >
                       <UploadSimple size={14} weight="bold" />
-                      Unggah Berkas Gambar (PNG Transparan / JPG)
+                      Unggah Berkas Gambar (PNG / Foto Kertas)
                     </button>
                   </div>
 
@@ -533,25 +673,46 @@ export function ProfileTab({
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {/* Toggle Pembersihan Latar Putih Otomatis */}
+                      <label className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 text-xs text-amber-900 dark:text-amber-300 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={autoCleanBg}
+                          onChange={(e) => setAutoCleanBg(e.target.checked)}
+                          className="rounded border-amber-300 text-[#C81E1E] focus:ring-[#C81E1E]"
+                        />
+                        <div className="flex items-center gap-1.5 font-semibold">
+                          <Sparkle size={14} className="text-amber-600 dark:text-amber-400" weight="fill" />
+                          <span>Bersihkan &amp; Transparansikan Latar Kertas Putih Otomatis</span>
+                        </div>
+                      </label>
+
                       <div className="p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-center space-y-2">
-                        {uploadedSigPreview ? (
+                        {cleaningBg ? (
+                          <div className="py-6 text-center text-xs text-slate-500">
+                            Sedang memproses transparansi tanda tangan...
+                          </div>
+                        ) : uploadedSigPreview ? (
                           <div className="space-y-2">
-                            <div className="h-28 flex items-center justify-center bg-white rounded-lg p-2 border border-slate-200 dark:border-slate-700">
+                            <div
+                              style={checkerboardStyle}
+                              className="h-28 flex items-center justify-center rounded-lg p-2 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-inner"
+                            >
                               <img
                                 src={uploadedSigPreview}
                                 alt="Pratinjau Berkas"
-                                className="max-h-24 max-w-full object-contain mx-auto"
+                                className="max-h-24 max-w-full object-contain mx-auto filter drop-shadow-xs"
                               />
                             </div>
                             <p className="text-xs text-emerald-600 font-bold">
-                              Berkas terpilih: {uploadedSigFile?.name}
+                              Berkas siap: {uploadedSigFile?.name}
                             </p>
                           </div>
                         ) : (
                           <div className="py-4 space-y-2">
                             <UploadSimple size={32} className="mx-auto text-slate-400" />
                             <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                              Pilih berkas gambar tanda tangan berlatar belakang transparan (format PNG/JPG)
+                              Pilih berkas foto tanda tangan di atas kertas putih atau berkas PNG transparan
                             </p>
                           </div>
                         )}

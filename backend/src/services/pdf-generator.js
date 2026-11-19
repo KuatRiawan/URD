@@ -148,7 +148,7 @@ const TEMPLATE_BAP_COLUMNS = [
   ]
 ];
 
-function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
+function renderSingleBapPage(doc, bap, companyProfile = null) {
   const companyName = companyProfile?.company_name || 'PT. UPAYA RIKSA DAYA';
   const equipmentTitle = String(
     bap.equipment_subtype_name ||
@@ -184,17 +184,18 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
   }
 
   // Judul utama, nama jenis/alat langsung di bawah judul (menggantikan garis titik-titik), & nomor BAP
+  // Tanpa kode QR sesuai standar dokumen Berita Acara Riksa Uji (BAP)
   doc
     .font('Times-Bold')
     .fontSize(14)
     .fillColor('#1D1414')
-    .text('BERITA ACARA RIKSA UJI', 45, 70, { align: 'center', width: 450 });
+    .text('BERITA ACARA RIKSA UJI', 45, 70, { align: 'center', width: 505 });
 
   doc
     .font('Times-Bold')
     .fontSize(11.5)
     .fillColor('#8B262B')
-    .text(equipmentTitle, 45, 87, { align: 'center', width: 450 });
+    .text(equipmentTitle, 45, 87, { align: 'center', width: 505 });
 
   doc
     .font('Times-Roman')
@@ -204,14 +205,8 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
       `No: ${bap.bap_no || '...................................................'}`,
       45,
       102,
-      { align: 'center', width: 450 }
+      { align: 'center', width: 505 }
     );
-
-  if (qrBuffer) {
-    doc.image(qrBuffer, 505, 72, { width: 38, height: 38 });
-    doc.font('Times-Roman').fontSize(6).fillColor('#475569')
-      .text('Verifikasi', 499, 112, { align: 'center', width: 50 });
-  }
 
   // 2. Kalimat Pembuka (Hari, Tanggal, Bulan, Tahun)
   const dObj = bap.inspection_date ? new Date(bap.inspection_date) : new Date();
@@ -473,7 +468,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
 
   if (bap.inspector_signature_path && fs.existsSync(bap.inspector_signature_path)) {
     try {
-      doc.image(bap.inspector_signature_path, 125, sigTop + 21, { width: 80, height: 40 });
+      doc.image(bap.inspector_signature_path, 105, sigTop + 18, { fit: [120, 46], align: 'center' });
     } catch {
       // Abaikan jika berkas tanda tangan gagal dimuat
     }
@@ -481,7 +476,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
 
   if (bap.client_signature_path && fs.existsSync(bap.client_signature_path)) {
     try {
-      doc.image(bap.client_signature_path, 385, sigTop + 21, { width: 80, height: 40 });
+      doc.image(bap.client_signature_path, 375, sigTop + 18, { fit: [120, 46], align: 'center' });
     } catch {
       // Abaikan jika berkas tanda tangan gagal dimuat
     }
@@ -558,16 +553,7 @@ function renderSingleBapPage(doc, bap, qrBuffer, companyProfile = null) {
 
 export async function generateBapPdfBuffer(bapInput) {
   const companyProfile = await getCompanyProfile().catch(() => null);
-  const companyName = companyProfile?.company_name || 'PT UPAYA RIKSA DAYA';
   const bapList = Array.isArray(bapInput) ? bapInput : [bapInput];
-  const qrBuffers = await Promise.all(
-    bapList.map((b) => {
-      const qrText = b.verification_code
-        ? `https://upayariksadaya.com/verifikasi/${b.verification_code}`
-        : `${companyName} | BAP: ${b.bap_no || 'DRAF'} | PO: ${b.po_number || b.order_no || '-'} | SN: ${b.serial_number || '-'}`;
-      return QRCode.toBuffer(qrText, { width: 84, margin: 1 });
-    })
-  );
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 45 });
@@ -578,7 +564,7 @@ export async function generateBapPdfBuffer(bapInput) {
 
     bapList.forEach((bap, idx) => {
       if (idx > 0) doc.addPage();
-      renderSingleBapPage(doc, bap, qrBuffers[idx], companyProfile);
+      renderSingleBapPage(doc, bap, companyProfile);
     });
 
     doc.end();

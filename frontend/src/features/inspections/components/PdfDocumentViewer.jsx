@@ -8,6 +8,7 @@ import {
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   Printer,
+  ShareNetwork,
   WarningCircle
 } from '@phosphor-icons/react';
 
@@ -123,7 +124,8 @@ export function PdfDocumentViewer({
   title = 'Dokumen',
   filename,
   onDownload,
-  onPrint
+  onPrint,
+  onShare
 }) {
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -278,6 +280,19 @@ export function PdfDocumentViewer({
 
         {/* Sisi Kanan: Cetak & Unduh */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {onShare && (
+            <button
+              type="button"
+              onClick={onShare}
+              title="Bagikan Dokumen BAP"
+              aria-label="Bagikan Dokumen"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <ShareNetwork size={13} weight="bold" />
+              <span>Bagikan</span>
+            </button>
+          )}
+
           {onPrint && (
             <button
               type="button"

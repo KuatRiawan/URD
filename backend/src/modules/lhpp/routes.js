@@ -77,6 +77,10 @@ export async function fetchFullLhppContext(db, id) {
             lt.code AS template_code, lt.name AS template_name,
             oc.code AS category_code, oc.name AS category_name, oc.lhpp_schema,
             u_insp.full_name AS inspector_name,
+            u_insp.signature_file_id AS inspector_saved_sig_file_id,
+            u_insp.signature_url AS inspector_saved_sig_url,
+            u_insp.signer_title AS inspector_saved_signer_title,
+            u_insp_fa.storage_key AS inspector_saved_sig_storage_key,
             u_rev.full_name AS reviewer_name,
             u_app.full_name AS approver_name
      FROM lhpp_documents l
@@ -92,6 +96,7 @@ export async function fetchFullLhppContext(db, id) {
      LEFT JOIN lhpp_template_versions ltv ON ltv.id = l.template_version_id
      LEFT JOIN lhpp_templates lt ON lt.id = ltv.template_id
      JOIN users u_insp ON u_insp.id = i.inspector_id
+     LEFT JOIN file_attachments u_insp_fa ON u_insp_fa.id = u_insp.signature_file_id
      LEFT JOIN users u_rev ON u_rev.id = l.reviewed_by
      LEFT JOIN users u_app ON u_app.id = l.approved_by
      WHERE l.id = $1`,
@@ -155,6 +160,11 @@ export async function fetchFullLhppContext(db, id) {
   const inspSigRow = signaturesRes.rows.find((s) => ['INSPECTOR', 'AHLI_K3'].includes(s.signer_role));
   const clientSigRow = signaturesRes.rows.find((s) => ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role));
 
+  const effectiveInspSigFileId = inspSigRow?.file_id || base.inspector_saved_sig_file_id || null;
+  const effectiveInspSigStorageKey = inspSigRow?.sig_storage_key || (!inspSigRow?.file_id ? base.inspector_saved_sig_storage_key : null) || null;
+  const effectiveInspSignerName = inspSigRow?.signer_name || base.inspector_name;
+  const effectiveInspSignerTitle = inspSigRow?.signer_title || base.inspector_saved_signer_title || 'Ahli K3 Spesialis';
+
   const compRes = await runner(
     `SELECT certificate_no
      FROM inspector_competencies
@@ -167,10 +177,13 @@ export async function fetchFullLhppContext(db, id) {
   return {
     ...base,
     inspector_skp_no: compRes.rows[0]?.certificate_no || null,
-    inspector_signer_name: inspSigRow?.signer_name || base.inspector_name,
-    inspector_signature_file_id: inspSigRow?.file_id || null,
-    inspector_sig_file_id: inspSigRow?.file_id || null,
-    inspector_signature_path: inspSigRow?.sig_storage_key ? resolveAttachmentPath(inspSigRow.sig_storage_key) : null,
+    inspector_signer_name: effectiveInspSignerName,
+    inspector_signer_title: effectiveInspSignerTitle,
+    inspector_signature_file_id: effectiveInspSigFileId,
+    inspector_sig_file_id: effectiveInspSigFileId,
+    inspector_signature_path: effectiveInspSigStorageKey ? resolveAttachmentPath(effectiveInspSigStorageKey) : null,
+    inspector_has_saved_sig: Boolean(base.inspector_saved_sig_file_id),
+    inspector_saved_sig_url: base.inspector_saved_sig_url || null,
     inspector_signed_at: inspSigRow?.signed_at || null,
     client_signer_name: clientSigRow?.signer_name || null,
     client_signature_file_id: clientSigRow?.file_id || null,
@@ -742,6 +755,21 @@ router.post(
             'LHPP_VALIDATION_FAILED',
             `Dokumen LHPP belum dapat difinalisasi karena masih ada data wajib yang belum lengkap: ${validation.missingFields.map((f) => f.label).join(', ')}.`,
             { missingFields: validation.missingFields }
+          );
+        }
+
+        // Simpan snapshot tanda tangan tersimpan Inspector ke inspection_signatures jika belum ada
+        if (cur.effectiveInspSigFileId && !cur.inspector_signature_file_id && cur.inspection_id) {
+          await db.query(
+            `INSERT INTO inspection_signatures (inspection_id, signer_role, signer_name, signer_title, signature_file_id)
+             VALUES ($1, 'AHLI_K3', $2, $3, $4)
+             ON CONFLICT (inspection_id, signer_role) DO NOTHING`,
+            [
+              cur.inspection_id,
+              cur.effectiveInspSignerName || cur.inspector_name,
+              cur.effectiveInspSignerTitle || 'Ahli K3 Pemeriksa',
+              cur.effectiveInspSigFileId
+            ]
           );
         }
 

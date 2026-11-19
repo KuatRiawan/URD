@@ -75,6 +75,10 @@ export async function fetchFullBapContext(db, id) {
             oc.code AS category_code, oc.name AS category_name,
             oc.default_bap_scopes, oc.lhpp_schema,
             u_insp.full_name AS inspector_name,
+            u_insp.signature_file_id AS inspector_saved_sig_file_id,
+            u_insp.signature_url AS inspector_saved_sig_url,
+            u_insp.signer_title AS inspector_saved_signer_title,
+            u_insp_fa.storage_key AS inspector_saved_sig_storage_key,
             f_insp.storage_key AS inspector_sig_storage_key,
             f_cli.storage_key AS client_sig_storage_key,
             l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status
@@ -88,6 +92,7 @@ export async function fetchFullBapContext(db, id) {
      LEFT JOIN equipment_types eq ON eq.id = COALESCE(t.equipment_name_id, t.equipment_type_id)
      LEFT JOIN equipment_types sub ON sub.id = t.equipment_subtype_id
      JOIN users u_insp ON u_insp.id = i.inspector_id
+     LEFT JOIN file_attachments u_insp_fa ON u_insp_fa.id = u_insp.signature_file_id
      LEFT JOIN file_attachments f_insp ON f_insp.id = b.inspector_signature_file_id
      LEFT JOIN file_attachments f_cli ON f_cli.id = b.client_signature_file_id
      LEFT JOIN lhpp_documents l ON l.inspection_id = b.inspection_id
@@ -109,6 +114,15 @@ export async function fetchFullBapContext(db, id) {
     bap.document_data && typeof bap.document_data === 'object' && !Array.isArray(bap.document_data)
       ? bap.document_data
       : {};
+
+  const effectiveInspectorSigFileId =
+    bap.inspector_signature_file_id || bap.inspector_saved_sig_file_id || null;
+  const effectiveInspectorSigStorageKey =
+    bap.inspector_sig_storage_key || (!bap.inspector_signature_file_id ? bap.inspector_saved_sig_storage_key : null) || null;
+  const effectiveInspectorSignerName =
+    bap.inspector_signer_name || bap.inspector_name;
+  const effectiveInspectorSignerTitle =
+    bap.inspector_signer_title || bap.inspector_saved_signer_title || 'Ahli K3 Spesialis';
 
   return {
     ...bap,
@@ -142,11 +156,19 @@ export async function fetchFullBapContext(db, id) {
         ? true
         : null,
     inspection_notes: overrides.notes !== undefined ? overrides.notes : (bap.notes || ''),
-    inspector_sig_file_id: bap.inspector_signature_file_id,
-    client_sig_file_id: bap.client_signature_file_id,
-    inspector_signature_path: bap.inspector_sig_storage_key
-      ? resolveAttachmentPath(bap.inspector_sig_storage_key)
+    inspector_sig_file_id: effectiveInspectorSigFileId,
+    inspector_signature_file_id: effectiveInspectorSigFileId,
+    inspector_signer_name: effectiveInspectorSignerName,
+    inspector_signer_title: effectiveInspectorSignerTitle,
+    effectiveInspectorSignerName,
+    effectiveInspectorSignerTitle,
+    inspector_signature_path: effectiveInspectorSigStorageKey
+      ? resolveAttachmentPath(effectiveInspectorSigStorageKey)
       : null,
+    inspector_has_saved_sig: Boolean(bap.inspector_saved_sig_file_id),
+    inspector_saved_sig_url: bap.inspector_saved_sig_url || null,
+    inspector_saved_signer_title: bap.inspector_saved_signer_title || null,
+    client_sig_file_id: bap.client_signature_file_id,
     client_signature_path: bap.client_sig_storage_key
       ? resolveAttachmentPath(bap.client_sig_storage_key)
       : null,
@@ -744,6 +766,17 @@ router.post(
           );
         }
 
+        // Pastikan aset tanda tangan tersimpan terpatri secara permanen pada record BAP jika sebelumnya mengacu pada profil
+        await db.query(
+          `UPDATE bap_documents
+           SET inspector_signature_file_id = COALESCE(inspector_signature_file_id, $1),
+               inspector_signer_name = COALESCE(inspector_signer_name, $2),
+               inspector_signer_title = COALESCE(inspector_signer_title, $3),
+               inspector_signed_at = COALESCE(inspector_signed_at, now())
+           WHERE id = $4`,
+          [cur.inspector_signature_file_id, cur.inspector_signer_name, cur.inspector_signer_title, id]
+        );
+
         const verificationCode = cur.verification_code || `URD-BAP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
         const pdfBuffer = await generateBapPdfBuffer({ ...cur, status: 'FINAL', verification_code: verificationCode });
         const docHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
@@ -943,7 +976,7 @@ router.post(
 
         const { rows } = await db.query(
           `UPDATE bap_documents
-           SET status = 'REVISI', version = $1, updated_at = now()
+           SET status = 'REVISI', version = $1, pdf_file_id = NULL, updated_at = now()
            WHERE id = $2
            RETURNING *`,
           [nextVer, id]
@@ -987,14 +1020,17 @@ router.get('/:id/pdf', async (req, res, next) => {
       throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
     }
     let buf;
-    if (bap.pdf_file_id) {
+    if (bap.status === 'FINAL' && bap.pdf_file_id) {
       const { rows } = await query(
         `SELECT storage_key FROM file_attachments
          WHERE id = $1 AND owner_type = 'BAP_PDF' AND owner_id = $2 AND deleted_at IS NULL`,
         [bap.pdf_file_id, bap.id]
       );
-      if (!rows[0]) throw new AppError(404, 'BAP_PDF_NOT_FOUND', 'Berkas BAP final tidak ditemukan.');
-      buf = await readFile(resolveAttachmentPath(rows[0].storage_key));
+      if (rows[0]) {
+        buf = await readFile(resolveAttachmentPath(rows[0].storage_key));
+      } else {
+        buf = await generateBapPdfBuffer(bap);
+      }
     } else {
       buf = await generateBapPdfBuffer(bap);
     }
@@ -1025,6 +1061,41 @@ router.get('/:id/docx', async (req, res, next) => {
     );
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.send(docxBuffer);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/:id/share-log', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { shareMethod, method, recipient, notes } = req.body || {};
+    const bap = await fetchFullBapContext({ query }, id);
+    if (!bap) throw new AppError(404, 'BAP_NOT_FOUND', 'Dokumen BAP tidak ditemukan.');
+    const hasAccess = await canAccessBap({ query }, bap, req.user);
+    if (!hasAccess) {
+      throw new AppError(403, 'FORBIDDEN', 'Akses ditolak.');
+    }
+
+    await recordAudit({
+      userId: req.user.id,
+      action: 'BAP_SHARE',
+      entity: 'bap_documents',
+      entityId: id,
+      summary: {
+        bapNo: bap.bap_no,
+        orderId: bap.order_id,
+        objectId: bap.object_id,
+        objectName: bap.object_name,
+        clientName: bap.client_name,
+        shareMethod: shareMethod || method || 'NATIVE_OR_LINK',
+        recipient: recipient || null,
+        notes: notes || null
+      },
+      ip: req.ip
+    });
+
+    return res.json({ message: 'Riwayat pembagian BAP berhasil dicatat.' });
   } catch (err) {
     return next(err);
   }

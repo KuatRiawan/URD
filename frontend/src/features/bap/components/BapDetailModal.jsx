@@ -11,6 +11,7 @@ import {
   PencilSimple,
   PenNib,
   SealCheck,
+  ShareNetwork,
   WarningCircle,
   Wrench
 } from '@phosphor-icons/react';
@@ -45,6 +46,7 @@ export function BapDetailModal({
   handleDownloadPdf,
   handleDownloadDocx,
   handleDownloadBatchPoPdf,
+  onShareBap,
   submitting,
   navigate
 }) {
@@ -53,6 +55,18 @@ export function BapDetailModal({
   const [sigError, setSigError] = useState('');
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const isDrawingRef = useRef(false);
+
+  const handleTriggerPreview = async () => {
+    if (!selectedBap) return;
+    if (isEditable && handleSaveDraft && bapEditForm) {
+      try {
+        await handleSaveDraft(null, bapEditForm);
+      } catch {
+        // Lanjutkan pratinjau data terakhir
+      }
+    }
+    handlePreviewPdf(selectedBap.id, (bapEditForm?.bap_no) || selectedBap.bap_no);
+  };
 
   const handleApplySavedSignature = () => {
     if (!user?.signatureUrl) return;
@@ -609,9 +623,20 @@ export function BapDetailModal({
                       </div>
                     )}
                   </div>
-                  <Badge variant={selectedBap.inspector_sig_file_id ? 'success' : 'warning'}>
-                    {selectedBap.inspector_sig_file_id ? 'Sudah TTD' : 'Belum TTD'}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={selectedBap.inspector_sig_file_id ? 'success' : selectedBap.inspector_has_saved_sig ? 'info' : 'warning'}>
+                      {selectedBap.inspector_sig_file_id
+                        ? 'Sudah TTD'
+                        : selectedBap.inspector_has_saved_sig
+                        ? 'Siap Digunakan'
+                        : 'Belum TTD'}
+                    </Badge>
+                    {Boolean(!selectedBap.inspector_sig_file_id && selectedBap.inspector_has_saved_sig) && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                        Tersimpan di profil
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-2.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -796,10 +821,21 @@ export function BapDetailModal({
                     variant="secondary"
                     size="sm"
                     icon={Eye}
-                    onClick={() => handlePreviewPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
+                    onClick={handleTriggerPreview}
                   >
                     Pratinjau PDF
                   </Button>
+                  {onShareBap && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      icon={ShareNetwork}
+                      onClick={() => onShareBap(selectedBap)}
+                    >
+                      Bagikan BAP
+                    </Button>
+                  )}
                   <ActionMenu
                     label="Aksi &amp; Berkas Lainnya"
                     items={[

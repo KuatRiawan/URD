@@ -1,4 +1,4 @@
-import { Eye, FileDoc, FilePdf } from '@phosphor-icons/react';
+import { Eye, FileDoc, FilePdf, ShareNetwork } from '@phosphor-icons/react';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { ActionMenu } from '../../../components/ui/ActionMenu.jsx';
@@ -11,7 +11,7 @@ import {
 } from '../../../components/ui/TableWrapper.jsx';
 import { formatDate } from '../../../lib/utils/format.js';
 
-export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx, onOpenDetail }) {
+export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx, onOpenDetail, onShareBap }) {
   return (
     <div className="space-y-4">
       {/* Tampilan Mobile: Kartu Berita Acara BAP */}
@@ -99,6 +99,12 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx,
                     label: 'Pratinjau PDF',
                     icon: Eye,
                     onClick: () => onPreviewPdf(b.id, b.bap_no)
+                  },
+                  onShareBap && {
+                    key: 'share',
+                    label: 'Bagikan BAP',
+                    icon: ShareNetwork,
+                    onClick: () => onShareBap(b)
                   },
                   {
                     key: 'pdf',
@@ -190,6 +196,12 @@ export function BapTable({ bapList, onPreviewPdf, onDownloadPdf, onDownloadDocx,
                           label: 'Pratinjau PDF',
                           icon: Eye,
                           onClick: () => onPreviewPdf(b.id, b.bap_no)
+                        },
+                        onShareBap && {
+                          key: 'share',
+                          label: 'Bagikan BAP',
+                          icon: ShareNetwork,
+                          onClick: () => onShareBap(b)
                         },
                         {
                           key: 'pdf',
