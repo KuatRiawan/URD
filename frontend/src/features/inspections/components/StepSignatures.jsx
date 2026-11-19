@@ -4,6 +4,7 @@ import {
   CircleNotch,
   FloppyDisk,
   PaperPlaneTilt,
+  PenNib,
   SealCheck,
   Signature
 } from '@phosphor-icons/react';
@@ -23,6 +24,7 @@ function formatSigTime(ts) {
 }
 
 export function StepSignatures({
+  user,
   inspectorSig,
   inspectorSigName,
   setInspectorSigName,
@@ -33,6 +35,7 @@ export function StepSignatures({
   onInspectorPointerMove,
   onInspectorPointerUp,
   onClearInspectorCanvas,
+  onApplySavedSignature,
   onSaveInspectorSignature,
   reSigningInspector,
   setReSigningInspector,
@@ -141,10 +144,33 @@ export function StepSignatures({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <span className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                Goreskan Tanda Tangan di Kotak Berikut:
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Goreskan Tanda Tangan di Kotak Berikut:
+                </span>
+                {user?.signatureUrl ? (
+                  <button
+                    type="button"
+                    onClick={onApplySavedSignature}
+                    disabled={savingInspector || submitting}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-bold text-[#C81E1E] dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    <PenNib size={13} weight="bold" />
+                    <span>Terapkan TTD Tersimpan Saya</span>
+                  </button>
+                ) : (
+                  <a
+                    href="/app/settings?tab=profile"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] font-semibold text-slate-500 hover:text-[#C81E1E] dark:text-slate-400 dark:hover:text-rose-400 underline inline-flex items-center gap-1"
+                  >
+                    <PenNib size={12} />
+                    <span>Simpan TTD di Profil</span>
+                  </a>
+                )}
+              </div>
               <div
                 style={{ touchAction: 'none' }}
                 className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center shadow-inner"

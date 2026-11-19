@@ -1,8 +1,34 @@
-import { useRef } from 'react';
-import { Camera, CheckCircle, WarningCircle } from '@phosphor-icons/react';
+import { useState, useRef, useEffect } from 'react';
+import {
+  Camera,
+  CheckCircle,
+  WarningCircle,
+  Signature,
+  PenNib,
+  UploadSimple,
+  Trash,
+  Eraser,
+  SealCheck,
+  ArrowClockwise
+} from '@phosphor-icons/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
 import { ROLE_LABELS, formatDate } from '../../../lib/utils/format.js';
+
+function hasCanvasDrawing(canvas) {
+  if (!canvas) return false;
+  try {
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 20) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 export function ProfileTab({
   user,
@@ -13,15 +39,143 @@ export function ProfileTab({
   profileError,
   onUpdateProfile,
   onAvatarUpload,
+  onSaveSignature,
+  onDeleteSignature,
+  signatureLoading = false,
   getRoleBadgeColor
 }) {
   const fileInputRef = useRef(null);
+  const sigFileInputRef = useRef(null);
+  const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+
+  const [sigMode, setSigMode] = useState('draw'); // 'draw' | 'upload'
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [uploadedSigFile, setUploadedSigFile] = useState(null);
+  const [uploadedSigPreview, setUploadedSigPreview] = useState(null);
+  const [signerTitleInput, setSignerTitleInput] = useState(
+    user?.signerTitle || profileForm.signerTitle || ''
+  );
+  const [showEditSig, setShowEditSig] = useState(!user?.signatureUrl);
+
   const avatarSrc = profileForm.avatarUrl || user?.avatarUrl;
+  const currentSignatureUrl = user?.signatureUrl;
+
+  useEffect(() => {
+    if (user?.signerTitle) {
+      setSignerTitleInput(user.signerTitle);
+    }
+  }, [user?.signerTitle]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file && onAvatarUpload) {
       onAvatarUpload(file);
+    }
+  };
+
+  const handleSigFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedSigFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setUploadedSigPreview(objectUrl);
+    }
+  };
+
+  // Canvas Drawing Handlers
+  const handlePointerDown = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      e.target.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+    isDrawingRef.current = true;
+    setHasDrawn(true);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDrawingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
+    const ctx = canvas.getContext('2d');
+    ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+    ctx.stroke();
+  };
+
+  const handlePointerUp = (e) => {
+    if (isDrawingRef.current) {
+      isDrawingRef.current = false;
+      try {
+        if (e.target.hasPointerCapture?.(e.pointerId)) {
+          e.target.releasePointerCapture?.(e.pointerId);
+        }
+      } catch {
+        // ignore
+      }
+      const canvas = canvasRef.current;
+      if (canvas && hasCanvasDrawing(canvas)) {
+        setHasDrawn(true);
+      }
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  };
+
+  const handleSubmitSignature = async (e) => {
+    e.preventDefault();
+    if (!onSaveSignature) return;
+
+    if (sigMode === 'draw') {
+      const canvas = canvasRef.current;
+      if (!canvas || !hasDrawn) {
+        alert('Silakan goreskan tanda tangan pada kanvas terlebih dahulu.');
+        return;
+      }
+      const dataUrl = canvas.toDataURL('image/png');
+      const ok = await onSaveSignature({
+        dataUrl,
+        signerTitle: signerTitleInput.trim()
+      });
+      if (ok) {
+        setShowEditSig(false);
+        clearCanvas();
+      }
+    } else {
+      if (!uploadedSigFile) {
+        alert('Silakan pilih berkas gambar tanda tangan terlebih dahulu.');
+        return;
+      }
+      const ok = await onSaveSignature({
+        file: uploadedSigFile,
+        signerTitle: signerTitleInput.trim()
+      });
+      if (ok) {
+        setShowEditSig(false);
+        setUploadedSigFile(null);
+        setUploadedSigPreview(null);
+      }
     }
   };
 
@@ -110,86 +264,342 @@ export function ProfileTab({
         </Card>
       </div>
 
-      {/* Form Perubahan Profil */}
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Perbarui Informasi Pribadi</CardTitle>
-          <CardDescription>
-            Sesuaikan nama lengkap dan kontak yang digunakan pada dokumen operasional
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {profileError && (
-            <div className="mb-4 flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
-              <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
-              <span>{profileError}</span>
-            </div>
-          )}
+      {/* Kolom Kanan: Form Profil & Tanda Tangan Digital Tersimpan */}
+      <div className="lg:col-span-2 space-y-6">
+        {/* Form Perubahan Profil */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Perbarui Informasi Pribadi</CardTitle>
+            <CardDescription>
+              Sesuaikan nama lengkap dan kontak yang digunakan pada dokumen operasional
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {profileError && (
+              <div className="mb-4 flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-400 font-medium">
+                <WarningCircle size={15} className="shrink-0 text-[#C81E1E]" weight="bold" />
+                <span>{profileError}</span>
+              </div>
+            )}
 
-          <form onSubmit={onUpdateProfile} className="space-y-4">
-            <div>
-              <label
-                htmlFor="emailDisabled"
-                className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
-              >
-                Alamat Email (Akun Utama)
-              </label>
-              <input
-                id="emailDisabled"
-                type="email"
-                disabled
-                value={user?.email || ''}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 cursor-not-allowed"
-              />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Alamat email terdaftar terkunci secara sistem dan hanya dapat diubah oleh Administrator Utama.
+            <form onSubmit={onUpdateProfile} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="emailDisabled"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Alamat Email (Akun Utama)
+                </label>
+                <input
+                  id="emailDisabled"
+                  type="email"
+                  disabled
+                  value={user?.email || ''}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Alamat email terdaftar terkunci secara sistem dan hanya dapat diubah oleh Administrator Utama.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="fullName"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Nama Lengkap Beserta Gelar *
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  required
+                  value={profileForm.fullName}
+                  onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Contoh: Ir. Budi Santoso, S.T., M.K3"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="phone"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Nomor Telepon / WhatsApp
+                </label>
+                <input
+                  id="phone"
+                  type="text"
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Contoh: 081234567890"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="signerTitleProfile"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Gelar / Jabatan Penandatangan Standar
+                </label>
+                <input
+                  id="signerTitleProfile"
+                  type="text"
+                  value={profileForm.signerTitle || ''}
+                  onChange={(e) => {
+                    setProfileForm({ ...profileForm, signerTitle: e.target.value });
+                    setSignerTitleInput(e.target.value);
+                  }}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Contoh: Ahli K3 Spesialis Pesawat Angkat dan Angkut / Direktur Utama"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Jabatan ini akan otomatis dicantumkan di bawah nama Anda pada berkas BAP dan LHPP resmi.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <Button type="submit" variant="primary" loading={profileLoading}>
+                  Simpan Perubahan Profil
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Card Tanda Tangan Digital Tersimpan */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-[#C81E1E]">
+                  <Signature size={20} weight="bold" />
+                </div>
+                <div>
+                  <CardTitle>Tanda Tangan Digital Tersimpan</CardTitle>
+                  <CardDescription>
+                    Otorisasi tanda tangan digital untuk penandatanganan instan BAP &amp; LHPP di lapangan maupun kantor
+                  </CardDescription>
+                </div>
+              </div>
+              {currentSignatureUrl && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <SealCheck size={14} weight="fill" />
+                  Aktif &amp; Siap Digunakan
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-200">
+              <p className="leading-relaxed">
+                <strong>Efisiensi Pemeriksaan Lapangan:</strong> Dengan menyimpan tanda tangan digital di sini, Inspector/Ahli K3 dan Pimpinan dapat membubuhkan tanda tangan resmi hanya dengan <strong>1 klik tombol</strong> pada formulir BAP dan LHPP tanpa perlu mencoret layar secara manual berulang-ulang di lokasi riksa uji.
               </p>
             </div>
 
-            <div>
-              <label
-                htmlFor="fullName"
-                className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
-              >
-                Nama Lengkap Beserta Gelar
-              </label>
-              <input
-                id="fullName"
-                type="text"
-                required
-                value={profileForm.fullName}
-                onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                placeholder="Contoh: Ir. Budi Santoso, S.T., M.K3"
-              />
-            </div>
+            {/* Pratinjau Tanda Tangan yang Sudah Tersimpan */}
+            {currentSignatureUrl && !showEditSig && (
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+                <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Pratinjau Tanda Tangan Tersimpan:
+                </div>
+                <div className="h-32 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white flex items-center justify-center p-3 shadow-inner">
+                  <img
+                    src={currentSignatureUrl}
+                    alt="Tanda Tangan Tersimpan"
+                    className="max-h-24 max-w-full object-contain"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400">Jabatan Penandatangan: </span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {user?.signerTitle || profileForm.signerTitle || 'Ahli K3 Spesialis / Pimpinan'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowEditSig(true)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                    >
+                      <ArrowClockwise size={13} weight="bold" />
+                      Ganti Tanda Tangan
+                    </button>
+                    {onDeleteSignature && (
+                      <button
+                        type="button"
+                        onClick={onDeleteSignature}
+                        disabled={signatureLoading}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer transition-colors disabled:opacity-50"
+                      >
+                        <Trash size={13} weight="bold" />
+                        Hapus
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
-              >
-                Nomor Telepon / WhatsApp
-              </label>
-              <input
-                id="phone"
-                type="text"
-                value={profileForm.phone}
-                onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                placeholder="Contoh: 081234567890"
-              />
-            </div>
+            {/* Form Gores atau Unggah Tanda Tangan */}
+            {showEditSig && (
+              <form onSubmit={handleSubmitSignature} className="space-y-4 pt-1">
+                <div>
+                  <label
+                    htmlFor="signerTitleInput"
+                    className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
+                  >
+                    Gelar / Spesialisasi Penandatangan Standar *
+                  </label>
+                  <input
+                    id="signerTitleInput"
+                    type="text"
+                    required
+                    value={signerTitleInput}
+                    onChange={(e) => setSignerTitleInput(e.target.value)}
+                    placeholder="Contoh: Ahli K3 Spesialis Pesawat Angkat dan Angkut"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
 
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-              <Button type="submit" variant="primary" loading={profileLoading}>
-                Simpan Perubahan Profil
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                {/* Switcher Tab: Gores Kanvas vs Unggah File */}
+                <div>
+                  <div className="flex border-b border-slate-200 dark:border-slate-700 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setSigMode('draw')}
+                      className={`pb-2 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                        sigMode === 'draw'
+                          ? 'border-[#C81E1E] text-[#C81E1E]'
+                          : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                      }`}
+                    >
+                      <PenNib size={14} weight="bold" />
+                      Gores di Kanvas (Layar / Mouse)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSigMode('upload')}
+                      className={`pb-2 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                        sigMode === 'upload'
+                          ? 'border-[#C81E1E] text-[#C81E1E]'
+                          : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                      }`}
+                    >
+                      <UploadSimple size={14} weight="bold" />
+                      Unggah Berkas Gambar (PNG Transparan / JPG)
+                    </button>
+                  </div>
+
+                  {sigMode === 'draw' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          Goreskan tanda tangan Anda pada kotak berikut:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={clearCanvas}
+                          className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-[#C81E1E] cursor-pointer font-bold"
+                        >
+                          <Eraser size={13} weight="bold" />
+                          Bersihkan Kanvas
+                        </button>
+                      </div>
+
+                      <div
+                        style={{ touchAction: 'none' }}
+                        className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white overflow-hidden p-1 flex justify-center shadow-inner relative"
+                      >
+                        <canvas
+                          ref={canvasRef}
+                          width={440}
+                          height={140}
+                          onPointerDown={handlePointerDown}
+                          onPointerMove={handlePointerMove}
+                          onPointerUp={handlePointerUp}
+                          onPointerLeave={handlePointerUp}
+                          className="cursor-crosshair touch-none w-full max-w-[440px] h-[140px]"
+                        />
+                        {!hasDrawn && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-xs text-slate-400">
+                            Tanda tangani di sini dengan jari, stylus, atau kursor mouse
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-center space-y-2">
+                        {uploadedSigPreview ? (
+                          <div className="space-y-2">
+                            <div className="h-28 flex items-center justify-center bg-white rounded-lg p-2 border border-slate-200 dark:border-slate-700">
+                              <img
+                                src={uploadedSigPreview}
+                                alt="Pratinjau Berkas"
+                                className="max-h-24 max-w-full object-contain mx-auto"
+                              />
+                            </div>
+                            <p className="text-xs text-emerald-600 font-bold">
+                              Berkas terpilih: {uploadedSigFile?.name}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="py-4 space-y-2">
+                            <UploadSimple size={32} className="mx-auto text-slate-400" />
+                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                              Pilih berkas gambar tanda tangan berlatar belakang transparan (format PNG/JPG)
+                            </p>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => sigFileInputRef.current?.click()}
+                          className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                        >
+                          {uploadedSigFile ? 'Pilih Berkas Lain' : 'Pilih Berkas Tanda Tangan'}
+                        </button>
+                        <input
+                          type="file"
+                          ref={sigFileInputRef}
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleSigFileChange}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  {currentSignatureUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEditSig(false)}
+                      disabled={signatureLoading}
+                      className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={signatureLoading}
+                    icon={PenNib}
+                  >
+                    Simpan Tanda Tangan Digital
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
-

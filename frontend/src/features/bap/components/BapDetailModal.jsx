@@ -23,6 +23,7 @@ import { Modal } from '../../../components/ui/Modal.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
 export function BapDetailModal({
+  user = null,
   selectedBap,
   onClose,
   detailLoading,
@@ -52,6 +53,43 @@ export function BapDetailModal({
   const [sigError, setSigError] = useState('');
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const isDrawingRef = useRef(false);
+
+  const handleApplySavedSignature = () => {
+    if (!user?.signatureUrl) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    setSigForm((prev) => ({
+      ...prev,
+      signerRole: 'AHLI_K3',
+      signerName: user.fullName || prev.signerName,
+      signerTitle: user.signerTitle || prev.signerTitle || 'Ahli K3 Spesialis'
+    }));
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const padding = 10;
+      const maxWidth = canvas.width - padding * 2;
+      const maxHeight = canvas.height - padding * 2;
+      let w = img.width;
+      let h = img.height;
+      const ratio = Math.min(maxWidth / w, maxHeight / h, 1);
+      w *= ratio;
+      h *= ratio;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+      setHasDrawn(true);
+      setSigError('');
+    };
+    img.onerror = () => {
+      setSigError('Gagal memuat berkas tanda tangan tersimpan dari profil.');
+    };
+    img.src = user.signatureUrl;
+  };
 
   const getCoordinates = (e) => {
     const canvas = canvasRef.current;
@@ -666,10 +704,22 @@ export function BapDetailModal({
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        Kotak Tanda Tangan:
-                      </span>
+                    <div className="flex items-center justify-between text-[11px] gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          Kotak Tanda Tangan:
+                        </span>
+                        {sigForm.signerRole === 'AHLI_K3' && user?.signatureUrl && (
+                          <button
+                            type="button"
+                            onClick={handleApplySavedSignature}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:bg-rose-100 cursor-pointer"
+                          >
+                            <PenNib size={12} weight="bold" />
+                            <span>Gunakan TTD Tersimpan</span>
+                          </button>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={clearCanvas}

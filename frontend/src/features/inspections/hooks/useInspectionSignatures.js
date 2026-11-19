@@ -25,7 +25,7 @@ export function useInspectionSignatures({
   setSubmitting: externalSetSubmitting
 }) {
   const [inspectorSigName, setInspectorSigName] = useState(user?.fullName || 'Ir. Budi Santoso');
-  const [inspectorSigTitle, setInspectorSigTitle] = useState('Ahli K3 Spesialis');
+  const [inspectorSigTitle, setInspectorSigTitle] = useState(user?.signerTitle || 'Ahli K3 Spesialis');
   const [clientSigName, setClientSigName] = useState('');
   const [clientSigTitle, setClientSigTitle] = useState('Pemilik Alat / PIC Klien');
   const [reSigningInspector, setReSigningInspector] = useState(false);
@@ -48,7 +48,7 @@ export function useInspectionSignatures({
 
   const initSignatures = (data) => {
     setInspectorSigName(user?.fullName || 'Ir. Budi Santoso');
-    setInspectorSigTitle('Ahli K3 Spesialis');
+    setInspectorSigTitle(user?.signerTitle || 'Ahli K3 Spesialis');
     setClientSigName(data.inspection?.contact_name || '');
     setClientSigTitle('Pemilik Alat / PIC Klien');
     setHasDrawnInspectorSig(false);
@@ -59,6 +59,43 @@ export function useInspectionSignatures({
     setSigErrorClient('');
     setSigFeedbackInspector('');
     setSigFeedbackClient('');
+  };
+
+  const handleApplySavedSignature = () => {
+    if (!user?.signatureUrl) {
+      setSigErrorInspector('Anda belum menyimpan tanda tangan digital di Pengaturan Profil.');
+      return;
+    }
+    const canvas = inspectorCanvasRef.current;
+    if (!canvas) return;
+
+    if (user.fullName) setInspectorSigName(user.fullName);
+    if (user.signerTitle) setInspectorSigTitle(user.signerTitle);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const padding = 10;
+      const maxWidth = canvas.width - padding * 2;
+      const maxHeight = canvas.height - padding * 2;
+      let w = img.width;
+      let h = img.height;
+      const ratio = Math.min(maxWidth / w, maxHeight / h, 1);
+      w *= ratio;
+      h *= ratio;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+      setHasDrawnInspectorSig(true);
+      setSigErrorInspector('');
+      setSigFeedbackInspector('Tanda tangan digital tersimpan berhasil diterapkan ke kanvas. Klik "Simpan TTD Ahli K3" untuk mengonfirmasi.');
+    };
+    img.onerror = () => {
+      setSigErrorInspector('Gagal memuat berkas tanda tangan tersimpan dari profil.');
+    };
+    img.src = user.signatureUrl;
   };
 
   const clearInspectorCanvas = () => {
@@ -302,6 +339,7 @@ export function useInspectionSignatures({
     hasDrawnClientSig,
     initSignatures,
     clearInspectorCanvas,
+    handleApplySavedSignature,
     handleInspectorPointerDown,
     handleInspectorPointerMove,
     handleInspectorPointerUp,

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { Router } from 'express';
 import Joi from 'joi';
 import { query, withTransaction } from '../../database/pool.js';
@@ -11,7 +12,7 @@ import { generateBapDocxBuffer, generateLhppDocxBuffer } from '../../services/do
 import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
 import { recordActivityHistory } from '../../services/inspection-activities.js';
-import { saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
+import { resolveAttachmentPath, saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
 import { fetchFullBapContext } from '../bap/routes.js';
 import { fetchFullLhppContext } from '../lhpp/routes.js';
@@ -234,8 +235,9 @@ const signatureSchema = Joi.object({
     .required(),
   signerName: Joi.string().min(2).max(120).required(),
   signerTitle: Joi.string().max(120).allow('', null),
-  dataUrl: Joi.string().min(30).required()
-});
+  dataUrl: Joi.string().min(30).allow('', null).optional(),
+  useSavedSignature: Joi.boolean().optional()
+}).or('dataUrl', 'useSavedSignature');
 
 const reopenSchema = Joi.object({
   reason: Joi.string().min(5).max(500).required(),
@@ -1870,20 +1872,53 @@ router.post(
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { signerRole, signerName, signerTitle, dataUrl } = req.body;
+      const { signerRole, signerName, signerTitle, dataUrl, useSavedSignature } = req.body;
 
       const sig = await withTransaction(async (db) => {
         await assertEditableInspection(db, id, req.user);
-        const file = await saveDataUrlPng(
-          {
-            dataUrl,
-            ownerType: 'INSPECTION_SIGNATURE',
-            ownerId: id,
-            originalName: `ttd-${signerRole.toLowerCase()}.png`,
-            uploadedBy: req.user.id
-          },
-          db
-        );
+        let file;
+        if (useSavedSignature && !dataUrl) {
+          const userRes = await db.query(
+            'SELECT signature_file_id FROM users WHERE id = $1',
+            [req.user.id]
+          );
+          const userSigFileId = userRes.rows[0]?.signature_file_id;
+          if (!userSigFileId) {
+            throw new AppError(400, 'NO_SAVED_SIGNATURE', 'Anda belum menyimpan tanda tangan digital di Pengaturan Profil.');
+          }
+          const fileRes = await db.query(
+            'SELECT * FROM file_attachments WHERE id = $1',
+            [userSigFileId]
+          );
+          const userFile = fileRes.rows[0];
+          if (!userFile) {
+            throw new AppError(404, 'SIGNATURE_FILE_NOT_FOUND', 'Berkas tanda tangan profil tidak ditemukan.');
+          }
+          const fullPath = resolveAttachmentPath(userFile.storage_key);
+          const buffer = fs.readFileSync(fullPath);
+          file = await saveUploadedFile(
+            {
+              buffer,
+              originalName: `ttd-${signerRole.toLowerCase()}.png`,
+              mimeType: userFile.mime_type || 'image/png',
+              ownerType: 'INSPECTION_SIGNATURE',
+              ownerId: id,
+              uploadedBy: req.user.id
+            },
+            db
+          );
+        } else {
+          file = await saveDataUrlPng(
+            {
+              dataUrl,
+              ownerType: 'INSPECTION_SIGNATURE',
+              ownerId: id,
+              originalName: `ttd-${signerRole.toLowerCase()}.png`,
+              uploadedBy: req.user.id
+            },
+            db
+          );
+        }
 
         const { rows } = await db.query(
           `INSERT INTO inspection_signatures (inspection_id, signer_role, signer_name, signer_title, file_id)

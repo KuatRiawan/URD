@@ -10,7 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 async function inspectorCanAccessAttachment(file, inspectorId) {
-  if (file.owner_type === 'USER_AVATAR') return true;
+  if (['USER_AVATAR', 'USER_SIGNATURE'].includes(file.owner_type)) return true;
   const accessQueries = {
     OBJECT: `SELECT EXISTS (
       SELECT 1 FROM order_objects oo

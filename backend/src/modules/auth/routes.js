@@ -8,7 +8,7 @@ import { query, withTransaction } from '../../database/pool.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
-import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
+import { saveDataUrlPng, saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError } from '../../utils/http.js';
 
 const router = Router();
@@ -65,7 +65,8 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const { rows } = await query(
-      `SELECT id, email, full_name, role, phone, password_hash, is_active, avatar_url
+      `SELECT id, email, full_name, role, phone, password_hash, is_active,
+              avatar_url, signature_url, signer_title
        FROM users WHERE email = $1`,
       [email.trim()]
     );
@@ -115,7 +116,9 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
         fullName: user.full_name,
         role: user.role,
         phone: user.phone,
-        avatarUrl: user.avatar_url
+        avatarUrl: user.avatar_url,
+        signatureUrl: user.signature_url,
+        signerTitle: user.signer_title
       }
     });
   } catch (err) {
@@ -132,7 +135,8 @@ router.post('/refresh', async (req, res, next) => {
     const tokenHash = hashToken(rawRefresh);
     const rotated = await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `SELECT rs.*, u.email, u.full_name, u.role, u.phone, u.is_active, u.avatar_url
+        `SELECT rs.*, u.email, u.full_name, u.role, u.phone, u.is_active,
+                u.avatar_url, u.signature_url, u.signer_title
          FROM refresh_sessions rs
          JOIN users u ON u.id = rs.user_id
          WHERE rs.token_hash = $1
@@ -188,7 +192,9 @@ router.post('/refresh', async (req, res, next) => {
           full_name: session.full_name,
           role: session.role,
           phone: session.phone,
-          avatar_url: session.avatar_url
+          avatar_url: session.avatar_url,
+          signature_url: session.signature_url,
+          signer_title: session.signer_title
         },
         nextRawRefresh
       };
@@ -211,7 +217,9 @@ router.post('/refresh', async (req, res, next) => {
         fullName: user.full_name,
         role: user.role,
         phone: user.phone,
-        avatarUrl: user.avatar_url
+        avatarUrl: user.avatar_url,
+        signatureUrl: user.signature_url,
+        signerTitle: user.signer_title
       }
     });
   } catch (err) {
@@ -243,7 +251,8 @@ const updateProfileSchema = Joi.object({
     'any.required': 'Nama lengkap wajib diisi.'
   }),
   phone: Joi.string().allow('', null),
-  avatarUrl: Joi.string().max(2000000).allow('', null)
+  avatarUrl: Joi.string().max(2000000).allow('', null),
+  signerTitle: Joi.string().max(160).allow('', null).optional()
 });
 
 const changePasswordSchema = Joi.object({
@@ -261,7 +270,7 @@ router.get('/me', authenticate, async (req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT id, email, full_name AS "fullName", role, phone, is_active AS "isActive",
-              avatar_url AS "avatarUrl",
+              avatar_url AS "avatarUrl", signature_url AS "signatureUrl", signer_title AS "signerTitle",
               last_login_at AS "lastLoginAt", created_at AS "createdAt"
        FROM users WHERE id = $1`,
       [req.user.id]
@@ -310,16 +319,24 @@ router.get('/me', authenticate, async (req, res, next) => {
 
 router.put('/profile', authenticate, validate(updateProfileSchema), async (req, res, next) => {
   try {
-    const { fullName, phone, avatarUrl } = req.body;
+    const { fullName, phone, avatarUrl, signerTitle } = req.body;
     const { rows } = await query(
       `UPDATE users
        SET full_name = $1,
            phone = $2,
            avatar_url = CASE WHEN $3::text IS NOT NULL THEN $3::text ELSE avatar_url END,
+           signer_title = CASE WHEN $4::text IS NOT NULL THEN $4::text ELSE signer_title END,
            updated_at = now()
-       WHERE id = $4
-       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive", avatar_url AS "avatarUrl"`,
-      [fullName.trim(), phone ? phone.trim() : null, avatarUrl !== undefined ? avatarUrl : null, req.user.id]
+       WHERE id = $5
+       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive",
+                 avatar_url AS "avatarUrl", signature_url AS "signatureUrl", signer_title AS "signerTitle"`,
+      [
+        fullName.trim(),
+        phone ? phone.trim() : null,
+        avatarUrl !== undefined ? avatarUrl : null,
+        signerTitle !== undefined ? (signerTitle ? signerTitle.trim() : '') : null,
+        req.user.id
+      ]
     );
 
     await recordAudit({
@@ -327,7 +344,7 @@ router.put('/profile', authenticate, validate(updateProfileSchema), async (req, 
       action: 'USER_UPDATE_PROFILE',
       entity: 'users',
       entityId: req.user.id,
-      summary: { fullName: fullName.trim(), phone: phone || null, hasAvatar: Boolean(rows[0]?.avatarUrl) },
+      summary: { fullName: fullName.trim(), phone: phone || null, hasAvatar: Boolean(rows[0]?.avatarUrl), signerTitle },
       ip: req.ip
     });
 
@@ -371,6 +388,127 @@ router.post('/avatar', authenticate, uploadMiddleware.single('avatar'), async (r
       message: 'Foto profil berhasil diperbarui.',
       user: rows[0],
       avatarUrl
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/signature', authenticate, async (req, res, next) => {
+  const isMultipart = req.is('multipart/form-data');
+  if (isMultipart) {
+    return uploadMiddleware.single('signature')(req, res, async (err) => {
+      if (err) return next(err);
+      try {
+        if (!req.file) {
+          throw new AppError(400, 'NO_FILE', 'Berkas gambar tanda tangan wajib diunggah.');
+        }
+        const attachment = await saveUploadedFile({
+          buffer: req.file.buffer,
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          ownerType: 'USER_SIGNATURE',
+          ownerId: req.user.id,
+          uploadedBy: req.user.id
+        });
+        const signatureUrl = `/api/v1/dashboard/files/${attachment.id}`;
+        const signerTitle = req.body?.signerTitle ? String(req.body.signerTitle).trim() : null;
+        const { rows } = await query(
+          `UPDATE users
+           SET signature_url = $1,
+               signature_file_id = $2,
+               signer_title = CASE WHEN $3::text IS NOT NULL THEN $3::text ELSE signer_title END,
+               updated_at = now()
+           WHERE id = $4
+           RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive",
+                     avatar_url AS "avatarUrl", signature_url AS "signatureUrl", signer_title AS "signerTitle"`,
+          [signatureUrl, attachment.id, signerTitle, req.user.id]
+        );
+        await recordAudit({
+          userId: req.user.id,
+          action: 'USER_UPDATE_SIGNATURE',
+          entity: 'users',
+          entityId: req.user.id,
+          summary: { fileId: attachment.id, signerTitle },
+          ip: req.ip
+        });
+        return res.json({
+          message: 'Tanda tangan digital tersimpan berhasil diperbarui.',
+          user: rows[0],
+          signatureUrl
+        });
+      } catch (uploadErr) {
+        return next(uploadErr);
+      }
+    });
+  }
+
+  try {
+    const { dataUrl, signerTitle } = req.body || {};
+    if (!dataUrl) {
+      throw new AppError(400, 'DATA_URL_REQUIRED', 'Data gambar tanda tangan (Base64) wajib disertakan.');
+    }
+    const attachment = await saveDataUrlPng({
+      dataUrl,
+      ownerType: 'USER_SIGNATURE',
+      ownerId: req.user.id,
+      originalName: `ttd-${req.user.id}.png`,
+      uploadedBy: req.user.id
+    });
+    const signatureUrl = `/api/v1/dashboard/files/${attachment.id}`;
+    const cleanTitle = signerTitle ? String(signerTitle).trim() : null;
+    const { rows } = await query(
+      `UPDATE users
+       SET signature_url = $1,
+           signature_file_id = $2,
+           signer_title = CASE WHEN $3::text IS NOT NULL THEN $3::text ELSE signer_title END,
+           updated_at = now()
+       WHERE id = $4
+       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive",
+                 avatar_url AS "avatarUrl", signature_url AS "signatureUrl", signer_title AS "signerTitle"`,
+      [signatureUrl, attachment.id, cleanTitle, req.user.id]
+    );
+    await recordAudit({
+      userId: req.user.id,
+      action: 'USER_UPDATE_SIGNATURE',
+      entity: 'users',
+      entityId: req.user.id,
+      summary: { fileId: attachment.id, signerTitle: cleanTitle },
+      ip: req.ip
+    });
+    return res.json({
+      message: 'Tanda tangan digital tersimpan berhasil diperbarui.',
+      user: rows[0],
+      signatureUrl
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.delete('/signature', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `UPDATE users
+       SET signature_url = NULL,
+           signature_file_id = NULL,
+           updated_at = now()
+       WHERE id = $1
+       RETURNING id, email, full_name AS "fullName", role, phone, is_active AS "isActive",
+                 avatar_url AS "avatarUrl", signature_url AS "signatureUrl", signer_title AS "signerTitle"`,
+      [req.user.id]
+    );
+    await recordAudit({
+      userId: req.user.id,
+      action: 'USER_DELETE_SIGNATURE',
+      entity: 'users',
+      entityId: req.user.id,
+      summary: { message: 'Tanda tangan digital dihapus oleh pengguna' },
+      ip: req.ip
+    });
+    return res.json({
+      message: 'Tanda tangan digital tersimpan berhasil dihapus.',
+      user: rows[0]
     });
   } catch (err) {
     return next(err);

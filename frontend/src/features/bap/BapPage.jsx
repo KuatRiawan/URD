@@ -499,6 +499,7 @@ export function BapPage() {
       )}
 
       <BapDetailModal
+        user={user}
         selectedBap={selectedBap}
         onClose={() => setSelectedBap(null)}
         detailLoading={detailLoading}

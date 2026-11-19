@@ -45,8 +45,9 @@ const bapSignatureSchema = Joi.object({
   signerRole: Joi.string().valid('AHLI_K3', 'PERWAKILAN_KLIEN').required(),
   signerName: Joi.string().min(2).max(160).required(),
   signerTitle: Joi.string().max(160).allow('', null),
-  dataUrl: Joi.string().min(20).required()
-});
+  dataUrl: Joi.string().min(20).allow('', null).optional(),
+  useSavedSignature: Joi.boolean().optional()
+}).or('dataUrl', 'useSavedSignature');
 
 const reopenBapSchema = Joi.object({
   reason: Joi.string().min(3).max(1000).required()
@@ -587,16 +588,49 @@ router.post(
           throw new AppError(409, 'BAP_LOCKED', 'BAP sudah difinalisasi dan tidak dapat diubah.');
         }
 
-        const file = await saveDataUrlPng(
-          {
-            dataUrl,
-            ownerType: 'BAP_SIGNATURE',
-            ownerId: id,
-            originalName: `ttd-bap-${signerRole.toLowerCase()}.png`,
-            uploadedBy: req.user.id
-          },
-          db
-        );
+        let file;
+        if (req.body.useSavedSignature && !dataUrl) {
+          const userRes = await db.query(
+            'SELECT signature_file_id FROM users WHERE id = $1',
+            [req.user.id]
+          );
+          const userSigFileId = userRes.rows[0]?.signature_file_id;
+          if (!userSigFileId) {
+            throw new AppError(400, 'NO_SAVED_SIGNATURE', 'Anda belum menyimpan tanda tangan digital di Pengaturan Profil.');
+          }
+          const fileRes = await db.query(
+            'SELECT * FROM file_attachments WHERE id = $1',
+            [userSigFileId]
+          );
+          const userFile = fileRes.rows[0];
+          if (!userFile) {
+            throw new AppError(404, 'SIGNATURE_FILE_NOT_FOUND', 'Berkas tanda tangan profil tidak ditemukan.');
+          }
+          const fullPath = resolveAttachmentPath(userFile.storage_key);
+          const buffer = await readFile(fullPath);
+          file = await saveUploadedFile(
+            {
+              buffer,
+              originalName: `ttd-bap-${signerRole.toLowerCase()}.png`,
+              mimeType: userFile.mime_type || 'image/png',
+              ownerType: 'BAP_SIGNATURE',
+              ownerId: id,
+              uploadedBy: req.user.id
+            },
+            db
+          );
+        } else {
+          file = await saveDataUrlPng(
+            {
+              dataUrl,
+              ownerType: 'BAP_SIGNATURE',
+              ownerId: id,
+              originalName: `ttd-bap-${signerRole.toLowerCase()}.png`,
+              uploadedBy: req.user.id
+            },
+            db
+          );
+        }
 
         // Simpan juga ke inspection_signatures untuk pemeriksaan terkait
         await db.query(

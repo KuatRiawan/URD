@@ -308,6 +308,7 @@ export function InspectionDetailModal({
             />
 
             <StepSignatures
+              user={user}
               inspectorSig={inspectorSig}
               inspectorSigName={signatures.inspectorSigName}
               setInspectorSigName={signatures.setInspectorSigName}
@@ -318,6 +319,7 @@ export function InspectionDetailModal({
               onInspectorPointerMove={signatures.handleInspectorPointerMove}
               onInspectorPointerUp={signatures.handleInspectorPointerUp}
               onClearInspectorCanvas={signatures.clearInspectorCanvas}
+              onApplySavedSignature={signatures.handleApplySavedSignature}
               onSaveInspectorSignature={signatures.handleSaveInspectorSignature}
               reSigningInspector={signatures.reSigningInspector}
               setReSigningInspector={signatures.setReSigningInspector}

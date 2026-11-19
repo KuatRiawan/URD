@@ -34,11 +34,13 @@ export function SettingsPage() {
   const [profileForm, setProfileForm] = useState({
     fullName: user?.fullName || '',
     phone: user?.phone || '',
-    avatarUrl: user?.avatarUrl || ''
+    avatarUrl: user?.avatarUrl || '',
+    signerTitle: user?.signerTitle || ''
   });
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(null);
   const [profileError, setProfileError] = useState(null);
+  const [signatureLoading, setSignatureLoading] = useState(false);
 
   // State Kata Sandi
   const [passwordForm, setPasswordForm] = useState({
@@ -77,7 +79,8 @@ export function SettingsPage() {
           setProfileForm({
             fullName: data.user.fullName || '',
             phone: data.user.phone || '',
-            avatarUrl: data.user.avatarUrl || ''
+            avatarUrl: data.user.avatarUrl || '',
+            signerTitle: data.user.signerTitle || ''
           });
           updateUser(data.user);
         }
@@ -128,7 +131,8 @@ export function SettingsPage() {
       const { data } = await api.put('/auth/profile', {
         fullName: profileForm.fullName,
         phone: profileForm.phone,
-        avatarUrl: profileForm.avatarUrl || null
+        avatarUrl: profileForm.avatarUrl || null,
+        signerTitle: profileForm.signerTitle || null
       });
       updateUser(data.user);
       setProfileSuccess('Profil berhasil diperbarui.');
@@ -139,6 +143,58 @@ export function SettingsPage() {
       toast(msg, 'error');
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleSaveSignature = async ({ dataUrl, file, signerTitle }) => {
+    setSignatureLoading(true);
+    try {
+      let data;
+      if (file) {
+        const formData = new FormData();
+        formData.append('signature', file);
+        if (signerTitle) formData.append('signerTitle', signerTitle);
+        const res = await api.post('/auth/signature', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        data = res.data;
+      } else if (dataUrl) {
+        const res = await api.post('/auth/signature', { dataUrl, signerTitle });
+        data = res.data;
+      }
+      if (data?.user) {
+        updateUser(data.user);
+        setMeData((prev) => (prev ? { ...prev, ...data.user } : data.user));
+      }
+      toast('Tanda tangan digital tersimpan berhasil diperbarui.', 'success');
+      return true;
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Gagal menyimpan tanda tangan.';
+      toast(msg, 'error');
+      return false;
+    } finally {
+      setSignatureLoading(false);
+    }
+  };
+
+  const handleDeleteSignature = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus tanda tangan digital tersimpan?')) return;
+    setSignatureLoading(true);
+    try {
+      const { data } = await api.delete('/auth/signature');
+      if (data?.user) {
+        updateUser(data.user);
+        setMeData((prev) => (prev ? { ...prev, ...data.user } : data.user));
+      }
+      toast('Tanda tangan digital tersimpan berhasil dihapus.', 'success');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Gagal menghapus tanda tangan.';
+      toast(msg, 'error');
+    } finally {
+      setSignatureLoading(false);
     }
   };
 
@@ -233,6 +289,9 @@ export function SettingsPage() {
           profileError={profileError}
           onUpdateProfile={handleUpdateProfile}
           onAvatarUpload={handleAvatarUpload}
+          onSaveSignature={handleSaveSignature}
+          onDeleteSignature={handleDeleteSignature}
+          signatureLoading={signatureLoading}
           getRoleBadgeColor={getRoleBadgeColor}
         />
       )}
