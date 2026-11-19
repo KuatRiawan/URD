@@ -40,7 +40,7 @@ export function StepConclusion({
                 : 'Fase 2 (Kantor): Tetapkan kesimpulan kelayakan K3 sebelum mengajukan ke QC Admin Kantor.'}
             </p>
             <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
-              Draf BAP tetap dapat disiapkan dan ditandatangani di lapangan tanpa memaksa status &quot;Memenuhi Syarat&quot; secara prematur.
+              Draf laporan teknis tetap dapat disiapkan di lapangan tanpa memaksa status &quot;Memenuhi Syarat&quot; secara prematur.
             </p>
           </div>
           {draftConclusion && !disabled && (
@@ -160,16 +160,16 @@ export function StepConclusion({
         />
       </div>
 
-      {/* Ruang Lingkup BAP (Untuk Dokumen Berita Acara Riksa Uji) */}
+      {/* Ruang Lingkup Pemeriksaan Teknis K3 (Untuk Dokumen LHPP) */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <FileText size={16} weight="bold" className="text-[#C81E1E]" />
-              <span>Ruang Lingkup Pemeriksaan (Dokumen BAP)</span>
+              <span>Ruang Lingkup Pemeriksaan Teknis K3</span>
             </h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Ceklis lingkup pengujian yang masuk ke Berita Acara Pemeriksaan.
+              Ceklis lingkup pengujian teknis yang dilaksanakan untuk laporan LHPP.
             </p>
           </div>
           <div className="flex items-center gap-2">

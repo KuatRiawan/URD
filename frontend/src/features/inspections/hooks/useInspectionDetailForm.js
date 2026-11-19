@@ -452,7 +452,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           objectAttributes: draftObjectAttributes,
           workPhase: 'FIELD'
         });
-        setFeedback('Progres lapangan disimpan di perangkat. Penyiapan draf BAP akan disinkronkan saat online.');
+        setFeedback('Progres pemeriksaan disimpan di perangkat. Akan disinkronkan saat online.');
         setLastSavedAt(new Date());
         return;
       }
@@ -467,15 +467,14 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         prepareBapDraft: true
       });
 
-      const bapNo = res.data?.bap?.bapNo ? ` Draf BAP (${res.data.bap.bapNo}) siap ditandatangani.` : '';
       setFeedback(
-        `Progres lapangan tersimpan dan checklist tetap terbuka untuk dilanjutkan di kantor.${bapNo}`
+        'Progres pemeriksaan tersimpan dan checklist tetap terbuka untuk dilanjutkan di kantor.'
       );
       setLastSavedAt(new Date());
       await openDetail(activeDetail.inspection.id);
       if (onSaved) onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan progres lapangan dan menyiapkan draf BAP.');
+      setError(err.response?.data?.message || 'Gagal menyimpan progres pemeriksaan lapangan.');
     } finally {
       setSubmitting(false);
     }
@@ -790,9 +789,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
       clearLocalDraft(activeDetail.inspection.id);
 
       const msg = res.data?.message || 'Pemeriksaan riksa uji berhasil diselesaikan.';
-      const bapInfo = res.data?.bap?.bapNo ? ` Dokumen BAP (${res.data.bap.bapNo}) telah diterbitkan.` : '';
-      const lhppInfo = res.data?.lhpp?.lhppNo ? ` Dokumen LHPP (${res.data.lhpp.lhppNo}) telah dibuat.` : '';
-      setFeedback(`${msg}${bapInfo}${lhppInfo}`);
+      const lhppInfo = res.data?.lhpp?.lhppNo ? ` Laporan LHPP (${res.data.lhpp.lhppNo}) telah dibuat.` : '';
+      setFeedback(`${msg}${lhppInfo}`);
 
       await openDetail(activeDetail.inspection.id);
       if (onSaved) onSaved();
