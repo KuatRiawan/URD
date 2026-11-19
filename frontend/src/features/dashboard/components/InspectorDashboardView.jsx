@@ -512,11 +512,11 @@ export function InspectorDashboardView({
               </button>
 
               <Link
-                to="/app/inspections"
+                to="/app/bap"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#C81E1E] px-4 min-h-[44px] text-xs sm:text-sm font-bold text-white hover:bg-[#a61717] active:scale-[0.98] transition-all shadow-xs"
               >
-                <Plus size={16} weight="bold" aria-hidden="true" />
-                <span>Form Uji Lapangan</span>
+                <ClipboardText size={16} weight="bold" aria-hidden="true" />
+                <span>Berita Acara (BAP)</span>
               </Link>
             </div>
           }

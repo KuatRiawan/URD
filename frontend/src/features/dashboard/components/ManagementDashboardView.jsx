@@ -321,9 +321,9 @@ export function ManagementDashboardView({
               </div>
             </Link>
 
-            {/* Admin Kantor Card 2: Unit Sedang Diinspeksi */}
+            {/* Admin Kantor Card 2: Berita Acara (BAP) */}
             <Link
-              to="/app/inspections"
+              to="/app/bap"
               className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all cursor-pointer block"
             >
               <div className="flex items-center">
@@ -674,10 +674,10 @@ export function ManagementDashboardView({
                   <p className="text-base font-extrabold text-slate-800 dark:text-slate-200 mt-0.5">{m.waitingInspectionUnits || 0}</p>
                 </Link>
                 <Link
-                  to="/app/inspections"
+                  to="/app/bap"
                   className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-2xs transition-all block cursor-pointer"
                 >
-                  <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">Inspeksi</p>
+                  <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">BAP</p>
                   <p className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{m.inspectingUnits || 0}</p>
                 </Link>
                 <Link

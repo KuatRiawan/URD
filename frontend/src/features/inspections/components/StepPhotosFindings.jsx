@@ -492,7 +492,7 @@ export function StepPhotosFindings({
         )}
         {onNext && (
           <Button type="button" variant="primary" size="md" icon={ArrowRight} onClick={onNext}>
-            Lanjut: Simpulan &amp; Pengesahan Ahli K3
+            Lanjut: Tanda Tangan &amp; Unduh BAP
           </Button>
         )}
       </div>

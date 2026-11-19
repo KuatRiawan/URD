@@ -49,10 +49,7 @@ export const SCHEDULE_SUBMENUS = [
   { to: '/app/schedule?status=REJECTED', label: 'Perlu Re-alokasi' }
 ];
 
-export const INSPECTION_SUBMENUS = [
-  { to: '/app/inspections?tab=worksheets', label: 'Lembar Kerja', isDefault: true },
-  { to: '/app/inspections?tab=templates', label: 'Master Template' }
-];
+export const INSPECTION_SUBMENUS = [];
 
 export const LHPP_SUBMENUS = [
   { to: '/app/lhpp', label: 'Semua Dokumen', isDefault: true },
@@ -201,7 +198,6 @@ export function attachSubmenus(item, role) {
     '/app/dashboard': ['PIMPINAN', 'MANAGER'].includes(role) ? EXECUTIVE_DASHBOARD_SUBMENUS : null,
     '/app/orders': PO_SUBMENUS,
     '/app/schedule': SCHEDULE_SUBMENUS,
-    '/app/inspections': INSPECTION_SUBMENUS,
     '/app/lhpp': LHPP_SUBMENUS,
     '/app/bap': BAP_SUBMENUS,
     '/app/distributions': DISTRIBUTION_SUBMENUS,
@@ -323,13 +319,6 @@ export const NAV_ITEMS = [
     roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
   },
   {
-    to: '/app/inspections',
-    group: 'Operasional',
-    label: 'Form Pengujian Lapangan',
-    icon: FileText,
-    roles: ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'INSPECTOR', 'AHLI_K3', 'PIMPINAN', 'MANAGER']
-  },
-  {
     to: '/app/lhpp',
     group: 'Dokumen & Sertifikasi',
     label: 'Dokumen LHPP',
@@ -414,10 +403,10 @@ function buildNav(role) {
         icon: Gauge
       },
       {
-        to: '/app/inspections',
+        to: '/app/bap',
         group: 'Tugas Utama',
-        label: 'Form Pengujian Lapangan',
-        icon: FileText
+        label: 'Berita Acara (BAP)',
+        icon: ClipboardText
       },
       {
         to: '/app/schedule',
@@ -443,12 +432,6 @@ function buildNav(role) {
         group: 'Pelaksanaan Lapangan',
         label: 'Kendala Lapangan',
         icon: WarningOctagon
-      },
-      {
-        to: '/app/bap',
-        group: 'Dokumen Teknis',
-        label: 'Berita Acara (BAP)',
-        icon: ClipboardText
       },
       {
         to: '/app/lhpp',
@@ -492,12 +475,6 @@ function buildNav(role) {
         group: 'Monitoring Operasional',
         label: 'Monitoring Jadwal Tim',
         icon: CalendarCheck
-      },
-      {
-        to: '/app/inspections',
-        group: 'Monitoring Operasional',
-        label: 'Monitoring Pengujian',
-        icon: FileText
       },
       {
         to: '/app/issues',
@@ -664,12 +641,6 @@ function buildNav(role) {
         icon: WarningOctagon
       },
       {
-        to: '/app/inspections',
-        group: 'QC & Penerbitan Dokumen',
-        label: 'Tinjauan Hasil Inspeksi',
-        icon: FileText
-      },
-      {
         to: '/app/lhpp',
         group: 'QC & Penerbitan Dokumen',
         label: 'Dokumen LHPP (QC)',
@@ -747,12 +718,6 @@ function buildNav(role) {
         group: 'Operasional Lapangan',
         label: 'Jadwal & Penugasan',
         icon: CalendarCheck
-      },
-      {
-        to: '/app/inspections',
-        group: 'Operasional Lapangan',
-        label: 'Form Pengujian Lapangan',
-        icon: FileText
       },
       {
         to: '/app/objects',
@@ -838,7 +803,7 @@ export function getMobileNavConfig(role) {
     return {
       primary: [
         { to: '/app/dashboard', label: 'Tugas Saya', icon: Gauge },
-        { to: '/app/inspections', label: 'Pengujian', icon: FileText },
+        { to: '/app/bap', label: 'BAP', icon: ClipboardText },
         { to: '/app/issues', label: 'Kendala', icon: WarningOctagon },
         { to: '/app/history', label: 'Riwayat', icon: ClockCounterClockwise }
       ],
@@ -854,8 +819,7 @@ export function getMobileNavConfig(role) {
         {
           title: 'Dokumen Teknis',
           items: [
-            { to: '/app/lhpp', label: 'Dokumen LHPP', icon: Scroll },
-            { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText }
+            { to: '/app/lhpp', label: 'Dokumen LHPP', icon: Scroll }
           ]
         },
         {
@@ -881,7 +845,6 @@ export function getMobileNavConfig(role) {
         {
           title: 'Monitoring Operasional',
           items: [
-            { to: '/app/inspections', label: 'Monitoring Pengujian', icon: FileText },
             { to: '/app/objects', label: 'Objek Uji K3', icon: Cube },
             { to: '/app/clients', label: 'Data Klien', icon: Buildings },
             { to: '/app/issues', label: 'Kendala Operasional', icon: WarningOctagon }
@@ -929,8 +892,7 @@ export function getMobileNavConfig(role) {
         {
           title: 'Operasional Lapangan',
           items: [
-            { to: '/app/schedule', label: 'Jadwal & Penugasan', icon: CalendarCheck },
-            { to: '/app/inspections', label: 'Form Pengujian', icon: FileText }
+            { to: '/app/schedule', label: 'Jadwal & Penugasan', icon: CalendarCheck }
           ]
         },
         {
@@ -1001,7 +963,6 @@ export function getMobileNavConfig(role) {
         {
           title: 'Penerbitan Dokumen & BAST',
           items: [
-            { to: '/app/inspections', label: 'Tinjauan Hasil Inspeksi', icon: FileText },
             { to: '/app/bap', label: 'Berita Acara (BAP)', icon: ClipboardText },
             { to: '/app/suket', label: 'Registri Suket Disnaker', icon: ShieldCheck },
             { to: '/app/distributions', label: 'Distribusi & BAST', icon: ShareNetwork },

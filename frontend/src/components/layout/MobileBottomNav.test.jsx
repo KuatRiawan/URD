@@ -57,7 +57,7 @@ describe('MobileBottomNav and MobileNavDrawer Integration', () => {
 
   it('keeps four primary destinations and routes every role menu to a known page', () => {
     const knownRoutes = new Set([
-      '/app/dashboard', '/app/orders', '/app/schedule', '/app/lhpp', '/app/inspections',
+      '/app/dashboard', '/app/orders', '/app/schedule', '/app/lhpp',
       '/app/issues', '/app/history', '/app/objects', '/app/clients', '/app/bap',
       '/app/distributions', '/app/suket', '/app/reminders', '/app/audit-logs',
       '/app/notifications', '/app/settings', '/app/users'

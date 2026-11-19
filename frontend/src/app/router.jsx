@@ -139,14 +139,7 @@ export function AppRoutes() {
           }
         />
         <Route path="scheduling" element={<Navigate to="/app/schedule" replace />} />
-        <Route
-          path="inspections"
-          element={
-            <RequireRole allowedRoles={['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'PIMPINAN']}>
-              <InspectionsPage />
-            </RequireRole>
-          }
-        />
+        <Route path="inspections" element={<Navigate to="/app/bap" replace />} />
         <Route
           path="bap"
           element={

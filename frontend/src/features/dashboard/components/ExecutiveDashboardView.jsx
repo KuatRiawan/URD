@@ -253,9 +253,9 @@ export function ExecutiveDashboardView({
               </div>
             </Link>
 
-            {/* Card 2: Unit Alat Dalam Proses */}
+            {/* Card 2: Berita Acara (BAP) Dalam Proses */}
             <Link
-              to="/app/inspections"
+              to="/app/bap"
               className="group bg-white dark:bg-[#151821] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-4px_rgba(0,0,0,0.03)] hover:border-black/[0.14] dark:hover:border-white/[0.14] transition-all block cursor-pointer"
             >
               <div className="flex items-center">
@@ -438,7 +438,7 @@ export function ExecutiveDashboardView({
               {[
                 { label: 'Order Baru', count: m.newOrders || 0, link: '/app/orders?status=ORDER_BARU', tone: 'neutral' },
                 { label: 'Antre Jadwal', count: m.waitingInspectionUnits || 0, link: '/app/schedule', tone: 'neutral' },
-                { label: 'Sedang Uji', count: m.inspectingUnits || 0, link: '/app/inspections', tone: 'blue' },
+                { label: 'Proses BAP', count: m.inspectingUnits || 0, link: '/app/bap', tone: 'blue' },
                 { label: 'Review QC', count: m.lhppWaitingReview || 0, link: '/app/lhpp?status=SIAP_PREVIEW', tone: 'amber' },
                 { label: 'Revisi', count: m.revisionUnits || 0, link: '/app/lhpp?status=DIKEMBALIKAN', tone: Number(m.revisionUnits || 0) > 0 ? 'amber' : 'neutral' },
                 { label: 'LHPP Terbit', count: m.lhppPublished || 0, link: '/app/lhpp?status=FINAL', tone: 'emerald' },

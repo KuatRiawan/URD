@@ -156,7 +156,7 @@ describe('Executive Management Workspace Redesign Tests', () => {
     expect(paths).toContain('/app/dashboard');
     expect(paths).toContain('/app/orders');
     expect(paths).toContain('/app/schedule');
-    expect(paths).toContain('/app/inspections');
+    expect(paths).not.toContain('/app/inspections');
     expect(paths).toContain('/app/issues');
     expect(paths).toContain('/app/objects');
     expect(paths).toContain('/app/clients');
@@ -174,7 +174,7 @@ describe('Executive Management Workspace Redesign Tests', () => {
       ...mobileNav.primary.map((i) => i.to),
       ...mobileNav.moreGroups.flatMap((g) => g.items.map((i) => i.to))
     ];
-    expect(allMobilePaths).toContain('/app/inspections');
+    expect(allMobilePaths).toContain('/app/bap');
     expect(allMobilePaths).toContain('/app/history');
   });
 

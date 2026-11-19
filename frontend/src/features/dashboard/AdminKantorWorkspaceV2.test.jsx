@@ -6,18 +6,22 @@ import { BapDetailModal } from '../bap/components/BapDetailModal.jsx';
 import { DistributionTable } from '../distributions/components/DistributionTable.jsx';
 
 describe('Admin Kantor Workspace V2 UI & Workflow Verification', () => {
-  it('1. menyertakan rute /app/inspections (Tinjauan Hasil Inspeksi) pada menu navigasi desktop dan mobile ADMIN_KANTOR', () => {
+  it('1. menyertakan rute /app/bap (Berita Acara (BAP)) pada menu navigasi ADMIN_KANTOR dan tidak menampilkan Tinjauan Hasil Inspeksi', () => {
     const desktopNav = getVisibleNav('ADMIN_KANTOR');
+    const bapItem = desktopNav.find((item) => item.to === '/app/bap');
+    expect(bapItem).toBeDefined();
+    expect(bapItem.label).toContain('Berita Acara (BAP)');
+
     const inspectionItem = desktopNav.find((item) => item.to === '/app/inspections');
-    expect(inspectionItem).toBeDefined();
-    expect(inspectionItem.label).toContain('Tinjauan Hasil Inspeksi');
+    expect(inspectionItem).toBeUndefined();
 
     const mobileNav = getMobileNavConfig('ADMIN_KANTOR');
     const allMobileItems = [
       ...mobileNav.primary,
       ...mobileNav.moreGroups.flatMap((g) => g.items)
     ];
-    expect(allMobileItems.some((item) => item.to === '/app/inspections')).toBe(true);
+    expect(allMobileItems.some((item) => item.to === '/app/bap')).toBe(true);
+    expect(allMobileItems.some((item) => item.to === '/app/inspections')).toBe(false);
   });
 
   it('2. BapDetailModal menampilkan tombol Finalisasi BAP untuk ADMIN_KANTOR saat LHPP sudah FINAL dan menyembunyikannya untuk INSPECTOR', () => {

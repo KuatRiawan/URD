@@ -185,7 +185,7 @@ export function InspectionActivitiesSection({
       `start-${activityId}`,
       async () => {
         const res = await api.post('/inspections/start', { activityId });
-        navigate(`/app/inspections?inspectionId=${res.data?.inspection?.id || ''}`);
+        navigate('/app/bap');
       },
       'Pemeriksaan lapangan dimulai.'
     );

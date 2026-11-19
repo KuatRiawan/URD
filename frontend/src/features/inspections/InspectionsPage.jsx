@@ -317,7 +317,7 @@ export function InspectionsPage() {
         subtitle={
           isPimpinan
             ? 'Pemantauan progres pengisian lembar pemeriksaan teknis unit alat K3, temuan lapangan, dan status pengiriman ke QC.'
-            : 'Lembar pemeriksaan teknis unit alat K3, pencatatan temuan lapangan, dan penyiapan laporan teknis LHPP.'
+            : 'Lembar pemeriksaan teknis unit alat K3, pencatatan temuan ketidakpatuhan, dan berita acara lapangan.'
         }
         actions={
           isInspector ? (
@@ -352,7 +352,7 @@ export function InspectionsPage() {
           { key: 'ALL', label: 'Total Lembar Uji', value: inspectionMetrics.total, sub: 'Semua status form', tone: 'slate' },
           { key: 'DRAF', label: 'Proses Lapangan (Draf)', value: inspectionMetrics.draftCount, sub: 'Sedang diisi Ahli K3', tone: 'blue' },
           { key: 'REVISI', label: 'Perlu Revisi Teknis', value: inspectionMetrics.revisionCount, sub: 'Dikembalikan oleh QC', tone: 'amber' },
-          { key: 'TERKIRIM', label: 'Terkirim ke QC', value: inspectionMetrics.submittedCount, sub: 'Siap review QC & LHPP', tone: 'emerald' }
+          { key: 'TERKIRIM', label: 'Terkirim ke QC', value: inspectionMetrics.submittedCount, sub: 'Siap proses BAP/LHPP', tone: 'emerald' }
         ].map((card) => {
           const isSelected = statusFilter === card.key && activeTab === 'worksheets';
           return (

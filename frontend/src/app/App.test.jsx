@@ -121,7 +121,6 @@ describe('PT Upaya Riksa Daya Frontend Routing, Auth & Guard', () => {
     const pagesToVerify = [
       { path: '/app/orders', heading: /PO & Order Pemeriksaan/i },
       { path: '/app/schedule', heading: /Jadwal/i },
-      { path: '/app/inspections', heading: /Form Inspeksi Lapangan & Checklist K3/i },
       { path: '/app/bap', heading: /Berita Acara/i },
       { path: '/app/lhpp', heading: /LHPP/i },
       { path: '/app/distributions', heading: /Distribusi Dokumen K3/i },
