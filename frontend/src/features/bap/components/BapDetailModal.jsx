@@ -27,7 +27,6 @@ import { Modal } from '../../../components/ui/Modal.jsx';
 import { formatDateTime } from '../../../lib/utils/format.js';
 
 export function BapDetailModal({
-  user = null,
   selectedBap,
   onClose,
   detailLoading,
@@ -174,7 +173,6 @@ export function BapDetailModal({
   ).toUpperCase();
 
   const isPicSigned = Boolean(selectedBap.client_sig_file_id);
-  const showPicSignatureCanvas = isEditable && (!isPicSigned || isReSigningPic);
 
   return (
     <Modal

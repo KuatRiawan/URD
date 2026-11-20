@@ -15,7 +15,6 @@ import { Modal } from '../../../components/ui/Modal.jsx';
 export function InspectionHeaderSection({
   activeDetail,
   lastSavedAt,
-  isInspector,
   user,
   onDownloadDocx,
   onReopenInspection

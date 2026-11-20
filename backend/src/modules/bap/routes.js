@@ -776,7 +776,7 @@ router.put(
         const customBapNo = mergedDocData.bap_no ? String(mergedDocData.bap_no).trim() : null;
         const customContactName = mergedDocData.contact_name ? String(mergedDocData.contact_name).trim() : null;
 
-        const { rows } = await db.query(
+        await db.query(
           `UPDATE bap_documents
            SET inspection_date = COALESCE($1::date, inspection_date),
                scope_items = $2::jsonb,

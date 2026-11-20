@@ -28,6 +28,14 @@ describe('URD Independent BAP & Inspector LHPP Workflow Redesign', () => {
     expect(objRes.rows.length).toBeGreaterThan(0);
     testOrderId = objRes.rows[0].order_id;
     testObjectId = objRes.rows[0].object_id;
+
+    // Fixture deterministik: suite lain (mis. saved-digital-signature) dapat memfinalisasi
+    // BAP pada unit yang sama. Tanpa reset, prepare mengembalikan BAP FINAL dan rangkaian
+    // test ini gagal bukan karena regresi produk. Hanya menyentuh database test.
+    await query(
+      `UPDATE bap_documents SET status = 'DRAF' WHERE order_id = $1 AND object_id = $2`,
+      [testOrderId, testObjectId]
+    );
   });
 
   it('1. POST /api/v1/bap/prepare - Mempersiapkan draf BAP mandiri per unit (1 Unit = 1 BAP)', async () => {

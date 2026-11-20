@@ -166,7 +166,7 @@ Bidang Pemeriksaan dan Pengujian K3`;
       await logShareAction('COPY_SUMMARY', 'Clipboard', 'Disalin ke papan klip');
       toast('Teks ringkasan Berita Acara Riksa Uji berhasil disalin ke clipboard.', 'success');
       setTimeout(() => setCopied(false), 3000);
-    } catch (err) {
+    } catch {
       toast('Gagal menyalin teks ke clipboard.', 'error');
     }
   };

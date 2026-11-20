@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -93,7 +93,6 @@ export function StepPhotosFindings({
   findings = [],
   findingForm = { severity: 'MAYOR', description: '', recommendation: '' },
   setFindingForm,
-  isInspector = true,
   readOnly = false,
   submitting = false,
   onUploadPhotoDirect,
@@ -106,7 +105,6 @@ export function StepPhotosFindings({
   const [enlargedPhoto, setEnlargedPhoto] = useState(null);
   const [editingPhotoId, setEditingPhotoId] = useState(null);
   const [editingCaptionText, setEditingCaptionText] = useState('');
-  const [activeUploadCategory, setActiveUploadCategory] = useState(null);
 
   const cameraInputRefs = useRef({});
   const galleryInputRefs = useRef({});

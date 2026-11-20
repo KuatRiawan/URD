@@ -35,12 +35,9 @@ export function InspectionDetailModal({
     setFeedback,
     submitting,
     draftResults,
-    setDraftResults,
     draftConclusion,
     draftConclusionNotes,
     setDraftConclusionNotes,
-    draftScopes,
-    setDraftScopes,
     draftObjectAttributes,
     setDraftObjectAttributes,
     workPhase,
@@ -48,10 +45,6 @@ export function InspectionDetailModal({
     formStep,
     setFormStep,
     lastSavedAt,
-    photoFile,
-    setPhotoFile,
-    photoCaption,
-    setPhotoCaption,
     online,
     queuedPhotoCount,
     findingForm,
@@ -60,14 +53,11 @@ export function InspectionDetailModal({
     handleSaveDraft,
     handleDiscardDraft,
     handleAddFinding,
-    handleChecklistResultChange,
     handleConclusionSelect,
     handleUploadPhoto,
     handleUploadPhotoDirect,
     handleUpdatePhotoCaption,
     handleDeletePhoto,
-    handleUploadItemInlinePhoto,
-    handleUploadNameplatePhoto,
     handleSubmitFinal,
     handleReopenInspection,
     totalItems,
@@ -102,19 +92,6 @@ export function InspectionDetailModal({
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal mengunduh file DOCX.');
     }
-  };
-
-  const handleAddFindingFromItem = (item, noteText) => {
-    const itemLabel = item?.label || item?.item_label || 'Parameter Inspeksi';
-    const desc = `[${item?.section || 'Teknis'}] ${itemLabel}${noteText ? `: ${noteText}` : ' — Tidak sesuai standar K3'}`;
-    setFindingForm((prev) => ({
-      ...(prev || { severity: 'MAYOR', recommendation: '' }),
-      description: desc
-    }));
-    toast('Temuan disiapkan di bagian Daftar Temuan Lapangan — lengkapi & klik Tambah.', 'success');
-    setTimeout(() => {
-      document.getElementById('inspection-findings-section')?.scrollIntoView({ behavior: 'smooth' });
-    }, 60);
   };
 
   const isDraftStatus = activeDetail.inspection.status === 'DRAF';

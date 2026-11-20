@@ -23,13 +23,16 @@ describe('URD Saved Digital Signature in Profile & 1-Click Signing', () => {
     inspectorToken = loginRes.body.accessToken;
     inspectorUserId = loginRes.body.user.id;
 
-    // 2. Query an order and object assigned or available whose BAP is not already finalized
+    // 2. Query an order and object whose BAP is not finalized AND whose inspection is
+    //    still editable. Tanpa filter status inspeksi, run berulang memilih unit yang
+    //    sudah TERKIRIM sehingga penandatanganan sah ditolak 409 INSPECTION_LOCKED.
     const objRes = await query(
       `SELECT oo.order_id, oo.object_id
        FROM order_objects oo
        JOIN orders o ON o.id = oo.order_id
+       JOIN inspections i ON i.order_id = oo.order_id AND i.object_id = oo.object_id
        LEFT JOIN bap_documents b ON b.order_id = oo.order_id AND b.object_id = oo.object_id
-       WHERE b.id IS NULL OR b.status = 'DRAF'
+       WHERE (b.id IS NULL OR b.status = 'DRAF') AND i.status <> 'TERKIRIM'
        LIMIT 1`
     );
     expect(objRes.rows.length).toBeGreaterThan(0);

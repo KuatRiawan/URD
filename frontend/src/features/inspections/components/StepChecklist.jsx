@@ -38,7 +38,7 @@ export function StepChecklist({
 }) {
   const [isEditingDataUmum, setIsEditingDataUmum] = useState(false);
   const [downloadingDocx, setDownloadingDocx] = useState(false);
-  const [downloadFeedback, setDownloadFeedback] = useState('');
+  const [, setDownloadFeedback] = useState('');
 
   const attrs = draftObjectAttributes || {};
 

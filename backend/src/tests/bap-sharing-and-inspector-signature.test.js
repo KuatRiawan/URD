@@ -9,7 +9,6 @@ describe('URD — BAP Preview, BAP Sharing & Inspector Digital Signature Suite',
   let inspectorToken;
   let inspectorBToken;
   let inspectorId;
-  let inspectorBId;
   let inspectorSigFileId;
   let testOrderId;
   let testObjectId;
@@ -64,7 +63,6 @@ describe('URD — BAP Preview, BAP Sharing & Inspector Digital Signature Suite',
       .send({ email: 'ahlik3.listrik@upayariksadaya.com', password: 'TestPassURD2026!' });
     expect(inspBLogin.status).toBe(200);
     inspectorBToken = inspBLogin.body.accessToken;
-    inspectorBId = inspBLogin.body.user.id;
 
     // 5. Setup data terisolasi: Client, Unit Alat, Order & Penugasan
     const clientRes = await query('SELECT id FROM clients LIMIT 1');

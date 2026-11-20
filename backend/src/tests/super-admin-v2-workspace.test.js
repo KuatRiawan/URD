@@ -41,7 +41,9 @@ describe('Super Admin Workspace V2 Full Integration Test Suite', () => {
   });
 
   afterAll(async () => {
-    await seedDatabase();
+    // Reseed dengan password test yang sama. Tanpa parameter, seedDatabase memakai
+    // password acak sehingga suite lain yang berjalan setelahnya gagal login (401).
+    await seedDatabase({ password: TEST_PW });
   });
 
   describe('1. User Lifecycle & Self-Protection', () => {

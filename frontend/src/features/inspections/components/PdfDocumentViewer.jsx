@@ -121,8 +121,6 @@ function PdfPageCanvas({ pdfDoc, pageNumber, scale, numPages }) {
  */
 export function PdfDocumentViewer({
   pdfUrl,
-  title = 'Dokumen',
-  filename,
   onDownload,
   onPrint,
   onShare

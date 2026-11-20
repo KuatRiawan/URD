@@ -31,13 +31,13 @@ export function resolveAttachmentBuffer(attachment) {
       if (match) {
         try {
           return Buffer.from(match[1], 'base64');
-        } catch {}
+        } catch { /* berkas tidak dapat dibaca, lanjutkan tanpa gambar */ }
       }
     }
     try {
       const p = resolveAttachmentPath(attachment);
       if (p && fs.existsSync(p)) return fs.readFileSync(p);
-    } catch {}
+    } catch { /* berkas tidak dapat dibaca, lanjutkan tanpa gambar */ }
     if (fs.existsSync(attachment)) return fs.readFileSync(attachment);
   }
   if (typeof attachment === 'object') {
@@ -48,14 +48,14 @@ export function resolveAttachmentBuffer(attachment) {
       try {
         const fp = resolveAttachmentPath(sk);
         if (fp && fs.existsSync(fp)) return fs.readFileSync(fp);
-      } catch {}
+      } catch { /* berkas tidak dapat dibaca, lanjutkan tanpa gambar */ }
     }
     if (attachment.data_url || attachment.dataUrl) {
       const match = (attachment.data_url || attachment.dataUrl).match(/^data:image\/[a-z]+;base64,(.+)$/);
       if (match) {
         try {
           return Buffer.from(match[1], 'base64');
-        } catch {}
+        } catch { /* berkas tidak dapat dibaca, lanjutkan tanpa gambar */ }
       }
     }
   }
@@ -245,7 +245,7 @@ function createRunningFooter() {
 // =============================================================================
 // FORKLIFT OFFICIAL TEMPLATE (Persis 100% Sesuai PDF Resmi Kemnaker / URD)
 // =============================================================================
-function buildForkliftDocxDocument(data, report, companyProfile) {
+function buildForkliftDocxDocument(data, report, _companyProfile) {
   const results = Array.isArray(data.results) ? data.results : [];
   const photos = Array.isArray(data.photos) ? data.photos : [];
   const hasResults = results.length > 0;
@@ -328,7 +328,7 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
         try {
           const p = resolveAttachmentPath(sk);
           if (p && fs.existsSync(p)) return fs.readFileSync(p);
-        } catch {}
+        } catch { /* berkas tidak dapat dibaca, lanjutkan tanpa gambar */ }
       }
     }
     if (indexFallback !== undefined && photos[indexFallback]) {
@@ -340,13 +340,13 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
         try {
           const fp = resolveAttachmentPath(sk);
           if (fp && fs.existsSync(fp)) return fs.readFileSync(fp);
-        } catch {}
+        } catch { /* berkas tidak dapat dibaca, lanjutkan tanpa gambar */ }
       }
     }
     return null;
   };
 
-  const createPhotoPlaceholderCell = (caption, widthDxa = 5040, heightDxa = 2400) => {
+  const createPhotoPlaceholderCell = (caption, widthDxa = 5040, _heightDxa = 2400) => {
     return new TableCell({
       width: { size: widthDxa, type: WidthType.DXA },
       borders: TABLE_BORDERS_BLACK,
@@ -906,7 +906,7 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
   // PAGES 4 TO 7: BAB III. PEMERIKSAAN VISUAL & FUNGSI (5 KOLOM LENGKAP)
   // Grid: [1800, 2000, 3480, 950, 950, 900] = 10080 DXA
   // ===========================================================================
-  const makeVisualRow = (col1, col2, col3, searchRegex, forceNok = false) => {
+  const makeVisualRow = (col1, col2, col3, searchRegex, _forceNok = false) => {
     const cond = getConditionChoice([searchRegex, col3]);
     const cells = [];
     if (col1) cells.push(col1);
@@ -1599,76 +1599,6 @@ function buildForkliftDocxDocument(data, report, companyProfile) {
     })
   );
 
-  const docPhotoSlots = [
-    // Page 12 (6 slots, 3 pairs)
-    {
-      leftCaption: 'Tampak depan',
-      leftPattern: [/tampak depan|depan/i],
-      rightCaption: 'Tampak samping',
-      rightPattern: [/tampak samping|samping/i]
-    },
-    {
-      leftCaption: 'Fork',
-      leftPattern: [/fork|garpu/i],
-      rightCaption: 'Nameplate',
-      rightPattern: [/nameplate|plat nama/i]
-    },
-    {
-      leftCaption: 'Ban depan',
-      leftPattern: [/ban depan|front tire/i],
-      rightCaption: 'Ban belakang',
-      rightPattern: [/ban belakang|rear tire/i],
-      pageBreakAfter: true
-    },
-    // Page 13 (6 slots, 3 pairs)
-    {
-      leftCaption: 'Ban kondisi baik',
-      leftPattern: [/ban kondisi baik/i],
-      rightCaption: 'NDT MPI',
-      rightPattern: [/ndt|mpi/i]
-    },
-    {
-      leftCaption: 'Lampu penerangan',
-      leftPattern: [/lampu penerangan|lampu depan/i],
-      rightCaption: 'Overhead guard',
-      rightPattern: [/overhead guard|kanopi/i]
-    },
-    {
-      leftCaption: 'Jok Operator',
-      leftPattern: [/jok|operator seat/i],
-      rightCaption: 'Tuas Operasi',
-      rightPattern: [/tuas|control lever/i],
-      pageBreakAfter: true
-    },
-    // Page 14 (6 slots, 3 pairs)
-    {
-      leftCaption: 'Hidrolik lifting',
-      leftPattern: [/hidrolik lifting|silinder angkat/i],
-      rightCaption: 'Hidrolik tilting',
-      rightPattern: [/hidrolik tilting|silinder ungkit/i]
-    },
-    {
-      leftCaption: 'Mesin',
-      leftPattern: [/mesin|engine/i],
-      rightCaption: 'Radiator',
-      rightPattern: [/radiator/i]
-    },
-    {
-      leftCaption: 'Uji Fungsi',
-      leftPattern: [/uji fungsi|fungsi/i],
-      rightCaption: 'Lampu penerangan, lampu sign, klakson berfungsi',
-      rightPattern: [/sign.*klakson|lampu.*klakson/i],
-      pageBreakAfter: true
-    },
-    // Page 15 (2 slots, 1 pair)
-    {
-      leftCaption: 'Uji Beban',
-      leftPattern: [/uji beban|load test/i],
-      rightCaption: 'Stiker Riksa Uji',
-      rightPattern: [/stiker|riksa uji/i],
-      pageBreakAfter: true
-    }
-  ];
 
   const CATEGORY_DOC_TITLES = {
     TAMPAK_DEPAN: 'Tampak depan unit forklift',

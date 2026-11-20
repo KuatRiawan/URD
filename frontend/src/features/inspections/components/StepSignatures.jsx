@@ -47,7 +47,6 @@ export function StepSignatures({
   submitting,
   canSubmit,
   photosCount = 0,
-  draftConclusion,
   onSubmitFinal,
   onBack,
   onSaveDraft,
