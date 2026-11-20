@@ -291,6 +291,15 @@ function buildForkliftDocxDocument(data, report, _companyProfile) {
     return fallback;
   };
 
+  // Nilai opsi checklist disimpan dengan garis bawah (SESUAI / TIDAK_SESUAI),
+  // sedangkan sebagian sumber memakai spasi. Normalisasi pemisah agar keduanya
+  // dikenali; tanpa ini baris "Tidak Memenuhi" tercetak sebagai kotak kosong.
+  const normalizeCondition = (raw) =>
+    String(raw || '')
+      .trim()
+      .toUpperCase()
+      .replace(/[\s_-]+/g, ' ');
+
   const getConditionChoice = (patterns, forceBlank = false) => {
     if (isBlank || forceBlank) {
       return { ok: '☐', nok: '☐', ket: '' };
@@ -299,15 +308,22 @@ function buildForkliftDocxDocument(data, report, _companyProfile) {
     if (!match || !match.choice_value) {
       return { ok: '☐', nok: '☐', ket: '' };
     }
-    const val = String(match.choice_value).toUpperCase();
+    const val = normalizeCondition(match.choice_value);
     const ket = match.notes || match.keterangan || '';
     if (val === 'MEMENUHI' || val === 'SESUAI' || val === 'BAIK' || val === 'PASS' || val === 'OK') {
       return { ok: '√', nok: '-', ket };
     }
-    if (val === 'TIDAK_MEMENUHI' || val === 'TIDAK SESUAI' || val === 'BURUK' || val === 'FAIL' || val === 'NOK') {
+    if (
+      val === 'TIDAK MEMENUHI' ||
+      val === 'TIDAK SESUAI' ||
+      val === 'TIDAK MEMENUHI SYARAT' ||
+      val === 'BURUK' ||
+      val === 'FAIL' ||
+      val === 'NOK'
+    ) {
       return { ok: '-', nok: '√', ket };
     }
-    if (val === 'N/A' || val === 'NA' || val === 'TIDAK_ADA') {
+    if (val === 'N/A' || val === 'NA' || val === 'TIDAK ADA') {
       return { ok: '-', nok: '-', ket: 'N/A' };
     }
     return { ok: '☐', nok: '☐', ket };
@@ -906,7 +922,10 @@ function buildForkliftDocxDocument(data, report, _companyProfile) {
   // PAGES 4 TO 7: BAB III. PEMERIKSAAN VISUAL & FUNGSI (5 KOLOM LENGKAP)
   // Grid: [1800, 2000, 3480, 950, 950, 900] = 10080 DXA
   // ===========================================================================
-  const makeVisualRow = (col1, col2, col3, searchRegex, _forceNok = false) => {
+  // Kondisi Memenuhi/Tidak Memenuhi selalu diturunkan dari hasil inspeksi nyata
+  // (choice_value), atau ☐ pada blanko kosong. Tidak ada jalur yang memaksa NOK,
+  // karena menandai temuan gagal tanpa data akan memfabrikasi hasil dokumen resmi.
+  const makeVisualRow = (col1, col2, col3, searchRegex) => {
     const cond = getConditionChoice([searchRegex, col3]);
     const cells = [];
     if (col1) cells.push(col1);
