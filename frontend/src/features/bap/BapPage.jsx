@@ -474,7 +474,7 @@ export function BapPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => handleSelectFilterTab(tab.key)}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   active
                     ? 'bg-[#C81E1E] text-white shadow-[0_2px_8px_-2px_rgba(200,30,30,0.4)]'
                     : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.08] dark:hover:bg-white/[0.10]'

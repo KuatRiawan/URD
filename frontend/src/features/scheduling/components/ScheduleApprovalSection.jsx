@@ -126,7 +126,7 @@ export function ScheduleApprovalSection({ canApprove }) {
                     type="button"
                     disabled={busyId === item.id}
                     onClick={() => decide(item, 'DISETUJUI')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
                   >
                     <CheckCircle size={14} />
                     Setujui
@@ -138,7 +138,7 @@ export function ScheduleApprovalSection({ canApprove }) {
                       setReason('');
                       setError('');
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 cursor-pointer"
                   >
                     <X size={14} />
                     Tolak

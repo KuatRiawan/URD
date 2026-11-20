@@ -395,7 +395,7 @@ export function InspectionActivitiesSection({
                     <button
                       type="button"
                       onClick={() => (scheduleEditor === activityId ? setScheduleEditor(null) : openScheduleEditor(activity))}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
                     >
                       <CalendarPlus size={13} />
                       <span>{activity.planned_start_at ? 'Ubah Jadwal' : 'Atur Jadwal'}</span>
@@ -408,7 +408,7 @@ export function InspectionActivitiesSection({
                         type="button"
                         disabled={busy === `approve-${activityId}`}
                         onClick={() => decide(activityId, 'DISETUJUI')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
                       >
                         <CheckCircle size={13} />
                         <span>Setujui Jadwal</span>
@@ -420,7 +420,7 @@ export function InspectionActivitiesSection({
                           setRejectReason('');
                           setError('');
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 cursor-pointer"
                       >
                         <X size={13} />
                         <span>Tolak</span>
@@ -436,7 +436,7 @@ export function InspectionActivitiesSection({
                         setAssignInspectorId(activity.inspector_id || '');
                         setError('');
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-300 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold border border-blue-300 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 cursor-pointer"
                     >
                       <UserCheck size={13} />
                       <span>{activity.inspector_id ? 'Ganti Ahli K3' : 'Tugaskan Ahli K3'}</span>
@@ -448,7 +448,7 @@ export function InspectionActivitiesSection({
                       type="button"
                       disabled={busy === `start-${activityId}`}
                       onClick={() => startInspection(activityId)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-900 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-900 cursor-pointer disabled:opacity-50"
                     >
                       <ClipboardText size={13} />
                       <span>Mulai Pemeriksaan</span>
@@ -460,7 +460,7 @@ export function InspectionActivitiesSection({
                       type="button"
                       disabled={busy === `bap-${activityId}`}
                       onClick={() => prepareBap(activityId)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-bold border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer disabled:opacity-50"
                     >
                       <FileText size={13} />
                       <span>{activity.bap_id ? 'Buka BAP' : 'Proses BAP'}</span>
@@ -475,7 +475,7 @@ export function InspectionActivitiesSection({
                         setCancelReason('');
                         setError('');
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-700 dark:hover:text-rose-400 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-700 dark:hover:text-rose-400 cursor-pointer"
                     >
                       <Pencil size={13} />
                       <span>Batalkan Aktivitas</span>
