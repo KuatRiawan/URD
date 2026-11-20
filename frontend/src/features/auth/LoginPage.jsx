@@ -184,7 +184,7 @@ export function LoginPage() {
         <div className="mt-auto max-w-[520px] space-y-4">
           <div className="space-y-1.5">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#FCA5A5] drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]">
-              Better Safety Partner.
+              Beter Safety Partner.
             </p>
             <p className="text-3xl xl:text-[34px] font-extrabold tracking-[-0.025em] text-white leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
               Riksa Uji, URD Pasti!
