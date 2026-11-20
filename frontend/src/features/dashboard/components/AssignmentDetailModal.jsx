@@ -308,7 +308,7 @@ export function AssignmentDetailModal({
                     {contactPhone && (
                       <a
                         href={`tel:${contactPhone}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200 transition-colors shadow-2xs"
+                        className="inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200 transition-colors shadow-2xs"
                       >
                         <Phone size={13} weight="bold" />
                         <span>Telepon</span>
@@ -319,7 +319,7 @@ export function AssignmentDetailModal({
                         href={`https://wa.me/${waNumber}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-100 transition-colors shadow-2xs border border-emerald-200 dark:border-emerald-800"
+                        className="inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-100 transition-colors shadow-2xs border border-emerald-200 dark:border-emerald-800"
                       >
                         <WhatsappLogo size={14} weight="bold" />
                         <span>WA</span>
