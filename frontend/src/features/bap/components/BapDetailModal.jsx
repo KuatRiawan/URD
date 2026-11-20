@@ -244,7 +244,7 @@ export function BapDetailModal({
                     size="xs"
                     icon={isEditingInfo ? CheckCircle : PencilSimple}
                     onClick={() => setIsEditingInfo(!isEditingInfo)}
-                    className="shrink-0 whitespace-nowrap"
+                    className="shrink-0 whitespace-nowrap min-h-9"
                   >
                     {isEditingInfo ? 'Selesai Edit' : 'Edit Informasi'}
                   </Button>
@@ -607,6 +607,7 @@ export function BapDetailModal({
                     size="sm"
                     disabled={submitting}
                     loading={submitting}
+                    className="min-h-9"
                   >
                     Simpan Perubahan Dokumen BAP
                   </Button>
@@ -674,6 +675,7 @@ export function BapDetailModal({
                       variant="outline"
                       size="xs"
                       icon={Eraser}
+                      className="min-h-9"
                       onClick={() => {
                         setIsReSigningPic(true);
                         setHasDrawn(false);
@@ -763,6 +765,7 @@ export function BapDetailModal({
                     icon={PenNib}
                     disabled={submitting || !hasDrawn}
                     loading={submitting}
+                    className="min-h-9"
                   >
                     Simpan Tanda Tangan PIC
                   </Button>
@@ -787,7 +790,7 @@ export function BapDetailModal({
                 size="sm"
                 icon={FilePdf}
                 onClick={() => handleDownloadPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
-                className="flex-1 justify-center whitespace-nowrap text-xs"
+                className="flex-1 justify-center whitespace-nowrap text-xs min-h-9"
               >
                 Unduh PDF
               </Button>
@@ -797,7 +800,7 @@ export function BapDetailModal({
                 size="sm"
                 icon={Eye}
                 onClick={handleTriggerPreview}
-                className="flex-1 justify-center whitespace-nowrap text-xs"
+                className="flex-1 justify-center whitespace-nowrap text-xs min-h-9"
               >
                 Pratinjau
               </Button>
@@ -808,14 +811,14 @@ export function BapDetailModal({
                   size="sm"
                   icon={ShareNetwork}
                   onClick={() => onShareBap(selectedBap)}
-                  className="flex-1 justify-center whitespace-nowrap text-xs"
+                  className="flex-1 justify-center whitespace-nowrap text-xs min-h-9"
                 >
                   Bagikan
                 </Button>
               )}
               <ActionMenu
                 label="Aksi Lainnya"
-                size="sm"
+                size="md"
                 items={[
                   handleDownloadDocx && {
                     label: 'Unduh Word (.docx)',
@@ -850,7 +853,7 @@ export function BapDetailModal({
                   disabled={submitting}
                   loading={submitting}
                   onClick={handleFinalizeBap}
-                  className="w-full justify-center text-xs"
+                  className="w-full justify-center text-xs min-h-9"
                 >
                   Finalisasi &amp; Kunci Berita Acara Riksa Uji (BAP)
                 </Button>
@@ -876,7 +879,7 @@ export function BapDetailModal({
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-md cursor-pointer shrink-0"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 min-h-9 text-xs font-bold text-amber-900 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-md cursor-pointer shrink-0"
                   >
                     <LockKeyOpen size={13} weight="bold" />
                     Buka
