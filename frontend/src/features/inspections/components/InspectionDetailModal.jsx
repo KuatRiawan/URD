@@ -251,12 +251,10 @@ export function InspectionDetailModal({
               setDraftObjectAttributes={setDraftObjectAttributes}
               readOnly={!isInspector || activeDetail.inspection.status !== 'DRAF'}
               formStep={formStep}
-              setFormStep={setFormStep}
               draftConclusion={draftConclusion}
               setDraftConclusion={handleConclusionSelect}
               draftConclusionNotes={draftConclusionNotes}
               setDraftConclusionNotes={setDraftConclusionNotes}
-              onNext={() => setFormStep(formStep + 1)}
             />
           </div>
         )}

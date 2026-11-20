@@ -710,7 +710,7 @@ export function BapDetailModal({
                     <button
                       type="button"
                       onClick={clearCanvas}
-                      className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-red-600 cursor-pointer font-medium"
+                      className="inline-flex items-center gap-1 min-h-9 px-1 text-slate-600 dark:text-slate-400 hover:text-red-600 cursor-pointer font-medium"
                     >
                       <Eraser size={13} />
                       Hapus Coretan

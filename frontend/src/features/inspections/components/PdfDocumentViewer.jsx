@@ -245,7 +245,7 @@ export function PdfDocumentViewer({
             onClick={handleZoomOut}
             title="Perkecil Tampilan"
             aria-label="Perkecil"
-            className="p-1 sm:p-1.5 rounded-md hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center min-h-9 min-w-9 p-1 sm:p-1.5 rounded-md hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             <MagnifyingGlassMinus size={15} weight="bold" />
           </button>
@@ -254,7 +254,7 @@ export function PdfDocumentViewer({
             type="button"
             onClick={() => (scale < 0.95 ? setScale(1.0) : handleFitWidth())}
             title={scale < 0.95 ? 'Klik untuk zoom 100% (Ukuran Nyata)' : 'Klik untuk Pas Layar'}
-            className="text-[11px] font-mono font-bold px-1 py-0.5 rounded hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center min-h-9 min-w-9 px-1 py-0.5 text-[11px] font-mono font-bold rounded hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
           >
             {Math.round(scale * 100)}%
           </button>
@@ -264,7 +264,7 @@ export function PdfDocumentViewer({
             onClick={handleZoomIn}
             title="Perbesar Tampilan"
             aria-label="Perbesar"
-            className="p-1 sm:p-1.5 rounded-md hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center min-h-9 min-w-9 p-1 sm:p-1.5 rounded-md hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             <MagnifyingGlassPlus size={15} weight="bold" />
           </button>
@@ -274,7 +274,7 @@ export function PdfDocumentViewer({
             onClick={handleFitWidth}
             title="Sesuaikan Lebar Layar (Pas Layar)"
             aria-label="Pas Layar"
-            className="ml-0.5 px-1.5 py-1 text-[11px] font-bold rounded-md bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-slate-200 hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
+            className="ml-0.5 min-h-9 min-w-9 justify-center px-1.5 py-1 text-[11px] font-bold rounded-md bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-slate-200 hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
           >
             <ArrowsIn size={13} weight="bold" />
             <span className="hidden sm:inline">Pas Layar</span>
@@ -289,7 +289,7 @@ export function PdfDocumentViewer({
               onClick={onShare}
               title="Bagikan Dokumen BAP"
               aria-label="Bagikan Dokumen"
-              className="inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 min-h-9 min-w-9 px-2 py-1 sm:px-2.5 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
             >
               <ShareNetwork size={14} weight="bold" />
               <span className="hidden sm:inline">Bagikan</span>
@@ -302,7 +302,7 @@ export function PdfDocumentViewer({
               onClick={onPrint}
               title="Cetak Dokumen"
               aria-label="Cetak Dokumen"
-              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
             >
               <Printer size={13} weight="bold" />
               <span>Cetak</span>
@@ -315,7 +315,7 @@ export function PdfDocumentViewer({
               onClick={onDownload}
               title="Unduh Berkas PDF Resmi"
               aria-label="Unduh PDF"
-              className="inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-md bg-[#C81E1E] hover:bg-[#a61717] active:bg-[#8e1414] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1 min-h-9 px-2 py-1 sm:px-2.5 rounded-md bg-[#C81E1E] hover:bg-[#a61717] active:bg-[#8e1414] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
               <DownloadSimple size={14} weight="bold" />
               <span>Unduh</span>

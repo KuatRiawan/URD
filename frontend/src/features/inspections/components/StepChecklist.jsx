@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import {
-  ArrowRight,
-  ArrowLeft,
   Buildings,
   CheckCircle,
   Clock,
@@ -29,12 +27,10 @@ export function StepChecklist({
   setDraftObjectAttributes,
   readOnly = false,
   formStep = 1,
-  setFormStep,
   draftConclusion,
   setDraftConclusion,
   draftConclusionNotes,
-  setDraftConclusionNotes,
-  onNext
+  setDraftConclusionNotes
 }) {
   const [isEditingDataUmum, setIsEditingDataUmum] = useState(false);
   const [downloadingDocx, setDownloadingDocx] = useState(false);
@@ -770,53 +766,11 @@ export function StepChecklist({
         </div>
       )}
 
-      {/* FOOTER NAVIGASI PER BAGIAN (Untuk Sections 1 s/d 7) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
-        <div>
-          {formStep > 1 ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              icon={ArrowLeft}
-              onClick={() => setFormStep && setFormStep(formStep - 1)}
-            >
-              Sebelumnya: Bagian {formStep - 1}
-            </Button>
-          ) : (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              Bagian 1 dari 8 Bagian LHPP
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {formStep < 7 ? (
-            <Button
-              type="button"
-              variant="primary"
-              size="md"
-              icon={ArrowRight}
-              onClick={() => setFormStep && setFormStep(formStep + 1)}
-            >
-              Selanjutnya: Bagian {formStep + 1}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="primary"
-              size="md"
-              icon={ArrowRight}
-              onClick={() => {
-                if (onNext) onNext();
-                else if (setFormStep) setFormStep(8);
-              }}
-            >
-              Lanjut ke Dokumentasi Foto &amp; Temuan (Bagian 8)
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* Navigasi antar bagian ada di footer modal yang selalu terlihat. Duplikasi tombol
+          yang sama di dalam badan form memaksa pengguna menggulir untuk menemukannya. */}
+      <p className="pt-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+        Bagian {formStep} dari 8 Bagian LHPP
+      </p>
     </div>
   );
 }
