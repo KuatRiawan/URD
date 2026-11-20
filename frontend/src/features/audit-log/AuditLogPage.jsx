@@ -265,7 +265,7 @@ export function AuditLogPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedLog(log)}
-                        className="p-1.5 rounded-lg text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04] dark:text-[#98989D] dark:hover:text-[#F5F5F7] dark:hover:bg-white/[0.06] cursor-pointer transition-colors"
+                        className="inline-flex items-center justify-center min-h-9 min-w-9 p-1.5 rounded-lg text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04] dark:text-[#98989D] dark:hover:text-[#F5F5F7] dark:hover:bg-white/[0.06] cursor-pointer transition-colors"
                         title="Inspeksi Detail Rekam Jejak"
                       >
                         <Eye size={15} weight="bold" />
@@ -350,7 +350,7 @@ export function AuditLogPage() {
                   <button
                     type="button"
                     onClick={handleCopyJson}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                    className="inline-flex items-center gap-1 min-h-9 text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
                   >
                     <Copy size={13} />
                     <span>{copied ? 'Tersalin!' : 'Salin JSON'}</span>

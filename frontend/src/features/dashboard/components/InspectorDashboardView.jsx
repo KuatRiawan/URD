@@ -233,7 +233,7 @@ export function InspectorDashboardView({
           <button
             type="button"
             onClick={() => setOfflineDrawerOpen(true)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs border ${
+            className={`inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs border ${
               !isOnline
                 ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800'
                 : pendingSyncCount > 0
@@ -547,7 +547,7 @@ export function InspectorDashboardView({
                   <button
                     type="button"
                     onClick={() => setFieldViewMode('CARDS')}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       fieldViewMode === 'CARDS'
                         ? 'bg-[#C81E1E] text-white shadow-2xs font-bold'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -559,7 +559,7 @@ export function InspectorDashboardView({
                   <button
                     type="button"
                     onClick={() => setFieldViewMode('TABLE')}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       fieldViewMode === 'TABLE'
                         ? 'bg-[#C81E1E] text-white shadow-2xs font-bold'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -602,7 +602,7 @@ export function InspectorDashboardView({
                 <button
                   type="button"
                   onClick={() => setFieldTab('ALL')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`inline-flex items-center min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     fieldTab === 'ALL'
                       ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -614,7 +614,7 @@ export function InspectorDashboardView({
                   <button
                     type="button"
                     onClick={() => setFieldTab('CONFIRMATION')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 min-h-9 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
                       fieldTab === 'CONFIRMATION'
                         ? 'bg-white dark:bg-slate-900 text-rose-600 shadow-2xs'
                         : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50/50'
@@ -627,7 +627,7 @@ export function InspectorDashboardView({
                 <button
                   type="button"
                   onClick={() => setFieldTab('TODAY')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`inline-flex items-center min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     fieldTab === 'TODAY'
                       ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -638,7 +638,7 @@ export function InspectorDashboardView({
                 <button
                   type="button"
                   onClick={() => setFieldTab('PENDING')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`inline-flex items-center min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     fieldTab === 'PENDING'
                       ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -649,7 +649,7 @@ export function InspectorDashboardView({
                 <button
                   type="button"
                   onClick={() => setFieldTab('UPCOMING')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`inline-flex items-center min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     fieldTab === 'UPCOMING'
                       ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -660,7 +660,7 @@ export function InspectorDashboardView({
                 <button
                   type="button"
                   onClick={() => setFieldTab('COMPLETED')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`inline-flex items-center min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     fieldTab === 'COMPLETED'
                       ? 'bg-white dark:bg-slate-900 text-[#C81E1E] dark:text-rose-400 shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'

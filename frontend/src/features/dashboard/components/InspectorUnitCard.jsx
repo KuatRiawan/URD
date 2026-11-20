@@ -147,7 +147,7 @@ export function InspectorUnitCard({
               type="button"
               onClick={handleDownloadLetter}
               disabled={downloadingLetter}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-[#C81E1E] dark:hover:text-rose-400 transition-colors cursor-pointer shrink-0 shadow-2xs disabled:opacity-50"
+              className="inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-[#C81E1E] dark:hover:text-rose-400 transition-colors cursor-pointer shrink-0 shadow-2xs disabled:opacity-50"
               title="Unduh Surat Tugas Resmi PT Upaya Riksa Daya"
             >
               <FilePdf size={13} className="text-[#C81E1E] shrink-0" weight="bold" />

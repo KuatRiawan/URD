@@ -114,7 +114,7 @@ export function SuperAdminDashboardView({
           <div className="flex items-center gap-2 self-start lg:self-auto text-xs">
             <Link
               to="/app/settings?tab=BACKUPS"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] bg-[#F5F5F7] dark:bg-white/[0.06] hover:bg-black/[0.06] transition-colors"
+              className="inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] bg-[#F5F5F7] dark:bg-white/[0.06] hover:bg-black/[0.06] transition-colors"
             >
               <span>Snapshot Cadangan: <strong>{m.totalBackups ? `${m.totalBackups} Arsip` : 'Tersedia'}</strong></span>
               <ArrowRight size={11} weight="bold" />
@@ -352,7 +352,7 @@ export function SuperAdminDashboardView({
           </div>
           <Link
             to="/app/audit-logs"
-            className="text-xs font-bold text-[#C81E1E] hover:underline flex items-center gap-1"
+            className="text-xs font-bold text-[#C81E1E] hover:underline flex items-center gap-1 min-h-9"
           >
             <span>Buka Log Audit Lengkap</span>
             <ArrowRight size={12} weight="bold" />

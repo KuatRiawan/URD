@@ -235,7 +235,7 @@ export function MarketingDashboardView({
         </div>
         <Link
           to="/app/reminders"
-          className="inline-flex items-center gap-1 text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer self-start md:self-center"
+          className="inline-flex items-center gap-1 min-h-9 text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer self-start md:self-center"
         >
           <span>Pusat Pengingat</span>
           <ArrowRight size={13} weight="bold" />
@@ -261,7 +261,7 @@ export function MarketingDashboardView({
                     key={p}
                     type="button"
                     onClick={() => handlePeriodChange(p)}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                    className={`inline-flex items-center px-3 py-1 min-h-9 rounded-md transition-all cursor-pointer ${
                       isActive
                         ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
@@ -300,7 +300,7 @@ export function MarketingDashboardView({
               </h3>
               <Link
                 to="/app/orders"
-                className="text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer"
+                className="inline-flex items-center min-h-9 text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer"
               >
                 Lihat Semua
               </Link>
@@ -344,7 +344,7 @@ export function MarketingDashboardView({
             <button
               type="button"
               onClick={() => setPoModalOpen(true)}
-              className="text-xs font-bold text-[#C81E1E] hover:underline inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-[#C81E1E] hover:underline inline-flex items-center gap-1 min-h-9 cursor-pointer"
             >
               <Plus size={13} weight="bold" />
               <span>Buat PO Baru</span>
@@ -364,7 +364,7 @@ export function MarketingDashboardView({
             </h3>
             <Link
               to="/app/reminders"
-              className="text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer"
+              className="inline-flex items-center min-h-9 text-xs font-bold text-[#C81E1E] hover:underline cursor-pointer"
             >
               Semua Unit
             </Link>

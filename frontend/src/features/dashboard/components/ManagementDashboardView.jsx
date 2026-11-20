@@ -200,7 +200,7 @@ export function ManagementDashboardView({
           </div>
           <Link
             to="/app/issues"
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white text-xs font-bold transition-all shadow-2xs"
+            className="shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg bg-[#C81E1E] hover:bg-[#a61717] text-white text-xs font-bold transition-all shadow-2xs"
           >
             <span>Tinjau Kendala Lapangan</span>
             <ArrowRight size={13} weight="bold" />
@@ -615,7 +615,7 @@ export function ManagementDashboardView({
                   <Certificate size={14} className="text-slate-500" />
                   <span>Potensi Repeat Order (Suket Kemnaker)</span>
                 </span>
-                <Link to="/app/reminders" className="text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline">
+                <Link to="/app/reminders" className="inline-flex items-center min-h-9 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline">
                   Buka Reminder &rarr;
                 </Link>
               </div>
@@ -777,7 +777,7 @@ export function ManagementDashboardView({
                       setPeriod(p);
                       if (loadSummary) loadSummary(false, p);
                     }}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${period === p
+                    className={`inline-flex items-center px-3 py-1 min-h-9 rounded-md transition-all cursor-pointer ${period === p
                         ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                       }`}
@@ -880,7 +880,7 @@ export function ManagementDashboardView({
                   </div>
                   <Link
                     to="/app/orders"
-                    className="text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
+                    className="inline-flex items-center min-h-9 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
                   >
                     Semua PO
                   </Link>

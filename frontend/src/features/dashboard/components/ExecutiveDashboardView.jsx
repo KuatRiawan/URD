@@ -401,7 +401,7 @@ export function ExecutiveDashboardView({
                   {Number(m.openIssues || 0) > 0 && (
                     <Link
                       to="/app/issues"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a11616] transition-colors shadow-2xs"
+                      className="inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg bg-[#C81E1E] text-white text-xs font-bold hover:bg-[#a11616] transition-colors shadow-2xs"
                     >
                       <span>Tinjau Kendala</span>
                       <ArrowRight size={13} weight="bold" />
@@ -410,7 +410,7 @@ export function ExecutiveDashboardView({
                   {Number(m.revisionUnits || 0) > 0 && (
                     <Link
                       to="/app/lhpp?status=DIKEMBALIKAN"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors shadow-2xs"
+                      className="inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors shadow-2xs"
                     >
                       <span>Lihat Revisi</span>
                       <ArrowRight size={13} weight="bold" />
@@ -492,7 +492,7 @@ export function ExecutiveDashboardView({
                           setPeriod(p);
                           if (loadSummary) loadSummary(false, p);
                         }}
-                        className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                        className={`inline-flex items-center px-3 py-1 min-h-9 rounded-md transition-all cursor-pointer ${
                           period === p
                             ? 'bg-[#C81E1E] text-white font-bold shadow-2xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
@@ -574,7 +574,7 @@ export function ExecutiveDashboardView({
                   <button
                     type="button"
                     onClick={() => setActiveTab('WORKLOAD')}
-                    className="text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
+                    className="inline-flex items-center min-h-9 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
                   >
                     Detail Tim &rarr;
                   </button>
@@ -679,7 +679,7 @@ export function ExecutiveDashboardView({
                   <button
                     type="button"
                     onClick={() => setActiveTab('ACTIVITIES')}
-                    className="text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
+                    className="inline-flex items-center min-h-9 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:underline"
                   >
                     Semua ({recentOps.length}) &rarr;
                   </button>
@@ -847,7 +847,7 @@ export function ExecutiveDashboardView({
                           <td className="py-3 px-4 text-right">
                             <Link
                               to={`/app/orders?orderNo=${encodeURIComponent(ord.order_no)}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                              className="inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                             >
                               <Eye size={13} />
                               <span>Detail</span>
@@ -985,7 +985,7 @@ export function ExecutiveDashboardView({
                           <td className="py-3.5 px-4 text-right">
                             <Link
                               to="/app/schedule"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                              className="inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                             >
                               <span>Lihat Jadwal</span>
                               <ArrowRight size={12} />
