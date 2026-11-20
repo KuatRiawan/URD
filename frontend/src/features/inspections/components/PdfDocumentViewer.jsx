@@ -84,11 +84,11 @@ function PdfPageCanvas({ pdfDoc, pageNumber, scale, numPages }) {
   }, [pdfDoc, pageNumber, scale]);
 
   return (
-    <div className="flex flex-col items-center shrink-0">
+    <div className="flex flex-col items-center shrink-0 w-fit max-w-none">
       {/* Kartu Lembar Halaman PDF */}
       <div className="relative bg-white text-slate-900 rounded-lg shadow-md border border-slate-200/90 dark:border-slate-700/80 overflow-hidden transition-shadow">
         {/* Indikator Halaman di sudut atas */}
-        <div className="flex items-center justify-between px-3 py-1 bg-slate-100/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-700 text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
+        <div className="flex items-center justify-between px-2.5 sm:px-3 py-1 bg-slate-100/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-700 text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
           <span>Halaman {pageNumber} dari {numPages}</span>
           {rendering && (
             <span className="flex items-center gap-1 text-[#C81E1E]">
@@ -99,14 +99,14 @@ function PdfPageCanvas({ pdfDoc, pageNumber, scale, numPages }) {
         </div>
 
         {/* Canvas render */}
-        <div className="p-1 sm:p-2 flex justify-center bg-white min-h-[160px]">
+        <div className="p-0.5 sm:p-2 flex justify-center bg-white min-h-[160px]">
           {error ? (
             <div className="flex flex-col items-center justify-center p-8 text-center text-rose-600 text-xs gap-2">
               <WarningCircle size={24} weight="bold" />
               <span>Gagal memuat visual halaman {pageNumber}.</span>
             </div>
           ) : (
-            <canvas ref={canvasRef} className="block mx-auto shadow-2xs" />
+            <canvas ref={canvasRef} className="block mx-auto shadow-2xs max-w-none" />
           )}
         </div>
       </div>
@@ -252,9 +252,14 @@ export function PdfDocumentViewer({
             <MagnifyingGlassMinus size={15} weight="bold" />
           </button>
 
-          <span className="text-[11px] font-mono font-semibold px-0.5 text-slate-200 w-9 text-center">
+          <button
+            type="button"
+            onClick={() => (scale < 0.95 ? setScale(1.0) : handleFitWidth())}
+            title={scale < 0.95 ? 'Klik untuk zoom 100% (Ukuran Nyata)' : 'Klik untuk Pas Layar'}
+            className="text-[11px] font-mono font-bold px-1 py-0.5 rounded hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+          >
             {Math.round(scale * 100)}%
-          </span>
+          </button>
 
           <button
             type="button"
@@ -286,10 +291,10 @@ export function PdfDocumentViewer({
               onClick={onShare}
               title="Bagikan Dokumen BAP"
               aria-label="Bagikan Dokumen"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
             >
-              <ShareNetwork size={13} weight="bold" />
-              <span>Bagikan</span>
+              <ShareNetwork size={14} weight="bold" />
+              <span className="hidden sm:inline">Bagikan</span>
             </button>
           )}
 
@@ -312,10 +317,10 @@ export function PdfDocumentViewer({
               onClick={onDownload}
               title="Unduh Berkas PDF Resmi"
               aria-label="Unduh PDF"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#C81E1E] hover:bg-[#a61717] active:bg-[#8e1414] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-md bg-[#C81E1E] hover:bg-[#a61717] active:bg-[#8e1414] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <DownloadSimple size={13} weight="bold" />
-              <span>Unduh PDF</span>
+              <DownloadSimple size={14} weight="bold" />
+              <span>Unduh</span>
             </button>
           )}
         </div>
@@ -349,7 +354,7 @@ export function PdfDocumentViewer({
             )}
           </div>
         ) : numPages > 0 ? (
-          <div className="flex flex-col items-center gap-4 w-full">
+          <div className="flex flex-col items-center gap-4 w-full min-w-fit">
             {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNumber) => (
               <PdfPageCanvas
                 key={pageNumber}

@@ -107,7 +107,12 @@ export function InspectionHeaderSection({
             {lastSavedAt && (
               <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700/60 font-mono">
                 <CheckCircle size={13} className="text-emerald-500" weight="fill" />
-                Tersimpan: {lastSavedAt}
+                Tersimpan:{' '}
+                {lastSavedAt instanceof Date
+                  ? lastSavedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                  : typeof lastSavedAt === 'string' && lastSavedAt.includes('T')
+                  ? new Date(lastSavedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                  : String(lastSavedAt)}
               </span>
             )}
             {onDownloadDocx && (

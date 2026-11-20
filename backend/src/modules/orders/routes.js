@@ -20,6 +20,7 @@ import {
 } from '../../services/inspection-activities.js';
 import { saveUploadedFile, uploadMiddleware } from '../../storage/file-storage.js';
 import { AppError, parsePagination } from '../../utils/http.js';
+import { ensureBapsForOrderUnits } from '../bap/routes.js';
 
 const router = Router();
 router.use(authenticate);
@@ -470,6 +471,13 @@ async function resolveAndInsertOrderUnits(db, { orderId, clientId, locationId, o
       );
       insertedObjectIds.push(objRecord.id);
     }
+  }
+
+  // Otomatis pastikan setiap unit alat pada PO ini memiliki dokumen BAP (1 Unit = 1 BAP)
+  try {
+    await ensureBapsForOrderUnits(db, { orderId, userId });
+  } catch (err) {
+    console.warn('[persistOrderUnits] Gagal auto-provision BAP:', err?.message);
   }
 
   return insertedObjectIds;
@@ -1838,6 +1846,12 @@ router.post(
              WHERE order_id = $2 AND object_id = $3`,
             [primaryInspectorId, id, objectId]
           );
+          await db.query(
+            `UPDATE inspections
+             SET inspector_id = $1, updated_at = now()
+             WHERE order_id = $2 AND object_id = $3 AND status = 'DRAF'`,
+            [primaryInspectorId, id, objectId]
+          );
         } else {
           await db.query(
             `UPDATE order_objects
@@ -1845,6 +1859,12 @@ router.post(
                  unit_status = CASE WHEN unit_status IN ('BELUM_DIJADWALKAN', 'TERJADWAL') THEN 'DITUGASKAN' ELSE unit_status END,
                  updated_at = now()
              WHERE order_id = $2`,
+            [primaryInspectorId, id]
+          );
+          await db.query(
+            `UPDATE inspections
+             SET inspector_id = COALESCE(inspector_id, $1), updated_at = now()
+             WHERE order_id = $2 AND status = 'DRAF'`,
             [primaryInspectorId, id]
           );
         }

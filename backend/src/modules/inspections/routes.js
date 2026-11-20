@@ -1009,6 +1009,14 @@ router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectio
           );
       if (existing[0]) {
         await seedIdentityPrefillIfEmpty(db, existing[0].id, existing[0].template_version_id, orderId, objectId, activity);
+        // Pastikan inspector_id diperbarui ke pengguna yang sedang memulai pemeriksaan
+        if (['AHLI_K3', 'INSPECTOR'].includes(req.user.role) && existing[0].status === 'DRAF') {
+          await db.query(
+            'UPDATE inspections SET inspector_id = $1, updated_at = now() WHERE id = $2',
+            [req.user.id, existing[0].id]
+          );
+          existing[0].inspector_id = req.user.id;
+        }
         // Pemeriksaan mungkin sudah dibuat lebih awal saat BAP disiapkan.
         // Memulai pemeriksaan tetap harus menandai aktivitas sedang diperiksa.
         if (activity) {
@@ -1034,6 +1042,17 @@ router.post('/start', authorize('AHLI_K3', 'INSPECTOR'), validate(startInspectio
             actorId: req.user.id
           });
         }
+        await recordAudit(
+          {
+            userId: req.user.id,
+            action: 'INSPECTION_START',
+            entity: 'inspections',
+            entityId: existing[0].id,
+            summary: { orderId, objectId, activityId: activityId || null },
+            ip: req.ip
+          },
+          db
+        );
         return existing[0];
       }
 
@@ -2345,7 +2364,7 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
 // M3-11: Pembukaan kunci form melalui revisi tercatat
 router.post(
   '/:id/reopen',
-  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'AHLI_K3'),
+  authorize('ADMIN_SISTEM', 'ADMIN_KANTOR', 'PIMPINAN', 'AHLI_K3', 'INSPECTOR'),
   validate(reopenSchema),
   async (req, res, next) => {
     try {

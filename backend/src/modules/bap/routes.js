@@ -42,7 +42,7 @@ const updateBapDraftSchema = Joi.object({
 });
 
 const bapSignatureSchema = Joi.object({
-  signerRole: Joi.string().valid('AHLI_K3', 'PERWAKILAN_KLIEN').required(),
+  signerRole: Joi.string().valid('AHLI_K3', 'PERWAKILAN_KLIEN').default('PERWAKILAN_KLIEN'),
   signerName: Joi.string().min(2).max(160).required(),
   signerTitle: Joi.string().max(160).allow('', null),
   dataUrl: Joi.string().min(20).allow('', null).optional(),
@@ -55,6 +55,224 @@ const reopenBapSchema = Joi.object({
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Otomatis memastikan setiap unit alat yang valid pada suatu PO memiliki dokumen BAP (1 Unit = 1 BAP).
+ * Berjalan secara idempoten: jika BAP sudah ada untuk (order_id, object_id), tidak akan dibuat duplikat.
+ */
+export async function ensureBapsForOrderUnits(db, { orderId = null, objectId = null, userId = null } = {}) {
+  const params = [];
+  const conds = [
+    `o.status <> 'DIBATALKAN'`,
+    `oo.unit_status <> 'DIBATALKAN'`,
+    `NOT EXISTS (
+       SELECT 1 FROM bap_documents b
+       WHERE b.order_id = oo.order_id AND b.object_id = oo.object_id
+     )`
+  ];
+
+  if (orderId) {
+    params.push(orderId);
+    conds.push(`oo.order_id = $${params.length}`);
+  }
+  if (objectId) {
+    params.push(objectId);
+    conds.push(`oo.object_id = $${params.length}`);
+  }
+
+  const { rows: pendingUnits } = await db.query(
+    `SELECT oo.order_id, oo.object_id, oo.scope_items, oo.proposed_date, oo.unit_notes,
+            oo.inspector_id AS unit_inspector_id,
+            o.order_no, o.po_number, o.client_id,
+            c.name AS client_name, c.address AS client_address,
+            cc.name AS contact_name, cc.position AS contact_title,
+            t.name AS object_name, t.category_id, t.brand, t.model, t.manufacturer,
+            t.serial_number, t.capacity, t.manufacture_year, t.install_location,
+            t.equipment_type_id, t.equipment_subtype_id,
+            oc.code AS category_code, oc.default_bap_scopes
+     FROM order_objects oo
+     JOIN orders o ON o.id = oo.order_id
+     JOIN clients c ON c.id = o.client_id
+     LEFT JOIN client_contacts cc ON cc.id = o.contact_id
+     JOIN test_objects t ON t.id = oo.object_id
+     JOIN object_categories oc ON oc.id = t.category_id
+     WHERE ${conds.join(' AND ')}
+     ORDER BY o.created_at ASC, oo.order_id, oo.object_id`,
+    params
+  );
+
+  if (!pendingUnits.length) {
+    return [];
+  }
+
+  const createdBaps = [];
+  for (const unit of pendingUnits) {
+    try {
+      const { rows: existingBap } = await db.query(
+        'SELECT id FROM bap_documents WHERE order_id = $1 AND object_id = $2 LIMIT 1',
+        [unit.order_id, unit.object_id]
+      );
+      if (existingBap[0]) {
+        continue;
+      }
+
+      let { rows: inspRows } = await db.query(
+        `SELECT id, inspector_id FROM inspections
+         WHERE order_id = $1 AND object_id = $2
+         LIMIT 1`,
+        [unit.order_id, unit.object_id]
+      );
+      let inspection = inspRows[0];
+
+      if (!inspection) {
+        let inspectorId = unit.unit_inspector_id || null;
+        if (!inspectorId) {
+          const { rows: actRows } = await db.query(
+            `SELECT inspector_id FROM inspection_activities
+             WHERE order_id = $1 AND object_id = $2 AND status <> 'DIBATALKAN' AND inspector_id IS NOT NULL
+             ORDER BY sequence_no DESC LIMIT 1`,
+            [unit.order_id, unit.object_id]
+          );
+          inspectorId = actRows[0]?.inspector_id || null;
+        }
+        if (!inspectorId) {
+          const { rows: asgRows } = await db.query(
+            `SELECT inspector_id FROM assignments
+             WHERE order_id = $1 AND status IN ('MENUNGGU', 'DITERIMA') AND inspector_id IS NOT NULL
+             ORDER BY created_at DESC LIMIT 1`,
+            [unit.order_id]
+          );
+          inspectorId = asgRows[0]?.inspector_id || null;
+        }
+        if (!inspectorId && userId) {
+          const { rows: uRows } = await db.query(
+            `SELECT id FROM users WHERE id = $1 AND role IN ('AHLI_K3', 'INSPECTOR')`,
+            [userId]
+          );
+          inspectorId = uRows[0]?.id || null;
+        }
+        if (!inspectorId) {
+          const { rows: defaultInspRows } = await db.query(
+            `SELECT id FROM users WHERE role IN ('AHLI_K3', 'INSPECTOR') AND is_active = true ORDER BY created_at ASC LIMIT 1`
+          );
+          inspectorId = defaultInspRows[0]?.id || null;
+        }
+
+        const { rows: verRows } = await db.query(
+          `SELECT tv.id
+           FROM inspection_templates t
+           JOIN inspection_template_versions tv ON tv.template_id = t.id
+           WHERE tv.status = 'AKTIF'
+             AND (
+               (t.subtype_id IS NOT NULL AND t.subtype_id = $1)
+               OR (t.equipment_type_id IS NOT NULL AND t.equipment_type_id = $2)
+               OR (t.category_id = $3)
+             )
+           ORDER BY CASE WHEN t.subtype_id IS NOT NULL THEN 1 WHEN t.equipment_type_id IS NOT NULL THEN 2 ELSE 3 END, tv.version DESC
+           LIMIT 1`,
+          [unit.equipment_subtype_id || null, unit.equipment_type_id || null, unit.category_id]
+        );
+        let templateVersionId = verRows[0]?.id || null;
+        if (!templateVersionId) {
+          const { rows: fallbackVer } = await db.query(
+            `SELECT id FROM inspection_template_versions WHERE status = 'AKTIF' LIMIT 1`
+          );
+          templateVersionId = fallbackVer[0]?.id;
+        }
+
+        if (templateVersionId && inspectorId) {
+          const { rows: newInspRows } = await db.query(
+            `INSERT INTO inspections (order_id, object_id, template_version_id, inspector_id, status)
+             VALUES ($1, $2, $3, $4, 'DRAF')
+             RETURNING id, inspector_id`,
+            [unit.order_id, unit.object_id, templateVersionId, inspectorId]
+          );
+          inspection = newInspRows[0];
+        }
+      }
+
+      if (!inspection) {
+        continue;
+      }
+
+      const { rows: seqRows } = await db.query("SELECT nextval('bap_no_seq') AS seq");
+      const bapNo = await formatDocumentNumber('bap', {
+        counter: seqRows[0].seq,
+        categoryCode: unit.category_code,
+        date: new Date()
+      }).catch(() => `BAP/URD/${new Date().getFullYear()}/${String(seqRows[0].seq).padStart(4, '0')}`);
+
+      const scopes = Array.isArray(unit.scope_items) && unit.scope_items.length
+        ? unit.scope_items
+        : Array.isArray(unit.default_bap_scopes) && unit.default_bap_scopes.length
+        ? unit.default_bap_scopes
+        : ['Pemeriksaan Data & Gambar', 'Pemeriksaan Visual', 'Uji Fungsi'];
+
+      const { rows: inspUserRows } = await db.query(
+        `SELECT id, full_name, signer_title, signature_file_id FROM users WHERE id = $1`,
+        [inspection.inspector_id]
+      );
+      const inspUser = inspUserRows[0];
+      const inspectorSignerName = inspUser?.full_name || 'Ahli K3 Pemeriksa';
+      const inspectorSignerTitle = inspUser?.signer_title || 'Ahli K3 Spesialis';
+      const inspectorSigFileId = inspUser?.signature_file_id || null;
+      const inspectorSignedAt = inspectorSigFileId ? new Date() : null;
+
+      const documentData = {
+        object_name: unit.object_name,
+        client_name: unit.client_name,
+        client_address: unit.client_address || '',
+        contact_name: unit.contact_name || '',
+        contact_title: unit.contact_title || 'Perwakilan Perusahaan',
+        manufacturer: unit.manufacturer || unit.brand || '',
+        brand: unit.brand || unit.manufacturer || '',
+        manufacture_year: unit.manufacture_year || '',
+        serial_number: unit.serial_number || '',
+        capacity: unit.capacity || '',
+        install_location: unit.install_location || unit.client_address || '',
+        bap_no: bapNo,
+        notes: unit.unit_notes || ''
+      };
+
+      const { rows: bapRows } = await db.query(
+        `INSERT INTO bap_documents (
+           inspection_id, order_id, object_id, bap_no, status,
+           inspection_date, scope_items, conclusion, notes,
+           inspector_signer_name, inspector_signer_title, inspector_signature_file_id, inspector_signed_at,
+           client_signer_name, client_signer_title,
+           created_by, document_data
+         )
+         VALUES ($1, $2, $3, $4, 'DRAF', CURRENT_DATE, $5, NULL, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (order_id, object_id) DO NOTHING
+         RETURNING id, bap_no`,
+        [
+          inspection.id,
+          unit.order_id,
+          unit.object_id,
+          bapNo,
+          JSON.stringify(scopes),
+          unit.unit_notes || null,
+          inspectorSignerName,
+          inspectorSignerTitle,
+          inspectorSigFileId,
+          inspectorSignedAt,
+          unit.contact_name || null,
+          unit.contact_title || 'Perwakilan Perusahaan',
+          userId || null,
+          JSON.stringify(documentData)
+        ]
+      );
+
+      if (bapRows[0]) {
+        createdBaps.push(bapRows[0]);
+      }
+    } catch (err) {
+      console.warn(`[ensureBapsForOrderUnits] Lewati unit ${unit.object_id}:`, err?.message);
+    }
+  }
+
+  return createdBaps;
+}
+
 export async function fetchFullBapContext(db, id) {
   if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
     return null;
@@ -65,6 +283,7 @@ export async function fetchFullBapContext(db, id) {
             i.conclusion_notes, i.inspected_at, i.submitted_at,
             o.order_no, o.po_number, o.po_date, o.service_type,
             c.name AS client_name, c.address AS client_address, c.phone AS client_phone,
+            COALESCE(cc.name, (SELECT cc2.name FROM client_contacts cc2 WHERE cc2.client_id = c.id AND cc2.is_active = true ORDER BY cc2.is_primary DESC, cc2.created_at DESC LIMIT 1)) AS contact_name,
             cl.name AS location_name, cl.address AS location_address, cl.city AS location_city,
             t.name AS object_name, t.brand, t.model, t.manufacturer,
             t.serial_number, t.manufacture_year, t.capacity, t.capacity_unit,
@@ -86,6 +305,7 @@ export async function fetchFullBapContext(db, id) {
      JOIN inspections i ON i.id = b.inspection_id
      JOIN orders o ON o.id = b.order_id
      JOIN clients c ON c.id = o.client_id
+     LEFT JOIN client_contacts cc ON cc.id = o.contact_id
      LEFT JOIN client_locations cl ON cl.id = o.location_id
      JOIN test_objects t ON t.id = b.object_id
      JOIN object_categories oc ON oc.id = t.category_id
@@ -171,6 +391,9 @@ export async function fetchFullBapContext(db, id) {
     client_sig_file_id: bap.client_signature_file_id,
     client_signature_path: bap.client_sig_storage_key
       ? resolveAttachmentPath(bap.client_sig_storage_key)
+      : null,
+    client_signature_url: bap.client_signature_file_id
+      ? `/api/v1/dashboard/files/${bap.client_signature_file_id}`
       : null,
     revisions: revRes.rows
   };
@@ -269,17 +492,24 @@ router.post('/prepare', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM', 'ADMIN
         }
       }
 
-      // Idempoten: gunakan BAP yang sudah ada untuk unit/aktivitas yang sama.
+      // Idempoten: gunakan BAP yang sudah ada untuk unit/order yang sama.
       const { rows: existingBap } = await db.query(
-        activity
-          ? `SELECT b.id FROM bap_documents b
-             JOIN inspections i ON i.id = b.inspection_id
-             WHERE i.activity_id = $1 LIMIT 1`
-          : `SELECT b.id FROM bap_documents b
-             WHERE b.order_id = $1 AND b.object_id = $2 ORDER BY b.created_at DESC LIMIT 1`,
-        activity ? [activity.id] : [orderId, resolvedObjectId]
+        `SELECT b.id FROM bap_documents b
+         WHERE (b.order_id = $1 AND b.object_id = $2)
+            OR ($3::uuid IS NOT NULL AND b.inspection_id IN (SELECT id FROM inspections WHERE activity_id = $3))
+         ORDER BY b.created_at DESC LIMIT 1`,
+        [orderId, resolvedObjectId, activity?.id || null]
       );
       if (existingBap[0]) {
+        if (activity) {
+          await db.query(
+            `UPDATE inspections i
+             SET activity_id = $1, updated_at = now()
+             FROM bap_documents b
+             WHERE b.id = $2 AND i.id = b.inspection_id AND i.activity_id IS NULL`,
+            [activity.id, existingBap[0].id]
+          );
+        }
         return fetchFullBapContext(db, existingBap[0].id);
       }
 
@@ -395,6 +625,13 @@ router.post('/prepare', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM', 'ADMIN
 
 router.get('/', async (req, res, next) => {
   try {
+    // Otomatis pastikan setiap unit alat pada PO memiliki dokumen BAP (1 Unit = 1 BAP)
+    try {
+      await ensureBapsForOrderUnits({ query }, { userId: req.user?.id });
+    } catch (syncErr) {
+      console.warn('[BAP Sync Warning]', syncErr?.message);
+    }
+
     const { page, limit, offset } = parsePagination(req.query);
     const status = (req.query.status || '').trim();
     const orderId = (req.query.orderId || '').trim();
@@ -407,18 +644,35 @@ router.get('/', async (req, res, next) => {
       params.push(req.user.id);
       conds.push(`i.inspector_id = $${params.length}`);
     }
-    if (status) {
+
+    if (status === 'BELUM_TTD_PIC') {
+      conds.push('b.client_signed_at IS NULL');
+    } else if (status === 'SUDAH_TTD_PIC') {
+      conds.push('b.client_signed_at IS NOT NULL');
+    } else if (status === 'FINAL') {
+      conds.push("b.status = 'FINAL'");
+    } else if (status === 'DRAF') {
+      conds.push("b.status = 'DRAF'");
+    } else if (status) {
       params.push(status);
       conds.push(`b.status = $${params.length}`);
     }
+
     if (orderId) {
       params.push(orderId);
       conds.push(`b.order_id = $${params.length}`);
     }
+
     if (search) {
       params.push(`%${search.toLowerCase()}%`);
       conds.push(
-        `(lower(b.bap_no) LIKE $${params.length} OR lower(o.order_no) LIKE $${params.length} OR lower(coalesce(o.po_number,'')) LIKE $${params.length} OR lower(c.name) LIKE $${params.length} OR lower(t.name) LIKE $${params.length})`
+        `(lower(b.bap_no) LIKE $${params.length}
+          OR lower(o.order_no) LIKE $${params.length}
+          OR lower(coalesce(o.po_number,'')) LIKE $${params.length}
+          OR lower(c.name) LIKE $${params.length}
+          OR lower(t.name) LIKE $${params.length}
+          OR lower(coalesce(t.serial_number,'')) LIKE $${params.length}
+          OR lower(coalesce(b.client_signer_name,'')) LIKE $${params.length})`
       );
     }
 
@@ -438,8 +692,9 @@ router.get('/', async (req, res, next) => {
     const { rows } = await query(
       `SELECT b.*,
               o.order_no, o.po_number,
-              c.name AS client_name,
-              t.name AS object_name, t.serial_number, t.capacity,
+              c.name AS client_name, c.address AS client_address,
+              COALESCE(b.client_signer_name, cc.name) AS contact_name,
+              t.name AS object_name, t.serial_number, t.capacity, t.install_location,
               oc.code AS category_code, oc.name AS category_name,
               u.full_name AS inspector_name,
               l.id AS lhpp_id, l.lhpp_no, l.status AS lhpp_status
@@ -447,6 +702,7 @@ router.get('/', async (req, res, next) => {
        JOIN inspections i ON i.id = b.inspection_id
        JOIN orders o ON o.id = b.order_id
        JOIN clients c ON c.id = o.client_id
+       LEFT JOIN client_contacts cc ON cc.id = o.contact_id
        JOIN test_objects t ON t.id = b.object_id
        JOIN object_categories oc ON oc.id = t.category_id
        JOIN users u ON u.id = i.inspector_id
@@ -518,6 +774,7 @@ router.put(
           ...(documentData || {})
         };
         const customBapNo = mergedDocData.bap_no ? String(mergedDocData.bap_no).trim() : null;
+        const customContactName = mergedDocData.contact_name ? String(mergedDocData.contact_name).trim() : null;
 
         const { rows } = await db.query(
           `UPDATE bap_documents
@@ -527,6 +784,7 @@ router.put(
                notes = $4,
                document_data = $5::jsonb,
                bap_no = COALESCE($6, bap_no),
+               client_signer_name = COALESCE($8, client_signer_name),
                updated_at = now()
            WHERE id = $7
            RETURNING *`,
@@ -537,7 +795,8 @@ router.put(
             resolvedNotes || null,
             JSON.stringify(mergedDocData),
             customBapNo,
-            id
+            id,
+            customContactName
           ]
         );
 

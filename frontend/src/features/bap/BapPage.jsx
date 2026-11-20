@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Clock, FileText, MagnifyingGlass, Plus } from '@phosphor-icons/react';
+import { CheckCircle, Clock, FileText, MagnifyingGlass, Funnel, ArrowClockwise } from '@phosphor-icons/react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider.jsx';
 import { LoadingState, ErrorState, EmptyState } from '../../components/feedback/StateViews.jsx';
@@ -10,7 +10,6 @@ import { api } from '../../lib/api/axios.js';
 import { PdfPreviewModal } from '../inspections/components/PdfPreviewModal.jsx';
 import { BapTable } from './components/BapTable.jsx';
 import { BapDetailModal } from './components/BapDetailModal.jsx';
-import { PrepareBapModal } from './components/PrepareBapModal.jsx';
 import { ShareBapModal } from './components/ShareBapModal.jsx';
 
 export function BapPage() {
@@ -18,7 +17,7 @@ export function BapPage() {
   const toast = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlStatus = searchParams.get('status') || '';
   const canManage = ['ADMIN_SISTEM', 'ADMIN_KANTOR', 'AHLI_K3', 'INSPECTOR'].includes(user?.role);
   const canFinalize = ['ADMIN_SISTEM', 'ADMIN_KANTOR'].includes(user?.role);
@@ -29,7 +28,6 @@ export function BapPage() {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [search, setSearch] = useState('');
-  const [prepareModalOpen, setPrepareModalOpen] = useState(false);
 
   useEffect(() => {
     setStatusFilter(urlStatus);
@@ -41,9 +39,9 @@ export function BapPage() {
   const [bapEditForm, setBapEditForm] = useState(null);
 
   const [sigForm, setSigForm] = useState({
-    signerRole: 'AHLI_K3',
+    signerRole: 'PERWAKILAN_KLIEN',
     signerName: '',
-    signerTitle: 'Ahli K3 Pemeriksa'
+    signerTitle: 'Perwakilan Klien'
   });
 
   const [reopenReason, setReopenReason] = useState('');
@@ -102,6 +100,7 @@ export function BapPage() {
       const b = res.data.bap;
       setSelectedBap(b);
       const docData = b.document_data || {};
+      const autoPicName = docData.contact_name || b.contact_name || b.client_signer_name || '';
       setBapEditForm({
         object_name: docData.object_name || b.object_name || '',
         client_name: docData.client_name || b.client_name || '',
@@ -113,21 +112,15 @@ export function BapPage() {
         capacity: docData.capacity || b.capacity || '',
         install_location: docData.install_location || b.install_location || b.location_name || '',
         bap_no: docData.bap_no || b.bap_no || '',
-        contact_name: docData.contact_name || b.contact_name || b.client_signer_name || '',
-        contact_title: docData.contact_title || b.contact_title || b.client_signer_title || '',
+        contact_name: autoPicName,
         inspection_date: b.inspection_date ? String(b.inspection_date).slice(0, 10) : '',
         scope_items: Array.isArray(b.scope_items) ? b.scope_items : [],
         is_compliant: b.is_compliant === true ? true : b.is_compliant === false ? false : null,
         inspection_notes: b.inspection_notes || ''
       });
       setSigForm({
-        signerRole: b.inspector_sig_file_id ? 'PERWAKILAN_KLIEN' : 'AHLI_K3',
-        signerName: b.inspector_sig_file_id
-          ? b.client_signer_name || b.contact_name || ''
-          : b.inspector_signer_name || user?.fullName || '',
-        signerTitle: b.inspector_sig_file_id
-          ? b.client_signer_title || 'Pemilik Alat / Perwakilan Klien'
-          : b.inspector_signer_title || 'Ahli K3 Pemeriksa'
+        signerRole: 'PERWAKILAN_KLIEN',
+        signerName: b.client_signer_name || autoPicName
       });
     } catch (err) {
       setFeedback({
@@ -137,7 +130,7 @@ export function BapPage() {
     } finally {
       setDetailLoading(false);
     }
-  }, [user?.fullName]);
+  }, []);
 
   useEffect(() => {
     if (!searchParam || !bapList.length) return;
@@ -194,8 +187,7 @@ export function BapPage() {
         capacity: formToSave.capacity,
         install_location: formToSave.install_location,
         bap_no: formToSave.bap_no,
-        contact_name: formToSave.contact_name,
-        contact_title: formToSave.contact_title
+        contact_name: formToSave.contact_name
       };
       await api.put(`/bap/${selectedBap.id}/draft`, {
         bapNo: formToSave.bap_no || undefined,
@@ -406,8 +398,27 @@ export function BapPage() {
     const total = bapList.length;
     const draft = bapList.filter((b) => b.status === 'DRAF').length;
     const final = bapList.filter((b) => b.status === 'FINAL').length;
-    return { total, draft, final };
+    const unsignedPic = bapList.filter((b) => !b.client_sig_file_id).length;
+    const signedPic = bapList.filter((b) => Boolean(b.client_sig_file_id)).length;
+    return { total, draft, final, unsignedPic, signedPic };
   }, [bapList]);
+
+  const FILTER_TABS = [
+    { key: '', label: 'Semua BAP', count: stats.total },
+    { key: 'BELUM_TTD_PIC', label: 'Belum TTD PIC', count: stats.unsignedPic, tone: 'amber' },
+    { key: 'SUDAH_TTD_PIC', label: 'Sudah TTD PIC', count: stats.signedPic, tone: 'emerald' },
+    { key: 'FINAL', label: 'BAP Final', count: stats.final, tone: 'emerald' },
+    { key: 'DRAF', label: 'Draf BAP', count: stats.draft, tone: 'blue' }
+  ];
+
+  const handleSelectFilterTab = (key) => {
+    setStatusFilter(key);
+    if (key) {
+      setSearchParams({ status: key });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -415,20 +426,8 @@ export function BapPage() {
         title={isPimpinan ? 'Monitoring Berita Acara (BAP)' : 'Berita Acara Riksa Uji (BAP)'}
         subtitle={
           isPimpinan
-            ? 'Pengawasan Berita Acara riksa uji, penandatanganan pihak terkait, dan status pengesahan.'
-            : 'Pemeriksaan ruang lingkup riksa uji, penandatanganan Berita Acara, dan penerbitan dokumen resmi.'
-        }
-        actions={
-          canManage && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              onClick={() => setPrepareModalOpen(true)}
-            >
-              Siapkan BAP Baru
-            </Button>
-          )
+            ? 'Pengawasan Berita Acara riksa uji, penandatanganan pihak terkait, dan status pengesahan dokumen per unit alat.'
+            : 'Dokumen Berita Acara Riksa Uji otomatis (1 Unit = 1 BAP). Penandatanganan digital perwakilan klien, pratinjau dokumen, dan penerbitan resmi.'
         }
       />
 
@@ -439,7 +438,7 @@ export function BapPage() {
             <FileText size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Total Berkas BAP</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Total Unit Alat (1 Unit = 1 BAP)</div>
             <div className="text-lg font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">{stats.total} Dokumen</div>
           </div>
         </div>
@@ -449,8 +448,8 @@ export function BapPage() {
             <Clock size={18} weight="bold" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Draf Menunggu TTD / Finalisasi</div>
-            <div className="text-lg font-bold tracking-tight text-amber-700 dark:text-amber-400">{stats.draft} Draf</div>
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#98989D]">Perlu Tanda Tangan PIC</div>
+            <div className="text-lg font-bold tracking-tight text-amber-700 dark:text-amber-400">{stats.unsignedPic} Unit</div>
           </div>
         </div>
 
@@ -465,7 +464,37 @@ export function BapPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#151821] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      {/* Filter Tabs & Search Bar */}
+      <div className="bg-white dark:bg-[#151821] p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)] space-y-3.5">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {FILTER_TABS.map((tab) => {
+            const active = statusFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => handleSelectFilterTab(tab.key)}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  active
+                    ? 'bg-[#C81E1E] text-white shadow-[0_2px_8px_-2px_rgba(200,30,30,0.4)]'
+                    : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.08] dark:hover:bg-white/[0.10]'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    active
+                      ? 'bg-white/20 text-white'
+                      : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-[#F5F5F7]'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -476,22 +505,36 @@ export function BapPage() {
           <div className="relative flex-1">
             <MagnifyingGlass
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#86868B]"
             />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari No. BAP, PO, Klien..."
-              className="w-full h-9 pl-9 pr-3 text-xs border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] rounded-[10px] focus:outline-none focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E] transition-colors"
+              placeholder="Cari No. BAP, PO, Klien, Objek Alat, No. Seri..."
+              className="w-full h-10 pl-10 pr-3.5 text-xs border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7]/60 dark:bg-white/[0.04] text-[#1D1D1F] dark:text-[#F5F5F7] placeholder:text-[#86868B] rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#1C1F2B] focus:border-[#C81E1E] transition-colors"
             />
           </div>
           <button
             type="submit"
-            className="h-9 px-3.5 text-xs font-semibold bg-[#C81E1E] hover:bg-[#AD1919] text-white rounded-[10px] shadow-[0_1px_2px_rgba(200,30,30,0.2)] transition-colors cursor-pointer"
+            className="h-10 px-4 text-xs font-semibold bg-[#C81E1E] hover:bg-[#AD1919] text-white rounded-xl shadow-[0_1px_2px_rgba(200,30,30,0.2)] transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
-            Cari
+            <MagnifyingGlass size={14} weight="bold" />
+            <span>Cari</span>
           </button>
+          {Boolean(search || statusFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                handleSelectFilterTab('');
+              }}
+              className="h-10 px-3 text-xs font-semibold text-[#6E6E73] dark:text-[#98989D] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1"
+            >
+              <ArrowClockwise size={14} />
+              <span>Reset</span>
+            </button>
+          )}
         </form>
       </div>
 
@@ -502,7 +545,7 @@ export function BapPage() {
       ) : bapList.length === 0 ? (
         <EmptyState
           title="Belum Ada Berita Acara Riksa Uji"
-          description="BAP akan otomatis dibuat begitu Ahli K3 mengirim form hasil pemeriksaan lapangan pada salah satu unit PO."
+          description="BAP dibuat otomatis untuk setiap unit alat pada PO yang aktif (1 Unit = 1 BAP). Pastikan unit alat sudah ditambahkan pada menu PO & Order Masuk."
         />
       ) : (
         <BapTable
@@ -542,18 +585,6 @@ export function BapPage() {
         onShareBap={handleOpenShare}
         submitting={submitting}
         navigate={navigate}
-      />
-
-      <PrepareBapModal
-        open={prepareModalOpen}
-        onClose={() => setPrepareModalOpen(false)}
-        onBapCreated={(newBap) => {
-          fetchBapList();
-          if (newBap?.id) {
-            openBapDetail(newBap.id);
-          }
-        }}
-        scopeCatalog={scopeCatalog}
       />
 
       <PdfPreviewModal

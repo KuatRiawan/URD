@@ -1,21 +1,24 @@
 import { useRef, useState } from 'react';
 import {
+  CaretDown,
   CheckCircle,
+  Clock,
   Eraser,
   Eye,
   FileDoc,
   FilePdf,
   IdentificationBadge,
+  Info,
   LockKey,
   LockKeyOpen,
   PencilSimple,
   PenNib,
   SealCheck,
   ShareNetwork,
+  User,
   WarningCircle,
   Wrench
 } from '@phosphor-icons/react';
-import logoUrd from '../../../assets/logo-urd.png';
 import { LoadingState } from '../../../components/feedback/StateViews.jsx';
 import { Badge } from '../../../components/ui/Badge.jsx';
 import { Button } from '../../../components/ui/Button.jsx';
@@ -33,7 +36,7 @@ export function BapDetailModal({
   bapEditForm,
   setBapEditForm,
   toggleScopeItem,
-  scopeCatalog,
+  scopeCatalog = [],
   handleSaveDraft,
   sigForm,
   setSigForm,
@@ -54,6 +57,7 @@ export function BapDetailModal({
   const [hasDrawn, setHasDrawn] = useState(false);
   const [sigError, setSigError] = useState('');
   const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [isReSigningPic, setIsReSigningPic] = useState(false);
   const isDrawingRef = useRef(false);
 
   const handleTriggerPreview = async () => {
@@ -65,44 +69,7 @@ export function BapDetailModal({
         // Lanjutkan pratinjau data terakhir
       }
     }
-    handlePreviewPdf(selectedBap.id, (bapEditForm?.bap_no) || selectedBap.bap_no);
-  };
-
-  const handleApplySavedSignature = () => {
-    if (!user?.signatureUrl) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    setSigForm((prev) => ({
-      ...prev,
-      signerRole: 'AHLI_K3',
-      signerName: user.fullName || prev.signerName,
-      signerTitle: user.signerTitle || prev.signerTitle || 'Ahli K3 Spesialis'
-    }));
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const padding = 10;
-      const maxWidth = canvas.width - padding * 2;
-      const maxHeight = canvas.height - padding * 2;
-      let w = img.width;
-      let h = img.height;
-      const ratio = Math.min(maxWidth / w, maxHeight / h, 1);
-      w *= ratio;
-      h *= ratio;
-      const x = (canvas.width - w) / 2;
-      const y = (canvas.height - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
-      setHasDrawn(true);
-      setSigError('');
-    };
-    img.onerror = () => {
-      setSigError('Gagal memuat berkas tanda tangan tersimpan dari profil.');
-    };
-    img.src = user.signatureUrl;
+    handlePreviewPdf(selectedBap.id, bapEditForm?.bap_no || selectedBap.bap_no);
   };
 
   const getCoordinates = (e) => {
@@ -166,17 +133,22 @@ export function BapDetailModal({
     setSigError('');
   };
 
-  const onSubmitSignature = (e) => {
+  const onSubmitPicSignature = (e) => {
     e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas || !hasDrawn) {
-      setSigError('Goreskan tanda tangan digital terlebih dahulu pada kotak tanda tangan.');
+      setSigError('Goreskan tanda tangan digital perwakilan klien pada kotak tanda tangan.');
+      return;
+    }
+    if (!sigForm?.signerName?.trim()) {
+      setSigError('Nama perwakilan klien / PIC penanda tangan wajib diisi.');
       return;
     }
     setSigError('');
     const dataUrl = canvas.toDataURL('image/png');
     handleSaveSignature(e, dataUrl);
     clearCanvas();
+    setIsReSigningPic(false);
   };
 
   if (!selectedBap) return null;
@@ -198,8 +170,11 @@ export function BapDetailModal({
     selectedBap.equipment_subtype_name ||
     selectedBap.equipment_type_name ||
     selectedBap.object_name ||
-    'ALAT K3'
+    'UNIT ALAT K3'
   ).toUpperCase();
+
+  const isPicSigned = Boolean(selectedBap.client_sig_file_id);
+  const showPicSignatureCanvas = isEditable && (!isPicSigned || isReSigningPic);
 
   return (
     <Modal
@@ -207,9 +182,10 @@ export function BapDetailModal({
       onClose={onClose}
       title={`Berita Acara Riksa Uji: ${form.bap_no || selectedBap.bap_no}`}
       size="xl"
+      fullScreenMobile={true}
       footer={
-        <div className="flex w-full items-center justify-between gap-3">
-          <div className="text-xs text-slate-500">
+        <div className="flex w-full items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             Status: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedBap.status}</span> · Versi #{selectedBap.version || 1}
           </div>
           <Button variant="secondary" size="md" onClick={onClose}>
@@ -221,110 +197,110 @@ export function BapDetailModal({
       {detailLoading ? (
         <LoadingState message="Memuat lembar Berita Acara Riksa Uji..." />
       ) : (
-        <div className="space-y-6">
-          {/* Kop Dokumen Resmi BAP */}
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[#C81E1E] pb-4">
-              <div className="flex items-center gap-3">
-                <img
-                  src={logoUrd}
-                  alt="Logo PT Upaya Riksa Daya"
-                  className="h-12 w-auto object-contain dark:brightness-110"
-                />
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-                    PT UPAYA RIKSA DAYA
-                  </h3>
-                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                    Perusahaan Jasa K3 (PJK3) Bidang Pemeriksaan dan Pengujian
-                  </p>
-                </div>
-              </div>
-              <div className="text-left sm:text-right">
-                <span className="inline-block px-3 py-1 rounded bg-slate-900 dark:bg-slate-800 text-white text-xs font-extrabold tracking-wider uppercase">
-                  BERITA ACARA RIKSA UJI
+        <div className="space-y-5">
+          {/* AREA 1: IDENTITAS ALAT & STATUS BAP */}
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 shadow-2xs space-y-4">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant={selectedBap.status === 'FINAL' ? 'success' : selectedBap.status === 'REVISI' ? 'warning' : 'neutral'}>
+                  {selectedBap.status}
+                </Badge>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                  1 Unit = 1 BAP
                 </span>
-                {/* Equipment Title langsung di bawah judul */}
-                <div className="mt-1.5 text-sm font-extrabold tracking-wider uppercase text-[#C81E1E] dark:text-rose-400">
-                  {equipmentTitle}
-                </div>
-                <div className="mt-0.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
-                  Nomor: {form.bap_no || selectedBap.bap_no}
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Status: {selectedBap.status} · 1 Unit = 1 BAP
-                </div>
+                {selectedBap.category_code && (
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    {selectedBap.category_code}
+                  </span>
+                )}
+              </div>
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-snug">
+                {equipmentTitle}
+              </h3>
+              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 flex-wrap">
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  {form.bap_no || selectedBap.bap_no}
+                </span>
+                <span>•</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {form.client_name || selectedBap.client_name}
+                </span>
+                <span>•</span>
+                <span className="font-mono text-slate-500">
+                  PO: {selectedBap.po_number || selectedBap.order_no || '-'}
+                </span>
               </div>
             </div>
 
-            {/* Bagian Identitas BAP - Dengan Mode Edit Mandiri */}
-            <div className="pt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <IdentificationBadge size={16} className="text-[#C81E1E]" />
-                  Identitas Objek &amp; Perusahaan pada BAP
+            {/* AREA 2: INFORMASI UNIT & PERUSAHAAN (READOUT & EDIT) */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <IdentificationBadge size={16} className="text-[#C81E1E] shrink-0" />
+                  <span>Informasi Dokumen BAP</span>
                 </h4>
                 {isEditable && (
                   <Button
                     type="button"
                     variant={isEditingInfo ? 'secondary' : 'outline'}
                     size="xs"
-                    icon={PencilSimple}
+                    icon={isEditingInfo ? CheckCircle : PencilSimple}
                     onClick={() => setIsEditingInfo(!isEditingInfo)}
+                    className="shrink-0 whitespace-nowrap"
                   >
-                    {isEditingInfo ? 'Selesai Edit' : 'Edit Informasi BAP'}
+                    {isEditingInfo ? 'Selesai Edit' : 'Edit Informasi'}
                   </Button>
                 )}
               </div>
 
               {isEditingInfo ? (
-                /* Form Edit Informasi BAP */
-                <div className="space-y-4 p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/20">
+                /* FORM EDIT INFORMASI DOKUMEN BAP */
+                <div className="space-y-3.5 p-3.5 sm:p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/20">
                   <div className="text-[11px] text-rose-800 dark:text-rose-300 font-medium">
-                    Perubahan informasi di bawah disimpan khusus pada dokumen BAP ini tanpa mengubah master PO atau data peralatan lain.
+                    Perubahan data di bawah disimpan khusus pada dokumen BAP ini (snapshot dokumen) tanpa mengubah master PO atau data peralatan klien lainnya.
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        1. Nama / Jenis Objek Alat *
+                        Nama / Jenis Objek Alat *
                       </label>
                       <input
                         type="text"
-                        value={form.object_name}
+                        value={form.object_name || ''}
                         onChange={(e) => handleFieldChange('object_name', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                       />
                     </div>
                     <div>
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        2. Nama Perusahaan / Klien *
+                        Nama Perusahaan / Klien *
                       </label>
                       <input
                         type="text"
-                        value={form.client_name}
+                        value={form.client_name || ''}
                         onChange={(e) => handleFieldChange('client_name', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                       />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        3. Alamat Perusahaan *
+                        Alamat Perusahaan *
                       </label>
                       <input
                         type="text"
-                        value={form.client_address}
+                        value={form.client_address || ''}
                         onChange={(e) => handleFieldChange('client_address', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                       />
                     </div>
                     <div>
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        4. Pabrik Pembuat / Merek
+                        Pabrik Pembuat / Merek
                       </label>
                       <input
                         type="text"
-                        value={form.manufacturer || form.brand}
+                        value={form.manufacturer || form.brand || ''}
                         onChange={(e) => {
                           handleFieldChange('manufacturer', e.target.value);
                           handleFieldChange('brand', e.target.value);
@@ -338,40 +314,40 @@ export function BapDetailModal({
                       </label>
                       <input
                         type="text"
-                        value={form.manufacture_year}
+                        value={form.manufacture_year || ''}
                         onChange={(e) => handleFieldChange('manufacture_year', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                       />
                     </div>
                     <div>
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        5. Nomor Seri (Serial Number) *
+                        Nomor Seri (Serial Number) *
                       </label>
                       <input
                         type="text"
-                        value={form.serial_number}
+                        value={form.serial_number || ''}
                         onChange={(e) => handleFieldChange('serial_number', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
                       />
                     </div>
                     <div>
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        Kapasitas Beban
+                        Kapasitas Beban / Kerja
                       </label>
                       <input
                         type="text"
-                        value={form.capacity}
+                        value={form.capacity || ''}
                         onChange={(e) => handleFieldChange('capacity', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                       />
                     </div>
                     <div>
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        6. Lokasi Pemeriksaan Unit
+                        Lokasi Pemeriksaan Unit
                       </label>
                       <input
                         type="text"
-                        value={form.install_location}
+                        value={form.install_location || ''}
                         onChange={(e) => handleFieldChange('install_location', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                       />
@@ -382,82 +358,111 @@ export function BapDetailModal({
                       </label>
                       <input
                         type="text"
-                        value={form.bap_no}
+                        value={form.bap_no || ''}
                         onChange={(e) => handleFieldChange('bap_no', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold"
                       />
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        Nama PIC Perwakilan Klien
+                        Nama PIC Perwakilan Klien (Otomatis dari PO, dapat diedit)
                       </label>
                       <input
                         type="text"
-                        value={form.contact_name}
+                        value={form.contact_name || ''}
                         onChange={(e) => handleFieldChange('contact_name', e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
-                        Jabatan PIC Klien
-                      </label>
-                      <input
-                        type="text"
-                        value={form.contact_title}
-                        onChange={(e) => handleFieldChange('contact_title', e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                        placeholder="Nama lengkap PIC / perwakilan klien..."
+                        className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-medium"
                       />
                     </div>
                   </div>
                 </div>
               ) : (
-                /* Tampilan Readout dengan Traceability */
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block">1. Objek yang Diperiksa</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
-                      {form.object_name || selectedBap.object_name} ({selectedBap.category_code} - {selectedBap.category_name})
-                    </span>
+                /* READOUT INFORMASI UNIT & PERUSAHAAN (MODERN CLEAN SPECS) */
+                <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 sm:p-4 text-xs divide-y divide-slate-200/70 dark:divide-slate-800">
+                  {/* Blok 1: Unit & Klien */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3">
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+                        Objek Alat yang Diperiksa
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                        {form.object_name || selectedBap.object_name}
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                        {selectedBap.category_code} · {selectedBap.category_name}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+                        Nama Perusahaan / Klien
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                        {form.client_name || selectedBap.client_name}
+                      </span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">
+                        {form.client_address || selectedBap.client_address || selectedBap.location_address || '-'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block">2. Nama Perusahaan / Klien</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
-                      {form.client_name || selectedBap.client_name}
-                    </span>
+
+                  {/* Blok 2: Spesifikasi Teknis */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-3">
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+                        Pabrik Pembuat & Tahun
+                      </span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
+                        {form.manufacturer || form.brand || selectedBap.manufacturer || selectedBap.brand || '-'} ({form.manufacture_year || selectedBap.manufacture_year || '-'})
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+                        Nomor Seri & Kapasitas
+                      </span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                        {form.serial_number || selectedBap.serial_number || '-'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                        Kapasitas: {form.capacity || selectedBap.capacity || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+                        Lokasi Pemeriksaan & PO
+                      </span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
+                        {form.install_location || selectedBap.install_location || selectedBap.location_name || '-'}
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block mt-0.5">
+                        PO: {selectedBap.po_number || selectedBap.order_no || '-'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block">3. Alamat Perusahaan</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {form.client_address || selectedBap.client_address || selectedBap.location_address || '-'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block">4. Pabrik Pembuat / Tahun</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {form.manufacturer || form.brand || selectedBap.manufacturer || selectedBap.brand || '-'} /{' '}
-                      {form.manufacture_year || selectedBap.manufacture_year || '-'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block">5. Nomor Seri / Kapasitas</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                      {form.serial_number || selectedBap.serial_number || '-'} / {form.capacity || selectedBap.capacity || '-'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block">6. Lokasi Pemeriksaan &amp; Referensi PO</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {form.install_location || selectedBap.install_location || selectedBap.location_name || '-'} · PO:{' '}
-                      <strong className="font-mono text-slate-900 dark:text-slate-100">{selectedBap.po_number || selectedBap.order_no}</strong>
-                    </span>
+
+                  {/* Blok 3: Pihak Penanda Tangan */}
+                  <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <User size={15} className="text-slate-400 shrink-0" />
+                      <span className="text-slate-500 dark:text-slate-400">PIC Klien:</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {form.contact_name || selectedBap.client_signer_name || selectedBap.contact_name || '-'}
+                      </strong>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <SealCheck size={15} className="text-[#C81E1E] shrink-0" />
+                      <span className="text-slate-500 dark:text-slate-400">Ahli K3 URD:</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {selectedBap.inspector_signer_name || selectedBap.inspector_name || 'Ahli K3 Pemeriksa'}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Ruang Lingkup Riksa Uji */}
+          {/* AREA 4: RUANG LINGKUP PEMERIKSAAN & KESIMPULAN K3 */}
           <form onSubmit={(e) => handleSaveDraft(e, form)} className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
@@ -465,7 +470,7 @@ export function BapDetailModal({
                   Ruang Lingkup Riksa Uji (Centang yang Dilaksanakan)
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Terpilih {form.scope_items?.length || 0} dari {scopeCatalog.length} item ruang lingkup pada template BAP.
+                  Terpilih {form.scope_items?.length || 0} dari {scopeCatalog.length} item ruang lingkup standar Permenaker.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -480,7 +485,7 @@ export function BapDetailModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 max-h-72 overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto">
               {scopeCatalog.map((scopeName) => {
                 const checked = form.scope_items?.includes(scopeName);
                 return (
@@ -505,74 +510,85 @@ export function BapDetailModal({
               })}
             </div>
 
-            {/* Hasil Riksa Uji & Catatan Pemeriksaan */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-wrap">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            {/* Hasil Riksa Uji & Catatan Lapangan */}
+            <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
                   Hasil Riksa Uji (Pernyataan Resmi BAP)
                 </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-400 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="isCompliant"
-                      disabled={!isEditable}
-                      checked={form.is_compliant === true}
-                      onChange={() => handleFieldChange('is_compliant', true)}
-                    />
-                    MEMENUHI PERSYARATAN K3
-                  </label>
-                  <label className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-400 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="isCompliant"
-                      disabled={!isEditable}
-                      checked={form.is_compliant === false}
-                      onChange={() => handleFieldChange('is_compliant', false)}
-                    />
-                    TIDAK MEMENUHI PERSYARATAN K3
-                  </label>
-                  <label className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="isCompliant"
-                      disabled={!isEditable}
-                      checked={form.is_compliant === null}
-                      onChange={() => handleFieldChange('is_compliant', null)}
-                    />
-                    BELUM DITETAPKAN (TTD Situasional)
-                  </label>
-                </div>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Pilih salah satu kesimpulan resmi
+                </span>
               </div>
 
-              <div className="p-3 rounded bg-slate-100 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-slate-100 border-l-4 border-[#C81E1E]">
-                {form.is_compliant === null ? (
-                  <span>
-                    &quot;Kesimpulan kelayakan K3{' '}
-                    <span className="text-amber-700 dark:text-amber-400 underline">
-                      BELUM DITETAPKAN
-                    </span>{' '}
-                    (BAP ditandatangani secara situasional; kesimpulan akhir menunggu hasil pengujian &amp; perhitungan teknis selesai).&quot;
-                  </span>
-                ) : (
-                  <span>
-                    &quot;Berdasarkan hasil riksa uji, dapat disimpulkan unit tersebut{' '}
-                    <span
-                      className={
-                        form.is_compliant
-                          ? 'text-emerald-700 dark:text-emerald-400 underline'
-                          : 'text-red-700 dark:text-red-400 underline'
-                      }
-                    >
-                      {form.is_compliant ? 'MEMENUHI' : 'TIDAK MEMENUHI'}
-                    </span>{' '}
-                    Persyaratan Keselamatan dan Kesehatan Kerja.&quot;
-                  </span>
-                )}
+              {/* 3 Choice Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <label
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                    form.is_compliant === true
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100 font-bold ring-1 ring-emerald-500'
+                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100/60'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="isCompliant"
+                    disabled={!isEditable}
+                    checked={form.is_compliant === true}
+                    onChange={() => handleFieldChange('is_compliant', true)}
+                    className="text-emerald-600 focus:ring-emerald-500 shrink-0"
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-[11px] sm:text-xs leading-tight">MEMENUHI PERSYARATAN K3</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">Laik operasional</span>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                    form.is_compliant === false
+                      ? 'border-red-500 bg-red-50 dark:bg-red-950/40 text-red-950 dark:text-red-100 font-bold ring-1 ring-red-500'
+                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100/60'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="isCompliant"
+                    disabled={!isEditable}
+                    checked={form.is_compliant === false}
+                    onChange={() => handleFieldChange('is_compliant', false)}
+                    className="text-red-600 focus:ring-red-500 shrink-0"
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-[11px] sm:text-xs leading-tight">TIDAK MEMENUHI PERSYARATAN K3</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">Perlu perbaikan</span>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                    form.is_compliant === null
+                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 font-bold ring-1 ring-amber-500'
+                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100/60'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="isCompliant"
+                    disabled={!isEditable}
+                    checked={form.is_compliant === null}
+                    onChange={() => handleFieldChange('is_compliant', null)}
+                    className="text-amber-600 focus:ring-amber-500 shrink-0"
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-[11px] sm:text-xs leading-tight">BELUM DITETAPKAN</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">TTD Situasional</span>
+                  </div>
+                </label>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Catatan Pemeriksaan Lapangan
                 </label>
                 <textarea
@@ -581,12 +597,12 @@ export function BapDetailModal({
                   value={form.inspection_notes || ''}
                   onChange={(e) => handleFieldChange('inspection_notes', e.target.value)}
                   placeholder="Catatan hasil riksa uji, temuan penting, atau kondisi operasional unit..."
-                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-md"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                 />
               </div>
 
               {isEditable && (
-                <div className="flex justify-end">
+                <div className="flex justify-end pt-1">
                   <Button
                     type="submit"
                     variant="primary"
@@ -601,342 +617,321 @@ export function BapDetailModal({
             </div>
           </form>
 
-          {/* Area Tanda Tangan */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Status Tanda Tangan Berita Acara
+          {/* AREA 4: TANDA TANGAN PERWAKILAN KLIEN / PEMILIK ALAT */}
+          <div className="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-2.5 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <PenNib size={16} weight="bold" className="text-[#C81E1E]" />
+                <span>Tanda Tangan Perwakilan Klien / Pemilik Alat</span>
               </h4>
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-white">
-                      Inspector (PT Upaya Riksa Daya)
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-400">
-                      {form.inspector_name || selectedBap.inspector_signer_name || selectedBap.inspector_name} (
-                      {selectedBap.inspector_signer_title || 'Ahli K3 Pemeriksa'})
-                    </div>
-                    {selectedBap.inspector_signed_at && (
-                      <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                        Ditandatangani: {formatDateTime(selectedBap.inspector_signed_at)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge variant={selectedBap.inspector_sig_file_id ? 'success' : selectedBap.inspector_has_saved_sig ? 'info' : 'warning'}>
-                      {selectedBap.inspector_sig_file_id
-                        ? 'Sudah TTD'
-                        : selectedBap.inspector_has_saved_sig
-                        ? 'Siap Digunakan'
-                        : 'Belum TTD'}
-                    </Badge>
-                    {Boolean(!selectedBap.inspector_sig_file_id && selectedBap.inspector_has_saved_sig) && (
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                        Tersimpan di profil
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-2.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-white">
-                      Pemilik Alat / Unit (Perwakilan Klien)
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-400">
-                      {form.contact_name || selectedBap.client_signer_name || 'Belum diisi'} (
-                      {form.contact_title || selectedBap.client_signer_title || 'Perwakilan Klien'})
-                    </div>
-                    {selectedBap.client_signed_at && (
-                      <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                        Ditandatangani: {formatDateTime(selectedBap.client_signed_at)}
-                      </div>
-                    )}
-                  </div>
-                  <Badge variant={selectedBap.client_sig_file_id ? 'success' : 'warning'}>
-                    {selectedBap.client_sig_file_id ? 'Sudah TTD' : 'Belum TTD'}
-                  </Badge>
-                </div>
-              </div>
-
-              {isEditable && (
-                <form onSubmit={onSubmitSignature} className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <PenNib size={15} className="text-[#C81E1E]" />
-                      Bubuhkan Tanda Tangan Digital BAP
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Goreskan langsung di layar / pad
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
-                        Pihak Penanda Tangan
-                      </label>
-                      <select
-                        value={sigForm.signerRole}
-                        onChange={(e) => {
-                          const role = e.target.value;
-                          setSigForm({
-                            signerRole: role,
-                            signerName:
-                              role === 'AHLI_K3'
-                                ? form.inspector_name || selectedBap.inspector_signer_name || selectedBap.inspector_name || ''
-                                : form.contact_name || selectedBap.client_signer_name || selectedBap.contact_name || '',
-                            signerTitle:
-                              role === 'AHLI_K3'
-                                ? 'Ahli K3 Pemeriksa'
-                                : form.contact_title || 'Pemilik Alat / Perwakilan Klien'
-                          });
-                        }}
-                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                      >
-                        <option value="AHLI_K3">Inspector (Ahli K3)</option>
-                        <option value="PERWAKILAN_KLIEN">Pemilik Alat / Perwakilan Klien</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
-                        Nama Penanda Tangan *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={sigForm.signerName}
-                        onChange={(e) => setSigForm({ ...sigForm, signerName: e.target.value })}
-                        placeholder="Nama lengkap penanda tangan..."
-                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      Jabatan Penanda Tangan
-                    </label>
-                    <input
-                      type="text"
-                      value={sigForm.signerTitle}
-                      onChange={(e) => setSigForm({ ...sigForm, signerTitle: e.target.value })}
-                      placeholder="Jabatan penanda tangan..."
-                      className="w-full px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          Kotak Tanda Tangan:
-                        </span>
-                        {sigForm.signerRole === 'AHLI_K3' && user?.signatureUrl && (
-                          <button
-                            type="button"
-                            onClick={handleApplySavedSignature}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] font-bold text-[#C81E1E] dark:text-rose-400 hover:bg-rose-100 cursor-pointer"
-                          >
-                            <PenNib size={12} weight="bold" />
-                            <span>Gunakan TTD Tersimpan</span>
-                          </button>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={clearCanvas}
-                        className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer font-medium"
-                      >
-                        <Eraser size={13} />
-                        Hapus Coretan
-                      </button>
-                    </div>
-
-                    <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden bg-white shadow-inner">
-                      <canvas
-                        ref={canvasRef}
-                        width={400}
-                        height={130}
-                        onPointerDown={startDrawing}
-                        onPointerMove={draw}
-                        onPointerUp={stopDrawing}
-                        onPointerLeave={stopDrawing}
-                        className="w-full h-28 touch-none cursor-crosshair block bg-white"
-                      />
-                      {!hasDrawn && (
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-xs text-slate-400">
-                          Tanda tangani di sini dengan jari atau stylus
-                        </div>
-                      )}
-                    </div>
-                    {sigError && (
-                      <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-1.5 flex items-center gap-1">
-                        <WarningCircle size={14} />
-                        <span>{sigError}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      icon={PenNib}
-                      disabled={submitting || !hasDrawn}
-                      loading={submitting}
-                    >
-                      Bubuhkan Tanda Tangan
-                    </Button>
-                  </div>
-                </form>
-              )}
+              <Badge variant={isPicSigned ? 'success' : 'warning'}>
+                {isPicSigned ? 'Sudah TTD PIC' : 'Belum TTD PIC'}
+              </Badge>
             </div>
 
-            {/* Aksi Finalisasi & Berkas */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Tindakan Dokumen BAP &amp; Tautan Berkas
-                </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Setelah ditandatangani oleh Inspector dan Perwakilan Klien, finalisasi BAP untuk mengunci dokumen serah terima pemeriksaan unit.
-                </p>
+            {isPicSigned && !isReSigningPic ? (
+              /* READOUT TANDA TANGAN PIC YANG SUDAH DITANDATANGANI */
+              <div className="p-2.5 sm:p-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700 space-y-2">
+                <div className="flex items-center justify-between text-xs flex-wrap gap-1">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400">Penanda Tangan: </span>
+                    <strong className="text-slate-900 dark:text-white font-semibold">
+                      {selectedBap.client_signer_name || form.contact_name || 'Perwakilan Klien'}
+                    </strong>
+                  </div>
+                  {selectedBap.client_signed_at && (
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      {formatDateTime(selectedBap.client_signed_at)}
+                    </div>
+                  )}
+                </div>
 
-                <div className="flex items-center gap-2 pt-2 flex-wrap">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    icon={FilePdf}
-                    onClick={() => handleDownloadPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
+                <div className="h-16 sm:h-20 w-full flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5">
+                  {selectedBap.client_signature_url ? (
+                    <img
+                      src={selectedBap.client_signature_url}
+                      alt="Tanda Tangan PIC Klien"
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallbackEl = document.getElementById('pic-sig-fallback');
+                        if (fallbackEl) fallbackEl.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    id="pic-sig-fallback"
+                    style={{ display: selectedBap.client_signature_url ? 'none' : 'flex' }}
+                    className="items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
                   >
-                    Unduh PDF BAP
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    icon={Eye}
-                    onClick={handleTriggerPreview}
-                  >
-                    Pratinjau PDF
-                  </Button>
-                  {onShareBap && (
+                    <CheckCircle size={15} weight="fill" />
+                    <span>Berkas Tanda Tangan Digital Tersimpan</span>
+                  </div>
+                </div>
+
+                {isEditable && (
+                  <div className="flex justify-end">
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      icon={ShareNetwork}
-                      onClick={() => onShareBap(selectedBap)}
+                      size="xs"
+                      icon={Eraser}
+                      onClick={() => {
+                        setIsReSigningPic(true);
+                        setHasDrawn(false);
+                        setSigError('');
+                      }}
                     >
-                      Bagikan BAP
+                      Tanda Tangan Ulang PIC
                     </Button>
-                  )}
-                  <ActionMenu
-                    label="Aksi &amp; Berkas Lainnya"
-                    items={[
-                      handleDownloadDocx && {
-                        label: 'Unduh Word (.docx)',
-                        icon: FileDoc,
-                        onClick: () => handleDownloadDocx(selectedBap.id, form.bap_no || selectedBap.bap_no)
-                      },
-                      {
-                        label: 'Cetak Gabungan BAP 1 PO',
-                        icon: FilePdf,
-                        onClick: () => handleDownloadBatchPoPdf(selectedBap.order_id, selectedBap.po_number || selectedBap.order_no)
-                      },
-                      selectedBap.lhpp_id && {
-                        label: `Buka Dokumen LHPP (${selectedBap.lhpp_status || 'DRAF'})`,
-                        icon: SealCheck,
-                        onClick: () => {
-                          onClose();
-                          navigate(`/app/lhpp?lhppId=${selectedBap.lhpp_id}`);
-                        }
-                      }
-                    ]}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* FORM TANDA TANGAN DIGITAL KHUSUS PIC PERWAKILAN KLIEN */
+              <form onSubmit={onSubmitPicSignature} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    Nama PIC Penanda Tangan (Perwakilan Klien / Pemilik Alat) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={sigForm.signerName}
+                    onChange={(e) => setSigForm({ ...sigForm, signerName: e.target.value })}
+                    placeholder="Nama lengkap PIC klien..."
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                   />
                 </div>
-              </div>
 
-              {['DRAF', 'REVISI'].includes(selectedBap.status) && canFinalize && (
-                <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
-                  <div className="p-2.5 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 text-xs text-blue-900 dark:text-blue-200">
-                    <strong>Penerbitan BAP Mandiri:</strong> Berita Acara Riksa Uji (BAP) dapat difinalisasi dan diterbitkan secara mandiri tanpa harus menunggu LHPP selesai.
-                  </div>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="md"
-                    icon={LockKey}
-                    disabled={submitting}
-                    loading={submitting}
-                    onClick={handleFinalizeBap}
-                    className="w-full justify-center"
-                  >
-                    Finalisasi &amp; Kunci Berita Acara Riksa Uji (BAP)
-                  </Button>
-                </div>
-              )}
-
-              {selectedBap.status === 'FINAL' && canFinalize && (
-                <form onSubmit={handleReopenBap} className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Buka Kunci BAP untuk Revisi Tercatat
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      minLength={5}
-                      value={reopenReason}
-                      onChange={(e) => setReopenReason(e.target.value)}
-                      placeholder="Alasan pembukaan kunci revisi BAP..."
-                      className="flex-1 px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      Goreskan Tanda Tangan PIC (Jari / Stylus):
+                    </span>
                     <button
-                      type="submit"
-                      disabled={submitting}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-amber-900 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-md cursor-pointer"
+                      type="button"
+                      onClick={clearCanvas}
+                      className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-red-600 cursor-pointer font-medium"
                     >
-                      <LockKeyOpen size={14} weight="bold" />
-                      Buka Kunci
+                      <Eraser size={13} />
+                      Hapus Coretan
                     </button>
                   </div>
-                </form>
-              )}
-            </div>
+
+                  <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden bg-white shadow-inner">
+                    <canvas
+                      ref={canvasRef}
+                      width={400}
+                      height={130}
+                      onPointerDown={startDrawing}
+                      onPointerMove={draw}
+                      onPointerUp={stopDrawing}
+                      onPointerLeave={stopDrawing}
+                      className="w-full h-28 touch-none cursor-crosshair block bg-white"
+                    />
+                    {!hasDrawn && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-xs text-slate-400">
+                        Tanda tangani di sini dengan jari atau stylus
+                      </div>
+                    )}
+                  </div>
+
+                  {sigError && (
+                    <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                      <WarningCircle size={14} />
+                      <span>{sigError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  {isReSigningPic ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsReSigningPic(false);
+                        clearCanvas();
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  ) : <span />}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    icon={PenNib}
+                    disabled={submitting || !hasDrawn}
+                    loading={submitting}
+                  >
+                    Simpan Tanda Tangan PIC
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
 
+          {/* AREA 5: TINDAKAN DOKUMEN BAP & FINALISASI (KOMPAK 1 BARIS) */}
+          <div className="p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Tindakan Dokumen BAP
+              </span>
+            </div>
+
+            {/* Tombol Aksi Sejajar 1 Baris Kompak (Unduh, Pratinjau, Bagikan, dan Menu Aksi Lainnya) */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                icon={FilePdf}
+                onClick={() => handleDownloadPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
+                className="flex-1 justify-center whitespace-nowrap text-xs"
+              >
+                Unduh PDF
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={Eye}
+                onClick={handleTriggerPreview}
+                className="flex-1 justify-center whitespace-nowrap text-xs"
+              >
+                Pratinjau
+              </Button>
+              {onShareBap && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={ShareNetwork}
+                  onClick={() => onShareBap(selectedBap)}
+                  className="flex-1 justify-center whitespace-nowrap text-xs"
+                >
+                  Bagikan
+                </Button>
+              )}
+              <ActionMenu
+                label="Aksi Lainnya"
+                size="sm"
+                items={[
+                  handleDownloadDocx && {
+                    label: 'Unduh Word (.docx)',
+                    icon: FileDoc,
+                    onClick: () => handleDownloadDocx(selectedBap.id, form.bap_no || selectedBap.bap_no)
+                  },
+                  {
+                    label: 'Cetak Gabungan BAP 1 PO',
+                    icon: FilePdf,
+                    onClick: () => handleDownloadBatchPoPdf(selectedBap.order_id, selectedBap.po_number || selectedBap.order_no)
+                  },
+                  selectedBap.lhpp_id && {
+                    label: `Buka Dokumen LHPP (${selectedBap.lhpp_status || 'DRAF'})`,
+                    icon: SealCheck,
+                    onClick: () => {
+                      onClose();
+                      navigate(`/app/lhpp?lhppId=${selectedBap.lhpp_id}`);
+                    }
+                  }
+                ]}
+              />
+            </div>
+
+            {/* Tombol Finalisasi BAP Mandiri */}
+            {['DRAF', 'REVISI'].includes(selectedBap.status) && canFinalize && (
+              <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  icon={LockKey}
+                  disabled={submitting}
+                  loading={submitting}
+                  onClick={handleFinalizeBap}
+                  className="w-full justify-center text-xs"
+                >
+                  Finalisasi &amp; Kunci Berita Acara Riksa Uji (BAP)
+                </Button>
+              </div>
+            )}
+
+            {/* Buka Kunci Revisi jika Status FINAL */}
+            {selectedBap.status === 'FINAL' && canFinalize && (
+              <form onSubmit={handleReopenBap} className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Buka Kunci BAP untuk Revisi
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    required
+                    minLength={5}
+                    value={reopenReason}
+                    onChange={(e) => setReopenReason(e.target.value)}
+                    placeholder="Alasan pembukaan revisi..."
+                    className="flex-1 px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-md cursor-pointer shrink-0"
+                  >
+                    <LockKeyOpen size={13} weight="bold" />
+                    Buka
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* AREA 6: RIWAYAT REVISI BAP (COLLAPSIBLE ACCORDION AGAR HEMAT TEMPAT) */}
           {selectedBap.revisions?.length > 0 && (
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/30 space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Riwayat Versi &amp; Revisi BAP ({selectedBap.revisions.length})
-              </h4>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            <details className="group rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 overflow-hidden">
+              <summary className="flex items-center justify-between px-3.5 py-2.5 cursor-pointer list-none select-none hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Clock size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
+                    Riwayat Versi &amp; Revisi BAP ({selectedBap.revisions.length})
+                  </span>
+                  {selectedBap.revisions[0] && (
+                    <span className="text-[11px] text-slate-400 hidden xs:inline truncate">
+                      · Terakhir: {formatDateTime(selectedBap.revisions[0].created_at)}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] font-medium text-slate-500 shrink-0 flex items-center gap-1 ml-2">
+                  <span className="group-open:hidden">Lihat</span>
+                  <span className="hidden group-open:inline">Tutup</span>
+                  <CaretDown size={13} className="text-slate-400 transition-transform duration-200 group-open:rotate-180" />
+                </span>
+              </summary>
+              <div className="p-3 pt-1 border-t border-slate-200/60 dark:border-slate-800/60 space-y-1.5 max-h-44 overflow-y-auto">
                 {selectedBap.revisions.map((rev) => (
                   <div
                     key={rev.id}
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <span className="font-bold text-slate-900 dark:text-white">
                         Versi #{rev.version} · {rev.action}
                       </span>
                       {rev.reason && (
-                        <span className="text-slate-600 dark:text-slate-400">: {rev.reason}</span>
+                        <span className="text-slate-600 dark:text-slate-400 ml-1">
+                          : {rev.reason}
+                        </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-[11px] text-slate-500 font-mono shrink-0">
                       {rev.actor_name || 'Sistem'} · {formatDateTime(rev.created_at)}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           )}
         </div>
       )}

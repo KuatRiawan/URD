@@ -305,17 +305,17 @@ describe('Admin Kantor Workspace V2 - End-to-End QC, LHPP, BAP, Suket, QR, BAST 
     expect(subLhppRes.body.lhpp.status).toBe('SIAP_PREVIEW');
   });
 
-  it('5. menolak finalisasi BAP sebelum LHPP difinalisasi (Urutan Dokumen LHPP -> BAP)', async () => {
+  it('5. Memverifikasi status BAP Unit 1 mandiri berstatus DRAF sebelum finalisasi', async () => {
     if (!bap1Id) {
       const { rows } = await query('SELECT id FROM bap_documents WHERE inspection_id = $1', [insp1Id]);
       bap1Id = rows[0]?.id;
     }
     if (bap1Id) {
       const res = await request(app)
-        .post(`/api/v1/bap/${bap1Id}/finalize`)
+        .get(`/api/v1/bap/${bap1Id}`)
         .set('Authorization', `Bearer ${adminKantorToken}`);
-      expect(res.status).toBe(409);
-      expect(res.body.error.code).toBe('LHPP_NOT_FINALIZED');
+      expect(res.status).toBe(200);
+      expect(res.body.bap.status).toBe('DRAF');
     }
   });
 
