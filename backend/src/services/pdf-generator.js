@@ -605,11 +605,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'uji_beban_dinamis', label: 'Hasil Uji Beban Dinamis & Statis (Defleksi)' },
       { key: 'safety_device_paa', label: 'Fungsi Limit Switch, Rem & Overload Limiter' }
     ],
-    rules: [
-      '1. Unit harus dioperasikan oleh Operator yang telah memiliki Sertifikat K3 dan SIO (Surat Izin Operasi) resmi dari Kemenaker R.I.',
-      '2. Dilarang mengoperasikan unit melebihi kapasitas beban maksimum yang diizinkan (Safe Working Load / SWL).',
-      '3. Lakukan pemeriksaan dan pengujian berkala paling lambat sesuai batas rekomendasi pemeriksaan berikutnya.'
-    ]
   },
   PUBT: {
     pageSize: [615.24, 921.36],
@@ -646,11 +641,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'pengujian_ndt', label: 'Hasil Pemeriksaan NDT Sambungan Las & Shell' },
       { key: 'safety_valve_pubt', label: 'Pengujian Katup Pengaman (Safety Valve), Pressure Gauge & Hydrotest' }
     ],
-    rules: [
-      '1. Bejana tekan dilarang dioperasikan melebihi Tekanan Kerja Maksimum yang Diizinkan (MAWP).',
-      '2. Katup pengaman (safety valve) dan alat penunjuk tekanan (pressure gauge) harus selalu berfungsi baik, terkalibrasi, dan tidak boleh disumbat atau diubah tekanannya.',
-      '3. Lakukan pengurasan air kondensat secara berkala melalui drain cock serta lakukan pemeriksaan dan pengujian berkala sesuai Permenaker No. 37 Tahun 2016.'
-    ]
   },
   PTP: {
     pageSize: [615.2, 921.4],
@@ -683,11 +673,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'pengukuran_lingkungan', label: 'Hasil Pengukuran Kebisingan, Getaran & Pencahayaan Area' },
       { key: 'sistem_proteksi', label: 'Pelindung Bagian Berputar, Emergency Stop & Safety Device' }
     ],
-    rules: [
-      '1. Operator pesawat tenaga dan produksi harus memiliki kompetensi K3 serta memahami prosedur pengoperasian aman dan penanganan darurat.',
-      '2. Seluruh penutup pengaman bagian berputar (safety guarding) dan tombol darurat (emergency stop) harus selalu terpasang sempurna dan berfungsi aktif saat mesin beroperasi.',
-      '3. Lakukan pemeliharaan berkala terhadap sistem pelumasan, transmisi, dan peredaman getaran/kebisingan sesuai ketentuan Permenaker No. 38 Tahun 2016.'
-    ]
   },
   IPP: {
     pageSize: [615.24, 921.36],
@@ -721,11 +706,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'down_conductor_detail', label: 'Kontinuitas Hantaran Turun (Down Conductor) & Sambungan Ukur' },
       { key: 'grounding_petir', label: 'Hasil Pengukuran Tahanan Pembumian Elektrode Penyalur Petir (Ohm)' }
     ],
-    rules: [
-      '1. Nilai tahanan pembumian (grounding) harus selalu dipelihara di bawah batas maksimum 5 Ohm sesuai Permenaker No. 02/MEN/1989.',
-      '2. Bak kontrol dan sambungan ukur (test joint) harus selalu dalam kondisi bersih, mudah diakses, tidak tertutup lantai permanen, dan bebas genangan air.',
-      '3. Lakukan pemeriksaan visual jalur konduktor dan pengukuran nilai tahanan tanah berkala sekurang-kurangnya 1 (satu) kali setahun atau setelah mengalami sambaran petir langsung.'
-    ]
   },
   LIS: {
     pageSize: [615.12, 921.36],
@@ -759,11 +739,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'tahanan_isolasi_grounding', label: 'Hasil Pengukuran Tahanan Isolasi & Tahanan Pembumian (Grounding)' },
       { key: 'termografi_listrik', label: 'Hasil Pemeriksaan Suhu Sambungan (Thermal Imaging)' }
     ],
-    rules: [
-      '1. Pengoperasian dan pemeliharaan instalasi listrik hanya boleh dilakukan oleh Teknisi K3 Listrik / Ahli K3 Listrik yang memiliki lisensi resmi dari Kemenaker R.I.',
-      '2. Ruang penempatan panel harus memiliki sirkulasi udara yang baik, penerangan memadai, bebas genangan air, dan area depan panel bebas halangan minimal 0.75 meter.',
-      '3. Sediakan APAR jenis Clean Agent / CO2 di dekat panel listrik dan lakukan pemeriksaan termovisi serta uji tahanan isolasi secara berkala sesuai PUIL 2011 dan Permenaker No. 12 Tahun 2015.'
-    ]
   },
   LE: {
     pageSize: [615.24, 921.36],
@@ -795,11 +770,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'catu_daya_darurat_ard', label: 'Automatic Rescue Device (ARD) / Catu Daya Baterai' },
       { key: 'standard_ref', label: 'Standar Rujukan K3' }
     ],
-    rules: [
-      '1. Pengoperasian, perawatan, dan perbaikan elevator wajib dilaksanakan oleh Teknisi K3 Elevator yang memiliki lisensi K3 dari Kemenaker R.I.',
-      '2. Seluruh sistem keselamatan mekanis dan elektrik (governor, safety gear, interlock switch pintu, ARD, dan sistem intercom) harus dipastikan selalu aktif bekerja.',
-      '3. Pemilik / pengelola gedung wajib melaksanakan pemeliharaan berkala dan riksa uji berkala selambat-lambatnya 1 (satu) tahun sekali sesuai Permenaker No. 06 Tahun 2017.'
-    ]
   },
   IPK: {
     pageSize: [609.6, 935.52],
@@ -833,11 +803,6 @@ const LHPP_CATEGORY_CONFIG = {
       { key: 'sistem_hydrant_sprinkler', label: 'Pengujian Tekanan & Aliran Pompa Hydrant, Pillar, Nozzle & Sprinkler' },
       { key: 'apar_dan_evakuasi', label: 'Pemeriksaan Sebaran APAR & Sarana Proteksi Aktif' }
     ],
-    rules: [
-      '1. Panel kendali alarm kebakaran (MCFA) harus selalu berada dalam kondisi siaga (normal standby) dengan sistem catu daya baterai cadangan terisi penuh.',
-      '2. Dilarang menghalangi jangkauan detektor, tombol darurat (manual call point), alarm bell, kotak hidran, dan tabung APAR oleh benda atau penumpukan barang.',
-      '3. Lakukan pengujian fungsi detektor, uji simulasi sistem peringatan dini, dan pemeriksaan berkala sesuai ketentuan Permenaker No. 02/MEN/1983.'
-    ]
   }
 };
 
@@ -1085,11 +1050,18 @@ export function buildLhppReportContent(inputData) {
     label: [result.section, result.label].filter(hasReportValue).join(' - '),
     value: getInspectionResultValue(result)
   }));
+  const inferInputType = (result) => {
+    if (hasReportValue(result.input_type)) return String(result.input_type).toUpperCase();
+    if (hasRecordedReportValue(result.choice_value)) return 'CHOICE';
+    if (hasRecordedReportValue(result.number_value)) return 'NUMBER';
+    if (hasRecordedReportValue(result.text_value)) return 'TEXT';
+    return 'CHOICE';
+  };
   const checklistRows = (Array.isArray(data.results) ? data.results : []).map((result) => ({
     section: hasReportValue(result.section) ? String(result.section) : 'Pemeriksaan',
     label: hasReportValue(result.label) ? String(result.label) : 'Butir pemeriksaan',
     choice: hasReportValue(result.choice_value) ? String(result.choice_value).toUpperCase() : '',
-    inputType: String(result.input_type || 'CHOICE').toUpperCase(),
+    inputType: inferInputType(result),
     value: getInspectionResultValue({ ...result, note: null }),
     note: hasRecordedReportValue(result.note) ? String(result.note) : ''
   }));
@@ -1172,7 +1144,6 @@ export function buildLhppReportContent(inputData) {
     noFindings: findings.length === 0,
     coverTitle: data.template_version_title || data.template_title || category.coverTitle || data.category_name || category.fullName,
     standardRef: data.template_regulation_reference || category.standardRef || 'Standar Rujukan K3 Kemnaker R.I.',
-    rules: category.rules || [],
     signature: {
       inspector: data.inspector_name || '-',
       reviewer: data.reviewer_name || '-',
@@ -1608,7 +1579,16 @@ function drawChecklist(c, items, spec) {
       return Math.max(rowMin, rowMin + (hl.length - 1) * labelStep);
     }
     const ll = c.wrap(item.label, colW('label') - padX * 2, size, { italic: item.italic });
-    return Math.max(rowMin, rowMin + (ll.length - 1) * labelStep);
+    // Tinggi baris harus mengikuti kolom Keterangan juga, agar hasil pengukuran
+    // panjang tidak menimpa baris berikutnya.
+    const nl = hasReportValue(item.note)
+      ? c.wrap(String(item.note), colW('note') - padX * 2, size)
+      : [];
+    const lines = Math.max(ll.length, nl.length, 1);
+    // Batasi tinggi satu baris agar baris ekstrem (mis. hasil uji sangat panjang)
+    // tidak memicu pagination tanpa akhir; sisa teks terpotong, bukan dokumen rusak.
+    const maxRowHeight = Math.max(rowMin * 2, (c.bottom - rowMin) * 0.6);
+    return Math.max(rowMin, Math.min(maxRowHeight, rowMin + (lines - 1) * labelStep));
   };
 
   // Kelompokkan: blok "no" (kolom No bergabung), blok "group" (kolom Nama Bagian bergabung)
@@ -1710,7 +1690,11 @@ function drawChecklistChunk(c, items, heights, k) {
       else if (item.status === 'BAD') { c.dash(okC, y, size); c.tick(badC, y, tickSize); }
       else if (item.status === 'NA') { c.dash(okC, y, size); c.dash(badC, y, size); }
       else {
-        c.txt('Belum diisi', colX('ok'), y + 3.0, {
+        // Baris non-konformitas (teks/angka) yang sudah punya hasil tidak boleh
+        // ditandai "Belum diisi": hasilnya tampil di kolom Keterangan, sedangkan
+        // kolom konformitas sengaja netral karena pertanyaannya tidak diajukan.
+        const hasRecordedValue = hasRecordedReportValue(item.note) && item.note !== '-';
+        c.txt(hasRecordedValue ? '-' : 'Belum diisi', colX('ok'), y + 3.0, {
           size: 7, italic: true, color: '#777777', width: colW('ok') + colW('bad'), align: 'center'
         });
       }
@@ -2198,9 +2182,28 @@ function drawConclusionSection(c, report, data, o = {}) {
   const rulesHeading = o.rulesHeading ?? `${o.rulesNo ?? 'VII'}. SYARAT - SYARAT`;
   c.txt(rulesHeading, c.left, c.y + 2.0, { size: 14, bold: true });
   c.y += 25;
-  const rules = [...report.rules];
-  if (hasRecordedReportValue(report.recommendations)) rules.push(`${rules.length + 1}. ${report.recommendations}`);
-  drawNumberedList(c, rules, { pitch: 20.7 });
+  // Syarat & rekomendasi hanya berasal dari data yang benar-benar diisi inspector.
+  // Jangan menyuntikkan syarat K3 bawaan kategori: itu akan tampil sebagai ketentuan
+  // resmi yang tidak pernah disetujui untuk unit yang diperiksa.
+  const rules = [];
+  const recordedRecommendations =
+    hasRecordedReportValue(report.recommendations) &&
+    !/^belum diisi\.?$/i.test(String(report.recommendations).trim());
+  if (recordedRecommendations) {
+    String(report.recommendations)
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line, index) => rules.push(`${index + 1}. ${line.replace(/^\d+\.\s*/, '')}`));
+  }
+  if (rules.length > 0) {
+    drawNumberedList(c, rules, { pitch: 20.7 });
+  } else {
+    // Tanpa rekomendasi inspector, tampilkan penanda polos tanpa nomor: daftar
+    // bernomor "1. Belum diisi." terbaca seperti syarat resmi yang ditetapkan.
+    c.txt('Belum diisi oleh inspector.', c.left + 49.6, c.y, { size: 12, italic: true });
+    c.y += 20.7;
+  }
   c.y += 28;
   drawSignatureBlock(c, report, data, { qrBuffer: o.qrBuffer, centerX: o.centerX ?? 432 });
 }
@@ -2376,12 +2379,12 @@ function renderForklift(c, report, data, ctx) {
     ['Merk / Model', v(/merk|model/i, [data.brand, data.model].filter(Boolean).join(' / ') || '-')],
     ['Tahun', v(/^tahun$|tahun pembuatan/i, data.manufacture_year ? String(data.manufacture_year) : '-')],
     ['Kapasitas Angkat', v(/kapasitas/i, capDisplay)],
-    ['Standar Yang Dipakai', v(/standar/i, 'Permenaker No. 8 Tahun 2020')],
+    ['Standar Yang Dipakai', v(/standar/i, f('standard_ref'))],
     ['Digunakan Untuk', v(/digunakan/i, f('digunakan_untuk'))],
-    ['Tanggal Diperiksa', v(/tanggal/i, data.inspected_at ? formatIndoDate(data.inspected_at) : formatIndoDate(new Date()))],
-    ['Jenis Pemeriksaan', v(/jenis pemeriksaan/i, data.inspection_type_code || 'BERKALA')],
+    ['Tanggal Diperiksa', v(/tanggal/i, data.inspected_at ? formatIndoDate(data.inspected_at) : '-')],
+    ['Jenis Pemeriksaan', v(/jenis pemeriksaan/i, data.inspection_type_code || '-')],
     ['Nomor Ijin Pemakai', v(/nomor ijin|izin/i, data.previous_permit_no || '-')],
-    ['Diperiksa Oleh', v(/diperiksa oleh/i, data.inspector_name || 'PT UPAYA RIKSA DAYA')]
+    ['Diperiksa Oleh', v(/diperiksa oleh/i, data.inspector_name || '-')]
   ];
 
   drawKeyValueTable(c, bab1Rows, {
@@ -2416,16 +2419,11 @@ function renderForklift(c, report, data, ctx) {
   c.newPage();
   c.txt('VI. DOKUMENTASI FOTO', c.left, c.y + 2.0, { size: 14, bold: true });
   c.y += 25.5;
+  // Tanpa foto terunggah, dokumen menyatakan apa adanya. Slot foto khusus forklift
+  // tidak lagi dicetak sebagai seolah-olah bagian baku dokumen.
   drawPhotoGrid(c, sortPhotosForForkliftSection(report.photos), {
     grid: LHPP_PROFILES.PAA.grid,
-    captionPosition: ctx.captionPosition,
-    placeholderCaptions: [
-      '3.1 Foto Unit (Tampak Depan / Samping)',
-      '3.2 Foto Nameplate & Pemeriksaan Visual',
-      '3.3 Foto Pengujian Fungsi & Kemudi',
-      '3.4 Foto Pengujian Beban & Defleksi Garpu',
-      '3.5 Foto Stiker Riksa Uji K3'
-    ]
+    captionPosition: ctx.captionPosition
   });
 }
 
@@ -3356,7 +3354,7 @@ function categoryOptions(report, data) {
         },
         checklist: {
           cols, roles: ['no', 'label', 'ok', 'bad', 'note'], mode: 'flat-heading', rowMin: 23.5, size: 12,
-          heading: (c) => { c.txt('III. INSPECTION CHEKLIST', c.left + 19, c.y + 2, { size: 14, bold: true }); c.y += 26; },
+          heading: (c) => { c.txt('III. INSPECTION CHECKLIST', c.left + 19, c.y + 2, { size: 14, bold: true }); c.y += 26; },
           header: makeCondHeader(cols, ['NO', 'Item Pemeriksaan', 'Ada', 'Tidak Ada', 'Ket', 'Hasil Pemeriksaan'], { first: 48, cont: 48, kondisiH: 24 })
         },
         afterChecklist: drawLisThermal,

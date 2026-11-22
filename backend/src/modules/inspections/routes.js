@@ -7,7 +7,7 @@ import { authorize } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { recordAudit } from '../../services/audit.js';
 import { createNotification } from '../../services/notify.js';
-import { generateBapPdfBuffer, generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
+import { generateBapPdfBuffer, generateLhppPdfBuffer, generateRecommendationLetterPdfBuffer } from '../../services/pdf-generator.js';
 import { generateBapDocxBuffer, generateLhppDocxBuffer } from '../../services/docx-generator.js';
 import { formatDocumentNumber } from '../../services/system-settings-service.js';
 import { BAP_SCOPE_CATALOG, syncOrderUnitStatus } from '../../services/workflow.js';
@@ -2581,66 +2581,71 @@ router.get('/:id/bap/docx', async (req, res, next) => {
   }
 });
 
+// Konteks data LHPP dari dokumen LHPP tersimpan, atau fallback ke data inspeksi
+// terstruktur (inspection_results + lampiran) selama dokumen resmi belum dibuat.
+async function resolveInspectionLhppContext(inspectionId) {
+  const { rows: lhppRows } = await query(
+    'SELECT id FROM lhpp_documents WHERE inspection_id = $1 ORDER BY created_at DESC LIMIT 1',
+    [inspectionId]
+  );
+  if (lhppRows[0]) {
+    return await fetchFullLhppContext({ query }, lhppRows[0].id);
+  }
+
+  const detailRes = await query(
+    `SELECT i.*, o.order_no, o.po_number, o.service_type,
+            c.name AS client_name, c.address AS client_address,
+            cl.name AS location_name, cl.address AS location_address,
+            t.name AS object_name, t.brand, t.model, t.serial_number,
+            t.manufacture_year, t.capacity, t.capacity_unit, t.install_location,
+            t.previous_permit_no, t.attributes AS object_attributes,
+            oc.name AS category_name, oc.code AS category_code,
+            u.full_name AS inspector_name,
+            (SELECT ic.certificate_no FROM inspector_competencies ic
+              WHERE ic.inspector_id = i.inspector_id
+              ORDER BY ic.valid_until DESC NULLS LAST LIMIT 1) AS inspector_skp_no
+     FROM inspections i
+     JOIN orders o ON o.id = i.order_id
+     JOIN clients c ON c.id = o.client_id
+     LEFT JOIN client_locations cl ON cl.id = o.location_id
+     JOIN test_objects t ON t.id = i.object_id
+     JOIN object_categories oc ON oc.id = t.category_id
+     LEFT JOIN users u ON u.id = i.inspector_id
+     WHERE i.id = $1`,
+    [inspectionId]
+  );
+  if (!detailRes.rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Inspeksi tidak ditemukan.');
+  const insp = detailRes.rows[0];
+  const [{ rows: resRows }, { rows: photoRows }] = await Promise.all([
+    query(
+      `SELECT r.*, it.seq, it.label, it.section, it.input_type, it.unit
+       FROM inspection_results r
+       JOIN inspection_template_items it ON it.id = r.item_id
+       WHERE r.inspection_id = $1
+       ORDER BY it.seq ASC`,
+      [inspectionId]
+    ),
+    query(
+      `SELECT * FROM file_attachments
+       WHERE owner_type = 'INSPECTION_FINDING' AND owner_id = $1 AND deleted_at IS NULL
+       ORDER BY created_at ASC`,
+      [inspectionId]
+    )
+  ]);
+  return {
+    ...insp,
+    results: resRows,
+    photos: photoRows,
+    technical_data: insp.object_attributes || {},
+    conclusion: insp.conclusion || null,
+    report_date: new Date()
+  };
+}
+
 // M3-17: Unduh Blangko Tabel Kerja LHPP DOCX untuk penyusunan teknis di kantor
 router.get('/:id/lhpp/docx', async (req, res, next) => {
   try {
-    const { rows: lhppRows } = await query(
-      'SELECT id FROM lhpp_documents WHERE inspection_id = $1 ORDER BY created_at DESC LIMIT 1',
-      [req.params.id]
-    );
-    let lhppContext = null;
-    if (lhppRows[0]) {
-      lhppContext = await fetchFullLhppContext({ query }, lhppRows[0].id);
-    }
-    if (!lhppContext) {
-      const detailRes = await query(
-        `SELECT i.*, o.order_no, o.po_number, o.service_type,
-                c.name AS client_name, c.address AS client_address,
-                cl.name AS location_name, cl.address AS location_address,
-                t.name AS object_name, t.brand, t.model, t.serial_number,
-                t.manufacture_year, t.capacity, t.capacity_unit, t.install_location,
-                t.previous_permit_no, t.attributes AS object_attributes,
-                oc.name AS category_name, oc.code AS category_code,
-                u.full_name AS inspector_name,
-                (SELECT ic.certificate_no FROM inspector_competencies ic
-                  WHERE ic.inspector_id = i.inspector_id
-                  ORDER BY ic.valid_until DESC NULLS LAST LIMIT 1) AS inspector_skp_no
-         FROM inspections i
-         JOIN orders o ON o.id = i.order_id
-         JOIN clients c ON c.id = o.client_id
-         LEFT JOIN client_locations cl ON cl.id = o.location_id
-         JOIN test_objects t ON t.id = i.object_id
-         JOIN object_categories oc ON oc.id = t.category_id
-         LEFT JOIN users u ON u.id = i.inspector_id
-         WHERE i.id = $1`,
-        [req.params.id]
-      );
-      if (!detailRes.rows[0]) throw new AppError(404, 'INSPECTION_NOT_FOUND', 'Inspeksi tidak ditemukan.');
-      const insp = detailRes.rows[0];
-      const [{ rows: resRows }, { rows: photoRows }] = await Promise.all([
-        query(
-          `SELECT r.*, it.label, it.section
-           FROM inspection_results r
-           JOIN inspection_template_items it ON it.id = r.item_id
-           WHERE r.inspection_id = $1`,
-          [req.params.id]
-        ),
-        query(
-          `SELECT * FROM file_attachments
-           WHERE owner_type = 'INSPECTION_FINDING' AND owner_id = $1 AND deleted_at IS NULL
-           ORDER BY created_at ASC`,
-          [req.params.id]
-        )
-      ]);
-      lhppContext = {
-        ...insp,
-        results: resRows,
-        photos: photoRows,
-        technical_data: insp.object_attributes || {},
-        conclusion: insp.conclusion || null,
-        report_date: new Date()
-      };
-    }
+    const lhppContext = await resolveInspectionLhppContext(req.params.id);
 
     const docxBuf = await generateLhppDocxBuffer(lhppContext);
     const filename = `Template-LHPP-${(lhppContext.object_name || 'Alat').replace(/\s+/g, '-')}-${(lhppContext.serial_number || 'Unit').replace(/\//g, '-')}.docx`;
@@ -2650,6 +2655,20 @@ router.get('/:id/lhpp/docx', async (req, res, next) => {
     );
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.send(docxBuf);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// M3-18: Pratinjau LHPP PDF memakai konteks data terstruktur yang sama dengan DOCX
+router.get('/:id/lhpp/pdf', async (req, res, next) => {
+  try {
+    const lhppContext = await resolveInspectionLhppContext(req.params.id);
+    const pdfBuf = await generateLhppPdfBuffer(lhppContext);
+    const filename = `LHPP-${(lhppContext.object_name || 'Alat').replace(/\s+/g, '-')}-${(lhppContext.serial_number || 'Unit').replace(/\//g, '-')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.send(pdfBuf);
   } catch (err) {
     return next(err);
   }
