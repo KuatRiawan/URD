@@ -30,7 +30,8 @@ export function StepChecklist({
   draftConclusion,
   setDraftConclusion,
   draftConclusionNotes,
-  setDraftConclusionNotes
+  setDraftConclusionNotes,
+  hideFooterNote = false
 }) {
   const [isEditingDataUmum, setIsEditingDataUmum] = useState(false);
   const [downloadingDocx, setDownloadingDocx] = useState(false);
@@ -768,9 +769,11 @@ export function StepChecklist({
 
       {/* Navigasi antar bagian ada di footer modal yang selalu terlihat. Duplikasi tombol
           yang sama di dalam badan form memaksa pengguna menggulir untuk menemukannya. */}
-      <p className="pt-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-        Bagian {formStep} dari 8 Bagian LHPP
-      </p>
+      {!hideFooterNote && (
+        <p className="pt-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+          Bagian {formStep} dari 5 Bagian Form Inspeksi
+        </p>
+      )}
     </div>
   );
 }

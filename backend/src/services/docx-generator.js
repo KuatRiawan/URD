@@ -2089,9 +2089,9 @@ function buildGenericDocxDocument(data, report, companyProfile) {
       new TextRun({ text: 'Catatan Pengujian: ', bold: true, size: 18 }),
       new TextRun({
         text:
-          report.conclusionNotes && report.conclusionNotes !== '-'
+          report.conclusionNotes && report.conclusionNotes !== '-' && report.conclusionNotes !== 'Belum diisi.'
             ? report.conclusionNotes
-            : 'Peralatan diuji dalam batas operasional aman dan laik dioperasikan sesuai peruntukannya.',
+            : 'Belum diisi oleh inspector.',
         size: 18
       })
     ],
@@ -2105,7 +2105,7 @@ function buildGenericDocxDocument(data, report, companyProfile) {
         text:
           report.recommendations && report.recommendations !== '-' && report.recommendations !== 'Belum diisi.'
             ? report.recommendations
-            : '1. Operator wajib memiliki Lisensi K3 (SIO) yang masih berlaku.\n2. Dilarang mengangkat beban melebihi Kapasitas Beban Kerja Aman (SWL).\n3. Lakukan pemeliharaan dan pemeriksaan berkala sesuai buku petunjuk pabrikan.',
+            : 'Belum diisi oleh inspector.',
         size: 18
       })
     ],
@@ -2117,13 +2117,21 @@ function buildGenericDocxDocument(data, report, companyProfile) {
     spacing: { before: 300, after: 120 }
   });
 
-  const photoLabels = [
-    '3.1 Foto Tampak Unit Keseluruhan (Tampak Depan / Samping)',
-    '3.2 Foto Nameplate Pabrikan & Pemeriksaan Visual',
-    '3.3 Foto Pengujian Fungsi Sistem Operasional',
-    '3.4 Foto Pengujian Beban & Defleksi Garpu (100% SWL)',
-    '3.5 Foto Stiker Uji Riksa K3'
-  ];
+  // Slot dokumentasi mengikuti persyaratan foto template bila tersedia; jika tidak,
+  // gunakan slot generik (tanpa istilah teknis khusus satu jenis alat) agar dokumen
+  // tidak memuat butir dokumentasi yang tidak relevan dengan unit yang diperiksa.
+  const photoLabels =
+    Array.isArray(data.photoRequirements) && data.photoRequirements.length > 0
+      ? data.photoRequirements.map((req, idx) =>
+          typeof req === 'string' ? req : req?.label || req?.name || `Foto ${idx + 1}`
+        )
+      : [
+          'Foto Tampak Unit Keseluruhan',
+          'Foto Nameplate / Identitas Alat',
+          'Foto Pelaksanaan Pemeriksaan Visual',
+          'Foto Pengujian / Pengukuran',
+          'Foto Stiker Uji Riksa K3'
+        ];
 
   const photoTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },

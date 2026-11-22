@@ -36,6 +36,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   // Foto & Temuan
   const [photoFile, setPhotoFile] = useState(null);
   const [photoCaption, setPhotoCaption] = useState('');
+  const [uploadingItemId, setUploadingItemId] = useState('');
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [queuedPhotoCount, setQueuedPhotoCount] = useState(0);
   const [findingForm, setFindingForm] = useState({
@@ -130,7 +131,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         setDraftConclusionNotes(serverConclusionNotes);
         setDraftObjectAttributes(serverAttributes);
         setDraftScopes(initialScopes);
-        setFormStep(user?.role === 'ADMIN_KANTOR' ? 1 : 2);
+        setFormStep(1);
         setLastSavedAt(data.inspection?.updated_at ? new Date(data.inspection.updated_at) : null);
         initSignaturesRef.current?.(data);
         isInitializedRef.current = true;
@@ -191,7 +192,10 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           : initialScopes;
 
       // Langkah tab form
-      const mergedStep = [1, 2].includes(local?.formStep) ? local.formStep : 1;
+      const mergedStep =
+        Number.isInteger(local?.formStep) && local.formStep >= 1 && local.formStep <= 5
+          ? local.formStep
+          : 1;
       if (local?.formStep && local.formStep > 1) {
         isRestoredFromLocal = true;
       }
@@ -649,6 +653,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
 
   const handleUploadItemInlinePhoto = async (itemOrLabel, file, customCaption = '') => {
     if (!activeDetail?.inspection || !file) return;
+    const uploadingId = typeof itemOrLabel === 'object' && itemOrLabel !== null ? itemOrLabel.id : '';
+    setUploadingItemId(uploadingId ? String(uploadingId) : '');
     setSubmitting(true);
     setError('');
     try {
@@ -689,6 +695,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
           'Gagal melampirkan foto butir checklist.'
       );
     } finally {
+      setUploadingItemId('');
       setSubmitting(false);
     }
   };
@@ -783,8 +790,10 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
         results: payloadResults,
         scopeItems: draftScopes,
         objectAttributes: draftObjectAttributes,
-        handoffToWord: true,
-        workPhase: 'FIELD'
+        // Serah-terima Word hanya untuk penyelesaian lapangan; pada mode kantor
+        // backend wajib memvalidasi seluruh butir wajib template.
+        handoffToWord: workPhase === 'FIELD',
+        workPhase
       });
 
       clearLocalDraft(activeDetail.inspection.id);
@@ -849,8 +858,16 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     ['PERWAKILAN_KLIEN', 'PIC_KLIEN'].includes(s.signer_role)
   );
 
+  // Butir wajib yang belum dijawab pada konteks kerja aktif. Mode lapangan boleh
+  // disimpan sebagai progres, mode kantor wajib lengkap sebelum dikirim.
+  const requiredVisibleItems = visibleItems.filter((item) => item.is_required);
+  const missingRequiredItems = requiredVisibleItems.filter(
+    (item) => !isChecklistItemFilled(item, draftResults[item.id], activeDetail?.photos || [])
+  );
+
   const canSubmit =
     Boolean(inspectorSig) &&
+    (workPhase === 'FIELD' || missingRequiredItems.length === 0) &&
     !submitting;
 
   return {
@@ -907,6 +924,8 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
     photosCount,
     inspectorSig,
     clientSig,
+    uploadingItemId,
+    missingRequiredItems,
     canSubmit
   };
 }

@@ -93,11 +93,14 @@ describe('Dynamic LHPP Document Generation Engine', () => {
     );
     const inspectionId = inspInsert.rows[0].id;
 
+    // storage_key bersifat UNIQUE di database; gunakan kunci unik per run agar fixture
+    // tidak bentrok dengan sisa data run sebelumnya.
+    const signatureStorageKey = `sig-${dynSerial}.png`;
     const fileRes = await query(
       `INSERT INTO file_attachments (owner_type, owner_id, storage_key, original_name, mime_type, size_bytes, uploaded_by)
-       VALUES ('INSPECTION_SIGNATURE', $1, 'sig.png', 'sig.png', 'image/png', 100, $2)
+       VALUES ('INSPECTION_SIGNATURE', $1, $2, 'sig.png', 'image/png', 100, $3)
        RETURNING id`,
-      [inspectionId, adminUserId]
+      [inspectionId, signatureStorageKey, adminUserId]
     );
     const fileId = fileRes.rows[0].id;
 

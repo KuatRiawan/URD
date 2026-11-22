@@ -2117,7 +2117,10 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
       ]);
       const resMap = new Map(curResults.map((r) => [r.item_id, r]));
 
-      const isWordHandoff = Boolean(req.body?.handoffToWord || req.body?.workPhase === 'FIELD');
+      // Validasi butir wajib hanya boleh dilewati ketika inspector secara eksplisit
+      // menyerahkan penyusunan tabel ke Word pada fase lapangan. Mode kantor wajib
+      // memenuhi seluruh butir wajib template sebelum form dikirim.
+      const isWordHandoff = Boolean(req.body?.handoffToWord) && req.body?.workPhase === 'FIELD';
       if (!isWordHandoff) {
         for (const reqItem of tplItems.filter((it) => it.is_required)) {
           if (!isConditionalItemActive(reqItem, itemsBySeq, resMap)) continue;
@@ -2598,7 +2601,10 @@ router.get('/:id/lhpp/docx', async (req, res, next) => {
                 t.manufacture_year, t.capacity, t.capacity_unit, t.install_location,
                 t.previous_permit_no, t.attributes AS object_attributes,
                 oc.name AS category_name, oc.code AS category_code,
-                u.full_name AS inspector_name, u.skp_no AS inspector_skp_no
+                u.full_name AS inspector_name,
+                (SELECT ic.certificate_no FROM inspector_competencies ic
+                  WHERE ic.inspector_id = i.inspector_id
+                  ORDER BY ic.valid_until DESC NULLS LAST LIMIT 1) AS inspector_skp_no
          FROM inspections i
          JOIN orders o ON o.id = i.order_id
          JOIN clients c ON c.id = o.client_id
