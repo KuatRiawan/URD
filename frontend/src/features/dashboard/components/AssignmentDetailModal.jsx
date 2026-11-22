@@ -371,7 +371,6 @@ export function AssignmentDetailModal({
                 variant="secondary"
                 size="sm"
                 icon={FilePdf}
-                className="min-h-9"
                 onClick={handlePreviewLetter}
               >
                 Pratinjau Surat Tugas
@@ -380,7 +379,6 @@ export function AssignmentDetailModal({
                 type="button"
                 variant="primary"
                 size="sm"
-                className="min-h-9"
                 disabled={downloadingLetter}
                 loading={downloadingLetter}
                 onClick={handleDownloadLetter}

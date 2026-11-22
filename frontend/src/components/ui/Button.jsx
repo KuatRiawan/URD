@@ -20,8 +20,8 @@ export const VARIANTS = {
 };
 
 export const SIZES = {
-  xs: 'h-8 px-2.5 text-xs font-semibold gap-1.5 rounded-[8px]',
-  sm: 'h-8.5 px-3 text-xs font-semibold gap-1.5 rounded-[9px]',
+  xs: 'h-9 px-2.5 text-xs font-semibold gap-1.5 rounded-[8px]',
+  sm: 'h-9 px-3 text-xs font-semibold gap-1.5 rounded-[9px]',
   md: 'h-9.5 px-3.5 text-xs font-semibold gap-1.5 rounded-[10px]',
   lg: 'h-10 px-4 text-sm font-semibold gap-2 rounded-[10px]',
   touch: 'min-h-[44px] px-4 text-sm font-semibold gap-2 rounded-xl',

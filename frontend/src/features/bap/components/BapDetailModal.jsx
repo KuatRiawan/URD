@@ -244,7 +244,7 @@ export function BapDetailModal({
                     size="xs"
                     icon={isEditingInfo ? CheckCircle : PencilSimple}
                     onClick={() => setIsEditingInfo(!isEditingInfo)}
-                    className="shrink-0 whitespace-nowrap min-h-9"
+                    className="shrink-0 whitespace-nowrap"
                   >
                     {isEditingInfo ? 'Selesai Edit' : 'Edit Informasi'}
                   </Button>
@@ -607,7 +607,6 @@ export function BapDetailModal({
                     size="sm"
                     disabled={submitting}
                     loading={submitting}
-                    className="min-h-9"
                   >
                     Simpan Perubahan Dokumen BAP
                   </Button>
@@ -675,7 +674,6 @@ export function BapDetailModal({
                       variant="outline"
                       size="xs"
                       icon={Eraser}
-                      className="min-h-9"
                       onClick={() => {
                         setIsReSigningPic(true);
                         setHasDrawn(false);
@@ -765,7 +763,6 @@ export function BapDetailModal({
                     icon={PenNib}
                     disabled={submitting || !hasDrawn}
                     loading={submitting}
-                    className="min-h-9"
                   >
                     Simpan Tanda Tangan PIC
                   </Button>
@@ -790,7 +787,7 @@ export function BapDetailModal({
                 size="sm"
                 icon={FilePdf}
                 onClick={() => handleDownloadPdf(selectedBap.id, form.bap_no || selectedBap.bap_no)}
-                className="flex-1 justify-center whitespace-nowrap text-xs min-h-9"
+                className="flex-1 justify-center whitespace-nowrap text-xs"
               >
                 Unduh PDF
               </Button>
@@ -800,7 +797,7 @@ export function BapDetailModal({
                 size="sm"
                 icon={Eye}
                 onClick={handleTriggerPreview}
-                className="flex-1 justify-center whitespace-nowrap text-xs min-h-9"
+                className="flex-1 justify-center whitespace-nowrap text-xs"
               >
                 Pratinjau
               </Button>
@@ -811,7 +808,7 @@ export function BapDetailModal({
                   size="sm"
                   icon={ShareNetwork}
                   onClick={() => onShareBap(selectedBap)}
-                  className="flex-1 justify-center whitespace-nowrap text-xs min-h-9"
+                  className="flex-1 justify-center whitespace-nowrap text-xs"
                 >
                   Bagikan
                 </Button>
@@ -853,7 +850,7 @@ export function BapDetailModal({
                   disabled={submitting}
                   loading={submitting}
                   onClick={handleFinalizeBap}
-                  className="w-full justify-center text-xs min-h-9"
+                  className="w-full justify-center text-xs"
                 >
                   Finalisasi &amp; Kunci Berita Acara Riksa Uji (BAP)
                 </Button>
