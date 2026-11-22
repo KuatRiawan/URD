@@ -25,8 +25,8 @@ export const SIZES = {
   md: 'h-9.5 px-3.5 text-xs font-semibold gap-1.5 rounded-[10px]',
   lg: 'h-10 px-4 text-sm font-semibold gap-2 rounded-[10px]',
   touch: 'min-h-[44px] px-4 text-sm font-semibold gap-2 rounded-xl',
-  'icon-xs': 'h-8 w-8 p-0 rounded-[8px]',
-  'icon-sm': 'h-8.5 w-8.5 p-0 rounded-[9px]',
+  'icon-xs': 'h-9 w-9 p-0 rounded-[8px]',
+  'icon-sm': 'h-9 w-9 p-0 rounded-[9px]',
   'icon-md': 'h-9.5 w-9.5 p-0 rounded-[10px]',
   'icon-lg': 'h-10 w-10 p-0 rounded-[10px]',
   'icon-touch': 'min-h-[44px] min-w-[44px] p-0 rounded-xl'
