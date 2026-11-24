@@ -13,7 +13,8 @@ import {
   buildItemsBySeqMap,
   buildInspectionResultPayload,
   isChecklistItemFilled,
-  isConditionalItemVisible
+  isConditionalItemVisible,
+  isFieldRelevantItem
 } from '../utils/checklistUtils.js';
 
 export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }) {
@@ -844,8 +845,13 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   const visibleItems = (activeDetail?.items || []).filter((item) =>
     isConditionalItemVisible(item, itemsBySeq, draftResults)
   );
-  const totalItems = visibleItems.length;
-  const evaluatedItems = visibleItems.filter((item) =>
+  // Progres harus mengikuti butir yang benar-benar tampil pada fase aktif.
+  // Tanpa filter ini navigasi menampilkan "x/40 butir" sementara daftar lapangan
+  // hanya berisi 18 butir, sehingga inspector mengira pekerjaannya belum lengkap.
+  const phaseVisibleItems =
+    workPhase === 'FIELD' ? visibleItems.filter(isFieldRelevantItem) : visibleItems;
+  const totalItems = phaseVisibleItems.length;
+  const evaluatedItems = phaseVisibleItems.filter((item) =>
     isChecklistItemFilled(item, draftResults[item.id], activeDetail?.photos || [])
   ).length;
   const missingItems = Math.max(0, totalItems - evaluatedItems);
@@ -860,7 +866,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
 
   // Butir wajib yang belum dijawab pada konteks kerja aktif. Mode lapangan boleh
   // disimpan sebagai progres, mode kantor wajib lengkap sebelum dikirim.
-  const requiredVisibleItems = visibleItems.filter((item) => item.is_required);
+  const requiredVisibleItems = phaseVisibleItems.filter((item) => item.is_required);
   const missingRequiredItems = requiredVisibleItems.filter(
     (item) => !isChecklistItemFilled(item, draftResults[item.id], activeDetail?.photos || [])
   );

@@ -1435,7 +1435,8 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
       results,
       scopeItems,
       inspectionDate,
-      prepareBapDraft
+      prepareBapDraft,
+      workPhase
     } = req.body;
 
     const updatedResult = await withTransaction(async (db) => {
@@ -1545,10 +1546,16 @@ router.put('/:id/draft', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), vali
         `UPDATE inspections
          SET conclusion = COALESCE(NULLIF($1, ''), conclusion),
              conclusion_notes = COALESCE($2, conclusion_notes),
+             work_phase = COALESCE($4, work_phase),
              updated_at = now()
          WHERE id = $3
          RETURNING *`,
-        [conclusion || null, conclusionNotes !== undefined ? conclusionNotes : null, id]
+        [
+          conclusion || null,
+          conclusionNotes !== undefined ? conclusionNotes : null,
+          id,
+          workPhase || null
+        ]
       );
 
       let preparedBap = null;
@@ -2007,6 +2014,18 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
 
       const insp = await assertEditableInspection(db, id, req.user);
 
+      // Fase kerja yang dikirim klien disimpan agar status Lapangan/Kantor tetap
+      // konsisten saat formulir dibuka kembali di perangkat lain, dan agar fase
+      // yang dipakai validasi di bawah bukan sekadar klaim satu request.
+      const requestedPhase = req.body?.workPhase === 'OFFICE' ? 'OFFICE' : req.body?.workPhase === 'FIELD' ? 'FIELD' : null;
+      if (requestedPhase && insp.work_phase !== requestedPhase) {
+        await db.query(
+          'UPDATE inspections SET work_phase = $1, updated_at = now() WHERE id = $2',
+          [requestedPhase, id]
+        );
+        insp.work_phase = requestedPhase;
+      }
+
       // Simpan kesimpulan dan catatan jika disertakan langsung pada payload kirim
       if (req.body?.conclusion) {
         await db.query(
@@ -2120,7 +2139,7 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
       // Validasi butir wajib hanya boleh dilewati ketika inspector secara eksplisit
       // menyerahkan penyusunan tabel ke Word pada fase lapangan. Mode kantor wajib
       // memenuhi seluruh butir wajib template sebelum form dikirim.
-      const isWordHandoff = Boolean(req.body?.handoffToWord) && req.body?.workPhase === 'FIELD';
+      const isWordHandoff = Boolean(req.body?.handoffToWord) && insp.work_phase === 'FIELD';
       if (!isWordHandoff) {
         for (const reqItem of tplItems.filter((it) => it.is_required)) {
           if (!isConditionalItemActive(reqItem, itemsBySeq, resMap)) continue;
@@ -2160,10 +2179,14 @@ router.post('/:id/submit', authorize('AHLI_K3', 'INSPECTOR', 'ADMIN_SISTEM'), as
 
       const { rows: lockedRows } = await db.query(
         `UPDATE inspections
-         SET status = 'TERKIRIM', submitted_at = now(), updated_at = now()
+         SET status = 'TERKIRIM',
+             submitted_at = now(),
+             work_phase = COALESCE($2, work_phase),
+             word_handoff_at = CASE WHEN $3 THEN now() ELSE word_handoff_at END,
+             updated_at = now()
          WHERE id = $1
          RETURNING *`,
-        [id]
+        [id, insp.work_phase || null, isWordHandoff]
       );
 
       // Ambil ruang lingkup BAP dari order_objects atau default kategori objek

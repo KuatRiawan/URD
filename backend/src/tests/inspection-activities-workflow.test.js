@@ -384,4 +384,62 @@ describe('Aktivitas Pemeriksaan Mandiri, Persetujuan Jadwal & BAP Awal', () => {
     expect(history.some((h) => h.action === 'RETURNED')).toBe(true);
     expect(history.some((h) => h.action === 'SUBMIT_FINALIZATION')).toBe(true);
   });
+
+  it('menyimpan fase kerja Lapangan/Kantor di server dan menegakkan validasi mode kantor', async () => {
+    const khusus = (await activityByType(orderId, 'KHUSUS'))[0];
+    const { rows } = await query('SELECT id FROM inspections WHERE activity_id = $1', [khusus.id]);
+    const inspectionId = rows[0].id;
+
+    // Fase awal draf adalah lapangan, dan nilainya datang dari server (bukan localStorage).
+    const initial = await request(app)
+      .get(`/api/v1/inspections/${inspectionId}`)
+      .set(auth(inspectorToken));
+    expect(initial.status).toBe(200);
+    expect(initial.body.inspection.work_phase).toBe('FIELD');
+
+    // Fase kantor yang dipilih inspector harus bertahan setelah draf disimpan.
+    const saved = await request(app)
+      .put(`/api/v1/inspections/${inspectionId}/draft`)
+      .set(auth(inspectorToken))
+      .send({ workPhase: 'OFFICE' });
+    expect(saved.status).toBe(200);
+
+    const office = await request(app)
+      .get(`/api/v1/inspections/${inspectionId}`)
+      .set(auth(inspectorToken));
+    expect(office.body.inspection.work_phase).toBe('OFFICE');
+
+    // Mode kantor wajib lengkap: klaim handoffToWord tidak boleh melewati validasi.
+    const requiredItems = office.body.items.filter((item) => item.is_required);
+    const blocked = await request(app)
+      .post(`/api/v1/inspections/${inspectionId}/submit`)
+      .set(auth(inspectorToken))
+      .send({ conclusion: 'MEMENUHI_SYARAT', workPhase: 'OFFICE', handoffToWord: true });
+    expect(blocked.status).toBe(400);
+    expect(blocked.body.error.code).toBe(
+      requiredItems.length > 0 ? 'INCOMPLETE_FORM' : 'SIGNATURES_REQUIRED'
+    );
+
+    // Fase lapangan dengan serah-terima Word memang boleh melewati butir tabel,
+    // tetapi tetap berhenti pada validasi tanda tangan dan tercatat sebagai FIELD.
+    const backToField = await request(app)
+      .put(`/api/v1/inspections/${inspectionId}/draft`)
+      .set(auth(inspectorToken))
+      .send({ workPhase: 'FIELD' });
+    expect(backToField.status).toBe(200);
+
+    const handoff = await request(app)
+      .post(`/api/v1/inspections/${inspectionId}/submit`)
+      .set(auth(inspectorToken))
+      .send({ conclusion: 'MEMENUHI_SYARAT', workPhase: 'FIELD', handoffToWord: true });
+    expect(handoff.status).toBe(400);
+    expect(handoff.body.error.code).toBe('SIGNATURES_REQUIRED');
+
+    const { rows: stateRows } = await query(
+      'SELECT work_phase, word_handoff_at FROM inspections WHERE id = $1',
+      [inspectionId]
+    );
+    expect(stateRows[0].work_phase).toBe('FIELD');
+    expect(stateRows[0].word_handoff_at).toBeNull();
+  });
 });

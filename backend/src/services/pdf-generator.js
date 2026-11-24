@@ -246,7 +246,7 @@ function renderSingleBapPage(doc, bap, companyProfile = null) {
     ],
     [
       'Lokasi Pemeriksaan',
-      `${bap.install_location || bap.location_name || '-'}${bap.po_number ? ` (PO: ${bap.po_number})` : ''}`
+      `${dashText(bap.install_location, bap.location_name)}${bap.po_number ? ` (PO: ${bap.po_number})` : ''}`
     ]
   ];
 
@@ -820,6 +820,18 @@ function hasReportValue(value) {
   return value !== null && value !== undefined && String(value).trim() !== '';
 }
 
+/**
+ * Nilai teks pertama yang benar-benar terisi (spasi saja dianggap kosong),
+ * atau '-' bila semuanya kosong. Dipakai field lokasi agar nilai kosong tidak
+ * tercetak sebagai spasi kosong di dokumen.
+ */
+function dashText(...values) {
+  for (const value of values) {
+    if (hasReportValue(value)) return String(value).trim();
+  }
+  return '-';
+}
+
 const LEGACY_GENERATED_LHPP_VALUES = new Set([
   'sesuai hasil pemeriksaan dan pengujian lapangan',
   'hasil pemeriksaan teknis sesuai bap.',
@@ -853,31 +865,34 @@ export function buildLhppReportContent(inputData) {
     try {
       const snap = typeof data.data_snapshot === 'string' ? JSON.parse(data.data_snapshot) : data.data_snapshot;
       if (snap && typeof snap === 'object') {
+        // Snapshot dokumen final bersifat otoritatif: nilai yang kosong saat
+        // finalisasi harus tetap kosong. Fallback ke data live hanya dipakai bila
+        // kunci tidak ada pada snapshot lama, bukan ketika nilainya kosong.
         data = {
           ...data,
-          client_name: snap.client?.name || data.client_name,
-          client_address: snap.client?.address || data.client_address,
-          serial_number: snap.equipment?.serial_number || data.serial_number,
-          object_name: snap.equipment?.name || data.object_name,
-          brand: snap.equipment?.brand || data.brand,
-          model: snap.equipment?.model || data.model,
-          manufacturer: snap.equipment?.manufacturer || data.manufacturer,
-          manufacture_year: snap.equipment?.manufacture_year || data.manufacture_year,
-          capacity: snap.equipment?.capacity || data.capacity,
-          install_location: snap.equipment?.install_location || data.install_location,
-          technical_data: snap.equipment?.technical_data || data.technical_data,
-          inspector_name: snap.inspection?.inspector_name || data.inspector_name,
-          inspection_date: snap.inspection?.inspected_at || data.inspection_date,
-          conclusion: snap.inspection?.conclusion || data.conclusion,
-          conclusion_notes: snap.inspection?.conclusion_notes || data.conclusion_notes,
-          method_summary: snap.inspection?.method_summary || data.method_summary,
-          technical_notes: snap.inspection?.technical_notes || data.technical_notes,
-          recommendations: snap.inspection?.recommendations || data.recommendations,
-          recommended_valid_until: snap.inspection?.recommended_valid_until || data.recommended_valid_until,
-          results: snap.results || data.results,
-          findings: snap.findings || data.findings,
-          template_version_title: snap.template_version?.title || data.template_version_title,
-          template_regulation_reference: snap.template_version?.regulation_reference || data.template_regulation_reference
+          client_name: snap.client?.name ?? data.client_name,
+          client_address: snap.client?.address ?? data.client_address,
+          serial_number: snap.equipment?.serial_number ?? data.serial_number,
+          object_name: snap.equipment?.name ?? data.object_name,
+          brand: snap.equipment?.brand ?? data.brand,
+          model: snap.equipment?.model ?? data.model,
+          manufacturer: snap.equipment?.manufacturer ?? data.manufacturer,
+          manufacture_year: snap.equipment?.manufacture_year ?? data.manufacture_year,
+          capacity: snap.equipment?.capacity ?? data.capacity,
+          install_location: snap.equipment?.install_location ?? data.install_location,
+          technical_data: snap.equipment?.technical_data ?? data.technical_data,
+          inspector_name: snap.inspection?.inspector_name ?? data.inspector_name,
+          inspection_date: snap.inspection?.inspected_at ?? data.inspection_date,
+          conclusion: snap.inspection?.conclusion ?? data.conclusion,
+          conclusion_notes: snap.inspection?.conclusion_notes ?? data.conclusion_notes,
+          method_summary: snap.inspection?.method_summary ?? data.method_summary,
+          technical_notes: snap.inspection?.technical_notes ?? data.technical_notes,
+          recommendations: snap.inspection?.recommendations ?? data.recommendations,
+          recommended_valid_until: snap.inspection?.recommended_valid_until ?? data.recommended_valid_until,
+          results: snap.results ?? data.results,
+          findings: snap.findings ?? data.findings,
+          template_version_title: snap.template_version?.title ?? data.template_version_title,
+          template_regulation_reference: snap.template_version?.regulation_reference ?? data.template_regulation_reference
         };
       }
     } catch {
@@ -2388,7 +2403,7 @@ function renderForklift(c, report, data, ctx) {
     ['Pemakai', v(/pemakai/i, data.client_name)],
     ['Alamat', v(/alamat.*pemakai/i, data.client_address)],
     ['Pengurus / Penanggung Jawab', v(/pengurus|penanggung/i, data.contact_name || '-')],
-    ['Lokasi Unit', v(/lokasi/i, data.install_location || '-')],
+    ['Lokasi Unit', v(/lokasi/i, dashText(data.install_location))],
     ['Jenis Pesawat', v(/jenis pesawat/i, data.object_name || 'Forklift')],
     ['Nomor Seri Unit', v(/nomor seri/i, data.serial_number || '-')],
     ['Merk / Model', v(/merk|model/i, [data.brand, data.model].filter(Boolean).join(' / ') || '-')],
@@ -3497,6 +3512,8 @@ export async function generateAssignmentLetterPdfBuffer(data) {
       )
       .moveDown(0.5);
 
+    const assignmentLocation = String(data.location_name || '').trim();
+    const assignmentLocationAddress = String(data.location_address || '').trim();
     doc
       .font('Helvetica-Bold')
       .text('Klien : ', { continued: true })
@@ -3506,9 +3523,9 @@ export async function generateAssignmentLetterPdfBuffer(data) {
       .text('Lokasi : ', { continued: true })
       .font('Helvetica')
       .text(
-        data.location_name
-          ? `${data.location_name} (${data.location_address || ''})`
-          : data.client_address || '-'
+        assignmentLocation
+          ? `${assignmentLocation}${assignmentLocationAddress ? ` (${assignmentLocationAddress})` : ''}`
+          : dashText(data.client_address)
       )
       .font('Helvetica-Bold')
       .text('Kontak PIC : ', { continued: true })
@@ -3865,7 +3882,7 @@ export async function generateRecommendationLetterPdfBuffer(data) {
 
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0F172A');
     doc.text(`Perusahaan Klien : ${data.client_name || '-'}`, 55, boxY + 8);
-    doc.text(`Lokasi Unit      : ${data.install_location || data.location_address || '-'}`, 55, boxY + 22);
+    doc.text(`Lokasi Unit      : ${dashText(data.install_location, data.location_address)}`, 55, boxY + 22);
     doc.text(`Nama Objek Alat  : ${data.object_name || data.name || '-'}`, 55, boxY + 36);
     doc.text(`Nomor Seri       : ${data.serial_number || '-'}`, 55, boxY + 50);
 

@@ -315,4 +315,27 @@ describe('LHPP PDF template output', () => {
       expect(docx.length).toBeGreaterThan(2000);
     });
   });
+
+  describe('snapshot dokumen LHPP final', () => {
+    it('tidak mengambil catatan live yang ditambahkan setelah dokumen difinalisasi', () => {
+      const report = buildLhppReportContent({
+        ...reportData,
+        conclusion_notes: 'Catatan baru yang ditambahkan setelah dokumen final',
+        data_snapshot: {
+          client: { name: reportData.client_name, address: reportData.client_address },
+          equipment: {
+            name: reportData.object_name,
+            serial_number: reportData.serial_number,
+            install_location: ''
+          },
+          inspection: { conclusion_notes: '', inspected_at: '2026-01-01T00:00:00.000Z' },
+          results: [],
+          findings: []
+        }
+      });
+
+      // Nilai kosong pada snapshot tetap kosong; tidak diganti data terkini.
+      expect(report.conclusionNotes).toBe('-');
+    });
+  });
 });

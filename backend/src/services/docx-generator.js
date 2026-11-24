@@ -2422,6 +2422,18 @@ function buildGenericDocxDocument(data, report, companyProfile) {
 }
 
 /**
+ * Nilai teks pertama yang benar-benar terisi (spasi saja dianggap kosong),
+ * atau '-' bila semuanya kosong.
+ */
+function dashText(...values) {
+  for (const value of values) {
+    const text = value === null || value === undefined ? '' : String(value).trim();
+    if (text) return text;
+  }
+  return '-';
+}
+
+/**
  * Entrypoint: Generate Laporan Hasil Pemeriksaan dan Pengujian (LHPP) DOCX Buffer
  */
 export async function generateLhppDocxBuffer(data) {
@@ -2571,7 +2583,7 @@ export async function generateBapDocxBuffer(bap) {
     ['Alamat Perusahaan', bap.client_address || bap.location_address || '-'],
     ['Pabrik Pembuat / Tahun', `${bap.manufacturer || bap.brand || '-'} / ${bap.manufacture_year || '-'}`],
     ['Nomor Seri / Kapasitas', `${bap.serial_number || '-'} / ${capText}`],
-    ['Lokasi Pemeriksaan', `${bap.install_location || bap.location_name || '-'}${bap.po_number ? ` (PO: ${bap.po_number})` : ''}`],
+    ['Lokasi Pemeriksaan', `${dashText(bap.install_location, bap.location_name)}${bap.po_number ? ` (PO: ${bap.po_number})` : ''}`],
     ['Jenis Riksa Uji', bap.inspection_type || bap.service_type || 'Berkala'],
     ['Ahli K3 / Inspector', bap.inspector_signer_name || bap.inspector_name || '-']
   ].map(
