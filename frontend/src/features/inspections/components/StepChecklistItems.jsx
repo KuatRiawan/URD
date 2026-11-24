@@ -11,9 +11,9 @@ import {
 import {
   buildItemsBySeqMap,
   doesPhotoMatchItem,
+  filterItemsForPhase,
   isChecklistItemFilled,
   isConditionalItemVisible,
-  isFieldRelevantItem,
   normalizeInputType,
   parseMultiSelectValue,
   parseSelectOptions,
@@ -252,7 +252,7 @@ export function StepChecklistItems({
   );
 
   const phaseItems = useMemo(
-    () => (workPhase === 'FIELD' ? visibleItems.filter(isFieldRelevantItem) : visibleItems),
+    () => filterItemsForPhase(visibleItems, workPhase),
     [visibleItems, workPhase]
   );
 

@@ -332,6 +332,11 @@ export function isFieldRelevantItem(item) {
   return FIELD_RELEVANT_KEYWORDS.some((kw) => haystack.includes(kw));
 }
 
+/** Butir yang berlaku pada fase kerja aktif inspector. */
+export function filterItemsForPhase(items = [], workPhase = 'OFFICE') {
+  return workPhase === 'FIELD' ? items.filter(isFieldRelevantItem) : items;
+}
+
 /**
  * Compute completion & conformity counters for a checklist section.
  */

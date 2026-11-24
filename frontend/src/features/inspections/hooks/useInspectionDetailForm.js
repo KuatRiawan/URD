@@ -12,9 +12,9 @@ import { useInspectionSignatures } from './useInspectionSignatures.js';
 import {
   buildItemsBySeqMap,
   buildInspectionResultPayload,
+  filterItemsForPhase,
   isChecklistItemFilled,
-  isConditionalItemVisible,
-  isFieldRelevantItem
+  isConditionalItemVisible
 } from '../utils/checklistUtils.js';
 
 export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }) {
@@ -848,8 +848,7 @@ export function useInspectionDetailForm({ inspectionId, user, onSaved, confirm }
   // Progres harus mengikuti butir yang benar-benar tampil pada fase aktif.
   // Tanpa filter ini navigasi menampilkan "x/40 butir" sementara daftar lapangan
   // hanya berisi 18 butir, sehingga inspector mengira pekerjaannya belum lengkap.
-  const phaseVisibleItems =
-    workPhase === 'FIELD' ? visibleItems.filter(isFieldRelevantItem) : visibleItems;
+  const phaseVisibleItems = filterItemsForPhase(visibleItems, workPhase);
   const totalItems = phaseVisibleItems.length;
   const evaluatedItems = phaseVisibleItems.filter((item) =>
     isChecklistItemFilled(item, draftResults[item.id], activeDetail?.photos || [])
