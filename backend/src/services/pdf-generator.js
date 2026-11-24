@@ -2163,7 +2163,9 @@ function drawConclusionSection(c, report, data, o = {}) {
   // Lokasi pemasangan berasal dari data objek. Bila belum diisi, jangan cetak
   // "lokasi -": tanda hubung itu terbaca sebagai nama lokasi sungguhan. Klausa
   // lokasi disembunyikan, bukan diganti alamat karangan.
-  const unitLocation = fieldOf(data, 'install_location');
+  // Nilai berisi spasi saja juga dianggap kosong: fieldOf() mengembalikan '-'
+  // untuk nilai kosong, dan trim() mencegah spasi ganda saat lokasi terisi.
+  const unitLocation = String(fieldOf(data, 'install_location')).trim();
   const clientName = String(data.client_name || '').trim();
   const locationParts =
     unitLocation !== '-'

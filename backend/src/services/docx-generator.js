@@ -428,10 +428,12 @@ function buildForkliftDocxDocument(data, report, _companyProfile) {
   };
 
   // General field values
-  const clientName = data.client_name || data.customer_name || data.company_name || '';
+  // Nilai berisi spasi saja harus dianggap kosong agar placeholder/klausa tidak
+  // mencetak teks kosong yang terlihat seperti data terisi.
+  const clientName = String(data.client_name || data.customer_name || data.company_name || '').trim();
   const clientAddress = data.client_address || data.company_address || '';
   const picName = data.pic_name || data.user_name || data.pic || '';
-  const location = data.install_location || data.location || '';
+  const location = String(data.install_location || data.location || '').trim();
   const serialNo = data.serial_number || data.no_seri || '';
   const brandModel = data.brand_model || (data.brand && data.model ? `${data.brand} / ${data.model}` : (data.brand || data.model || ''));
   const yearStr = data.manufacture_year || data.manufacturing_year || data.year || '';
