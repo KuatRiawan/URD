@@ -2160,6 +2160,20 @@ function drawConclusionSection(c, report, data, o = {}) {
     : verdictUpper.includes('CATATAN')
     ? 'MEMENUHI PERSYARATAN K3 DENGAN CATATAN'
     : 'MEMENUHI PERSYARATAN K3';
+  // Lokasi pemasangan berasal dari data objek. Bila belum diisi, jangan cetak
+  // "lokasi -": tanda hubung itu terbaca sebagai nama lokasi sungguhan. Klausa
+  // lokasi disembunyikan, bukan diganti alamat karangan.
+  const unitLocation = fieldOf(data, 'install_location');
+  const clientName = String(data.client_name || '').trim();
+  const locationParts =
+    unitLocation !== '-'
+      ? [
+          { t: '. Unit berada pada lokasi ' },
+          { t: [unitLocation, clientName].filter(Boolean).join(' '), b: true }
+        ]
+      : clientName
+      ? [{ t: '. Unit berada pada ' }, { t: clientName, b: true }]
+      : [];
   const parts = [
     { t: o.lead ?? 'Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa ' },
     { t: `${data.object_name || report.categoryName}`, b: true },
@@ -2169,8 +2183,7 @@ function drawConclusionSection(c, report, data, o = {}) {
     { t: fieldOf(data, 'capacity', 'swl', 'kapasitas_daya', 'kapasitas_volume'), b: true },
     { t: ', dinyatakan ' },
     { t: verdictText, b: true },
-    { t: '. Unit berada pada lokasi ' },
-    { t: `${fieldOf(data, 'install_location')} ${data.client_name || ''}`.trim(), b: true },
+    ...locationParts,
     { t: ' dengan wajib memenuhi rekomendasi serta syarat-syarat K3 sebagai berikut:' }
   ];
   drawRichParagraph(c, o.parts || parts, { indent: 28.3, pitch: 20.7 });

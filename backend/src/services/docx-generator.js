@@ -1449,6 +1449,18 @@ function buildForkliftDocxDocument(data, report, _companyProfile) {
     new Paragraph({ children: [new PageBreak()] })
   );
 
+  // Lokasi pemasangan berasal dari data objek. Bila kosong, jangan cetak
+  // "lokasi -, -": tanda hubung itu terbaca sebagai nama lokasi sungguhan.
+  // Klausa lokasi disembunyikan, bukan diganti alamat karangan.
+  const locationClause =
+    location && clientName
+      ? `. Unit berada pada lokasi ${location} ${clientName}`
+      : location
+      ? `. Unit berada pada lokasi ${location}`
+      : clientName
+      ? `. Unit berada pada ${clientName}`
+      : '';
+
   // ===========================================================================
   // PAGE 11: BAB VI. KESIMPULAN & BAB VII. SYARAT-SYARAT & TTD
   // ===========================================================================
@@ -1470,7 +1482,7 @@ function buildForkliftDocxDocument(data, report, _companyProfile) {
         new TextRun({
           text: isBlank
             ? '        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa Forklift, dengan Nomor Seri : ...................., Tahun : ...................., Kapasitas : ...................., dinyatakan ......................................... Unit dapat digunakan dengan mengikuti rekomendasi dan syarat-syarat keselamatan kerja yang berlaku.'
-            : `        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa ${data.object_name || 'Forklift'}, dengan Nomor Seri : ${serialNo || '-'}, Tahun : ${yearStr || '-'}, Kapasitas : ${capacityStr || '-'}, dinyatakan ${verdictPhrase}. Unit berada pada lokasi ${location || '-'}, ${clientName || '-'} dengan wajib mengikuti rekomendasi dan syarat-syarat keselamatan kerja berikut:`,
+            : `        Atas dasar hasil pemeriksaan dan pengujian tersebut di atas, maka dapat disimpulkan bahwa ${data.object_name || 'Forklift'}, dengan Nomor Seri : ${serialNo || '-'}, Tahun : ${yearStr || '-'}, Kapasitas : ${capacityStr || '-'}, dinyatakan ${verdictPhrase}${locationClause} dengan wajib mengikuti rekomendasi dan syarat-syarat keselamatan kerja berikut:`,
           size: 22,
           font: 'Times New Roman'
         })
